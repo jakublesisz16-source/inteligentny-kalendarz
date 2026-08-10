@@ -4,6 +4,8 @@ on:
   pull_request:
     branches: ["main"]
     types: [opened, synchronize, reopened]
+    paths:
+      - ".release_payload/READY"
 
 permissions:
   contents: write
@@ -19,50 +21,38 @@ jobs:
           ref: ${{ github.head_ref }}
           fetch-depth: 0
 
-      - name: Build exact final tree
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Materialize and verify exact public artifact
         shell: bash
         run: |
           set -euo pipefail
-          cat .release_payload/manifest.part01.json .release_payload/manifest.part02.json > /tmp/manifest.json
-          git fetch origin agent/final-lock-1.0.0
-          git show FETCH_HEAD:package.json > /tmp/package.json
-          git show FETCH_HEAD:package-lock.json > /tmp/package-lock.json
-          python - <<'PY'
-          import json, subprocess
-          manifest = json.load(open('/tmp/manifest.json', encoding='utf-8'))
-          keep = {entry['path'] for entry in manifest}
-          tracked = subprocess.check_output(['git', 'ls-files'], text=True).splitlines()
-          for path in tracked:
-              if path.startswith('.release_payload/') or path == '.github/workflows/materialize-release.yml':
-                  continue
-              if path not in keep:
-                  subprocess.run(['git', 'rm', '-f', '--ignore-unmatch', '--', path], check=True)
-          PY
-          tar -xzf .release_payload/overlay.tar.gz -C .
-          cp /tmp/package.json package.json
-          cp /tmp/package-lock.json package-lock.json
-          rm -rf .release_payload
-          rm -f .github/workflows/materialize-release.yml
-          python - <<'PY'
-          import json, pathlib, subprocess
-          manifest = json.load(open('/tmp/manifest.json', encoding='utf-8'))
-          expected = {entry['path']: entry['git_sha1'] for entry in manifest}
-          for path, wanted_sha in expected.items():
-              file_path = pathlib.Path(path)
-              if not file_path.is_file():
-                  raise SystemExit(f'MISSING {path}')
-              actual_sha = subprocess.check_output(['git', 'hash-object', '--', path], text=True).strip()
-              if actual_sha != wanted_sha:
-                  raise SystemExit(f'HASH_MISMATCH {path} expected={wanted_sha} actual={actual_sha}')
-          actual_files = {path.as_posix() for path in pathlib.Path('.').rglob('*') if path.is_file() and '.git' not in path.parts}
-          extras = sorted(actual_files - set(expected))
-          missing = sorted(set(expected) - actual_files)
-          if extras:
-              raise SystemExit('EXTRA_FILES ' + ','.join(extras))
-          if missing:
-              raise SystemExit('MISSING_FILES ' + ','.join(missing))
-          print(f'FINAL_TREE_VERIFIED {len(expected)} files')
-          PY
+          cat .release_payload/zip.part*.b64 | tr -d '\n\r ' | base64 -d > /tmp/IK_1.0.0_PUBLIC.zip
+          echo "5a8737e30333b8022be837447e88847056905a3ece0b01b32e5ea64d513f9097  /tmp/IK_1.0.0_PUBLIC.zip" | sha256sum -c -
+
+          find . -mindepth 1 -maxdepth 1 ! -name '.git' -exec rm -rf {} +
+          unzip -q /tmp/IK_1.0.0_PUBLIC.zip -d .
+
+          test "$(find . -type f ! -path './.git/*' | wc -l)" -eq 189
+          test ! -e _PRIVATE_HISTORY
+          test ! -e worker
+          test ! -e wrangler.jsonc
+          test ! -e .env.example
+          test ! -e .dev.vars.example
+          test ! -e .release_payload
+          test ! -e .github/workflows/materialize-release.yml
+          grep -q '"version": "1.0.0"' package.json
+          grep -q "APP_VERSION = '1.0.0'" src/core/version.ts
+          grep -q 'DATABASE_SCHEMA_VERSION = 12' src/core/version.ts
+          grep -q 'inteligentny-kalendarz-shell-v1.0.0' public/service-worker.js
+
+          npm ci
+          npm run check
+          npm audit --audit-level=high
+
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
