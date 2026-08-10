@@ -1,0 +1,368 @@
+opping.utils.ts",
+    "git_sha1": "c042303456b62336d7d180eeb34d6fa2edafd097"
+  },
+  {
+    "path": "src/storage/database.ts",
+    "git_sha1": "22b10bc3a906761d632d196484b9e6bb1aaab5be"
+  },
+  {
+    "path": "src/storage/persistence.ts",
+    "git_sha1": "4954dc40fe2547cf1b553caca64a6a3b76a4f3ff"
+  },
+  {
+    "path": "src/study/ScheduleDiffView.tsx",
+    "git_sha1": "9833ffacad213a09bb4a8f648716a5a981ccf38b"
+  },
+  {
+    "path": "src/study/StudyEventCorrection.tsx",
+    "git_sha1": "16b0d70c9b78ce05ae5c5c36878d83733ade7e7f"
+  },
+  {
+    "path": "src/study/StudyGroupPreviewPanel.tsx",
+    "git_sha1": "ba75cfb56e125318050a7e7c787f50973a81e64f"
+  },
+  {
+    "path": "src/study/StudyPreviewCalendar.tsx",
+    "git_sha1": "1fb1981313d5306e6d9721a911e924cf50ff5ee2"
+  },
+  {
+    "path": "src/study/StudyProfileSettings.tsx",
+    "git_sha1": "e20ae365b1cb93c24d98a4f01b66bff50745561f"
+  },
+  {
+    "path": "src/study/StudyView.tsx",
+    "git_sha1": "b2999b58fd8b52e04f3cb78fa5170a931d971c8b"
+  },
+  {
+    "path": "src/study/import-review.ts",
+    "git_sha1": "8cf8041836a2b0d4ae2de0475defe384ebad01d9"
+  },
+  {
+    "path": "src/study/study-corrections.ts",
+    "git_sha1": "a781a78e7cf889ad6e8df113fa04117531817bc9"
+  },
+  {
+    "path": "src/study/study-diff.ts",
+    "git_sha1": "91b44e386f795baccffa012553629351d2f0bccb"
+  },
+  {
+    "path": "src/study/study-identity.ts",
+    "git_sha1": "85c754292c25030a4699768364f41c1594bc498e"
+  },
+  {
+    "path": "src/study/study-preview-calendar.ts",
+    "git_sha1": "65f645f4492fd354e9837566c5539f7b004bbb8f"
+  },
+  {
+    "path": "src/study/study.service.ts",
+    "git_sha1": "b000dd091fcda897c8a25eba7ad38ed701884e9b"
+  },
+  {
+    "path": "src/study/study.types.ts",
+    "git_sha1": "b5e1aae952d99b75d52e1031788801bb3a294947"
+  },
+  {
+    "path": "src/styles/base.css",
+    "git_sha1": "27a6bc43b5f5a42f93b2d5e63af478d1f78ec77b"
+  },
+  {
+    "path": "src/styles/components.css",
+    "git_sha1": "5ab71d7e2a99ee3066bcd19647e90f07755d89d4"
+  },
+  {
+    "path": "src/styles/index.css",
+    "git_sha1": "8519779727ca1bcf3c6e349d7c8b82dc54c852d2"
+  },
+  {
+    "path": "src/styles/layout.css",
+    "git_sha1": "448a1133858f37c35a339151a022ed68aaa6a022"
+  },
+  {
+    "path": "src/styles/responsive.css",
+    "git_sha1": "866e49272536ab24080ec9616411b6876cddfd12"
+  },
+  {
+    "path": "src/styles/tokens.css",
+    "git_sha1": "0a66074ab0ed92d2bf02cb2dc8053cac3c74d5f2"
+  },
+  {
+    "path": "src/tests/availability-auto-calendar.test.ts",
+    "git_sha1": "b2cbc752c00a251c585da5954cb0941c3a4d6476"
+  },
+  {
+    "path": "src/tests/availability-day-rules.test.ts",
+    "git_sha1": "1ceecf8c50022ab539153d4627eb2cc96f6062ca"
+  },
+  {
+    "path": "src/tests/availability-optimizer.test.ts",
+    "git_sha1": "4ce279896198880a25f4703975a33efcc2441a6a"
+  },
+  {
+    "path": "src/tests/availability-work-comparison.test.ts",
+    "git_sha1": "dc70b051d4e8b25291587042292bba94c720e44c"
+  },
+  {
+    "path": "src/tests/calendar-advanced-events.test.ts",
+    "git_sha1": "55545a57256ebe554958901a88daa3c3f4793715"
+  },
+  {
+    "path": "src/tests/category-counters.test.ts",
+    "git_sha1": "5461f8462ead018096774ba88a3027bd25e69665"
+  },
+  {
+    "path": "src/tests/change-journal-order.test.ts",
+    "git_sha1": "7204febbeea3a1331e978e9a3b0815bef43dfa70"
+  },
+  {
+    "path": "src/tests/cycle-journal-isolation.test.ts",
+    "git_sha1": "407c7cecec86ca48ebebcf13c6ff2f140221b4fa"
+  },
+  {
+    "path": "src/tests/cycle-journal.test.ts",
+    "git_sha1": "a93f3d54911641562edfe3994542a64e6318425f"
+  },
+  {
+    "path": "src/tests/cycle-ovulation.test.ts",
+    "git_sha1": "218bc1e4d64eb8a5a82a251a36123f55838ac08c"
+  },
+  {
+    "path": "src/tests/cycle-patterns.test.ts",
+    "git_sha1": "27c9df0f44cb9051767d951cddbcd00ef29a93e1"
+  },
+  {
+    "path": "src/tests/cycle-prediction.test.ts",
+    "git_sha1": "c05d902beb5db40123e163f135162d1ca940ffe6"
+  },
+  {
+    "path": "src/tests/cycle-storage.test.ts",
+    "git_sha1": "06565bb5b07dcaa3904293930ab1e474ebf5f596"
+  },
+  {
+    "path": "src/tests/data-transfer.test.ts",
+    "git_sha1": "2448b2f83058a4334adba4c3a24fb0e3b7a9af16"
+  },
+  {
+    "path": "src/tests/date-time-parser.test.ts",
+    "git_sha1": "e4fa5d524c720e0d1535faad89ff8993064da27d"
+  },
+  {
+    "path": "src/tests/decorative-background.test.ts",
+    "git_sha1": "77376c6e8236f678923d4c992cb83af6c3502c79"
+  },
+  {
+    "path": "src/tests/event.validation.test.ts",
+    "git_sha1": "52bcd1e9ea43c0c037a82ea09431d8071c1c4a4c"
+  },
+  {
+    "path": "src/tests/floral-ui.test.ts",
+    "git_sha1": "2fe1d2a2d02e7757038f3d1c85e4b94ee0367b70"
+  },
+  {
+    "path": "src/tests/github-only-finalization.test.ts",
+    "git_sha1": "8059d8a67e8647098620ae3cd1d2c2fa2a4f666c"
+  },
+  {
+    "path": "src/tests/global-search.test.ts",
+    "git_sha1": "75b9ed612727b1ac537211b11012f6cd6804ec36"
+  },
+  {
+    "path": "src/tests/google-maps.test.ts",
+    "git_sha1": "87b417f122ecea7372eb11b2bcf9513f09a89e3e"
+  },
+  {
+    "path": "src/tests/group-normalizer.test.ts",
+    "git_sha1": "76289c441fc363239c060c947ea7c71c6b7cb40b"
+  },
+  {
+    "path": "src/tests/import-review.test.ts",
+    "git_sha1": "f51dbdba1f5c28c3281c53b33cd682490d5db18f"
+  },
+  {
+    "path": "src/tests/location-parser.test.ts",
+    "git_sha1": "62298c9290f8131fbaa2ccb534814f3b15fe7d48"
+  },
+  {
+    "path": "src/tests/navigation-icons.test.ts",
+    "git_sha1": "f57f2f06ac0f43c6bde95046ebaefd4a1f5ec795"
+  },
+  {
+    "path": "src/tests/notification-planner.test.ts",
+    "git_sha1": "d09489fbb9e4dd7dc5490042a77aea25bc59f332"
+  },
+  {
+    "path": "src/tests/notification-storage.test.ts",
+    "git_sha1": "f2de7803f2802e162c069b862a09ae983358c856"
+  },
+  {
+    "path": "src/tests/nursing-plan-adapter.test.ts",
+    "git_sha1": "d28e5c95448d76722b27b906ee2e092383ad5dbe"
+  },
+  {
+    "path": "src/tests/planning-consistency.test.ts",
+    "git_sha1": "2b7483889764a2f8e3362f8b837e92d3ef488468"
+  },
+  {
+    "path": "src/tests/shopping-utils.test.ts",
+    "git_sha1": "274f830fa817a1515854ec7dad479bb32e7b56c0"
+  },
+  {
+    "path": "src/tests/storage-import.test.ts",
+    "git_sha1": "9d5d62af5a22d5fa725ae01ba5b9c143cf274ee8"
+  },
+  {
+    "path": "src/tests/storage-v021.test.ts",
+    "git_sha1": "d2b64039b6a51f3e77f26e3a5a95a9b1f0f35a1a"
+  },
+  {
+    "path": "src/tests/storage-v023.test.ts",
+    "git_sha1": "bbf1ac683286f548a603a88933e6a7c305a12283"
+  },
+  {
+    "path": "src/tests/storage-v024.test.ts",
+    "git_sha1": "3fd2c30959d7b563dd2dee91811d23a484d571ab"
+  },
+  {
+    "path": "src/tests/storage-v030.test.ts",
+    "git_sha1": "1839e00c853a09277eacd82cd2f68c7534b0312b"
+  },
+  {
+    "path": "src/tests/storage-v031.test.ts",
+    "git_sha1": "61c09d6ab7ba7ba4c1e7cdf2ebfb94d2739c1541"
+  },
+  {
+    "path": "src/tests/storage-v032.test.ts",
+    "git_sha1": "0f2429026bdf1e7f84c450a25bab8272c6e0e768"
+  },
+  {
+    "path": "src/tests/storage-v035.test.ts",
+    "git_sha1": "71ac87b12e8781ab54ba14f1749b6f0148794f4d"
+  },
+  {
+    "path": "src/tests/storage.test.ts",
+    "git_sha1": "249aa44c1e79e2c366e2cb589ab3da9581401024"
+  },
+  {
+    "path": "src/tests/study-corrections.test.ts",
+    "git_sha1": "80fa80ab032a6d1b22b8b09095ee3c53e71bf56a"
+  },
+  {
+    "path": "src/tests/study-diff.test.ts",
+    "git_sha1": "42182ad796ac31d2bd2bf8358e1e3d1959b1e4de"
+  },
+  {
+    "path": "src/tests/study-identity.test.ts",
+    "git_sha1": "b16d94e74665be155840354806885379ca77233a"
+  },
+  {
+    "path": "src/tests/study-preview-calendar.test.ts",
+    "git_sha1": "d9312ebbe154bf2fe68b5052ade80eb6583674a8"
+  },
+  {
+    "path": "src/tests/study.service.test.ts",
+    "git_sha1": "97bc54631d63a98d0a9ffc7ca4a3fb20470cc761"
+  },
+  {
+    "path": "src/tests/ux-stabilization.test.ts",
+    "git_sha1": "2346ff68590ea47786d1c927aab888e4ea47582a"
+  },
+  {
+    "path": "src/tests/work-readability.test.ts",
+    "git_sha1": "e5c343e226d31a9ac09df3614b4ba65ccf02057f"
+  },
+  {
+    "path": "src/tests/work-roster-adapter.test.ts",
+    "git_sha1": "6adfaae2df2f701b67df9ed39869dc82df88f0ac"
+  },
+  {
+    "path": "src/tests/work-service.test.ts",
+    "git_sha1": "100f648f3ec295edc1c517186c9192c47a467277"
+  },
+  {
+    "path": "src/tests/work-summary.test.ts",
+    "git_sha1": "54e4a3796391a598f6a06e30d6c62bdfbaf8f325"
+  },
+  {
+    "path": "src/ui/AppBackgroundDecor.tsx",
+    "git_sha1": "2d28f58b9b97d1db9160f2f98465c210bc7a2b28"
+  },
+  {
+    "path": "src/ui/AppIcon.tsx",
+    "git_sha1": "8a561da9e1b660b2142506832f99f4a9dff1a580"
+  },
+  {
+    "path": "src/ui/EmptyState.tsx",
+    "git_sha1": "2a276365c5c2a143f9c8dc1bda99dfd14953de97"
+  },
+  {
+    "path": "src/ui/FloralAccent.tsx",
+    "git_sha1": "42e3093e600123f619416b926be15b66f4f88bdc"
+  },
+  {
+    "path": "src/ui/Modal.tsx",
+    "git_sha1": "f9bb217b0023ccdc804e3d3cef37a68a0f695d08"
+  },
+  {
+    "path": "src/ui/Navigation.tsx",
+    "git_sha1": "247412913d67680e48d921e04c178a4a668e1135"
+  },
+  {
+    "path": "src/vite-env.d.ts",
+    "git_sha1": "11f02fe2a0061d6e6e1f271b21da95423b448b32"
+  },
+  {
+    "path": "src/work/AvailabilityWorkComparisonPanel.tsx",
+    "git_sha1": "2be001d30a44d7481566a129c68609258d0d8dd0"
+  },
+  {
+    "path": "src/work/CoworkerOverlapList.tsx",
+    "git_sha1": "2418dfd2ab5aa81ffbc40b13698a7d3dbe477f0f"
+  },
+  {
+    "path": "src/work/WorkProfileEditor.tsx",
+    "git_sha1": "2b11198a2d9ae63d5e41a024edfc627ac67a2b67"
+  },
+  {
+    "path": "src/work/WorkSummaryView.tsx",
+    "git_sha1": "f2e4a1ad031f24a2a6e6d00b518e74f001f45973"
+  },
+  {
+    "path": "src/work/WorkView.tsx",
+    "git_sha1": "ff69f7b515036b811cf99a14d59b7442944f7fbe"
+  },
+  {
+    "path": "src/work/availability-work-comparison.ts",
+    "git_sha1": "2cfe4e69bce3f11ba5271d5d8b7200d8187572d4"
+  },
+  {
+    "path": "src/work/work-import-readiness.ts",
+    "git_sha1": "efeeabbfe0ba54d8024c2e4ffbaef2d2c67bee0f"
+  },
+  {
+    "path": "src/work/work-summary.ts",
+    "git_sha1": "d67cbd5835cb6aa5223674681dc11eec84198377"
+  },
+  {
+    "path": "src/work/work.service.ts",
+    "git_sha1": "62a1cd6133f41895934e0a3f75e7ada31eb75bd6"
+  },
+  {
+    "path": "src/work/work.types.ts",
+    "git_sha1": "3999464965c9a6c1353d0079f47244ff903686d3"
+  },
+  {
+    "path": "tsconfig.app.json",
+    "git_sha1": "63c257e0287f3d1980448f568f3254b71ec5ddee"
+  },
+  {
+    "path": "tsconfig.json",
+    "git_sha1": "1ffef600d959ec9e396d5a260bd3f5b927b2cef8"
+  },
+  {
+    "path": "tsconfig.node.json",
+    "git_sha1": "6733061bcef1d9212ed59d0fae83cd246ec36a95"
+  },
+  {
+    "path": "vite.config.ts",
+    "git_sha1": "bf8f40fa8d2cb207a1484f62278554d16b4580a1"
+  }
+]

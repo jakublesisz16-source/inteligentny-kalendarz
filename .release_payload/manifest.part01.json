@@ -1,0 +1,391 @@
+[
+  {
+    "path": ".github/workflows/ci.yml",
+    "git_sha1": "af840a4c59b7a669a6cab41825ae37d301264565"
+  },
+  {
+    "path": ".github/workflows/pages.yml",
+    "git_sha1": "5deccbcbe0e06630c9c3a5372c844f773b552334"
+  },
+  {
+    "path": ".gitignore",
+    "git_sha1": "6234cbd03359af4ad84660beb8f0348c904affc4"
+  },
+  {
+    "path": "README.md",
+    "git_sha1": "f45eb66ad1fe49e359a5275ded5c5277158dc327"
+  },
+  {
+    "path": "docs/ARCHITECTURE.md",
+    "git_sha1": "0420e77fb125a546eae6f9fd36b0c0e876db6d0e"
+  },
+  {
+    "path": "docs/CHANGELOG.md",
+    "git_sha1": "911bc9eaf1e55514be6da67c16e8e85082ceb6fe"
+  },
+  {
+    "path": "docs/CYCLE_HEALTH_BOUNDARIES_0.4.0.md",
+    "git_sha1": "a77333487e1e360b684bfb92ec903842f01f6851"
+  },
+  {
+    "path": "docs/CYCLE_OVULATION_ESTIMATE_0.6.3.md",
+    "git_sha1": "f4cdbd50085dc27cd32ddb3c3e75f02f99658a66"
+  },
+  {
+    "path": "docs/CYCLE_PREDICTION_MODEL_0.4.0.md",
+    "git_sha1": "688a9bfd26216e388fc0af3e81ccf8653f7b9b56"
+  },
+  {
+    "path": "docs/CYCLE_ROBUSTNESS_0.4.0.md",
+    "git_sha1": "66193adffec508b438c12c89d631938afcefb2ab"
+  },
+  {
+    "path": "docs/DATA_MODEL.md",
+    "git_sha1": "0932de91ee0d2462cffeaf2db3d56137158c3a2e"
+  },
+  {
+    "path": "docs/DEPLOYMENT_1.0.0.md",
+    "git_sha1": "84154976839154f4ab9b79fad8cc9f9199f2a96e"
+  },
+  {
+    "path": "docs/GLOBAL_SEARCH_0.7.0.md",
+    "git_sha1": "09db701c95adeecb30cddd2c66e9147c2a93a6a0"
+  },
+  {
+    "path": "docs/LOCAL_FINAL_GATE.md",
+    "git_sha1": "d58c29c0ac49acbf780fad5e8f99ecd4d25dea75"
+  },
+  {
+    "path": "docs/PRIVACY.md",
+    "git_sha1": "bbd79713965d8ef6775e29d3122f01eba1ced829"
+  },
+  {
+    "path": "docs/PUBLIC_REPOSITORY.md",
+    "git_sha1": "08d4de48319fac96292a33c7cdc9c6d608d3e286"
+  },
+  {
+    "path": "docs/RELEASE_NOTES_1.0.0.md",
+    "git_sha1": "cb5070f9f7bae8c2163d1e5c08e696bd7e49b8fe"
+  },
+  {
+    "path": "docs/UX_AUDIT_0.3.7.md",
+    "git_sha1": "34d178ea013cff2f5803d9d1a77835a323401aa4"
+  },
+  {
+    "path": "index.html",
+    "git_sha1": "a04e3180c75c1f1ca1a998138e757c997f97dcdf"
+  },
+  {
+    "path": "package-lock.json",
+    "git_sha1": "f81f463a6f24118ee76368d05a0fc66cd1873284"
+  },
+  {
+    "path": "package.json",
+    "git_sha1": "ef953583cfc26d63ac2dbc5d98560a4b0b61978e"
+  },
+  {
+    "path": "public/apple-touch-icon.png",
+    "git_sha1": "556f4d605de07f8fd5de0be843856ec021fea397"
+  },
+  {
+    "path": "public/favicon.svg",
+    "git_sha1": "3a2b5537cdd6c2e92d53dcfddc92c8464f8a3dd7"
+  },
+  {
+    "path": "public/icon-192.png",
+    "git_sha1": "7355a02d42f3f925eb17d45a1f98b4105c8cc514"
+  },
+  {
+    "path": "public/icon-512.png",
+    "git_sha1": "0fdb37199ddf2aa7467ba0d5bbdcaa5b4f4aaaa3"
+  },
+  {
+    "path": "public/manifest.webmanifest",
+    "git_sha1": "da0a6828feb63215b0a9b2ea0a406c0c3cf8942a"
+  },
+  {
+    "path": "public/service-worker.js",
+    "git_sha1": "18446751407e800332354c9be414c0d72de03a6a"
+  },
+  {
+    "path": "src/app/App.tsx",
+    "git_sha1": "fdf08c42241edf53c09f7aa1fea206533986c6cc"
+  },
+  {
+    "path": "src/app/app.types.ts",
+    "git_sha1": "444dba7ed863ca185b2047169206fcdcff1b04be"
+  },
+  {
+    "path": "src/app/registerServiceWorker.ts",
+    "git_sha1": "943a2ee1a4e381f7a716f021861c901f95f331e9"
+  },
+  {
+    "path": "src/availability/AvailabilityView.tsx",
+    "git_sha1": "4bf3edfaa5d39fee07770bdf2397d8b04adaf6b5"
+  },
+  {
+    "path": "src/availability/DayAvailabilityEditor.tsx",
+    "git_sha1": "9a2eef15889c4991a9bf74390bddd3db057490a2"
+  },
+  {
+    "path": "src/availability/availability-day-rules.ts",
+    "git_sha1": "7e5ecf284c90bb48cfa0f9dfe871efd0cf214d60"
+  },
+  {
+    "path": "src/availability/availability-eligibility.ts",
+    "git_sha1": "43e76de5420bd72ab3005ee0fb0ea5fde84b9afe"
+  },
+  {
+    "path": "src/availability/availability.service.ts",
+    "git_sha1": "60c2854b304b5ff84f4989ad55143c5aa654b1c3"
+  },
+  {
+    "path": "src/availability/availability.types.ts",
+    "git_sha1": "de05ad0ff5735f55efd1deeba7599f01b5767043"
+  },
+  {
+    "path": "src/availability/optimizer.ts",
+    "git_sha1": "cf8f6def5dcafac9fc2598a436ea459cb1dc11ff"
+  },
+  {
+    "path": "src/calendar/CalendarView.tsx",
+    "git_sha1": "46fc5f44837dfc411769fb7d3d315aacf1d218a4"
+  },
+  {
+    "path": "src/calendar/TodayView.tsx",
+    "git_sha1": "b54d38d99fc44d9d3079b0d52d0ba8b4e27faad7"
+  },
+  {
+    "path": "src/calendar/category-counters.ts",
+    "git_sha1": "532a11f5f0bf5e38f9cc310c36497b1ef9cba938"
+  },
+  {
+    "path": "src/calendar/date.utils.ts",
+    "git_sha1": "b6825d8c2e33783c99c003e0ea66b2796c430d93"
+  },
+  {
+    "path": "src/core/version.ts",
+    "git_sha1": "84e15e33ace03c89ded7068a4824685aa702e237"
+  },
+  {
+    "path": "src/cycle/CycleJournalEditor.tsx",
+    "git_sha1": "eb46db4904d0a191808b3177f63c9fe2a48f222c"
+  },
+  {
+    "path": "src/cycle/CyclePeriodEditor.tsx",
+    "git_sha1": "33841d1ff073a7696ec62f963b01c7b71e57bbd8"
+  },
+  {
+    "path": "src/cycle/CycleView.tsx",
+    "git_sha1": "45d1ed5bba6821cf66771d90a60c93e3f96f238e"
+  },
+  {
+    "path": "src/cycle/cycle-ovulation.ts",
+    "git_sha1": "63ca6ab570052fd557114a06f963d480e772d2b8"
+  },
+  {
+    "path": "src/cycle/cycle-patterns.ts",
+    "git_sha1": "d6926826b3fc448a79401c207d3d82a667e853a3"
+  },
+  {
+    "path": "src/cycle/cycle-prediction.ts",
+    "git_sha1": "037eef6fc9538453e910ffe9c67c5359b15e0b32"
+  },
+  {
+    "path": "src/cycle/cycle.types.ts",
+    "git_sha1": "67efcb2ea0d253578151eb8fb0ace5e1ea61efb9"
+  },
+  {
+    "path": "src/data-transfer/DataTransferPanel.tsx",
+    "git_sha1": "db69f1f1fc787503c8af3849ac1a19bf9e29c33e"
+  },
+  {
+    "path": "src/events/EventCard.tsx",
+    "git_sha1": "9a9ac8d1b6af0272a676f45f96157a8a816a165e"
+  },
+  {
+    "path": "src/events/EventForm.tsx",
+    "git_sha1": "b55d0364706b4c26974cb2c04fb1cd7a1c2adb0d"
+  },
+  {
+    "path": "src/events/event.types.ts",
+    "git_sha1": "33ae34a9561e1f2f557c15df2406ccc532e6dd21"
+  },
+  {
+    "path": "src/events/event.validation.ts",
+    "git_sha1": "e6cecd913fd77a6f638b50de0240d452b961e851"
+  },
+  {
+    "path": "src/imports/pdf/adapters/retail-roster-v1.adapter.ts",
+    "git_sha1": "03caf4cbe8d3386d81a343e02502ae5c0614445a"
+  },
+  {
+    "path": "src/imports/pdf/pdf-reader.ts",
+    "git_sha1": "b85b8c7b43de8dfdc1a97374bc57f2a6fd00b18e"
+  },
+  {
+    "path": "src/imports/pdf/work-adapter-registry.ts",
+    "git_sha1": "a107ad3a892358a37f27351f17fc88a7f4027ae0"
+  },
+  {
+    "path": "src/imports/pdf/work-adapter.types.ts",
+    "git_sha1": "c376027062e06b36844d1a0ff30def30158861b7"
+  },
+  {
+    "path": "src/imports/xlsx/adapter-registry.ts",
+    "git_sha1": "2022bd0aa42b3ba6bb1d012cb3e00da540d7c9bc"
+  },
+  {
+    "path": "src/imports/xlsx/adapter.types.ts",
+    "git_sha1": "80c513c2fb9416f4bc4158b76ca7621e375d39cd"
+  },
+  {
+    "path": "src/imports/xlsx/adapters/nursing-plan-v1.adapter.ts",
+    "git_sha1": "3562cded6ad8717912e47aa630ee18d0359e48c2"
+  },
+  {
+    "path": "src/imports/xlsx/date-parser.ts",
+    "git_sha1": "4cea90d66d72a892d160d6b9472abca193c72003"
+  },
+  {
+    "path": "src/imports/xlsx/group-normalizer.ts",
+    "git_sha1": "965fefac42e064918efb5e2d927afda3e944e8bf"
+  },
+  {
+    "path": "src/imports/xlsx/import-validation.ts",
+    "git_sha1": "51fb5ed9bd17eb2d26103a43c4d6d1cc2f1a3fdd"
+  },
+  {
+    "path": "src/imports/xlsx/location-parser.ts",
+    "git_sha1": "e9c5f8dfd492e4ce540b026b4005946a88b2be1a"
+  },
+  {
+    "path": "src/imports/xlsx/parser-normalization.ts",
+    "git_sha1": "af908bacfc8a2542cabef9deca1cab5f702b6c3d"
+  },
+  {
+    "path": "src/imports/xlsx/time-parser.ts",
+    "git_sha1": "147b2c54bdf2ab883144ca32991b34ae76e298e8"
+  },
+  {
+    "path": "src/imports/xlsx/xlsx-reader.ts",
+    "git_sha1": "1f14e75515089b9799b1de046182b8e5402890c1"
+  },
+  {
+    "path": "src/imports/xlsx/xlsx.types.ts",
+    "git_sha1": "9c62a668e875a3f34faa7cc62f4b341ebe9b5edf"
+  },
+  {
+    "path": "src/locations/LocationForm.tsx",
+    "git_sha1": "7883926e8e7a2d4cca912a298664c40c53cfe6b1"
+  },
+  {
+    "path": "src/locations/LocationsView.tsx",
+    "git_sha1": "32bd731d5f3daca0887879dbed4e3fb0593be3a7"
+  },
+  {
+    "path": "src/locations/google-maps.ts",
+    "git_sha1": "712373e27735e22be2179709e876e0ad2eb93cd0"
+  },
+  {
+    "path": "src/locations/location.types.ts",
+    "git_sha1": "bfbcc66f9aa87098ae5c8aa3e7283a6c26e2814c"
+  },
+  {
+    "path": "src/main.tsx",
+    "git_sha1": "0ea26ed67c559f487850d29d0d94272825843426"
+  },
+  {
+    "path": "src/notifications/notification-planner.ts",
+    "git_sha1": "20a2ff4a97f6b77f00dcee71a427c4ce2c599f70"
+  },
+  {
+    "path": "src/notifications/notification-preferences.ts",
+    "git_sha1": "9fb83e3dafc4fc83c3b65e7bfb983141f2b9d435"
+  },
+  {
+    "path": "src/notifications/notification.types.ts",
+    "git_sha1": "bceeba0571fe377ddf30dca92ea95e8d61d5c0cd"
+  },
+  {
+    "path": "src/planning/ConsistencyCenter.tsx",
+    "git_sha1": "d8ceef30ae793542f742d4d5623aa72d2c5342ea"
+  },
+  {
+    "path": "src/planning/PlanningSettings.tsx",
+    "git_sha1": "6f897a016660ab69b922e6f222051a178372cd5e"
+  },
+  {
+    "path": "src/planning/StudySeriesTimingCorrection.tsx",
+    "git_sha1": "df4dfad8e9afb2772abaa4c168e1a5fdb9c7d792"
+  },
+  {
+    "path": "src/planning/consistency.ts",
+    "git_sha1": "9684ace2936657fea283f7f39f07926a1d7a9ed7"
+  },
+  {
+    "path": "src/planning/planning.types.ts",
+    "git_sha1": "88818ba33b3642ff15eff1aeb094ca5a4426af02"
+  },
+  {
+    "path": "src/pwa/installPrompt.ts",
+    "git_sha1": "9746fed69e74463660d318d8439ba807d3edd17d"
+  },
+  {
+    "path": "src/safety/SafetyCenter.tsx",
+    "git_sha1": "d3e7220d22eec43dec95b947d3af57ab3983e566"
+  },
+  {
+    "path": "src/safety/change-journal-order.ts",
+    "git_sha1": "2395cf5bcffea0c440ace8ee5d3aef9ad07172f2"
+  },
+  {
+    "path": "src/safety/safety.types.ts",
+    "git_sha1": "f48cda6e0679f4d776811a52856711b4e40bc6b0"
+  },
+  {
+    "path": "src/search/GlobalSearch.tsx",
+    "git_sha1": "7d20a1014088156710cf9461287b1f25054e9132"
+  },
+  {
+    "path": "src/search/global-search.ts",
+    "git_sha1": "9c34377c9db849884e3ce791c80cf0062a2fb765"
+  },
+  {
+    "path": "src/settings/PwaInstallPanel.tsx",
+    "git_sha1": "67251c07d9a69351f35a335f30e0af0ce23f50a7"
+  },
+  {
+    "path": "src/settings/SettingsView.tsx",
+    "git_sha1": "097fff325c5728552dff4baf88b301e9d5116f09"
+  },
+  {
+    "path": "src/settings/StoragePersistencePanel.tsx",
+    "git_sha1": "d389d49beb57ab7544a437b24574493a78f63386"
+  },
+  {
+    "path": "src/settings/appearance.ts",
+    "git_sha1": "f05486a54ed35a6db86b3fbfa90e2aeca4acf20a"
+  },
+  {
+    "path": "src/settings/releaseNotes.ts",
+    "git_sha1": "04abb9a977f359d6761c0493a51cfea10046d9bc"
+  },
+  {
+    "path": "src/settings/roadmap.ts",
+    "git_sha1": "d7c96d39a5073a18b7573a77e31e1ae7f9176c1e"
+  },
+  {
+    "path": "src/settings/settings.types.ts",
+    "git_sha1": "f03758165775721eb3b9529d9a6f74d25eeb3528"
+  },
+  {
+    "path": "src/shopping/ShoppingView.tsx",
+    "git_sha1": "8797f1a5ec76ef1dbb95ad0e4d44be6e874da06c"
+  },
+  {
+    "path": "src/shopping/shopping.types.ts",
+    "git_sha1": "d0f965f922b8acf4359ae0cd68956532c0579d93"
+  },
+  {
+    "path": "src/shopping/sh

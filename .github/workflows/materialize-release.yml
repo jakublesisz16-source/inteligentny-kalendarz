@@ -1,0 +1,88 @@
+name: Materialize final release
+
+on:
+  push:
+    branches: ["release/1.0.0"]
+
+permissions:
+  contents: write
+
+jobs:
+  materialize:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout release branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Build exact final tree
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          cat .release_payload/manifest.part01.json .release_payload/manifest.part02.json > /tmp/manifest.json
+
+          git fetch origin agent/final-lock-1.0.0
+          git show FETCH_HEAD:package.json > /tmp/package.json
+          git show FETCH_HEAD:package-lock.json > /tmp/package-lock.json
+
+          python - <<'PY'
+          import json
+          import subprocess
+
+          manifest = json.load(open('/tmp/manifest.json', encoding='utf-8'))
+          keep = {entry['path'] for entry in manifest}
+          tracked = subprocess.check_output(['git', 'ls-files'], text=True).splitlines()
+
+          for path in tracked:
+              if path.startswith('.release_payload/') or path == '.github/workflows/materialize-release.yml':
+                  continue
+              if path not in keep:
+                  subprocess.run(['git', 'rm', '-f', '--ignore-unmatch', '--', path], check=True)
+          PY
+
+          tar -xzf .release_payload/overlay.tar.gz -C .
+          cp /tmp/package.json package.json
+          cp /tmp/package-lock.json package-lock.json
+
+          rm -rf .release_payload
+          rm -f .github/workflows/materialize-release.yml
+
+          python - <<'PY'
+          import json
+          import pathlib
+          import subprocess
+
+          manifest = json.load(open('/tmp/manifest.json', encoding='utf-8'))
+          expected = {entry['path']: entry['git_sha1'] for entry in manifest}
+
+          for path, wanted_sha in expected.items():
+              file_path = pathlib.Path(path)
+              if not file_path.is_file():
+                  raise SystemExit(f'MISSING {path}')
+              actual_sha = subprocess.check_output(['git', 'hash-object', '--', path], text=True).strip()
+              if actual_sha != wanted_sha:
+                  raise SystemExit(f'HASH_MISMATCH {path} expected={wanted_sha} actual={actual_sha}')
+
+          actual_files = {
+              path.as_posix()
+              for path in pathlib.Path('.').rglob('*')
+              if path.is_file() and '.git' not in path.parts
+          }
+          extras = sorted(actual_files - set(expected))
+          missing = sorted(set(expected) - actual_files)
+          if extras:
+              raise SystemExit('EXTRA_FILES ' + ','.join(extras))
+          if missing:
+              raise SystemExit('MISSING_FILES ' + ','.join(missing))
+
+          print(f'FINAL_TREE_VERIFIED {len(expected)} files')
+          PY
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Release 1.0.0"
+          git push origin HEAD:release/1.0.0
