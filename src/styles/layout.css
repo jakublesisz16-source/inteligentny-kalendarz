@@ -1,0 +1,208 @@
+.app-shell { min-height: 100vh; }
+.sidebar { position: fixed; inset: 0 auto 0 0; width: var(--sidebar-width); display: flex; flex-direction: column; padding: 28px 20px 24px; background: #ece9e2; border-right: 1px solid var(--line); z-index: 20; }
+.brand-block { position: relative; display: flex; align-items: center; gap: 12px; padding: 4px 8px 26px; overflow: visible; }
+.brand-mark { width: 42px; height: 42px; display: grid; place-items: center; border-radius: 14px; background: var(--surface-strong); color: #fff; font-weight: 800; letter-spacing: -.04em; }
+.brand-block strong, .brand-block span { display: block; }
+.brand-block span { color: var(--text-muted); font-size: .82rem; margin-top: 1px; }
+.side-nav { display: grid; gap: 6px; }
+.nav-item { border: 0; background: transparent; min-height: 46px; border-radius: 12px; padding: 0 13px; text-align: left; display: flex; align-items: center; gap: 11px; color: #55605d; font-weight: 650; }
+.nav-item:hover { background: rgba(255,255,255,.55); }
+.nav-item.active { background: var(--surface); color: var(--text); box-shadow: var(--shadow-sm); }
+.nav-icon { width: 19px; height: 19px; flex: 0 0 19px; color: currentColor; opacity: .68; }
+.nav-item.active .nav-icon { color: var(--accent-strong); opacity: 1; }
+.sidebar-note { margin-top: auto; padding: 16px; border-top: 1px solid var(--line); color: var(--text-muted); font-size: .78rem; line-height: 1.5; }
+.privacy-dot { display: inline-block; width: 7px; height: 7px; background: var(--accent); border-radius: 50%; margin-right: 6px; }
+.app-main { margin-left: var(--sidebar-width); min-height: 100vh; position: relative; }
+.view-shell { position: relative; z-index: 1; max-width: var(--content-max); margin: 0 auto; padding: 42px 44px 72px; }
+.view-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 28px; margin-bottom: 28px; }
+.hero-header { padding-top: 8px; }
+.view-subtitle { max-width: 690px; color: var(--text-muted); margin-bottom: 0; }
+.eyebrow, .section-kicker { text-transform: uppercase; letter-spacing: .13em; font-size: .72rem; font-weight: 800; color: var(--accent); margin-bottom: 8px; }
+.panel { background: var(--surface); border: 1px solid rgba(199,194,185,.78); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); }
+.panel-heading { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 24px 26px 0; }
+.panel-heading h2 { margin-bottom: 0; }
+.compact-heading { padding: 0 0 18px; }
+.summary-strip { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); background: rgba(255,255,255,.72); border: 1px solid rgba(199,194,185,.72); border-radius: var(--radius-lg); margin-bottom: 22px; overflow: hidden; color: var(--text); box-shadow: 0 10px 32px rgba(54, 49, 43, .055); backdrop-filter: blur(12px); }
+.summary-strip > div { padding: 20px 24px; border-right: 1px solid rgba(199,194,185,.58); }
+.summary-strip > div:last-child { border-right: 0; }
+.summary-strip span, .summary-strip strong { display: block; }
+.summary-strip span { color: var(--text-muted); font-size: .76rem; margin-bottom: 6px; }
+.summary-strip strong { font-size: 1.1rem; color: var(--text); }
+.timeline-panel { min-height: 390px; }
+.calendar-layout { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(310px, .8fr); gap: 22px; align-items: start; }
+.calendar-panel { padding: 22px; }
+.selected-day-panel { min-height: 460px; padding: 24px; position: sticky; top: 24px; }
+.location-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+.settings-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+.settings-card, .privacy-card, .version-card { padding: 24px; }
+.privacy-card { display: flex; gap: 18px; align-items: flex-start; }
+.version-card { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.version-card div { padding: 14px; background: var(--surface-soft); border-radius: var(--radius-sm); }
+.version-card span, .version-card strong { display: block; }
+.version-card span { color: var(--text-muted); font-size: .75rem; margin-bottom: 5px; }
+.bottom-nav { display: none; }
+.floating-context { position: fixed; right: 18px; bottom: 18px; z-index: 9; display: flex; align-items: center; gap: 8px; background: rgba(31,42,40,.92); color: #fff; border-radius: 999px; padding: 9px 13px; box-shadow: var(--shadow-lg); font-size: .72rem; backdrop-filter: blur(12px); pointer-events: none; }
+.floating-context i { width: 4px; height: 4px; background: rgba(255,255,255,.45); border-radius: 50%; }
+
+/* 0.5.2 - bogatsza, nadal subtelna warstwa kwiatowa niezależna od treści */
+.app-shell { position: relative; isolation: isolate; overflow-x: clip; }
+.app-main { position: relative; z-index: 1; }
+.app-background-decor {
+  position: fixed;
+  inset: 0 0 0 var(--sidebar-width);
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+  user-select: none;
+  contain: layout paint;
+}
+.floral-motif {
+  position: absolute;
+  display: block;
+  overflow: visible;
+  color: var(--accent);
+  opacity: .1;
+  will-change: auto;
+}
+.floral-linework,
+.floral-blossom,
+.floral-bud {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.05;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.floral-linework-fine { stroke-width: 1.75; }
+.floral-blossom { stroke-width: 1.75; }
+.floral-blossom-tiny { stroke-width: 1.55; }
+.floral-seed { fill: currentColor; stroke: none; opacity: .72; }
+
+.floral-motif-top {
+  width: min(34vw, 430px);
+  right: -72px;
+  top: -72px;
+  opacity: .185;
+  transform: rotate(4deg);
+}
+.floral-motif-upper-left {
+  width: min(20vw, 255px);
+  left: -48px;
+  top: 8vh;
+  color: #b79686;
+  opacity: .125;
+  transform: rotate(-7deg);
+}
+.floral-motif-mid-left {
+  width: min(18vw, 235px);
+  left: -62px;
+  top: 41vh;
+  color: #c2a79a;
+  opacity: .102;
+  transform: rotate(7deg);
+}
+.floral-motif-mid-right {
+  width: min(19vw, 245px);
+  right: -62px;
+  top: 31vh;
+  opacity: .132;
+  transform: rotate(-6deg);
+}
+.floral-motif-center-right {
+  width: min(13vw, 170px);
+  right: 2.2vw;
+  top: 59vh;
+  color: #bea99b;
+  opacity: .082;
+  transform: rotate(8deg);
+}
+.floral-motif-bottom {
+  width: min(37vw, 470px);
+  left: -88px;
+  bottom: -108px;
+  color: #b99a89;
+  opacity: .158;
+  transform: rotate(-5deg);
+}
+.floral-motif-bottom-right {
+  width: min(22vw, 280px);
+  right: -56px;
+  bottom: 4vh;
+  color: #c39f95;
+  opacity: .116;
+  transform: rotate(7deg);
+}
+
+
+/* 0.5.4 - kwiatowy motyw przewodni UI; sterowany jednym data-floral-mode */
+.floral-ui-accent {
+  display: block;
+  overflow: visible;
+  pointer-events: none;
+  user-select: none;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.floral-ui-linework { fill: none; stroke: currentColor; stroke-width: 1.7; }
+.floral-ui-blossom { fill: none; stroke: currentColor; stroke-width: 1.5; }
+.floral-ui-blossom circle { fill: currentColor; stroke: none; opacity: .68; }
+.app-shell[data-floral-mode="off"] .floral-ui-accent { display: none; }
+
+.brand-copy, .brand-mark { position: relative; z-index: 1; }
+.brand-floral-accent {
+  position: absolute;
+  width: 78px;
+  height: auto;
+  top: -18px;
+  right: -5px;
+  color: #b78f82;
+  opacity: .2;
+  transform: rotate(7deg);
+  z-index: 0;
+}
+.view-floral-accent {
+  position: absolute;
+  width: 150px;
+  height: auto;
+  top: 13px;
+  right: clamp(18px, 3vw, 52px);
+  color: #b99284;
+  opacity: .17;
+  transform: rotate(-4deg);
+  z-index: 0;
+}
+
+.app-background-decor.is-animated .floral-animate-a,
+.app-background-decor.is-animated .floral-animate-b,
+.app-background-decor.is-animated .floral-animate-c {
+  will-change: transform, opacity;
+}
+.app-background-decor.is-animated .floral-animate-a {
+  animation: floral-drift-a 38s ease-in-out 0s infinite alternate;
+}
+.app-background-decor.is-animated .floral-animate-b {
+  animation: floral-drift-b 47s ease-in-out -13s infinite alternate;
+}
+.app-background-decor.is-animated .floral-animate-c {
+  animation: floral-drift-c 55s ease-in-out -24s infinite alternate;
+}
+@keyframes floral-drift-a {
+  from { transform: translate3d(0, 0, 0) rotate(4deg) scale(1); opacity: .176; }
+  to { transform: translate3d(-5px, 4px, 0) rotate(4.7deg) scale(1.012); opacity: .194; }
+}
+@keyframes floral-drift-b {
+  from { transform: translate3d(0, 0, 0) rotate(7deg) scale(1); opacity: .095; }
+  to { transform: translate3d(4px, -5px, 0) rotate(6.4deg) scale(1.01); opacity: .109; }
+}
+@keyframes floral-drift-c {
+  from { transform: translate3d(0, 0, 0) rotate(-5deg) scale(1); opacity: .149; }
+  to { transform: translate3d(5px, -4px, 0) rotate(-4.4deg) scale(1.008); opacity: .166; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .app-background-decor.is-animated .floral-motif {
+    animation: none !important;
+    will-change: auto;
+  }
+}

@@ -1,0 +1,44 @@
+node_modules/
+dist/
+coverage/
+*.log
+npm-debug.log*
+.DS_Store
+.idea/
+.vscode/
+
+# Lokalne konfiguracje i sekrety
+.env
+.env.*
+!.env.example
+.dev.vars
+.wrangler/
+*.local
+
+# Dane lokalne i źródłowe użytkownika
+local-data/
+private-data/
+*.xlsx
+*.xls
+*.pdf
+*.ikbackup
+inteligentny-kalendarz-backup-*.json
+inteligentny-kalendarz-dane-*.json
+*-backup-*.json
+*-export-*.json
+
+# Lokalne artefakty i logi przekazywane poza repo
+*.zip
+*.7z
+*.rar
+*.bak
+*.tmp
+Windows PowerShell*.txt
+
+# Wewnętrzne materiały projektu - nie publikować w publicznym repo
+docs/PROMPT_*.txt
+docs/PROJECT_HANDOFF.md
+docs/PROJECT_HISTORY.md
+docs/RELEASE_AUDIT_*.md
+
+*.tsbuildinfo

@@ -1,0 +1,63 @@
+:root {
+  --bg: #f5f3ef;
+  --surface: #ffffff;
+  --surface-soft: #f0eee8;
+  --surface-strong: #1f2a28;
+  --text: #1f2725;
+  --text-muted: #6e7774;
+  --line: #ddd9d1;
+  --line-strong: #c7c2b9;
+  --accent: #cf789b;
+  --accent-strong: #b65f82;
+  --accent-soft: #f8e4ed;
+  --danger: #a9443a;
+  --danger-soft: #f9e8e8;
+  --success: #4f7b68;
+  --success-soft: #e8f2ed;
+  --warning: #a36b2f;
+  --warning-soft: #fbf0df;
+  --accent-surface: #fff7fa;
+  --study: #6e78a8;
+  --work: #a06f42;
+  --personal: #5f8a75;
+  --other: #77736c;
+  --shadow-sm: 0 8px 24px rgba(36, 42, 39, 0.06);
+  --shadow-lg: 0 24px 60px rgba(28, 34, 32, 0.14);
+  --radius-sm: 10px;
+  --radius-md: 16px;
+  --radius-lg: 24px;
+  --radius-xl: 30px;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-7: 32px;
+  --space-8: 40px;
+  --sidebar-width: 248px;
+  --content-max: 1420px;
+}
+
+/* 0.3.1 - semantyczne kolory kategorii */
+:root {
+  --category-study: #c86f95;
+  --category-study-soft: #fae7ef;
+  --category-work: #3f8292;
+  --category-work-soft: #e4f1f4;
+  --category-personal: #7d6aa6;
+  --category-personal-soft: #eee9f7;
+  --category-other: #77736c;
+  --category-other-soft: #efede9;
+  --study: var(--category-study);
+  --work: var(--category-work);
+  --personal: var(--category-personal);
+  --other: var(--category-other);
+}
+
+/* 0.4.0 - osobna, subtelna domena Cykl */
+:root {
+  --cycle: #b86f8f;
+  --cycle-soft: #faedf3;
+  --cycle-wide: #f7f1f4;
+}

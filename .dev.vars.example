@@ -1,0 +1,5 @@
+# Tylko development. Produkcyjne sekrety ustawiaj przez Cloudflare/Wrangler secrets.
+# Skopiuj lokalnie do .dev.vars. NIE commituj prawdziwych wartości.
+VAPID_PUBLIC_KEY=
+VAPID_PRIVATE_KEY=
+VAPID_SUBJECT=mailto:twoj-adres@example.com

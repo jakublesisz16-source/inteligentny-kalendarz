@@ -1,0 +1,39 @@
+{
+  "name": "inteligentny-kalendarz",
+  "private": true,
+  "version": "1.0.0-rc.7",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "typecheck": "tsc -b --pretty false",
+    "test": "vitest run",
+    "check": "npm run typecheck && npm run worker:typecheck && npm run test && npm run worker:test && npm run build",
+    "preview": "vite preview",
+    "worker:dev": "wrangler dev --test-scheduled",
+    "worker:typecheck": "tsc -p worker/tsconfig.json --pretty false",
+    "worker:test": "vitest run --config worker/vitest.config.ts",
+    "worker:deploy": "wrangler deploy",
+    "worker:migrate:local": "wrangler d1 migrations apply inteligentny-kalendarz-push --local",
+    "worker:migrate:remote": "wrangler d1 migrations apply inteligentny-kalendarz-push --remote"
+  },
+  "dependencies": {
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1",
+    "exceljs": "^4.4.0",
+    "pdfjs-dist": "6.2.108",
+    "web-push": "3.6.7"
+  },
+  "devDependencies": {
+    "@types/react": "^19.1.10",
+    "@types/react-dom": "^19.1.7",
+    "fake-indexeddb": "^6.1.0",
+    "typescript": "^5.9.2",
+    "vite": "^7.1.2",
+    "vitest": "^3.2.4",
+    "wrangler": "4.120.0",
+    "@cloudflare/workers-types": "5.20260810.1",
+    "@types/web-push": "3.6.4",
+    "@types/node": "22.19.21"
+  }
+}
