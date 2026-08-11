@@ -48,7 +48,9 @@ jobs:
           check_blob .release_tmp/overlay.part04b c4f536e5a4e6acabafeb40e43cffbc98d0c53fa8
           check_blob .release_tmp/overlay.part04c 69ad3e2d924b5389deec60b815c834b1d2ac04d9
           check_blob .release_tmp/overlay.part05 9b818bcca719d211e8ccd12ce23b91623fa20991
-          check_blob .release_tmp/overlay.part06 56d7f9798b87fb6ec2c0b2c75ac244ee2ddfc14a
+          check_blob .release_tmp/overlay.part06a a9d542004f20d246738404c92ebd3140e623ff30
+          check_blob .release_tmp/overlay.part06b 790059f2ff6e5d8f774150af74cbfbc32bf7a01a
+          check_blob .release_tmp/overlay.part06c 9d74003dd287ac6962811a9fea1c367146729da8
 
           cat .release_tmp/overlay.part01 \
               .release_tmp/overlay.part02 \
@@ -57,7 +59,9 @@ jobs:
               .release_tmp/overlay.part04b \
               .release_tmp/overlay.part04c \
               .release_tmp/overlay.part05 \
-              .release_tmp/overlay.part06 > /tmp/release-overlay.b64
+              .release_tmp/overlay.part06a \
+              .release_tmp/overlay.part06b \
+              .release_tmp/overlay.part06c > /tmp/release-overlay.b64
 
           base64 -d /tmp/release-overlay.b64 > /tmp/release-overlay.tar.gz
           echo "10c22a9477f2dcfdd09710e88387bffe5a60381224e15d78e91be98dd8fa6c1a  /tmp/release-overlay.tar.gz" | sha256sum -c -
