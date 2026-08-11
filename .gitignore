@@ -36,6 +36,7 @@ inteligentny-kalendarz-dane-*.json
 Windows PowerShell*.txt
 
 # Wewnętrzne materiały projektu - nie publikować w publicznym repo
+_PRIVATE_HISTORY/
 docs/PROMPT_*.txt
 docs/PROJECT_HANDOFF.md
 docs/PROJECT_HISTORY.md

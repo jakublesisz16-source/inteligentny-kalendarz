@@ -4,7 +4,6 @@ import type { Location } from '../locations/location.types';
 import { SafetyCenter } from '../safety/SafetyCenter';
 import { DataTransferPanel } from '../data-transfer/DataTransferPanel';
 import { PwaInstallPanel } from './PwaInstallPanel';
-import { NotificationsSettings } from '../notifications/NotificationsSettings';
 import { RELEASE_NOTES } from './releaseNotes';
 import { USER_ROADMAP } from './roadmap';
 import type { AppSettings, AppSettingsPatch, StartView, TimeFormat } from './settings.types';
@@ -65,7 +64,6 @@ export function SettingsView({ settings, locations, onChange, onDataChanged }: S
         </section>
       </div>
 
-      <NotificationsSettings settings={settings} onChange={onChange} />
 
       <section id="data-transfer-settings" className="panel settings-transfer-card" aria-label="Przenoszenie danych między urządzeniami">
         <DataTransferPanel onDataChanged={handleTransferDataChanged} />

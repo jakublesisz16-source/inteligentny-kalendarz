@@ -1,6 +1,6 @@
 ## 1.0.0-rc.1 - audit prywatności wydania
 
-Nowa instalacja nie otrzymuje predefiniowanego domu ani miejsca pracy. Historyczne materiały i fixtures zostały zsanityzowane z konkretnych danych mogących identyfikować właściciela projektu. Canonical dane pozostają local-first. Nie należy jednak twierdzić, że żadne dane nigdy nie opuszczają urządzenia: techniczne PushSubscription trafia do backendu Web Push, destination trafia do Google po świadomym kliknięciu `Trasa`, a nieszyfrowany plik backup/transfer może zostać ręcznie przeniesiony przez użytkownika.
+Nowa instalacja nie otrzymuje predefiniowanego domu ani miejsca pracy. Historyczne materiały i fixtures zostały zsanityzowane z konkretnych danych mogących identyfikować właściciela projektu. Canonical dane pozostają local-first. Finalne `1.0.0` nie ma backendu aplikacji ani Web Push. Nie należy jednak twierdzić, że żadne dane nigdy nie opuszczają urządzenia: destination może trafić do zewnętrznej usługi mapowej po świadomym kliknięciu `Trasa`, a nieszyfrowany plik backup/transfer może zostać ręcznie przeniesiony przez użytkownika.
 
 ## Globalne wyszukiwanie 0.7.0
 
@@ -14,13 +14,13 @@ Global Search działa wyłącznie lokalnie na danych `CalendarEvent` i `Location
 
 ## Lek przeciwbólowy w Dzienniku Cyklu 0.6.2
 
-Opcjonalna odpowiedź `Tak / Nie` dotycząca przyjęcia leku przeciwbólowego jest prywatną informacją zdrowotną i pozostaje lokalnie w `cycleJournalEntries`. Nie jest wysyłana do Cloudflare Worker, D1, Web Push, analytics, AI, Google ani innych usług.
+Opcjonalna odpowiedź `Tak / Nie` dotycząca przyjęcia leku przeciwbólowego jest prywatną informacją zdrowotną i pozostaje lokalnie w `cycleJournalEntries`. Nie jest wysyłana do backendu aplikacji, analytics, AI, Google ani innych usług.
 
 Ręczny backup i Data Transfer mogą zawierać to pole razem z pozostałym wpisem Dziennika. Eksport JSON nadal nie jest szyfrowany, więc powinien być przechowywany jak prywatny plik. Aplikacja nie zapisuje nazwy leku, dawki ani godziny przyjęcia.
 
 ## Własne wzorce Cyklu 0.6.1
 
-Wzorce są liczone wyłącznie lokalnie z już zapisanych `CyclePeriod` i `CycleJournalEntry`. Wynik nie jest zapisywany jako osobny rekord, nie jest wysyłany do Workera/D1 ani żadnego zewnętrznego API i nie dodaje nowych danych do backupu. Treść pola `note` jest celowo wyłączona z analizy.
+Wzorce są liczone wyłącznie lokalnie z już zapisanych `CyclePeriod` i `CycleJournalEntry`. Wynik nie jest zapisywany jako osobny rekord, nie jest wysyłany do żadnego backendu aplikacji ani zewnętrznego API i nie dodaje nowych danych do backupu. Treść pola `note` jest celowo wyłączona z analizy.
 
 Podsumowanie opisuje tylko własne zapisane obserwacje z dni zakończonych miesiączek. Nie klasyfikuje ich medycznie, nie przypisuje przyczyn i nie tworzy profilu zdrowotnego poza lokalnymi danymi, które użytkowniczka sama zapisała.
 
@@ -174,20 +174,14 @@ Historia cyklu jest traktowana jako prywatna, długoterminowa historia użytkown
 
 Pełny backup i plik `Przenoszenie danych` zawierają `cyclePeriods`, dlatego interfejs ostrzega, że nieszyfrowany plik może zawierać prywatną historię cyklu i należy przechowywać go bezpiecznie. Prognozy i diagnostics nie są eksportowane - po odzyskaniu historii są przeliczane od nowa.
 
-## Web Push 0.5.0
+## Powiadomienia - decyzja finalna 1.0.0
 
-0.5.0 wprowadza minimalną, świadomie ograniczoną komunikację sieciową wyłącznie dla opcjonalnych powiadomień. Pełny Kalendarz, Studia, Praca, Cykl, Zakupy i treść reminderów nadal pozostają lokalne.
+W 0.5.0 powstał eksperymentalny fundament Web Push, ale przed finalnym `1.0.0` warstwa sieciowa została wycofana z aktywnego produktu. Finalna PWA nie rejestruje PushSubscription, nie wysyła harmonogramów do serwera i nie ma Cloudflare Worker/D1/Cron/VAPID.
 
-Cloudflare Worker/D1 może przechowywać wyłącznie techniczne dane niezbędne do Web Push: losowy identyfikator instalacji, hash losowego tokenu, endpoint i klucze subskrypcji Push, losowy `scheduleId`, UTC trigger i techniczne timestamps/licznik prób. Sam `scheduleId` nie opisuje, czego dotyczy przypomnienie.
-
-Zdalny Push niesie wyłącznie minimalny techniczny sygnał. Service Worker dopiero lokalnie odczytuje reminder z IndexedDB i wybiera treść dyskretną albo pełną. Domyślny tryb dyskretny nie ujawnia na ekranie blokady danych Cyklu, nazw zajęć, miejsca pracy, adresu ani tytułu wydarzenia.
-
-Master switch jest device-local. Wyłączenie najpierw blokuje powiadomienia lokalnie, a dopiero potem próbuje usunąć zdalne schedule/subskrypcję. Dzięki temu brak internetu nie uniemożliwia natychmiastowego wyciszenia aplikacji.
-
-Runtime Push, PushSubscription, installationId/token i lokalne reminder-y nie są częścią backupu/transferu. Szczegółowe preferencje mogą zostać przeniesione, ale nowe urządzenie nie aktywuje powiadomień bez świadomej zgody użytkownika.
+W schema 12 mogą pozostać historyczne, lokalne store'y techniczne i preferencje reminderów, ponieważ ich fizyczne usuwanie wymagałoby niepotrzebnej migracji IndexedDB. Nie są one synchronizowane z siecią i nie są częścią canonical backup/Data Transfer poza samymi preferencjami. Czysty planner przypomnień pozostaje kodem lokalnym przygotowanym pod ewentualną przyszłą aplikację Android z lokalnymi powiadomieniami.
 
 ## Dziennik Cyklu 0.6.0
 
-`cycleJournalEntries` może zawierać prywatne informacje o krwawieniu, bólu, samopoczuciu i własnej notatce. Dane pozostają w lokalnym IndexedDB i nie są wysyłane do Workera, D1, analytics, AI, Google ani innych API.
+`cycleJournalEntries` może zawierać prywatne informacje o krwawieniu, bólu, samopoczuciu i własnej notatce. Dane pozostają w lokalnym IndexedDB i nie są wysyłane do backendu aplikacji, analytics, AI, Google ani innych API.
 
 Pełny backup, Restore Points i ręczny plik transferu zawierają Dziennik Cyklu. Eksport JSON nadal nie jest szyfrowany; checksum SHA-256 służy integralności i nie ukrywa treści. Podglądy backupu/transferu pokazują tylko liczbę wpisów, nie ich treść.

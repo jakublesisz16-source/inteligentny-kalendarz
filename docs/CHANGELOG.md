@@ -1,3 +1,13 @@
+## 1.0.0 - stabilne wydanie GitHub-only
+
+- zakończono rozwój funkcjonalny pierwszego stabilnego wydania,
+- wycofano z aktywnego produktu niedokończony transport Web Push i sekcję jego konfiguracji,
+- usunięto Cloudflare Worker/D1/Cron/VAPID, Wrangler i `web-push` z runtime/toolchainu produkcyjnego,
+- Service Worker odpowiada wyłącznie za PWA/offline i nadal nie cache'uje prywatnych PDF/XLS/XLSX/JSON,
+- zachowano schema 12, preferencje oraz czysty notification planner jako punkt integracji pod ewentualne przyszłe lokalne powiadomienia Android,
+- dodano jawną walidację rozszerzenia `.pdf` przed odczytem grafiku Pracy,
+- ustawiono APP/package/cache na finalne `1.0.0`; zmiana numeru nie wprowadza migracji danych ani nowych funkcji.
+
 ## 1.0.0-rc.7 - przygotowanie publicznego repo i GitHub Pages
 
 - dołączono zweryfikowany `package-lock.json` użyty w lokalnej bramce stabilności RC.7,

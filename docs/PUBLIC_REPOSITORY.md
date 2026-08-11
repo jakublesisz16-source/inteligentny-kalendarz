@@ -1,39 +1,35 @@
-# Publiczne repozytorium - zasady bezpieczeństwa
+# Publiczne repozytorium
 
-Ten projekt jest przygotowany do publicznego repo GitHub bez publikowania prywatnych danych użytkownika lub sekretów infrastruktury.
+Finalna architektura `1.0.0` jest GitHub-only. Repo zawiera kod PWA, workflow CI/Pages i dokumentację techniczną, ale nie zawiera prywatnych danych użytkownika ani wewnętrznych materiałów pracy.
 
-## Co może być publiczne
+## Dozwolone w publicznym repo
 
-- kod `src/`, `worker/` i testy,
-- `package.json` i `package-lock.json`,
-- manifest, ikony i Service Worker,
-- konfiguracja CI/GitHub Pages,
-- `wrangler.jsonc` wyłącznie z placeholderami i niesekretnymi wartościami development,
-- `.env.example` i `.dev.vars.example` wyłącznie z pustymi lub przykładowymi wartościami.
+- źródła `src/`,
+- statyczne PWA `public/`,
+- `package.json` i zweryfikowany `package-lock.json`,
+- konfiguracja Vite/TypeScript/Vitest,
+- workflow GitHub Actions,
+- publiczna dokumentacja produktu.
 
-## Czego nie publikować
+## Nigdy nie commituj
 
-- `.env`, `.dev.vars`, `.wrangler/`,
-- VAPID private key,
-- Cloudflare API token,
-- tokenów npm/GitHub,
+- `.env` i lokalnych sekretów,
 - prywatnych PDF/XLS/XLSX,
-- backupów i Data Transfer użytkownika,
-- logów terminala,
-- wewnętrznych promptów, handoffów i release auditów zawierających lokalną historię pracy.
-
-## Historia Git
-
-Secret usunięty dopiero po commit/push nadal istnieje w historii. Jeżeli prawdziwy sekret kiedykolwiek trafi do publicznego repo, należy go unieważnić/obrócić i dopiero potem oczyścić historię.
-
-Najbezpieczniejszy pierwszy push to nowo utworzone repo z czystym pierwszym commitem z tej przygotowanej paczki.
+- backupów i eksportów JSON,
+- lokalnych logów,
+- archiwów ZIP/7z/rar,
+- prywatnej historii projektu, promptów i handoffów,
+- kluczy, tokenów ani danych identyfikujących właściciela.
 
 ## GitHub Pages
 
-Repo powinno mieć Pages ustawione na `GitHub Actions`. Workflow `pages.yml` wdraża wyłącznie `dist/` po pełnym `npm run check`.
+Frontend jest statyczny. Nie ma produkcyjnej zmiennej backendu ani osobnego serwera aplikacji.
 
-`VITE_PUSH_WORKER_URL` może być ustawione jako GitHub Actions repository variable. Nie jest sekretem.
+Przed push:
 
-## Wiele aplikacji na GitHub Pages
+```bash
+git status
+npm run check
+```
 
-Project sites tego samego konta, np. `https://user.github.io/app-a/` i `https://user.github.io/app-b/`, mają ten sam web origin `https://user.github.io`. Service Workery są rozdzielone scope ścieżki, ale uprawnienia przeglądarkowe, np. Notifications, są origin-level. Jeżeli w przyszłości potrzebna będzie silna izolacja aplikacji, można nadać im osobne custom domains/subdomains bez zmiany kodu produktu.
+Po push sprawdź workflow `Deploy GitHub Pages` i dopiero po zielonym deploymentcie wykonaj smoke test produkcyjnej PWA.

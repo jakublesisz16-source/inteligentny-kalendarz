@@ -111,6 +111,7 @@ export function WorkView({ locations, onDataChanged }: WorkViewProps) {
   async function analyzeFile(file: File) {
     setError(''); setMessage(''); setAnalysis(null); setAnalyzing(true);
     try {
+      if (!file.name.toLowerCase().endsWith('.pdf')) throw new Error('Wybierz plik w formacie .pdf.');
       const currentProfile = await getWorkProfile();
       if (!currentProfile?.employeeMatchName.trim()) throw new Error('Najpierw ustaw profil pracy i imię/nazwisko używane w grafiku.');
       const buffer = await file.arrayBuffer();

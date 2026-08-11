@@ -1,43 +1,41 @@
-# Release Notes 1.0.0 - stan RC.7
+# Release Notes 1.0.0 - GitHub-only
 
-Projekt jest obecnie w stanie **1.0.0-rc.7**, nie w finalnym 1.0.0. RC.5/RC.6 zamknęły blocker bezpieczeństwa i zgodności PDF.js 6, a RC.7 usuwa niedeterministyczną kolejność Change Journal ujawnioną przez powtarzające się sporadyczne FAIL Undo. Lokalna bramka stabilności RC.7 została potwierdzona. Finalne wydanie nadal czeka na rzeczywisty GitHub Pages deployment, Web Push backend i realne testy urządzeń.
+## Status
 
-# Release notes 1.0.0
+`1.0.0` jest pierwszym stabilnym wydaniem Inteligentnego Kalendarza. Zakres funkcjonalny jest zamknięty, a źródłowy artefakt jest przygotowany do publikacji przez GitHub Pages.
 
-## Aktualny status
+## Architektura finalna
 
-Projekt jest obecnie w stanie **1.0.0-rc.7**, nie w finalnym 1.0.0. Funkcjonalny zakres jest zamknięty. RC.7 stabilizuje centralny Change Journal bez zmiany semantyki Undo, schema ani funkcji użytkowych. Zweryfikowany package-lock jest już dołączony do public-ready source.
+- GitHub Pages hostuje statyczną PWA,
+- canonical dane pozostają w lokalnym IndexedDB,
+- brak kont i cloud sync,
+- brak Cloudflare Worker/D1/Cron/VAPID,
+- brak Web Push w webowym `1.0.0`,
+- Service Worker odpowiada tylko za offline/cache,
+- czysty planner przypomnień i preferencje pozostają jako opcjonalny fundament pod przyszłą aplikację Android z lokalnymi powiadomieniami.
 
-## Czym jest Inteligentny Kalendarz
-
-Local-first PWA łącząca:
+## Funkcje wydania
 
 - Dzisiaj i Kalendarz,
-- Studia,
-- Pracę i dyspozycyjność,
+- Studia z lokalnym importem XLSX,
+- Praca z lokalnym importem tekstowego PDF,
 - Zakupy,
-- prywatny moduł Cykl,
-- Miejsca i Trasa,
+- prywatny moduł Cykl i Dziennik Cyklu,
+- Miejsca i świadome otwarcie trasy,
 - lokalne globalne wyszukiwanie,
-- backup/restore/Data Transfer,
-- opcjonalny Web Push.
+- Backup/Restore, Restore Points i Data Transfer,
+- instalowalna PWA i działanie offline po poprawnym pierwszym załadowaniu.
 
 ## Prywatność
 
-Canonical dane są przechowywane lokalnie w IndexedDB. Nie ma kont ani cloud sync. Backend Push przechowuje jedynie techniczne dane subskrypcji/harmonogramu i nie powinien znać treści kalendarza. Ręczne pliki backup/transfer są nieszyfrowane i mogą zawierać prywatne dane.
+Aplikacja nie ma backendu przechowującego kalendarz. Dane użytkownika są lokalne poza świadomymi operacjami użytkownika, np. ręcznym przeniesieniem eksportu albo otwarciem zewnętrznej trasy. Pliki backup/transfer są nieszyfrowane i należy traktować je jak prywatne dane.
 
 ## Cykl - granice
 
-Moduł nie diagnozuje. Szacunki mogą być niedostępne. Możliwe okno owulacji jest wyłącznie szerokim szacunkiem kalendarzowym, nie potwierdza owulacji, nie tworzy bezpiecznych dni i nie służy jako metoda antykoncepcji.
+Moduł nie diagnozuje. Możliwe okno owulacji jest wyłącznie szerokim szacunkiem kalendarzowym, nie potwierdza owulacji, nie tworzy bezpiecznych dni i nie służy jako metoda antykoncepcji.
 
-## PWA i Push
+## Gate wydania
 
-PWA może działać offline po wcześniejszym poprawnym online load. Web Push wymaga wdrożonego HTTPS frontendu, Workera, D1, Cron i VAPID. Globalny master switch jest device-local.
+Przed finalnym bumpem potwierdzono na Windows `npm ci`, pełne `npm run check`, 344/344 testów oraz production build. `npm audit` zgłosił 2 problemy Moderate i 0 High/Critical, co mieści się w ustalonym progu release gate.
 
-## Znane ograniczenia RC
-
-- public-ready source zawiera zweryfikowany `package-lock.json` RC.7,
-- GitHub Pages workflow jest przygotowany, ale rzeczywisty publiczny deploy nie został jeszcze wykonany,
-- produkcyjny Cloudflare Worker/D1/VAPID nie został jeszcze skonfigurowany,
-- realne testy Windows/Android/iOS, offline update i Web Push nie zostały wykonane,
-- dlatego RC nie może zostać przemianowany na finalne 1.0.0.
+Po publikacji finalnego artefaktu należy wykonać krótki smoke działającego GitHub Pages/PWA. Jeżeli ujawni realny blocker, poprawka powinna ograniczyć się wyłącznie do niego.
