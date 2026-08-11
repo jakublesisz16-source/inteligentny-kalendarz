@@ -4,12 +4,12 @@ Local-first PWA do planowania dnia, kalendarza, Studiów, Pracy, Zakupów, Cyklu
 
 ## Status
 
-- APP_VERSION: `1.0.0`
+- APP_VERSION: `1.0.1`
 - DATABASE_SCHEMA_VERSION: `12`
 - `pdfjs-dist`: `6.2.108`
 - architektura produkcyjna: GitHub-only, bez backendu i bez Web Push
-- rozwój funkcjonalny wydania `1.0.0` jest zamknięty
-- źródłowy artefakt `1.0.0` jest przygotowany do publikacji przez GitHub Pages
+- zakres poprawkowego wydania `1.0.1` jest zamknięty
+- źródłowy artefakt `1.0.1` jest przygotowany do publikacji przez GitHub Pages
 
 Release finalizuje cleanup warstwy Cloudflare/Web Push z aktywnego produktu. Zachowany czysty planner przypomnień i preferencje pozostają wyłącznie punktem integracyjnym dla ewentualnej przyszłej aplikacji Android z lokalnymi powiadomieniami.
 
@@ -32,7 +32,7 @@ Nie używaj `npm audit fix --force`, `npm install --force` ani `npm install --le
 - backup i Data Transfer używają lokalnego JSON i mogą zawierać prywatne dane,
 - XLSX i PDF są analizowane lokalnie,
 - brak OCR,
-- brak Web Push w finalnym zakresie `1.0.0`,
+- brak Web Push w webowym zakresie `1.0.1`,
 - globalne wyszukiwanie działa lokalnie i nie indeksuje danych Cyklu ani Dziennika Cyklu,
 - `Trasa` otwiera Mapy Google dopiero po świadomym kliknięciu.
 
@@ -40,10 +40,10 @@ Nie używaj `npm audit fix --force`, `npm install --force` ani `npm install --le
 
 1. Dzisiaj
 2. Kalendarz
-3. Studia
-4. Praca
-5. Zakupy
-6. Cykl
+3. Praca
+4. Zakupy
+5. Cykl
+6. Studia
 7. Miejsca
 8. Ustawienia
 
@@ -74,7 +74,7 @@ GitHub Pages deploy
 
 ## Powiadomienia - dalszy kierunek
 
-Powiadomienia systemowe nie są częścią webowego `1.0.0`. Zachowany czysty planner przypomnień i preferencje mają służyć późniejszej wersji Android, gdzie powiadomienia będą planowane lokalnie na urządzeniu bez Cloudflare, D1 i zewnętrznego backendu.
+Powiadomienia systemowe nie są częścią webowego `1.0.1`. Zachowany czysty planner przypomnień i preferencje mają służyć późniejszej wersji Android, gdzie powiadomienia będą planowane lokalnie na urządzeniu bez Cloudflare, D1 i zewnętrznego backendu.
 
 ## Prywatność
 
@@ -91,4 +91,4 @@ git status
 npm run check
 ```
 
-Nie commituj `.env`, prywatnych PDF/XLS/XLSX, backupów, eksportów, logów ani kluczy/tokenów. `package-lock.json` jest częścią repo i stanowi zweryfikowany dependency graph wydania `1.0.0`.
+Nie commituj `.env`, prywatnych PDF/XLS/XLSX, backupów, eksportów, logów ani kluczy/tokenów. `package-lock.json` jest częścią repo i stanowi zweryfikowany dependency graph wydania `1.0.1`.

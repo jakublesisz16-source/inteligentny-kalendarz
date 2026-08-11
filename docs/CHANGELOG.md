@@ -1,3 +1,11 @@
+## 1.0.1 - ergonomia nawigacji i czytelniejszy zespół pracy
+
+- uporządkowano nawigację na `Dziś | Kalendarz | Praca | Zakupy | Cykl | Studia | Miejsca | Ustawienia`, bez ukrywania zakładek i bez zmiany routingu,
+- w `Dziś` oraz `Kalendarz -> Wybrany dzień` wydarzenie pracy pokazuje pełną listę współpracowników zamiast nieinteraktywnego `+N więcej`,
+- poprawiono responsywne ułożenie długich nazwisk i wspólnych godzin tak, aby zawartość pozostawała czytelna wewnątrz karty,
+- dodano regresje dla pełnej i kompaktowej listy współpracowników; nie zmieniono importu PDF, logiki nakładania zmian ani danych użytkownika,
+- `DATABASE_SCHEMA_VERSION` pozostaje `12`; brak migracji, nowych zależności i zmian formatu backupu.
+
 ## 1.0.0 - stabilne wydanie GitHub-only
 
 - zakończono rozwój funkcjonalny pierwszego stabilnego wydania,

@@ -8,10 +8,10 @@ import { NAVIGATION_ITEMS } from '../ui/Navigation';
 const EXPECTED_VIEWS: AppView[] = [
   'today',
   'calendar',
-  'study',
   'work',
   'shopping',
   'cycle',
+  'study',
   'locations',
   'settings',
 ];

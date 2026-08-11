@@ -21,12 +21,15 @@ interface EventCardProps {
   onEdit: (event: CalendarEvent) => void;
   onStudyCorrect?: ((event: CalendarEvent) => void) | undefined;
   workCoworkers?: CoworkerOverlap[] | undefined;
+  showAllWorkCoworkers?: boolean | undefined;
 }
 
-export function EventCard({ event, location, timeFormat, seriesCount, onEdit, onStudyCorrect, workCoworkers = [] }: EventCardProps) {
+export function EventCard({ event, location, timeFormat, seriesCount, onEdit, onStudyCorrect, workCoworkers = [], showAllWorkCoworkers = false }: EventCardProps) {
   const hasStudyIssues = event.source === 'UNIVERSITY_XLSX' && Boolean(event.studyIssueCodes?.length);
   const multiDay = event.spanType === 'MULTI_DAY' || eventDayCount(event) > 1;
   const directionsUrl = location ? buildGoogleMapsDirectionsUrl(location) : undefined;
+  const visibleWorkCoworkers = showAllWorkCoworkers ? workCoworkers : workCoworkers.slice(0, 4);
+  const hiddenWorkCoworkerCount = Math.max(0, workCoworkers.length - visibleWorkCoworkers.length);
   return (
     <article className={`event-card category-${event.category.toLowerCase()}${multiDay ? ' multi-day-event-card' : ''}${event.allDay ? ' all-day-event-card' : ''}`}>
       <div className="event-time">
@@ -45,7 +48,7 @@ export function EventCard({ event, location, timeFormat, seriesCount, onEdit, on
         {location ? <p className="event-location">{location.name} - {location.address}</p> : null}
         {event.description ? <p className="event-description">{event.description}</p> : null}
         {hasStudyIssues ? <p className="event-review-note">Brakujące dane: {(event.studyIssueCodes ?? []).map(importIssueLabel).join(' · ')}</p> : null}
-        {event.source === 'WORK_PDF' && workCoworkers.length ? <div className="event-coworkers"><strong>Z Tobą na zmianie</strong><span>{workCoworkers.slice(0, 4).map((person) => <span className="event-coworker-line" key={`${person.displayName}-${person.coworkerStartTime}`}><b>{person.displayName}</b><small>razem {person.overlapStartTime}-{person.overlapEndTime}</small></span>)}{workCoworkers.length > 4 ? <small>+{workCoworkers.length - 4} więcej</small> : null}</span></div> : null}
+        {event.source === 'WORK_PDF' && workCoworkers.length ? <div className="event-coworkers"><strong>Z Tobą na zmianie</strong><span>{visibleWorkCoworkers.map((person) => <span className="event-coworker-line" key={`${person.displayName}-${person.coworkerStartTime}`}><b>{person.displayName}</b><small>razem {person.overlapStartTime}-{person.overlapEndTime}</small></span>)}{hiddenWorkCoworkerCount ? <small>+{hiddenWorkCoworkerCount} więcej</small> : null}</span></div> : null}
       </div>
       <div className="event-actions-column">
         {directionsUrl ? <a className="text-button" href={directionsUrl} target="_blank" rel="noopener noreferrer" aria-label={`Wyznacz trasę do ${location?.name || 'miejsca'} w Mapach Google`}>Trasa</a> : null}

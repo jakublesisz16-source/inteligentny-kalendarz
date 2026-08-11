@@ -5,7 +5,7 @@ function source(path: string): string {
   return readFileSync(new URL(path, import.meta.url), 'utf8');
 }
 
-describe('1.0.0 GitHub-only finalization', () => {
+describe('1.0.1 GitHub-only release invariants', () => {
   it('removes Cloudflare/Web Push runtime and toolchain dependencies', () => {
     const packageJson = JSON.parse(source('../../package.json')) as {
       scripts: Record<string, string>;
@@ -38,7 +38,7 @@ describe('1.0.0 GitHub-only finalization', () => {
     expect(serviceWorker).not.toContain("addEventListener('notificationclick'");
     expect(serviceWorker).not.toContain('indexedDB');
     expect(serviceWorker).toContain("'.pdf', '.xlsx', '.xls', '.json'");
-    expect(serviceWorker).toContain('inteligentny-kalendarz-shell-v1.0.0');
+    expect(serviceWorker).toContain('inteligentny-kalendarz-shell-v1.0.1');
   });
 
   it('retains the pure reminder planner as a future Android-local integration seam', () => {
