@@ -1,0 +1,181 @@
+name: Prepare final release 1.0.0
+
+on:
+  push:
+    branches: ["release/1.0.0"]
+
+permissions:
+  contents: write
+
+jobs:
+  prepare:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout release branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Materialize exact public release
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          check_blob() {
+            local file="$1"
+            local expected="$2"
+            local actual
+            actual="$(git hash-object "$file")"
+            test "$actual" = "$expected" || {
+              echo "HASH_MISMATCH $file expected=$expected actual=$actual"
+              exit 1
+            }
+          }
+
+          check_blob .release_tmp/overlay.part01 66d5529ea3c61e09593fdcf437c615bff6a66a9c
+          check_blob .release_tmp/overlay.part02 9a1b302799b88795496aaa1cef709705ecd25ae2
+          check_blob .release_tmp/overlay.part03 6f69027753e7772dd86443a677bd52bc52e00a3f
+          check_blob .release_tmp/overlay.part04 bb8e9ce37decbe0f7de3b5342bec7f8670a41b38
+          check_blob .release_tmp/overlay.part05 9b818bcca719d211e8ccd12ce23b91623fa20991
+          check_blob .release_tmp/overlay.part06 56d7f9798b87fb6ec2c0b2c75ac244ee2ddfc14a
+
+          cat .release_tmp/overlay.part01 \
+              .release_tmp/overlay.part02 \
+              .release_tmp/overlay.part03 \
+              .release_tmp/overlay.part04 \
+              .release_tmp/overlay.part05 \
+              .release_tmp/overlay.part06 > /tmp/release-overlay.b64
+
+          base64 -d /tmp/release-overlay.b64 > /tmp/release-overlay.tar.gz
+          echo "10c22a9477f2dcfdd09710e88387bffe5a60381224e15d78e91be98dd8fa6c1a  /tmp/release-overlay.tar.gz" | sha256sum -c -
+          tar -tzf /tmp/release-overlay.tar.gz >/dev/null
+          tar -xzf /tmp/release-overlay.tar.gz -C .
+
+          cat > package.json <<'JSON'
+          {
+            "name": "inteligentny-kalendarz",
+            "private": true,
+            "version": "1.0.0",
+            "type": "module",
+            "scripts": {
+              "dev": "vite",
+              "build": "tsc -b && vite build",
+              "typecheck": "tsc -b --pretty false",
+              "test": "vitest run",
+              "check": "npm run typecheck && npm run test && npm run build",
+              "preview": "vite preview"
+            },
+            "dependencies": {
+              "react": "^19.1.1",
+              "react-dom": "^19.1.1",
+              "exceljs": "^4.4.0",
+              "pdfjs-dist": "6.2.108"
+            },
+            "devDependencies": {
+              "@types/react": "^19.1.10",
+              "@types/react-dom": "^19.1.7",
+              "fake-indexeddb": "^6.1.0",
+              "typescript": "^5.9.2",
+              "vite": "^7.1.2",
+              "vitest": "^3.2.4",
+              "@types/node": "22.19.21"
+            }
+          }
+          JSON
+
+          npm install --package-lock-only --ignore-scripts
+          check_blob package.json ef953583cfc26d63ac2dbc5d98560a4b0b61978e
+          check_blob package-lock.json f81f463a6f24118ee76368d05a0fc66cd1873284
+
+          rm -f .dev.vars.example .env.example
+          rm -f docs/NOTIFICATIONS_DEPLOYMENT_0.5.0.md
+          rm -f src/notifications/NotificationsSettings.tsx
+          rm -f src/notifications/notification-storage.ts
+          rm -f src/notifications/push-client.ts
+          rm -rf worker
+          rm -f wrangler.jsonc
+
+          rm -rf .release_tmp
+          rm -f .github/workflows/prepare-final-release.yml
+
+          cat > /tmp/expected-final.txt <<'EOF'
+          5deccbcbe0e06630c9c3a5372c844f773b552334 .github/workflows/pages.yml
+          6234cbd03359af4ad84660beb8f0348c904affc4 .gitignore
+          f45eb66ad1fe49e359a5275ded5c5277158dc327 README.md
+          0420e77fb125a546eae6f9fd36b0c0e876db6d0e docs/ARCHITECTURE.md
+          911bc9eaf1e55514be6da67c16e8e85082ceb6fe docs/CHANGELOG.md
+          0932de91ee0d2462cffeaf2db3d56137158c3a2e docs/DATA_MODEL.md
+          84154976839154f4ab9b79fad8cc9f9199f2a96e docs/DEPLOYMENT_1.0.0.md
+          d58c29c0ac49acbf780fad5e8f99ecd4d25dea75 docs/LOCAL_FINAL_GATE.md
+          bbd79713965d8ef6775e29d3122f01eba1ced829 docs/PRIVACY.md
+          08d4de48319fac96292a33c7cdc9c6d608d3e286 docs/PUBLIC_REPOSITORY.md
+          cb5070f9f7bae8c2163d1e5c08e696bd7e49b8fe docs/RELEASE_NOTES_1.0.0.md
+          18446751407e800332354c9be414c0d72de03a6a public/service-worker.js
+          fdf08c42241edf53c09f7aa1fea206533986c6cc src/app/App.tsx
+          84e15e33ace03c89ded7068a4824685aa702e237 src/core/version.ts
+          097fff325c5728552dff4baf88b301e9d5116f09 src/settings/SettingsView.tsx
+          04abb9a977f359d6761c0493a51cfea10046d9bc src/settings/releaseNotes.ts
+          d7c96d39a5073a18b7573a77e31e1ae7f9176c1e src/settings/roadmap.ts
+          8059d8a67e8647098620ae3cd1d2c2fa2a4f666c src/tests/github-only-finalization.test.ts
+          ff69f7b515036b811cf99a14d59b7442944f7fbe src/work/WorkView.tsx
+          ef953583cfc26d63ac2dbc5d98560a4b0b61978e package.json
+          f81f463a6f24118ee76368d05a0fc66cd1873284 package-lock.json
+          EOF
+
+          while read -r expected path; do
+            check_blob "$path" "$expected"
+          done < /tmp/expected-final.txt
+
+          test ! -e worker
+          test ! -e wrangler.jsonc
+          test ! -e .env.example
+          test ! -e .dev.vars.example
+          test ! -e docs/NOTIFICATIONS_DEPLOYMENT_0.5.0.md
+          test ! -e src/notifications/push-client.ts
+          test ! -e src/notifications/NotificationsSettings.tsx
+          test ! -e src/notifications/notification-storage.ts
+          test ! -e _PRIVATE_HISTORY
+          test ! -e .release_tmp
+          test ! -e .github/workflows/prepare-final-release.yml
+
+          grep -q '"version": "1.0.0"' package.json
+          grep -q "APP_VERSION = '1.0.0'" src/core/version.ts
+          grep -q 'DATABASE_SCHEMA_VERSION = 12' src/core/version.ts
+          grep -q 'inteligentny-kalendarz-shell-v1.0.0' public/service-worker.js
+          ! grep -q 'worker:' package.json
+          ! grep -Eq 'web-push|wrangler|@cloudflare/workers-types' package.json
+          ! grep -q 'VITE_PUSH_WORKER_URL' .github/workflows/pages.yml
+
+          git add -A
+          tracked_count="$(git ls-files | wc -l | tr -d ' ')"
+          test "$tracked_count" = "189" || {
+            echo "TRACKED_FILE_COUNT expected=189 actual=$tracked_count"
+            exit 1
+          }
+
+          echo "FINAL_STRUCTURE_VERIFIED 189 files"
+
+      - name: Final dependency and code gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm ci
+          npm run check
+          npm audit --audit-level=high
+
+      - name: Commit final release
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Release 1.0.0"
+          git push origin HEAD:release/1.0.0
