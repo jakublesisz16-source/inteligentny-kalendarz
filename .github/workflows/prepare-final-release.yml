@@ -44,14 +44,18 @@ jobs:
           check_blob .release_tmp/overlay.part01 66d5529ea3c61e09593fdcf437c615bff6a66a9c
           check_blob .release_tmp/overlay.part02 9a1b302799b88795496aaa1cef709705ecd25ae2
           check_blob .release_tmp/overlay.part03 6f69027753e7772dd86443a677bd52bc52e00a3f
-          check_blob .release_tmp/overlay.part04 bb8e9ce37decbe0f7de3b5342bec7f8670a41b38
+          check_blob .release_tmp/overlay.part04a 03be55eb057beb94a4c6447de8f4cad4a03e8528
+          check_blob .release_tmp/overlay.part04b c4f536e5a4e6acabafeb40e43cffbc98d0c53fa8
+          check_blob .release_tmp/overlay.part04c 69ad3e2d924b5389deec60b815c834b1d2ac04d9
           check_blob .release_tmp/overlay.part05 9b818bcca719d211e8ccd12ce23b91623fa20991
           check_blob .release_tmp/overlay.part06 56d7f9798b87fb6ec2c0b2c75ac244ee2ddfc14a
 
           cat .release_tmp/overlay.part01 \
               .release_tmp/overlay.part02 \
               .release_tmp/overlay.part03 \
-              .release_tmp/overlay.part04 \
+              .release_tmp/overlay.part04a \
+              .release_tmp/overlay.part04b \
+              .release_tmp/overlay.part04c \
               .release_tmp/overlay.part05 \
               .release_tmp/overlay.part06 > /tmp/release-overlay.b64
 
