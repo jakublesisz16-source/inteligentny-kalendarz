@@ -111,9 +111,7 @@ jobs:
           rm -f src/notifications/push-client.ts
           rm -rf worker
           rm -f wrangler.jsonc
-
           rm -rf .release_tmp
-          rm -f .github/workflows/prepare-final-release.yml
 
           cat > /tmp/expected-final.txt <<'EOF'
           5deccbcbe0e06630c9c3a5372c844f773b552334 .github/workflows/pages.yml
@@ -153,7 +151,6 @@ jobs:
           test ! -e src/notifications/notification-storage.ts
           test ! -e _PRIVATE_HISTORY
           test ! -e .release_tmp
-          test ! -e .github/workflows/prepare-final-release.yml
 
           grep -q '"version": "1.0.0"' package.json
           grep -q "APP_VERSION = '1.0.0'" src/core/version.ts
@@ -165,12 +162,12 @@ jobs:
 
           git add -A
           tracked_count="$(git ls-files | wc -l | tr -d ' ')"
-          test "$tracked_count" = "189" || {
-            echo "TRACKED_FILE_COUNT expected=189 actual=$tracked_count"
+          test "$tracked_count" = "190" || {
+            echo "TRACKED_FILE_COUNT expected=190-with-temporary-workflow actual=$tracked_count"
             exit 1
           }
 
-          echo "FINAL_STRUCTURE_VERIFIED 189 files"
+          echo "FINAL_STRUCTURE_VERIFIED 189 release files + 1 temporary workflow"
 
       - name: Final dependency and code gate
         shell: bash
@@ -180,7 +177,7 @@ jobs:
           npm run check
           npm audit --audit-level=high
 
-      - name: Commit final release
+      - name: Commit verified release branch
         shell: bash
         run: |
           set -euo pipefail
