@@ -7,6 +7,17 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '1.0.1',
+    title: 'Czytelniejsza nawigacja i zespół pracy',
+    date: '2026-08-11',
+    changes: [
+      'Najczęściej używane sekcje Praca, Zakupy i Cykl są wcześniej w istniejącym pasku nawigacji; żadna zakładka nie została ukryta.',
+      'W Dziś oraz w szczegółach wybranego dnia Kalendarza wydarzenie pracy pokazuje pełny skład współpracowników bez nieinteraktywnego +N więcej.',
+      'Długie nazwiska i wspólne godziny układają się responsywnie, bez zmiany danych grafiku ani sposobu obliczania wspólnego czasu.',
+      'Schema pozostaje 12; wydanie nie dodaje migracji, zależności ani zmian formatu backupu.',
+    ],
+  },
+  {
     version: '1.0.0',
     title: 'Stabilne wydanie GitHub-only',
     date: '2026-08-10',

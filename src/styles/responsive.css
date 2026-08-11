@@ -351,7 +351,7 @@
   .coworker-full-shift, .coworker-shared-time { grid-column: 1; grid-row: auto; justify-content: flex-start; text-align: left; white-space: normal; }
   .coworker-shared-time { margin-top: 2px; }
   .work-team-heading { display: grid; gap: 3px; }
-  .event-coworker-line { grid-template-columns: 1fr; gap: 2px; }
+  .event-coworker-line b, .event-coworker-line small { flex-basis: 100%; }
   .event-coworker-line small { white-space: normal; }
 }
 

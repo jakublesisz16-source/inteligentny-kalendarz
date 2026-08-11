@@ -1,4 +1,4 @@
-const CACHE_NAME = 'inteligentny-kalendarz-shell-v1.0.0';
+const CACHE_NAME = 'inteligentny-kalendarz-shell-v1.0.1';
 
 async function cacheApplicationShell() {
   const cache = await caches.open(CACHE_NAME);

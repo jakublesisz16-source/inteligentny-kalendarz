@@ -17,10 +17,10 @@ export interface NavigationItem {
 export const NAVIGATION_ITEMS: NavigationItem[] = [
   { id: 'today', label: 'Dzisiaj', short: 'Dziś', icon: 'today' },
   { id: 'calendar', label: 'Kalendarz', short: 'Kal.', icon: 'calendar' },
-  { id: 'study', label: 'Studia', short: 'Studia', icon: 'study' },
   { id: 'work', label: 'Praca', short: 'Praca', icon: 'work' },
   { id: 'shopping', label: 'Zakupy', short: 'Zak.', icon: 'shopping' },
   { id: 'cycle', label: 'Cykl', short: 'Cykl', icon: 'cycle' },
+  { id: 'study', label: 'Studia', short: 'Studia', icon: 'study' },
   { id: 'locations', label: 'Miejsca', short: 'Miej.', icon: 'locations' },
   { id: 'settings', label: 'Ustawienia', short: 'Ustaw.', icon: 'settings' },
 ];
