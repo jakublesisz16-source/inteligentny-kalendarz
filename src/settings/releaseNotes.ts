@@ -7,6 +7,17 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '1.0.0',
+    title: 'Stabilne wydanie GitHub-only',
+    date: '2026-08-10',
+    changes: [
+      'Pierwsze stabilne wydanie działa jako GitHub Pages + lokalny IndexedDB, bez backendu aplikacji i bez Web Push.',
+      'Aktywny Cloudflare Worker/D1/Cron/VAPID oraz webowy transport powiadomień zostały wycofane; czysty planner i preferencje pozostają jako opcjonalny punkt integracji pod przyszły Android.',
+      "Service Worker zapewnia offline i nie cache'uje prywatnych plików importu/eksportu; schema pozostaje 12.",
+      'Finalny bump z RC.7 nie dodaje funkcji, migracji ani zależności.',
+    ],
+  },
+  {
     version: '1.0.0-rc.7',
     title: 'Release Candidate - deterministyczny Change Journal',
     changes: [
@@ -69,7 +80,7 @@ export const RELEASE_NOTES: ReleaseNote[] = [
       'Zamknięto rozwój funkcjonalny i wykonano pierwszy finalny audit wydania bez dodawania nowych funkcji.',
       'Nowe instalacje zaczynają z pustą listą Miejsc zamiast konkretnych domyślnych adresów; istniejące dane aktualizowanych instalacji nie są usuwane.',
       'Service Worker otrzymał nową wersję cache dla RC, a workflow GitHub Pages zastąpiono CI opartym o npm ci i npm run check.',
-      'To nadal Release Candidate: finalne 1.0.0 wymaga pełnego npm ci/check/build, deploymentu Cloudflare oraz realnych testów PWA i Web Push na urządzeniach.',
+      'Na etapie RC.1 plan finalizacji obejmował jeszcze deployment Cloudflare/Web Push; przed finalnym 1.0.0 zakres został później świadomie uproszczony do GitHub-only.',
     ],
   },
   {

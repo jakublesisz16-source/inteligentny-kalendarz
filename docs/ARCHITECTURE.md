@@ -1,3 +1,9 @@
+## 1.0.0 - finalizacja GitHub-only
+
+Docelowa architektura `1.0.0` nie ma backendu aplikacji. Produkcja to `GitHub Pages -> PWA -> IndexedDB`. Service Worker obsługuje wyłącznie cache/offline i nie ma listenera `push`. Warstwa Cloudflare Worker/D1/Cron/VAPID oraz klient Web Push zostały usunięte z aktywnego kodu i toolchainu przed finalnym wydaniem.
+
+`DATABASE_SCHEMA_VERSION` pozostaje 12. Historyczne store'y techniczne notificationRuntime/notificationReminders nie są usuwane migracją, aby nie ryzykować danych istniejących instalacji. Zachowane są `NotificationPreferences` oraz czysty `notification-planner.ts` jako lokalny punkt integracyjny pod przyszłą aplikację Android; nie wykonują sieci ani side effectów.
+
 ## 1.0.0-rc.2 - hotfix toolchainu
 
 Brak zmian architektury produktu. Zmiany dotyczą wyłącznie zgodności typów/dependencies i nie zmieniają przepływów danych, IndexedDB, Web Push ani modułów funkcjonalnych.
@@ -439,22 +445,12 @@ Niepewność ma jedną główną ścieżkę obliczeń: robust spread + rzeczywis
 
 Moduł jest izolowany od Calendar/Work/Study/Availability/Shopping. Backup, restore point i canonical Data Transfer obejmują `cyclePeriods`, ale nie obejmują prognoz derived.
 
-## 0.5.0 - Web Push przy zachowaniu local-first
+## 0.5.0 - historyczny fundament powiadomień
 
-Od 0.5.0 kierunek zależności dla powiadomień jest osobny od danych domenowych:
+0.5.0 wprowadziło eksperymentalną warstwę Web Push. Przed finalnym `1.0.0` transport sieciowy został wycofany, ponieważ docelowa wersja ma pozostać GitHub-only. Historyczny kod jest zachowany w Git/archiwach, ale nie jest częścią aktywnego runtime ani deploymentu.
 
-`dane lokalne -> pure notification planner -> notificationReminders (IndexedDB) -> anonimowy schedule manifest -> Cloudflare Worker/D1/Cron -> generic Web Push -> Service Worker -> lokalny reminder -> system Notification`
-
-Warstwa zdalna nie jest backendem Kalendarza. Nie przechowuje `CalendarEvent`, Studiów, Pracy, Cyklu ani treści powiadomienia. Service Worker nie wykonuje migracji IndexedDB - jedynie otwiera istniejącą bazę i przy braku store'ów kończy obsługę Push bez crashu.
-
-Nowe moduły:
-
-- `src/notifications` - planner, preferences, local runtime/storage, klient Web Push i UI,
-- `worker` - minimalny Cloudflare Worker, D1 migration i testy,
-- `public/service-worker.js` - istniejący offline worker rozszerzony o `push` i `notificationclick`.
-
-Globalny kill switch jest sprawdzany również w Service Workerze, więc zdalnie spóźniony Push nie może ominąć lokalnego `masterEnabled = false`.
+W aktualnym drzewie `src/notifications` pozostają tylko czyste elementy lokalne: typy/preferencje i planner. Nie ma klienta Push, UI aktywacji, Workera ani zdalnego harmonogramu.
 
 ## 0.6.0 - Dziennik Cyklu jako osobna warstwa danych
 
-Kierunek zależności: `CycleJournalEditor/CycleView -> cycleJournalEntries (IndexedDB) -> backup/restore/transfer`. `CyclePeriod -> cycle-v1` pozostaje osobną ścieżką. Dziennik nie jest przekazywany do `predictNextPeriod`, notification planner, Service Workera ani Cloudflare Worker/D1. Journal CRUD odświeża lokalny stan Dziennika i celowo nie wywołuje globalnego `onDataChanged`, które synchronizuje reminder-y.
+Kierunek zależności: `CycleJournalEditor/CycleView -> cycleJournalEntries (IndexedDB) -> backup/restore/transfer`. `CyclePeriod -> cycle-v1` pozostaje osobną ścieżką. Dziennik nie jest przekazywany do `predictNextPeriod` ani notification plannera. Journal CRUD odświeża lokalny stan Dziennika i celowo nie wywołuje globalnego `onDataChanged`, ponieważ zmiana wpisu Dziennika nie wymaga odświeżenia pozostałych modułów.

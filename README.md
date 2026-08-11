@@ -4,13 +4,14 @@ Local-first PWA do planowania dnia, kalendarza, Studiów, Pracy, Zakupów, Cyklu
 
 ## Status
 
-- APP_VERSION: `1.0.0-rc.7`
+- APP_VERSION: `1.0.0`
 - DATABASE_SCHEMA_VERSION: `12`
 - `pdfjs-dist`: `6.2.108`
-- status: Release Candidate - finalne `1.0.0` wymaga jeszcze realnego deploymentu i testów urządzeń
-- rozwój funkcjonalny jest zamknięty
+- architektura produkcyjna: GitHub-only, bez backendu i bez Web Push
+- rozwój funkcjonalny wydania `1.0.0` jest zamknięty
+- źródłowy artefakt `1.0.0` jest przygotowany do publikacji przez GitHub Pages
 
-RC.7 zawiera deterministyczne porządkowanie Change Journal oraz stabilny lokalny zestaw testów. Publiczna wersja repozytorium nie zawiera prywatnych plików użytkownika, sekretów ani wewnętrznej historii promptów/handoffów.
+Release finalizuje cleanup warstwy Cloudflare/Web Push z aktywnego produktu. Zachowany czysty planner przypomnień i preferencje pozostają wyłącznie punktem integracyjnym dla ewentualnej przyszłej aplikacji Android z lokalnymi powiadomieniami.
 
 ## Uruchomienie lokalne
 
@@ -25,12 +26,14 @@ Nie używaj `npm audit fix --force`, `npm install --force` ani `npm install --le
 ## Najważniejsze założenia
 
 - dane aplikacji pozostają lokalnie w IndexedDB,
-- brak kont użytkowników i cloud sync,
+- brak kont użytkowników, backendu aplikacji i cloud sync,
+- frontend produkcyjny jest statycznie hostowany na GitHub Pages,
+- PWA działa offline po poprawnym pierwszym załadowaniu,
 - backup i Data Transfer używają lokalnego JSON i mogą zawierać prywatne dane,
 - XLSX i PDF są analizowane lokalnie,
 - brak OCR,
-- globalny master switch powiadomień jest device-local i ma najwyższy priorytet,
-- Global Search działa lokalnie i nie indeksuje danych Cyklu ani Dziennika Cyklu,
+- brak Web Push w finalnym zakresie `1.0.0`,
+- globalne wyszukiwanie działa lokalnie i nie indeksuje danych Cyklu ani Dziennika Cyklu,
 - `Trasa` otwiera Mapy Google dopiero po świadomym kliknięciu.
 
 ## Moduły
@@ -48,8 +51,6 @@ Wyszukiwanie jest utility, a nie osobną pozycją nawigacji.
 
 ## GitHub Pages
 
-Frontend jest przygotowany do publikacji jako GitHub Pages z publicznego repozytorium.
-
 Workflow:
 
 ```text
@@ -65,27 +66,19 @@ upload dist
 GitHub Pages deploy
 ```
 
-`vite.config.ts` używa `base: './'`, a manifest i Service Worker korzystają ze ścieżek względnych, dlatego projekt może działać jako project site pod ścieżką `https://<user>.github.io/<repo>/` bez wpisywania nazwy repo do źródła.
+`vite.config.ts` używa `base: './'`, a manifest i Service Worker korzystają ze ścieżek względnych, dlatego projekt działa jako GitHub Pages project site bez wpisywania nazwy repo do kodu źródłowego.
 
-Szczegóły: `docs/DEPLOYMENT_1.0.0.md` i `docs/PUBLIC_REPOSITORY.md`.
+## PWA i offline
 
-## Web Push
+`public/service-worker.js` odpowiada wyłącznie za cache powłoki aplikacji i działanie offline. Nie obsługuje Web Push. Prywatne pliki `.pdf`, `.xlsx`, `.xls` i `.json` są wykluczone z Cache Storage.
 
-GitHub Pages hostuje wyłącznie frontend. Pełny Web Push nadal wymaga małego backendu Cloudflare Worker + D1 + Cron + VAPID.
+## Powiadomienia - dalszy kierunek
 
-Publiczny adres Workera przekazuje się do builda przez repozytoryjną zmienną GitHub Actions:
-
-```text
-VITE_PUSH_WORKER_URL
-```
-
-To nie jest sekret. Prywatny klucz VAPID nigdy nie może trafić do repo ani bundle frontendu.
-
-Bez skonfigurowanego Workera aplikacja nadal działa jako local-first PWA, ale funkcje Web Push pozostają nieskonfigurowane.
+Powiadomienia systemowe nie są częścią webowego `1.0.0`. Zachowany czysty planner przypomnień i preferencje mają służyć późniejszej wersji Android, gdzie powiadomienia będą planowane lokalnie na urządzeniu bez Cloudflare, D1 i zewnętrznego backendu.
 
 ## Prywatność
 
-Nie należy interpretować local-first jako "żadne dane nigdy nie opuszczają urządzenia". Techniczne dane PushSubscription są przesyłane do backendu Web Push, destination może zostać przekazane do Google po kliknięciu `Trasa`, a eksportowane pliki JSON są przenoszone przez użytkownika.
+Local-first nie oznacza, że absolutnie żaden bit nigdy nie może opuścić urządzenia. Świadome akcje użytkownika mogą przekazać destination do zewnętrznej usługi mapowej, a eksportowane pliki JSON są przenoszone przez użytkownika. Sam kalendarz nie ma backendu synchronizującego dane.
 
 Więcej: `docs/PRIVACY.md`.
 
@@ -98,4 +91,4 @@ git status
 npm run check
 ```
 
-Nie commituj `.env`, `.dev.vars`, prywatnych PDF/XLS/XLSX, backupów, eksportów, logów ani kluczy/tokenów. `package-lock.json` jest częścią repo i stanowi zweryfikowany dependency graph RC.7.
+Nie commituj `.env`, prywatnych PDF/XLS/XLSX, backupów, eksportów, logów ani kluczy/tokenów. `package-lock.json` jest częścią repo i stanowi zweryfikowany dependency graph wydania `1.0.0`.

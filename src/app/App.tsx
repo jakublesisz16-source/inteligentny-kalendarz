@@ -27,8 +27,6 @@ import type { AvailabilityPlan } from '../availability/availability.types';
 import { refreshAllAvailabilityPlanStatuses } from '../availability/availability.service';
 import { DayAvailabilityEditor } from '../availability/DayAvailabilityEditor';
 import { StudySeriesTimingCorrection } from '../planning/StudySeriesTimingCorrection';
-import { rebuildAndSyncNotifications } from '../notifications/notification-storage';
-import { retryPendingNotificationCleanup } from '../notifications/push-client';
 import {
   createEvent,
   createManualEventSeries,
@@ -131,7 +129,6 @@ export function App() {
       setAvailabilityPlans(loadedAvailability);
       setCoworkersByEvent(await loadCoworkerMap(loadedEvents));
       setView(loadedSettings.preferredStartView);
-      void retryPendingNotificationCleanup().then(() => rebuildAndSyncNotifications()).catch(() => undefined);
     } catch (error) {
       setFatalError(error instanceof Error ? error.message : 'Nie udało się uruchomić lokalnej bazy.');
     } finally {
@@ -145,7 +142,6 @@ export function App() {
     setConsistencyIssues(loadedIssues);
     setAvailabilityPlans(loadedAvailability);
     setCoworkersByEvent(await loadCoworkerMap(loadedEvents));
-    await rebuildAndSyncNotifications();
   }
 
   async function openEventEditor(event: CalendarEvent) {
@@ -173,7 +169,6 @@ export function App() {
     setConsistencyIssues(loadedIssues);
     setAvailabilityPlans(loadedAvailability);
     setCoworkersByEvent(await loadCoworkerMap(loadedEvents));
-    await rebuildAndSyncNotifications();
   }
 
   async function showUndoToast(message: string) {
@@ -311,7 +306,6 @@ export function App() {
   async function changeSettings(patch: AppSettingsPatch) {
     const next = await updateSettings(patch);
     setSettings(next);
-    if (patch.notificationPreferences) await rebuildAndSyncNotifications();
     setToast({ message: 'Ustawienia zapisane lokalnie.' });
   }
 

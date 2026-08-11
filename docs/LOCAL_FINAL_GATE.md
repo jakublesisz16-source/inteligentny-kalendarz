@@ -1,55 +1,53 @@
-# Local FINAL PRODUCTION GATE - RC.7
+# Local FINAL PRODUCTION GATE - 1.0.0
 
-Status: **LOCAL PUBLIC-REPOSITORY PREPARATION = PASS**. Realny deployment i testy urządzeń pozostają PENDING.
+Status: **RELEASE ARTIFACT APPROVED**.
 
 ## Zamrożone parametry
 
-- APP/package: `1.0.0-rc.7`
-- schema: `12`
+- APP/package: `1.0.0`
+- DATABASE_SCHEMA_VERSION: `12`
 - `pdfjs-dist`: `6.2.108`
-- funkcjonalny kod `src/`, `worker/` i `public/`: bajtowo bez zmian względem źródłowego RC.7
-- `package.json`, `vite.config.ts`, `wrangler.jsonc`: bajtowo bez zmian
-- zweryfikowany `package-lock.json`: dołączony
+- frontend: GitHub Pages
+- backend produktu: brak
+- Web Push: poza zakresem `1.0.0`
 
-## Wykonane lokalnie
+## Potwierdzony gate kodu
 
-- przygotowanie drzewa pod publiczne repo,
-- usunięcie wewnętrznych promptów/handoffów/release auditów z publicznej paczki,
-- rozszerzenie `.gitignore`,
-- przygotowanie read-only CI dla pull request,
-- przygotowanie GitHub Pages workflow dla `main`,
-- weryfikacja ścieżek Vite/manifest/Service Worker pod project site `/repo/`,
-- secret/private-data scan,
-- forbidden-artifact scan,
-- kontrola zgodności `package.json` i root lockfile,
-- YAML parse workflow PASS,
-- JSON parse PASS,
-- Service Worker syntax PASS,
-- kontrolne rozpakowanie ZIP i porównanie bajtowe PASS.
+Na dostarczonym `1.0.0-rc.7` po cleanupie GitHub-only potwierdzono na Windows:
 
-## npm w środowisku audytu
+- `npm ci` - PASS,
+- `npm run check` - PASS,
+- typecheck - PASS,
+- Vitest - 49 plików testowych, 344/344 testów PASS,
+- production build - PASS,
+- `npm audit` - 2 Moderate, 0 High, 0 Critical.
 
-Próba `npm ci` w tym środowisku zakończyła się E404 na wewnętrznym mirrorze dla `zip-stream-4.1.1.tgz`. Nie jest to nowy błąd dependency tree i nie jest oznaczane jako PASS.
+Nie używać `npm audit fix --force`, ponieważ dostępna automatyczna ścieżka naprawy wymusza breaking change zależności `exceljs`.
 
-Zweryfikowany lokalny RC.7 użytkownika przeszedł wcześniej na Windows:
+Finalny bump `rc.7 -> 1.0.0` zmienia wyłącznie identyfikatory wydania, wpis release notes/roadmapy, nazwę cache Service Workera i odpowiadające im testy/dokumentację. Nie zmienia schema, zależności ani logiki domenowej.
 
-- `npm install` PASS,
-- `npm ci` PASS,
-- wielokrotne `npm run check` PASS,
-- 339/339 testów frontendu,
-- 5/5 testów Workera,
-- production build PASS,
-- 20/20 focused stability runs PASS,
-- `npm audit`: 0 High, 0 Critical, 2 Moderate przez `uuid -> ExcelJS`.
+## Zakres finalnego produktu
 
-## Pozostałe bramki
+- GitHub Pages,
+- PWA online/offline,
+- IndexedDB local-first,
+- lokalny import PDF/XLSX,
+- Backup/Restore/Data Transfer,
+- brak backendu aplikacji,
+- brak Web Push.
 
-- rzeczywisty publiczny GitHub push,
+## Weryfikacja po publikacji
+
+Po push finalnego `1.0.0` sprawdź działający artefakt:
+
 - GitHub Actions PASS,
-- GitHub Pages deploy,
-- realny PWA install/offline/update,
-- Cloudflare Worker/D1/Cron/VAPID dla Web Push,
-- realny Push i master OFF,
-- Windows/Android/iOS,
-- responsive/accessibility,
-- finalny bump i update do `1.0.0`.
+- GitHub Pages PASS,
+- pierwszy online load,
+- instalację/aktualizację PWA,
+- ponowne otwarcie offline,
+- IndexedDB persistence,
+- PDF/XLSX,
+- Backup/Restore/Data Transfer,
+- brak UI Web Push.
+
+Jeżeli ten smoke ujawni rzeczywisty blocker, popraw wyłącznie blocker. Nie otwieraj ponownie rozwoju funkcjonalnego `1.0.0`.

@@ -459,17 +459,17 @@ Import 0.3.6 jest trybem replace. Starsze kompatybilne schema 7 i 8 są migrowan
 
 `CyclePrediction`, diagnostics, missed-log candidates i possible-shift state są danymi derived i nie mają osobnych store'ów.
 
-## Schema 11 - runtime powiadomień
+## Schema 11 - historyczne lokalne struktury reminderów
 
-`DATABASE_SCHEMA_VERSION = 11`. Migracja 10 -> 11 dodaje wyłącznie dwa store'y odtwarzalne i nie przepisuje store'ów użytkownika.
+Migracja 10 -> 11 dodała dwa lokalne store'y odtwarzalne i nie przepisywała store'ów użytkownika. Finalne `1.0.0` zachowuje je w schema 12 wyłącznie dla kompatybilności istniejących instalacji i aby uniknąć ryzykownej migracji czyszczącej.
 
-`notificationRuntime` - `keyPath: id`, pojedynczy device-local rekord runtime. Może zawierać master switch, suspended, losową tożsamość instalacji, status zdalnej rejestracji, digest harmonogramu, timestamps backupu i pending cleanup. Nie jest częścią canonical backup/Data Transfer.
+`notificationRuntime` - device-local rekord techniczny. Finalny webowy `1.0.0` nie używa go do rejestracji zdalnego Push. Może nadal przechować lokalny timestamp ostatniego backupu/historyczne pola ze starszego RC. Nie jest częścią canonical backup/Data Transfer.
 
-`notificationReminders` - `keyPath: id`, indeksy `triggerAt` i unikalny `scheduleId`. Zawiera lokalnie pełną i dyskretną treść reminder-a, kategorię, źródłowy identyfikator, trigger, shownAt i timestamps. Jest derived z bieżących danych i preferencji; nie jest eksportowany ani przenoszony.
+`notificationReminders` - historyczny/odtwarzalny store derived reminderów. Finalny webowy `1.0.0` nie synchronizuje go z siecią ani nie pokazuje z niego systemowych powiadomień. Nie jest eksportowany ani przenoszony.
 
-`AppSettings.notificationPreferences` jest trwałą preferencją użytkownika i może wejść do backup/Data Transfer. Nie zawiera PushSubscription ani aktywacji urządzenia.
+`AppSettings.notificationPreferences` pozostaje trwałą preferencją użytkownika i może wejść do backup/Data Transfer. Zachowanie pola pozwala później podłączyć czysty planner do lokalnych powiadomień aplikacji Android bez zmiany canonical danych.
 
-Zdalny D1 nie jest częścią modelu danych użytkownika. Jego techniczny model zawiera wyłącznie `push_installations` i `wake_schedules` z anonimową subskrypcją, hashem tokenu instalacji, losowym `schedule_id` i `trigger_at_utc`.
+Finalny `1.0.0` nie ma zdalnego D1 ani backendowego modelu danych.
 
 ## AppSettings - 0.5.1
 

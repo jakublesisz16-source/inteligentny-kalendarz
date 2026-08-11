@@ -1,8 +1,8 @@
-# Deployment 1.0.0 - finalny runbook
+# Deployment 1.0.0 - GitHub-only
 
-Ten dokument opisuje docelowy układ: publiczny GitHub + GitHub Pages dla frontendu oraz Cloudflare Worker + D1 + Cron tylko dla technicznej warstwy Web Push.
+Docelowy `1.0.0` ma jedną produkcyjną warstwę hostingową: publiczny GitHub + GitHub Pages. Nie ma Cloudflare Workera, D1, Cron, VAPID ani Web Push.
 
-Finalne `1.0.0` wolno zatwierdzić dopiero po rzeczywistych testach produkcyjnych.
+Artefakt `1.0.0` jest przygotowany do publikacji po potwierdzonym gate kodu. Po push wykonaj rzeczywisty smoke test wdrożonej PWA; ewentualny blocker popraw wyłącznie minimalną poprawką.
 
 ## 1. Lokalny gate
 
@@ -15,114 +15,44 @@ npm audit
 
 Wymagane: wszystkie testy/build PASS oraz 0 High i 0 Critical. Nie używaj `npm audit fix --force`.
 
-## 2. GitHub Pages frontend
+## 2. GitHub Pages
 
-Utwórz publiczne repo i wypchnij przygotowane źródło na `main`.
-
-W ustawieniach repo:
+Repozytorium ma mieć aktywne:
 
 ```text
 Settings -> Pages -> Source -> GitHub Actions
 ```
 
-Workflow `.github/workflows/pages.yml` wykonuje pełne `npm run check`, uploaduje `dist/` i wdraża Pages.
+Workflow `.github/workflows/pages.yml` wykonuje `npm ci`, pełne `npm run check`, upload `dist/` i deployment Pages.
 
-Projekt ma `base: './'`, manifest `start_url: './'`, scope `./` oraz względną rejestrację Service Workera, więc jest przygotowany do project site pod ścieżką repo.
+Projekt używa `base: './'`, manifestu ze względnym `start_url`/`scope` oraz względnej rejestracji Service Workera, dlatego jest przygotowany do GitHub Pages project site pod ścieżką repo.
 
-## 3. Frontend Web Push URL
+## 3. Brak zmiennych produkcyjnego backendu
 
-Po wdrożeniu Workera ustaw w GitHub:
+Finalny build `1.0.0` nie wymaga `VITE_PUSH_WORKER_URL` ani sekretów infrastrukturalnych. Nie trzeba konfigurować Cloudflare ani innego serwera aplikacji.
 
-```text
-Settings -> Secrets and variables -> Actions -> Variables
-VITE_PUSH_WORKER_URL=https://<rzeczywisty-worker>.workers.dev
-```
+## 4. Production verification
 
-To nie jest sekret. Ponowny push lub ręczne uruchomienie workflow zbuduje frontend z tym adresem.
-
-## 4. D1
-
-Zaloguj Wrangler do właściwego konta Cloudflare i utwórz D1:
-
-```bash
-npx wrangler login
-npx wrangler d1 create inteligentny-kalendarz-push
-```
-
-Skopiuj prawdziwy `database_id` do konfiguracji produkcyjnej. Nie commituj wymyślonego lub tajnego tokenu; samo D1 `database_id` nie jest sekretem.
-
-Następnie:
-
-```bash
-npm run worker:migrate:remote
-```
-
-## 5. Production origin
-
-Dla standardowego GitHub Pages project site nagłówek `Origin` ma postać:
-
-```text
-https://<user>.github.io
-```
-
-Ścieżka repo nie jest częścią Origin. Produkcyjne `ALLOWED_ORIGINS` Workera musi zawierać dokładnie ten HTTPS origin i nie może być `*`.
-
-Jeżeli wiele aplikacji działa pod tym samym `user.github.io`, wszystkie współdzielą origin. Chronione endpointy Workera nadal wymagają tokenu instalacji, ale jeśli potrzebna jest pełna izolacja originów między aplikacjami, użyj osobnych custom domains/subdomains.
-
-## 6. VAPID
-
-Wygeneruj produkcyjną parę VAPID lokalnie:
-
-```bash
-npx web-push generate-vapid-keys
-```
-
-Ustaw sekrety Workera:
-
-```bash
-npx wrangler secret put VAPID_PUBLIC_KEY
-npx wrangler secret put VAPID_PRIVATE_KEY
-npx wrangler secret put VAPID_SUBJECT
-```
-
-Nigdy nie commituj `VAPID_PRIVATE_KEY`.
-
-## 7. Worker
-
-```bash
-npm run worker:typecheck
-npm run worker:test
-npm run worker:deploy
-```
-
-Potwierdź HTTPS endpoint, D1 binding i Cron. Sam wpis w `wrangler.jsonc` nie jest dowodem produkcyjnego działania.
-
-## 8. Realny production gate
-
-Po wdrożeniu sprawdź na GitHub Pages:
+Po wdrożeniu sprawdź:
 
 - pierwszy online load,
-- manifest i PWA install,
+- manifest i instalację PWA,
 - ponowne otwarcie offline,
-- update bez utraty IndexedDB,
-- Backup/Restore/Data Transfer,
-- PDF i XLS/XLSX smoke test na syntetycznych danych,
-- Web Push registration i test Push,
-- realny reminder po zamknięciu aplikacji,
-- master OFF przy istniejącym zdalnym schedule,
-- Windows,
-- Android,
-- iOS Add to Home Screen,
-- responsive i accessibility.
+- aktualizację Service Workera bez utraty IndexedDB,
+- zapis i odczyt lokalnych danych po restarcie,
+- Backup/Restore i Data Transfer,
+- PDF i XLSX smoke test na danych testowych,
+- brak sekcji/komunikatów sugerujących niedokończony Web Push,
+- podstawowy responsive/accessibility smoke test na desktopie i Androidzie.
 
-## 9. Finalne 1.0.0
+## 5. Finalne 1.0.0
 
-Dopiero gdy wszystkie obowiązkowe bramki są PASS:
+Finalny artefakt ma:
 
 - `APP_VERSION`: `1.0.0`,
 - `package.json`: `1.0.0`,
 - root `package-lock.json`: `1.0.0`,
-- cache Service Workera: `v1.0.0`,
-- schema pozostaje `12`, jeśli storage się nie zmienił.
+- cache Service Workera: `inteligentny-kalendarz-shell-v1.0.0`,
+- schema: `12`.
 
-Następnie ponownie wykonaj `npm ci`, `npm run check`, `npm audit` i realny deploy/update test.
+Po publikacji wykonaj realny deploy/update smoke. Brak nowych funkcji, migracji i zależności w bumpie `rc.7 -> 1.0.0`.
