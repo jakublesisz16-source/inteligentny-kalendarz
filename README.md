@@ -4,14 +4,14 @@ Local-first PWA do planowania dnia, kalendarza, Studiów, Pracy, Zakupów, Cyklu
 
 ## Status
 
-- APP_VERSION: `1.0.1`
+- APP_VERSION: `1.0.2`
 - DATABASE_SCHEMA_VERSION: `12`
 - `pdfjs-dist`: `6.2.108`
 - architektura produkcyjna: GitHub-only, bez backendu i bez Web Push
-- zakres poprawkowego wydania `1.0.1` jest zamknięty
-- źródłowy artefakt `1.0.1` jest przygotowany do publikacji przez GitHub Pages
+- zakres poprawkowego wydania `1.0.2` obejmuje bezpieczniejszy import planów Studiów XLSX oraz czytelniejsze kafelki zajęć
+- kandydat `1.0.2` przechodzi przez pull request i pełne GitHub Actions przed publikacją na `main`
 
-Release finalizuje cleanup warstwy Cloudflare/Web Push z aktywnego produktu. Zachowany czysty planner przypomnień i preferencje pozostają wyłącznie punktem integracyjnym dla ewentualnej przyszłej aplikacji Android z lokalnymi powiadomieniami.
+Wydanie 1.0.2 rozszerza lokalny importer Studiów o szerokie tygodniowe macierze XLSX i osobne arkusze `WYKŁADY`, poprawia normalizację dat Excela oraz pokazuje grupę przy godzinie na kafelku zajęć. Zachowany jest dotychczasowy format `nursing-plan-v1`. Zmiana nie dodaje backendu, OCR, nowych zależności ani migracji danych.
 
 ## Uruchomienie lokalne
 
@@ -32,7 +32,7 @@ Nie używaj `npm audit fix --force`, `npm install --force` ani `npm install --le
 - backup i Data Transfer używają lokalnego JSON i mogą zawierać prywatne dane,
 - XLSX i PDF są analizowane lokalnie,
 - brak OCR,
-- brak Web Push w webowym zakresie `1.0.1`,
+- brak Web Push w webowym zakresie `1.0.2`,
 - globalne wyszukiwanie działa lokalnie i nie indeksuje danych Cyklu ani Dziennika Cyklu,
 - `Trasa` otwiera Mapy Google dopiero po świadomym kliknięciu.
 
@@ -74,7 +74,7 @@ GitHub Pages deploy
 
 ## Powiadomienia - dalszy kierunek
 
-Powiadomienia systemowe nie są częścią webowego `1.0.1`. Zachowany czysty planner przypomnień i preferencje mają służyć późniejszej wersji Android, gdzie powiadomienia będą planowane lokalnie na urządzeniu bez Cloudflare, D1 i zewnętrznego backendu.
+Powiadomienia systemowe nie są częścią webowego `1.0.2`. Zachowany czysty planner przypomnień i preferencje mają służyć późniejszej wersji Android, gdzie powiadomienia będą planowane lokalnie na urządzeniu bez Cloudflare, D1 i zewnętrznego backendu.
 
 ## Prywatność
 
@@ -91,4 +91,4 @@ git status
 npm run check
 ```
 
-Nie commituj `.env`, prywatnych PDF/XLS/XLSX, backupów, eksportów, logów ani kluczy/tokenów. `package-lock.json` jest częścią repo i stanowi zweryfikowany dependency graph wydania `1.0.1`.
+Nie commituj `.env`, prywatnych PDF/XLS/XLSX, backupów, eksportów, logów ani kluczy/tokenów. `package-lock.json` pozostaje zweryfikowanym dependency graph z 1.0.1, ponieważ 1.0.2 nie zmienia zależności.

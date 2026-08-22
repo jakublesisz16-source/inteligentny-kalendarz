@@ -37,6 +37,8 @@ function isCoveredMergeChild(row: number, col: number, merges: SheetMergeSnapsho
   return merges.some((merge) => row >= merge.startRow && row <= merge.endRow && col >= merge.startCol && col <= merge.endCol && (row !== merge.startRow || col !== merge.startCol));
 }
 
+const DAY_MS = 24 * 60 * 60 * 1000;
+
 function isoDate(value: Date): string {
   const year = value.getFullYear();
   const month = String(value.getMonth() + 1).padStart(2, '0');
@@ -44,21 +46,60 @@ function isoDate(value: Date): string {
   return `${year}-${month}-${day}`;
 }
 
-function snapshotCell(cell: ExcelJS.Cell, row: number, col: number): SheetCellSnapshot | null {
+function excelJsDecodedDateSerial(value: Date, date1904: boolean): number | null {
+  if (Number.isNaN(value.getTime())) return null;
+  const calendarDayUtc = Date.UTC(value.getFullYear(), value.getMonth(), value.getDate());
+  const epoch = date1904 ? Date.UTC(1904, 0, 1) : Date.UTC(1899, 11, 30);
+  return Math.round((calendarDayUtc - epoch) / DAY_MS);
+}
+
+function normalizedExcelDate(value: Date, date1904: boolean): string {
+  const serial = excelJsDecodedDateSerial(value, date1904);
+  const normalized = serial === null ? null : excelSerialDate(serial, date1904);
+  return normalized ?? isoDate(value);
+}
+
+function dateLikeNumberFormat(numFmt: string | undefined): boolean {
+  if (!numFmt) return false;
+  const normalized = numFmt
+    .replace(/\\./g, '')
+    .replace(/"[^"]*"/g, '')
+    .replace(/\[[^\]]*\]/g, '')
+    .toLowerCase();
+  const hasDay = /(^|[^a-z])d{1,4}([^a-z]|$)/.test(normalized);
+  const hasMonth = /(^|[^a-z])m{1,4}([^a-z]|$)/.test(normalized);
+  const hasYear = /(^|[^a-z])y{2,4}([^a-z]|$)/.test(normalized);
+  return (hasDay && hasMonth) || (hasMonth && hasYear);
+}
+
+function excelSerialDate(value: number, date1904: boolean): string | null {
+  if (!Number.isFinite(value) || value < 0 || value > 100000) return null;
+  const wholeDays = Math.floor(value);
+  const epoch = date1904 ? Date.UTC(1904, 0, 1) : Date.UTC(1899, 11, 31);
+  const adjustedDays = date1904 ? wholeDays : wholeDays >= 60 ? wholeDays - 1 : wholeDays;
+  const date = new Date(epoch + adjustedDays * 24 * 60 * 60 * 1000);
+  if (Number.isNaN(date.getTime())) return null;
+  return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}-${String(date.getUTCDate()).padStart(2, '0')}`;
+}
+
+function snapshotCell(cell: ExcelJS.Cell, row: number, col: number, date1904: boolean): SheetCellSnapshot | null {
   const text = cell.text.trim();
   const rawValue = cell.value;
-  if (!text && !(rawValue instanceof Date)) return null;
+  if (!text && (rawValue === null || rawValue === undefined || rawValue === '')) return null;
 
   if (rawValue instanceof Date) {
-    return { row, col, address: cell.address, value: text || isoDate(rawValue), valueType: 'date', dateValue: isoDate(rawValue) };
+    const normalizedDate = normalizedExcelDate(rawValue, date1904);
+    return { row, col, address: cell.address, value: text || normalizedDate, valueType: 'date', dateValue: normalizedDate };
   }
   if (typeof rawValue === 'number') {
+    const serialDate = dateLikeNumberFormat(cell.numFmt) ? excelSerialDate(rawValue, date1904) : null;
+    if (serialDate) return { row, col, address: cell.address, value: text || serialDate, valueType: 'date', dateValue: serialDate };
     return { row, col, address: cell.address, value: text || String(rawValue), valueType: 'number' };
   }
   return { row, col, address: cell.address, value: text, valueType: 'text' };
 }
 
-function sheetSnapshot(worksheet: Worksheet): SheetSnapshot {
+function sheetSnapshot(worksheet: Worksheet, date1904: boolean): SheetSnapshot {
   const mergeRefs = ((worksheet.model as unknown as { merges?: string[] }).merges ?? []);
   const merges = mergeRefs.map(parseMerge);
   const cells: SheetCellSnapshot[] = [];
@@ -70,7 +111,7 @@ function sheetSnapshot(worksheet: Worksheet): SheetSnapshot {
   worksheet.eachRow({ includeEmpty: false }, (row, rowNumber) => {
     row.eachCell({ includeEmpty: false }, (cell, colNumber) => {
       if (isCoveredMergeChild(rowNumber, colNumber, merges)) return;
-      const snapshot = snapshotCell(cell, rowNumber, colNumber);
+      const snapshot = snapshotCell(cell, rowNumber, colNumber, date1904);
       if (!snapshot) return;
       cells.push(snapshot);
       minRow = Math.min(minRow, rowNumber);
@@ -114,6 +155,7 @@ export async function readXlsxFile(file: File): Promise<WorkbookSnapshot> {
   const workbook = new ExcelJS.Workbook();
   const loadInput = buffer as unknown as Parameters<typeof workbook.xlsx.load>[0];
   await workbook.xlsx.load(loadInput);
-  const sheets = workbook.worksheets.map(sheetSnapshot);
+  const date1904 = Boolean(workbook.properties.date1904);
+  const sheets = workbook.worksheets.map((worksheet) => sheetSnapshot(worksheet, date1904));
   return { sheetNames: sheets.map((sheet) => sheet.name), sheets };
 }

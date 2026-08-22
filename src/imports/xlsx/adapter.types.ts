@@ -8,7 +8,10 @@ export interface ScheduleAdapterMatch {
   sheetName?: string;
   reasons: string[];
   detectedDays: string[];
+  layoutKind?: 'TIME_GRID' | 'WEEK_MATRIX';
   timeGridCount: number;
+  weekRowCount?: number;
+  lectureEntryCount?: number;
   detectedAcademicYear?: string;
   detectedGroupCount: number;
 }

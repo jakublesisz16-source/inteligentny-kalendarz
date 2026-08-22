@@ -1,0 +1,23 @@
+/* 1.0.2 - Study cards react to the actual event-list width, not only viewport width. */
+.event-list { container-type: inline-size; }
+.event-time .event-study-group { width: fit-content; max-width: 100%; margin-top: 9px; padding: 4px 7px; border-radius: 999px; background: var(--category-study-soft); color: var(--category-study); font-size: .66rem; font-weight: 800; line-height: 1.2; overflow-wrap: anywhere; }
+.event-content { min-width: 0; }
+.event-heading-row h3 { min-width: 0; overflow-wrap: anywhere; }
+.event-actions-column { align-content: start; }
+
+@container (max-width: 520px) {
+  .event-card { grid-template-columns: 64px minmax(0, 1fr); gap: 12px; padding: 15px 14px 15px 18px; }
+  .event-actions-column { grid-column: 2; display: flex; flex-wrap: wrap; gap: 2px 14px; justify-content: flex-start; justify-items: start; }
+  .event-heading-row { gap: 6px 8px; align-items: flex-start; }
+  .event-heading-row h3 { flex: 1 1 100%; font-size: .94rem; line-height: 1.25; }
+  .event-category, .event-source, .event-series-badge, .event-review-badge { max-width: 100%; }
+  .event-location, .event-description, .event-review-note { overflow-wrap: anywhere; }
+}
+
+@container (max-width: 360px) {
+  .event-card { grid-template-columns: 56px minmax(0, 1fr); gap: 9px; padding-right: 11px; }
+  .event-time strong { font-size: .84rem; }
+  .event-time span { font-size: .7rem; }
+  .event-time .event-study-group { padding-inline: 5px; font-size: .6rem; }
+  .event-actions-column { gap-inline: 10px; }
+}

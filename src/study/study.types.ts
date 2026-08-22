@@ -50,8 +50,11 @@ export interface ScheduleDiagnostics {
   matchedSheet?: string;
   adapterReasons?: string[];
   detectedDays?: string[];
+  layoutKind?: 'TIME_GRID' | 'WEEK_MATRIX';
   timeGridCount?: number;
   timeGridIntervals?: number[];
+  weekRowCount?: number;
+  lectureEntryCount?: number;
   usedRanges?: string[];
   hiddenRowCount?: number;
   hiddenColumnCount?: number;
