@@ -1,5 +1,53 @@
+import type { CalendarEvent } from '../events/event.types';
+
 export type StudyGroupScope = 'ALL' | 'SPECIFIC' | 'UNKNOWN';
 export type StudyCandidateStatus = 'READY' | 'REVIEW_REQUIRED' | 'INFORMATIONAL' | 'IGNORED';
+
+export type StudyCompletenessStatus = 'MATCH' | 'SOURCE_INCOMPLETE' | 'SOURCE_INCONSISTENT' | 'MISMATCH' | 'OVERFLOW' | 'NOT_APPLICABLE';
+
+export interface StudySourceBlock {
+  id: string;
+  sourceSheet: string;
+  sourceRange: string;
+  sourceSectionKey: string;
+  subject: string;
+  activityType?: string;
+  groupTags: string[];
+  weekStart: string;
+  weekEnd: string;
+  weekdays: string[];
+  excludedDates: string[];
+  exceptionDate?: string;
+  sourceHasFullTimeRange: boolean;
+  declaredTeachingHours?: number;
+  candidateIds: string[];
+}
+
+export interface StudyHourAudit {
+  id: string;
+  sourceSectionKey: string;
+  subject: string;
+  activityType?: string;
+  groupTag: string;
+  declaredTeachingHours: number;
+  expectedMinutes: number;
+  confirmedMinutes: number;
+  confirmedTeachingHours: number;
+  incompleteSourceCount: number;
+  enforcement: 'STRICT' | 'ADVISORY';
+  status: StudyCompletenessStatus;
+}
+
+export interface StudyCompletenessAudit {
+  safe: boolean;
+  sourceBlockCount: number;
+  completeBlockCount: number;
+  incompleteSourceBlockCount: number;
+  blockingBlockCount: number;
+  hourAudits: StudyHourAudit[];
+  reasons: string[];
+}
+
 export type UniversityImportStatus = 'COMPLETED';
 export type UniversityImportLifecycleStatus = 'ACTIVE' | 'HISTORICAL';
 
@@ -37,7 +85,12 @@ export interface StudyScheduleCandidate {
   manuallyModifiedFields?: StudyCandidateManualField[];
   occurrenceKey?: string;
   seriesKey?: string;
+  sourceWeekStart?: string;
+  sourceWeekEnd?: string;
+  sourceSectionKey?: string;
+  declaredTeachingHours?: number;
 }
+
 
 export interface ScheduleInformation {
   id: string;
@@ -59,6 +112,9 @@ export interface ScheduleDiagnostics {
   hiddenRowCount?: number;
   hiddenColumnCount?: number;
   unresolvedPatterns?: string[];
+  unparsedAssignmentCellCount?: number;
+  unparsedAssignmentSamples?: string[];
+  suspiciousUnparsedWeekRows?: number[];
 }
 
 export interface ScheduleAnalysis {
@@ -70,6 +126,8 @@ export interface ScheduleAnalysis {
   candidates: StudyScheduleCandidate[];
   information: ScheduleInformation[];
   warnings: string[];
+  sourceBlocks?: StudySourceBlock[];
+  completeness?: StudyCompletenessAudit;
   diagnostics?: ScheduleDiagnostics;
 }
 
@@ -90,6 +148,7 @@ export interface UniversityScheduleImport {
   status: UniversityImportStatus;
   lifecycleStatus?: UniversityImportLifecycleStatus;
   sourceDataComplete?: boolean;
+  sourceBlocks?: StudySourceBlock[];
   replacedImportId?: string;
 }
 
@@ -100,6 +159,7 @@ export interface UniversityImportEntry {
   sourceKey: string;
   eventId?: string;
   sourceOnly?: boolean;
+  sourceCandidateId?: string;
   sourceSheet: string;
   sourceRange: string;
   originalText: string;
@@ -118,6 +178,10 @@ export interface UniversityImportEntry {
   occurrenceKey?: string;
   seriesKey?: string;
   userDeleted?: boolean;
+  sourceWeekStart?: string;
+  sourceWeekEnd?: string;
+  sourceSectionKey?: string;
+  declaredTeachingHours?: number;
 }
 
 export interface StudyProfile {
@@ -143,8 +207,10 @@ export interface CommitUniversityImportInput {
   detectedTerm?: string;
   selectedGroups: string[];
   availableGroups?: string[];
+  allowScheduleConflicts?: boolean;
   candidates: StudyScheduleCandidate[];
   allCandidates?: StudyScheduleCandidate[];
+  sourceBlocks?: StudySourceBlock[];
   pendingCorrectionRules?: PendingStudyCorrectionRule[];
 }
 
@@ -199,6 +265,7 @@ export interface ScheduleDiffItem {
   oldEntry?: UniversityImportEntry;
   newCandidate?: StudyScheduleCandidate;
   oldEventId?: string;
+  oldEventSnapshot?: CalendarEvent;
   oldEventUserModified?: boolean;
   oldEventUserModifiedFields?: string[];
   correctionConflictFields?: StudyCorrectionField[];
@@ -227,8 +294,11 @@ export interface ScheduleUpdatePreview {
   detectedTerm?: string;
   selectedGroups: string[];
   availableGroups: string[];
+  allowScheduleConflicts?: boolean;
+  scheduleConflicts?: StudyScheduleConflict[];
   candidates: StudyScheduleCandidate[];
   allCandidates: StudyScheduleCandidate[];
+  sourceBlocks?: StudySourceBlock[];
   items: ScheduleDiffItem[];
   summary: ScheduleDiffSummary;
   correctionConflicts: StudyCorrectionConflict[];
@@ -264,6 +334,13 @@ export interface ApplyScheduleUpdateResult {
   resolvedConflicts: number;
 }
 
+export interface StudyScheduleConflict {
+  id: string;
+  date: string;
+  left: StudyScheduleCandidate;
+  right: StudyScheduleCandidate;
+}
+
 export interface GroupRecalculationPreview {
   selectedGroups: string[];
   currentGroups: string[];
@@ -275,6 +352,8 @@ export interface GroupRecalculationPreview {
   addedCandidates?: StudyScheduleCandidate[];
   removedEventIds?: string[];
   protectedRemovedEventIds?: string[];
+  incompleteCandidates?: StudyScheduleCandidate[];
+  scheduleConflicts?: StudyScheduleConflict[];
   unchangedEventCount: number;
 }
 

@@ -35,6 +35,8 @@ export interface CalendarEvent {
   occurrenceKey?: string;
   seriesKey?: string;
   studyIssueCodes?: string[];
+  studyGroupTags?: string[];
+  studyGroupScope?: 'ALL' | 'SPECIFIC' | 'UNKNOWN';
   userModified?: boolean;
   userModifiedFields?: UserModifiedEventField[];
   createdAt: string;

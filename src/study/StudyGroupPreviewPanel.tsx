@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { analyzeScheduleWorkbook } from '../imports/xlsx/adapter-registry';
-import { readXlsxFile } from '../imports/xlsx/xlsx-reader';
+import { readSpreadsheetFile } from '../imports/xlsx/spreadsheet-reader';
+import { formatStudyGroupList } from '../imports/xlsx/group-normalizer';
 import {
   buildStudyGroupPreview,
   deleteStudyPreviewProfile,
@@ -10,7 +11,8 @@ import {
 import { reviewCandidate } from './import-review';
 import { identifyCandidate } from './study-identity';
 import { StudyPreviewCalendar } from './StudyPreviewCalendar';
-import { candidatesForSelectedGroups } from './study.service';
+import { StudyGroupSelector } from './StudyGroupSelector';
+import { candidatesForSelectedGroups, validateStudyGroupSelection } from './study.service';
 import type { ScheduleAnalysis, StudyGroupPreview, StudyPreviewProfile, StudyScheduleCandidate, UniversityScheduleImport } from './study.types';
 
 interface StudyGroupPreviewPanelProps {
@@ -55,8 +57,10 @@ export function StudyGroupPreviewPanel({ activeImport, primaryGroups }: StudyGro
   }
 
   async function runPreview(groups = selectedGroups) {
-    if (!groups.length) {
-      setError('Wybierz co najmniej jedną grupę do podglądu.');
+    const sourceGroups = localAnalysis?.groups ?? activeImport.availableGroups ?? activeImport.selectedGroups;
+    const groupValidation = validateStudyGroupSelection(sourceGroups, groups);
+    if (!groupValidation.valid) {
+      setError(groupValidation.errors.join(' '));
       return;
     }
     setLoading(true);
@@ -67,7 +71,7 @@ export function StudyGroupPreviewPanel({ activeImport, primaryGroups }: StudyGro
         const candidates = candidatesForSelectedGroups(localAnalysis, groups).map(identifyCandidate);
         setPreview({
           activeImportId: activeImport.id,
-          sourceFileName: localFileName || 'XLSX wskazany tylko do podglądu',
+          sourceFileName: localFileName || 'Plik Excel wskazany tylko do podglądu',
           selectedGroups: [...groups],
           availableGroups: [...localAnalysis.groups],
           candidates,
@@ -77,7 +81,7 @@ export function StudyGroupPreviewPanel({ activeImport, primaryGroups }: StudyGro
       } else {
         const result = await buildStudyGroupPreview(groups);
         setPreview(result);
-        if (result.requiresReupload) setError(result.reason ?? 'Do podglądu potrzebny jest ponowny wybór pliku XLSX.');
+        if (result.requiresReupload) setError(result.reason ?? 'Do podglądu potrzebny jest ponowny wybór pliku Excel.');
       }
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Nie udało się przygotować podglądu grup.');
@@ -87,9 +91,9 @@ export function StudyGroupPreviewPanel({ activeImport, primaryGroups }: StudyGro
   }
 
 
-  async function loadPreviewXlsx(file: File) {
-    if (!file.name.toLowerCase().endsWith('.xlsx')) {
-      setError('Wybierz plik w formacie .xlsx.');
+  async function loadPreviewSpreadsheet(file: File) {
+    if (!/\.xlsx?$/i.test(file.name)) {
+      setError('Wybierz plik programu Excel w formacie .xlsx albo .xls.');
       return;
     }
     setLoading(true);
@@ -97,17 +101,17 @@ export function StudyGroupPreviewPanel({ activeImport, primaryGroups }: StudyGro
     setMessage('');
     setPreview(null);
     try {
-      const workbook = await readXlsxFile(file);
+      const workbook = await readSpreadsheetFile(file);
       const result = analyzeScheduleWorkbook(workbook);
       if (!result) throw new Error('Nie rozpoznano formatu planu. Plik nie został zapisany ani użyty do zmiany kalendarza.');
       setLocalAnalysis(result);
       setLocalFileName(file.name);
       setSelectedGroups((current) => current.filter((group) => result.groups.includes(group)));
-      setMessage('XLSX wczytano wyłącznie do tego podglądu. Aktywny plan i kalendarz pozostają bez zmian.');
+      setMessage('Plik Excel wczytano wyłącznie do tego podglądu. Aktywny plan i kalendarz pozostają bez zmian.');
     } catch (cause) {
       setLocalAnalysis(null);
       setLocalFileName('');
-      setError(cause instanceof Error ? cause.message : 'Nie udało się przeanalizować pliku XLSX.');
+      setError(cause instanceof Error ? cause.message : 'Nie udało się przeanalizować pliku Excel.');
     } finally {
       setLoading(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
@@ -124,8 +128,10 @@ export function StudyGroupPreviewPanel({ activeImport, primaryGroups }: StudyGro
   }
 
   async function saveProfile() {
-    if (!selectedGroups.length) {
-      setError('Wybierz grupy przed zapisaniem profilu podglądowego.');
+    const sourceGroups = localAnalysis?.groups ?? activeImport.availableGroups ?? activeImport.selectedGroups;
+    const groupValidation = validateStudyGroupSelection(sourceGroups, selectedGroups);
+    if (!groupValidation.valid) {
+      setError(groupValidation.errors.join(' '));
       return;
     }
     try {
@@ -158,6 +164,7 @@ export function StudyGroupPreviewPanel({ activeImport, primaryGroups }: StudyGro
   }, [preview]);
 
   const availableGroups = localAnalysis?.groups ?? activeImport.availableGroups ?? activeImport.selectedGroups;
+  const groupSelectionValidation = useMemo(() => validateStudyGroupSelection(availableGroups, selectedGroups), [availableGroups, selectedGroups]);
 
   return (
     <section className="panel study-preview-sandbox">
@@ -175,7 +182,7 @@ export function StudyGroupPreviewPanel({ activeImport, primaryGroups }: StudyGro
 
       {open ? (
         <div className="study-preview-sandbox-body">
-          <div className="primary-group-note">Twój aktywny plan pozostaje bez zmian: <strong>{primaryGroups.join(', ') || 'brak zapisanych grup'}</strong>.</div>
+          <div className="primary-group-note">Twój aktywny plan pozostaje bez zmian: <strong>{formatStudyGroupList(primaryGroups) || 'brak zapisanych grup'}</strong>.</div>
 
           <div className="preview-source-box">
             <div>
@@ -183,8 +190,8 @@ export function StudyGroupPreviewPanel({ activeImport, primaryGroups }: StudyGro
               <span>{localAnalysis ? `${localFileName} - tylko w pamięci tego podglądu` : `${activeImport.fileName} - zapisane dane aktywnego importu`}</span>
             </div>
             <div className="safety-item-actions">
-              <input ref={fileInputRef} className="visually-hidden" type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" onChange={(event) => { const file = event.target.files?.[0]; if (file) void loadPreviewXlsx(file); }} />
-              <button type="button" className="button button-secondary button-small" disabled={loading} onClick={() => fileInputRef.current?.click()}>Wskaż XLSX tylko do podglądu</button>
+              <input ref={fileInputRef} className="visually-hidden" type="file" accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" onChange={(event) => { const file = event.target.files?.[0]; if (file) void loadPreviewSpreadsheet(file); }} />
+              <button type="button" className="button button-secondary button-small" disabled={loading} onClick={() => fileInputRef.current?.click()}>Wskaż Excel tylko do podglądu</button>
               {localAnalysis ? <button type="button" className="text-button" onClick={clearLocalPreviewSource}>Użyj aktywnego planu</button> : null}
             </div>
           </div>
@@ -196,7 +203,7 @@ export function StudyGroupPreviewPanel({ activeImport, primaryGroups }: StudyGro
                 {profiles.map((profile) => (
                   <div key={profile.id} className="saved-preview-profile">
                     <button type="button" className="preview-profile-main" onClick={() => { setSelectedGroups(profile.selectedGroups); void runPreview(profile.selectedGroups); }}>
-                      <strong>{profile.name}</strong><span>{profile.selectedGroups.join(', ')}</span>
+                      <strong>{profile.name}</strong><span>{formatStudyGroupList(profile.selectedGroups)}</span>
                     </button>
                     <button type="button" className="text-button danger-text" onClick={() => void removeProfile(profile.id)}>Usuń</button>
                   </div>
@@ -206,31 +213,25 @@ export function StudyGroupPreviewPanel({ activeImport, primaryGroups }: StudyGro
           ) : null}
 
           <div>
-            <div className="settings-groups-heading"><strong>Grupy do sprawdzenia</strong><span>{selectedGroups.length} wybranych</span></div>
-            <div className="group-grid compact-group-grid">
-              {availableGroups.map((group) => (
-                <label key={group} className={selectedGroups.includes(group) ? 'group-chip selected' : 'group-chip'}>
-                  <input type="checkbox" checked={selectedGroups.includes(group)} onChange={() => toggleGroup(group)} />
-                  <span>{group}</span>
-                </label>
-              ))}
-            </div>
+            <div className="settings-groups-heading"><strong>{availableGroups.length ? 'Grupy do sprawdzenia' : 'Zakres podglądu'}</strong>{availableGroups.length ? <span>{selectedGroups.length} wybranych</span> : null}</div>
+            {availableGroups.length ? <StudyGroupSelector groups={availableGroups} selectedGroups={selectedGroups} onToggle={toggleGroup} compact /> : <p className="muted-copy">Ten plan nie rozróżnia grup. Podgląd pokaże wpisy wspólne dla wszystkich.</p>}
+            {!groupSelectionValidation.valid ? <div className="study-information warning-info"><strong>Niepełny wybór grup.</strong> {groupSelectionValidation.errors.join(' ')}</div> : null}
           </div>
 
           <div className="preview-profile-save-row">
-            <label className="field"><span>Nazwa profilu podglądowego <em>opcjonalnie</em></span><input value={profileName} onChange={(event) => setProfileName(event.target.value)} placeholder={selectedGroups.length ? `Np. Grupa ${selectedGroups.join(' + ')}` : 'Np. Plan koleżanki'} /></label>
-            <button type="button" className="button button-secondary" disabled={!selectedGroups.length} onClick={() => void saveProfile()}>Zapisz profil</button>
-            <button type="button" className="button button-primary" disabled={!selectedGroups.length || loading} onClick={() => void runPreview()}>{loading ? 'Przygotowuję...' : 'Pokaż plan'}</button>
+            <label className="field"><span>Nazwa profilu podglądowego <em>opcjonalnie</em></span><input value={profileName} onChange={(event) => setProfileName(event.target.value)} placeholder={selectedGroups.length ? `Np. ${formatStudyGroupList(selectedGroups)}` : 'Np. Plan koleżanki'} /></label>
+            <button type="button" className="button button-secondary" disabled={!groupSelectionValidation.valid} onClick={() => void saveProfile()}>Zapisz profil</button>
+            <button type="button" className="button button-primary" disabled={!groupSelectionValidation.valid || loading} onClick={() => void runPreview()}>{loading ? 'Przygotowuję...' : 'Pokaż plan'}</button>
           </div>
 
           {error ? <div className="study-message error-message" role="alert">{error}</div> : null}
           {message ? <div className="study-message success-message" role="status">{message}</div> : null}
-          {preview?.requiresReupload && !localAnalysis ? <p className="muted-copy">Możesz użyć przycisku „Wskaż XLSX tylko do podglądu”. Plik zostanie przeanalizowany lokalnie i nie zostanie zapisany jako aktywny import.</p> : null}
+          {preview?.requiresReupload && !localAnalysis ? <p className="muted-copy">Możesz użyć przycisku „Wskaż Excel tylko do podglądu”. Plik zostanie przeanalizowany lokalnie i nie zostanie zapisany jako aktywny import.</p> : null}
 
           {preview && !preview.requiresReupload ? (
             <div className="read-only-preview-results">
               <div className="preview-results-meta" aria-label="Podsumowanie podglądu">
-                <span>Grupy: <strong>{preview.selectedGroups.join(', ')}</strong></span>
+                <span>Grupy: <strong>{formatStudyGroupList(preview.selectedGroups) || 'Wspólne / bez grup'}</strong></span>
                 <span>{preview.candidates.length} {preview.candidates.length === 1 ? 'wpis' : 'wpisów'}</span>
                 <span className="preview-results-source">Źródło: {preview.sourceFileName}</span>
               </div>
@@ -240,7 +241,7 @@ export function StudyGroupPreviewPanel({ activeImport, primaryGroups }: StudyGro
                   <button type="button" className={viewMode === 'CALENDAR' ? 'filter-button active' : 'filter-button'} aria-pressed={viewMode === 'CALENDAR'} onClick={() => setViewMode('CALENDAR')}>Kalendarz</button>
                   <button type="button" className={viewMode === 'LIST' ? 'filter-button active' : 'filter-button'} aria-pressed={viewMode === 'LIST'} onClick={() => setViewMode('LIST')}>Lista</button>
                 </div>
-                <span className="preview-view-context">Grupy: <strong>{preview.selectedGroups.join(', ')}</strong></span>
+                <span className="preview-view-context">Grupy: <strong>{formatStudyGroupList(preview.selectedGroups) || 'Wspólne / bez grup'}</strong></span>
               </div>
               {viewMode === 'CALENDAR' ? <StudyPreviewCalendar candidates={preview.candidates} /> : (
                 <div className="preview-agenda">
@@ -255,9 +256,9 @@ export function StudyGroupPreviewPanel({ activeImport, primaryGroups }: StudyGro
                               <div className="preview-agenda-time">{candidateTime(candidate)}</div>
                               <div>
                                 <strong>{candidate.subject || 'Nieustalony przedmiot'}</strong>
-                                <span>{[candidate.activityType, candidate.groupTags.length ? `Grupy: ${candidate.groupTags.join(', ')}` : '', candidate.clinic, candidate.room, candidate.address ?? candidate.locationLabel].filter(Boolean).join(' - ')}</span>
+                                <span>{[candidate.activityType, candidate.groupTags.length ? `Grupy: ${formatStudyGroupList(candidate.groupTags)}` : '', candidate.clinic, candidate.room, candidate.address ?? candidate.locationLabel].filter(Boolean).join(' - ')}</span>
                               </div>
-                              <span className={`status-pill ${review.state.toLowerCase()}`}>{review.state === 'READY' ? 'GOTOWE' : review.state === 'WARNING' ? 'DO SPRAWDZENIA' : 'WYMAGA POPRAWY'}</span>
+                              <span className={`status-pill ${review.state.toLowerCase()}`}>{review.state === 'READY' ? 'GOTOWE' : review.state === 'WARNING' ? 'DO SPRAWDZENIA' : review.state === 'INCOMPLETE' ? 'NIEPEŁNE' : 'WYMAGA POPRAWY'}</span>
                             </article>
                           );
                         })}

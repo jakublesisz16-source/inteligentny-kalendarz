@@ -1,7 +1,14 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <rect width="64" height="64" rx="18" fill="#1f2a28"/>
-  <rect x="15" y="17" width="34" height="32" rx="8" fill="#f5f3ef"/>
-  <path d="M22 13v9M42 13v9M15 27h34" stroke="#2f6f62" stroke-width="5" stroke-linecap="round"/>
-  <circle cx="26" cy="36" r="3" fill="#2f6f62"/>
-  <circle cx="38" cy="36" r="3" fill="#2f6f62"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" data-brand-mark="calendar-today">
+  <rect width="512" height="512" rx="110" fill="#cf789b"/>
+  <rect x="99" y="109" width="314" height="295" rx="46" fill="#fff9fb"/>
+  <rect x="99" y="109" width="314" height="76" rx="46" fill="#fff9fb"/>
+  <rect x="99" y="150" width="314" height="35" fill="#fff9fb"/>
+  <rect x="158" y="75" width="37" height="90" rx="18.5" fill="#fff9fb"/>
+  <rect x="317" y="75" width="37" height="90" rx="18.5" fill="#fff9fb"/>
+  <rect x="139" y="219" width="64" height="55" rx="14" fill="#efd1dc"/>
+  <rect x="224" y="219" width="64" height="55" rx="14" fill="#efd1dc"/>
+  <rect x="309" y="219" width="64" height="55" rx="14" fill="#efd1dc"/>
+  <rect x="139" y="295" width="64" height="55" rx="14" fill="#efd1dc"/>
+  <rect x="224" y="295" width="64" height="55" rx="14" fill="#b84f78"/>
+  <rect x="309" y="295" width="64" height="55" rx="14" fill="#efd1dc"/>
 </svg>

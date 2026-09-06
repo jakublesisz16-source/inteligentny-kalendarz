@@ -13,7 +13,10 @@ import { reviewCandidate } from '../study/import-review';
 import { applyCorrectionRules } from '../study/study-corrections';
 import { buildScheduleDiff, recalculateDiffSummary } from '../study/study-diff';
 import { identifyCandidate, identifyEntry } from '../study/study-identity';
-import { candidatesForSelectedGroups } from '../study/study.service';
+import { candidatesForSelectedGroups, findStudyScheduleConflicts, findStudyUpdateDecisionConflicts, validateStudyGroupSelection } from '../study/study.service';
+import { completenessForSelectedGroups } from '../study/study-completeness';
+import { formatStudyGroupList, groupSetsIntersect } from '../imports/xlsx/group-normalizer';
+import { validateCandidateForImport } from '../imports/xlsx/import-validation';
 import type {
   ConfirmedWorkBlock,
   CoworkerOverlap,
@@ -29,10 +32,12 @@ import { analyzeCalendarConsistency, openPlanningBlockingIssues } from '../plann
 import type { CalendarConsistencyIssue, ConsistencyAcknowledgement, DailyRoutineRule, DayAttribute, DayPlanningContext, DayPlanningProfile, WeekPlanningContext } from '../planning/planning.types';
 import type { AvailabilityPlan } from '../availability/availability.types';
 import type { ShoppingItem, ShoppingItemDraft } from '../shopping/shopping.types';
+import type { ExpenseCategory, Receipt, ReceiptDraft, ReceiptItem } from '../shopping/expenses.types';
 import { CYCLE_BLEEDING_LEVELS, CYCLE_PAIN_LEVELS, CYCLE_WELLBEING_LEVELS } from '../cycle/cycle.types';
 import type { CycleGapDecision, CycleJournalEntry, CycleJournalEntryDraft, CyclePeriod, CyclePeriodDraft } from '../cycle/cycle.types';
 import { cycleDaysBetween, isValidCycleDateKey } from '../cycle/cycle-prediction';
 import { normalizeShoppingName, normalizeShoppingQuantity, sortShoppingItems } from '../shopping/shopping.utils';
+import { DEFAULT_EXPENSE_CATEGORY_DEFINITIONS, expenseCategoryNameKey, isDepositExpenseCategoryName, normalizeExpenseText } from '../shopping/expenses.utils';
 import type {
   ApplyScheduleUpdateResult,
   CommitUniversityImportInput,
@@ -46,6 +51,7 @@ import type {
   StudyCorrectionRule,
   StudyProfile,
   StudyScheduleCandidate,
+  StudySourceBlock,
   UniversityImportEntry,
   UniversityScheduleImport,
   StudyPreviewProfile,
@@ -77,6 +83,8 @@ const STORE_DAY_ATTRIBUTES = 'dayAttributes';
 const STORE_CONSISTENCY_ACKNOWLEDGEMENTS = 'consistencyAcknowledgements';
 const STORE_AVAILABILITY_PLANS = 'availabilityPlans';
 const STORE_SHOPPING_ITEMS = 'shoppingItems';
+const STORE_EXPENSE_CATEGORIES = 'expenseCategories';
+const STORE_RECEIPTS = 'receipts';
 const STORE_CYCLE_PERIODS = 'cyclePeriods';
 const STORE_CYCLE_JOURNAL_ENTRIES = 'cycleJournalEntries';
 const STORE_NOTIFICATION_RUNTIME = 'notificationRuntime';
@@ -176,6 +184,8 @@ function restoreSnapshotStoreNames(): string[] {
     STORE_CONSISTENCY_ACKNOWLEDGEMENTS,
     STORE_AVAILABILITY_PLANS,
     STORE_SHOPPING_ITEMS,
+    STORE_EXPENSE_CATEGORIES,
+    STORE_RECEIPTS,
     STORE_CYCLE_PERIODS,
     STORE_CYCLE_JOURNAL_ENTRIES,
   ];
@@ -186,7 +196,7 @@ function backupSnapshotStoreNames(): string[] {
 }
 
 function createMigrationSafetySnapshot(transaction: IDBTransaction, oldVersion: number): void {
-  if (![4, 5, 6, 7, 8, 9, 10, 11].includes(oldVersion)) return;
+  if (![4, 5, 6, 7, 8, 9, 10, 11, 12].includes(oldVersion)) return;
   if (!transaction.objectStoreNames.contains(STORE_RESTORE_POINTS)) return;
   const storeNames = [
     STORE_EVENTS,
@@ -212,7 +222,10 @@ function createMigrationSafetySnapshot(transaction: IDBTransaction, oldVersion: 
     STORE_CONSISTENCY_ACKNOWLEDGEMENTS,
     STORE_AVAILABILITY_PLANS,
     STORE_SHOPPING_ITEMS,
+    STORE_EXPENSE_CATEGORIES,
+    STORE_RECEIPTS,
     STORE_CYCLE_PERIODS,
+    STORE_CYCLE_JOURNAL_ENTRIES,
   ].filter((name) => transaction.objectStoreNames.contains(name));
   const stores: Record<string, unknown[]> = {};
   let remaining = storeNames.length;
@@ -224,7 +237,7 @@ function createMigrationSafetySnapshot(transaction: IDBTransaction, oldVersion: 
       remaining -= 1;
       if (remaining !== 0) return;
       const capturedAt = nowIso();
-      const fromAppVersion = oldVersion === 4 ? '0.2.3' : oldVersion === 5 ? '0.2.4' : oldVersion === 6 ? '0.3.0' : oldVersion === 7 ? '0.3.1' : oldVersion === 8 ? '0.3.4' : oldVersion === 9 ? '0.3.7' : oldVersion === 10 ? '0.4.1' : '0.5.4';
+      const fromAppVersion = oldVersion === 4 ? '0.2.3' : oldVersion === 5 ? '0.2.4' : oldVersion === 6 ? '0.3.0' : oldVersion === 7 ? '0.3.1' : oldVersion === 8 ? '0.3.4' : oldVersion === 9 ? '0.3.7' : oldVersion === 10 ? '0.4.1' : oldVersion === 11 ? '0.5.4' : '1.0.1';
       const snapshot: DatabaseSnapshot = {
         format: 'inteligentny-kalendarz-snapshot',
         snapshotVersion: 1,
@@ -295,7 +308,7 @@ function ensureEntryIndexes(store: IDBObjectStore): void {
 
 function candidateFromEntry(entry: UniversityImportEntry): StudyScheduleCandidate {
   return {
-    id: entry.id,
+    id: entry.sourceCandidateId ?? entry.id,
     adapterId: entry.adapterId ?? 'nursing-plan-v1',
     sourceSheet: entry.sourceSheet,
     sourceRange: entry.sourceRange,
@@ -316,6 +329,10 @@ function candidateFromEntry(entry: UniversityImportEntry): StudyScheduleCandidat
     warnings: [...entry.warnings],
     ...(entry.seriesKey ? { seriesKey: entry.seriesKey } : {}),
     ...(entry.occurrenceKey ? { occurrenceKey: entry.occurrenceKey } : {}),
+    ...(entry.sourceWeekStart ? { sourceWeekStart: entry.sourceWeekStart } : {}),
+    ...(entry.sourceWeekEnd ? { sourceWeekEnd: entry.sourceWeekEnd } : {}),
+    ...(entry.sourceSectionKey ? { sourceSectionKey: entry.sourceSectionKey } : {}),
+    ...(entry.declaredTeachingHours ? { declaredTeachingHours: entry.declaredTeachingHours } : {}),
   };
 }
 
@@ -410,6 +427,7 @@ function openDatabase(): Promise<IDBDatabase> {
 
   databasePromise = new Promise((resolve, reject) => {
     const request = indexedDB.open(DB_NAME, DATABASE_SCHEMA_VERSION);
+    let settled = false;
 
     request.onupgradeneeded = (event) => {
       const db = request.result;
@@ -516,6 +534,20 @@ function openDatabase(): Promise<IDBDatabase> {
       if (!db.objectStoreNames.contains(STORE_SHOPPING_ITEMS)) {
         db.createObjectStore(STORE_SHOPPING_ITEMS, { keyPath: 'id' });
       }
+      if (!db.objectStoreNames.contains(STORE_EXPENSE_CATEGORIES)) {
+        const categories = db.createObjectStore(STORE_EXPENSE_CATEGORIES, { keyPath: 'id' });
+        const timestamp = nowIso();
+        DEFAULT_EXPENSE_CATEGORY_DEFINITIONS.forEach((definition, sortOrder) => {
+          categories.put({ ...definition, sortOrder, createdAt: timestamp, updatedAt: timestamp } satisfies ExpenseCategory);
+        });
+      }
+      if (!db.objectStoreNames.contains(STORE_RECEIPTS)) {
+        const receipts = db.createObjectStore(STORE_RECEIPTS, { keyPath: 'id' });
+        receipts.createIndex('date', 'date');
+      } else if (transaction) {
+        const receipts = transaction.objectStore(STORE_RECEIPTS);
+        if (!receipts.indexNames.contains('date')) receipts.createIndex('date', 'date');
+      }
       if (!db.objectStoreNames.contains(STORE_CYCLE_PERIODS)) {
         const cyclePeriods = db.createObjectStore(STORE_CYCLE_PERIODS, { keyPath: 'id' });
         cyclePeriods.createIndex('startDate', 'startDate', { unique: true });
@@ -543,19 +575,36 @@ function openDatabase(): Promise<IDBDatabase> {
         if (!reminders.indexNames.contains('scheduleId')) reminders.createIndex('scheduleId', 'scheduleId', { unique: true });
       }
 
-      if ([4, 5, 6, 7, 8, 9, 10, 11].includes(oldVersion) && transaction) createMigrationSafetySnapshot(transaction, oldVersion);
+      if ([4, 5, 6, 7, 8, 9, 10, 11, 12].includes(oldVersion) && transaction) createMigrationSafetySnapshot(transaction, oldVersion);
       if (oldVersion >= 2 && oldVersion < 3 && transaction) backfillSchema3(transaction);
       if (oldVersion < 4 && transaction) backfillSchema4(transaction);
     };
 
     request.onsuccess = () => {
       const db = request.result;
-      db.onversionchange = () => db.close();
+      if (settled) {
+        db.close();
+        return;
+      }
+      settled = true;
+      const activePromise = databasePromise;
+      db.onversionchange = () => {
+        db.close();
+        if (databasePromise === activePromise) databasePromise = null;
+      };
       resolve(db);
     };
     request.onerror = () => {
+      if (settled) return;
+      settled = true;
       databasePromise = null;
       reject(request.error ?? new Error('Nie udało się otworzyć lokalnej bazy.'));
+    };
+    request.onblocked = () => {
+      if (settled) return;
+      settled = true;
+      databasePromise = null;
+      reject(new Error('Nie można zaktualizować lokalnej bazy, ponieważ inna karta lub okno Inteligentnego Kalendarza nadal jej używa. Zamknij pozostałe karty aplikacji i spróbuj ponownie.'));
     };
   });
 
@@ -989,6 +1038,196 @@ export async function deletePurchasedShoppingItems(): Promise<number> {
 }
 
 
+function defaultExpenseCategories(timestamp = nowIso()): ExpenseCategory[] {
+  return DEFAULT_EXPENSE_CATEGORY_DEFINITIONS.map((definition, sortOrder) => ({
+    ...definition,
+    sortOrder,
+    createdAt: timestamp,
+    updatedAt: timestamp,
+  }));
+}
+
+async function ensureDefaultExpenseCategories(): Promise<void> {
+  const db = await openDatabase();
+  const readTx = db.transaction(STORE_EXPENSE_CATEGORIES, 'readonly');
+  const existing = await requestToPromise(readTx.objectStore(STORE_EXPENSE_CATEGORIES).getAll() as IDBRequest<ExpenseCategory[]>);
+  await transactionDone(readTx);
+
+  if (!existing.length) {
+    const writeTx = db.transaction(STORE_EXPENSE_CATEGORIES, 'readwrite');
+    const store = writeTx.objectStore(STORE_EXPENSE_CATEGORIES);
+    for (const category of defaultExpenseCategories()) store.put(category);
+    await transactionDone(writeTx);
+    return;
+  }
+
+  const depositDefinition = DEFAULT_EXPENSE_CATEGORY_DEFINITIONS.find((definition) => definition.id === 'expense-category-deposit');
+  if (!depositDefinition) return;
+  if (existing.some((category) => category.id === depositDefinition.id || isDepositExpenseCategoryName(category.name))) return;
+
+  const timestamp = nowIso();
+  const writeTx = db.transaction(STORE_EXPENSE_CATEGORIES, 'readwrite');
+  writeTx.objectStore(STORE_EXPENSE_CATEGORIES).put({
+    ...depositDefinition,
+    sortOrder: existing.reduce((max, category) => Math.max(max, category.sortOrder), -1) + 1,
+    createdAt: timestamp,
+    updatedAt: timestamp,
+  } satisfies ExpenseCategory);
+  await transactionDone(writeTx);
+}
+
+export async function listExpenseCategories(): Promise<ExpenseCategory[]> {
+  await ensureDefaultExpenseCategories();
+  const db = await openDatabase();
+  const tx = db.transaction(STORE_EXPENSE_CATEGORIES, 'readonly');
+  const categories = await requestToPromise(tx.objectStore(STORE_EXPENSE_CATEGORIES).getAll() as IDBRequest<ExpenseCategory[]>);
+  await transactionDone(tx);
+  return categories.sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name, 'pl-PL'));
+}
+
+export async function createExpenseCategory(nameInput: string): Promise<ExpenseCategory> {
+  const name = normalizeExpenseText(nameInput);
+  if (!name) throw new Error('Wpisz nazwę kategorii.');
+  const categories = await listExpenseCategories();
+  const key = expenseCategoryNameKey(name);
+  if (categories.some((category) => expenseCategoryNameKey(category.name) === key)) throw new Error('Taka kategoria już istnieje.');
+  const timestamp = nowIso();
+  const category: ExpenseCategory = {
+    id: createId('expense-category'),
+    name,
+    sortOrder: categories.reduce((max, item) => Math.max(max, item.sortOrder), -1) + 1,
+    createdAt: timestamp,
+    updatedAt: timestamp,
+  };
+  const db = await openDatabase();
+  const tx = db.transaction(STORE_EXPENSE_CATEGORIES, 'readwrite');
+  tx.objectStore(STORE_EXPENSE_CATEGORIES).add(category);
+  await transactionDone(tx);
+  return category;
+}
+
+export async function updateExpenseCategory(id: string, nameInput: string): Promise<ExpenseCategory> {
+  const name = normalizeExpenseText(nameInput);
+  if (!name) throw new Error('Wpisz nazwę kategorii.');
+  const categories = await listExpenseCategories();
+  const current = categories.find((category) => category.id === id);
+  if (!current) throw new Error('Nie znaleziono kategorii.');
+  const key = expenseCategoryNameKey(name);
+  if (categories.some((category) => category.id !== id && expenseCategoryNameKey(category.name) === key)) throw new Error('Taka kategoria już istnieje.');
+  const updated: ExpenseCategory = { ...current, name, updatedAt: nowIso() };
+  const db = await openDatabase();
+  const tx = db.transaction(STORE_EXPENSE_CATEGORIES, 'readwrite');
+  tx.objectStore(STORE_EXPENSE_CATEGORIES).put(updated);
+  await transactionDone(tx);
+  return updated;
+}
+
+export async function deleteExpenseCategory(id: string): Promise<void> {
+  const categories = await listExpenseCategories();
+  if (!categories.some((category) => category.id === id)) return;
+  const receipts = await listReceipts();
+  if (receipts.some((receipt) => receipt.items.some((item) => item.categoryId === id))) {
+    throw new Error('Ta kategoria jest używana przez zapisane paragony. Najpierw zmień kategorię tych pozycji.');
+  }
+  const db = await openDatabase();
+  const tx = db.transaction(STORE_EXPENSE_CATEGORIES, 'readwrite');
+  tx.objectStore(STORE_EXPENSE_CATEGORIES).delete(id);
+  await transactionDone(tx);
+}
+
+function isValidReceiptDateKey(value: string): boolean {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  if (!match) return false;
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const date = new Date(year, month - 1, day);
+  return date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day;
+}
+
+async function normalizeReceiptDraft(draft: ReceiptDraft, current?: Receipt): Promise<{ date: string; merchant: string; items: ReceiptItem[]; totalMinor: number }> {
+  const date = draft.date.trim();
+  if (!isValidReceiptDateKey(date)) throw new Error('Wybierz prawidłową datę paragonu.');
+  const merchant = normalizeExpenseText(draft.merchant);
+  if (!merchant) throw new Error('Wpisz nazwę sklepu.');
+  if (!draft.items.length) throw new Error('Dodaj co najmniej jedną pozycję paragonu.');
+  const categories = await listExpenseCategories();
+  const categoryIds = new Set(categories.map((category) => category.id));
+  const currentIds = new Set(current?.items.map((item) => item.id) ?? []);
+  const items: ReceiptItem[] = draft.items.map((item) => {
+    const name = normalizeExpenseText(item.name);
+    if (!name) throw new Error('Każda pozycja paragonu musi mieć nazwę.');
+    if (!categoryIds.has(item.categoryId)) throw new Error(`Wybierz istniejącą kategorię dla pozycji: ${name}.`);
+    if (!Number.isSafeInteger(item.amountMinor) || item.amountMinor <= 0) throw new Error(`Wpisz prawidłową kwotę dla pozycji: ${name}.`);
+    const id = item.id && currentIds.has(item.id) ? item.id : createId('receipt-item');
+    return { id, name, categoryId: item.categoryId, amountMinor: item.amountMinor };
+  });
+  const totalMinor = items.reduce((sum, item) => sum + item.amountMinor, 0);
+  if (!Number.isSafeInteger(totalMinor)) throw new Error('Suma paragonu jest zbyt duża.');
+  return { date, merchant, items, totalMinor };
+}
+
+export async function listReceipts(): Promise<Receipt[]> {
+  const db = await openDatabase();
+  const tx = db.transaction(STORE_RECEIPTS, 'readonly');
+  const receipts = await requestToPromise(tx.objectStore(STORE_RECEIPTS).getAll() as IDBRequest<Receipt[]>);
+  await transactionDone(tx);
+  return receipts.sort((a, b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt));
+}
+
+export async function getReceipt(id: string): Promise<Receipt | undefined> {
+  const db = await openDatabase();
+  const tx = db.transaction(STORE_RECEIPTS, 'readonly');
+  const receipt = await requestToPromise(tx.objectStore(STORE_RECEIPTS).get(id) as IDBRequest<Receipt | undefined>);
+  await transactionDone(tx);
+  return receipt;
+}
+
+export async function createReceipt(draft: ReceiptDraft): Promise<Receipt> {
+  const normalized = await normalizeReceiptDraft(draft);
+  const timestamp = nowIso();
+  const receipt: Receipt = {
+    id: createId('receipt'),
+    ...normalized,
+    createdAt: timestamp,
+    updatedAt: timestamp,
+  };
+  const db = await openDatabase();
+  const tx = db.transaction(STORE_RECEIPTS, 'readwrite');
+  tx.objectStore(STORE_RECEIPTS).add(receipt);
+  await transactionDone(tx);
+  return receipt;
+}
+
+export async function updateReceipt(id: string, draft: ReceiptDraft): Promise<Receipt> {
+  const current = await getReceipt(id);
+  if (!current) throw new Error('Nie znaleziono paragonu.');
+  const normalized = await normalizeReceiptDraft(draft, current);
+  const updated: Receipt = { ...current, ...normalized, updatedAt: nowIso() };
+  const db = await openDatabase();
+  const tx = db.transaction(STORE_RECEIPTS, 'readwrite');
+  tx.objectStore(STORE_RECEIPTS).put(updated);
+  await transactionDone(tx);
+  return updated;
+}
+
+export async function deleteReceipt(id: string): Promise<void> {
+  const db = await openDatabase();
+  const tx = db.transaction(STORE_RECEIPTS, 'readwrite');
+  tx.objectStore(STORE_RECEIPTS).delete(id);
+  await transactionDone(tx);
+}
+
+export async function restoreDeletedReceipt(receipt: Receipt): Promise<void> {
+  const existing = await getReceipt(receipt.id);
+  if (existing) throw new Error('Nie można cofnąć usunięcia, ponieważ paragon o tym ID już istnieje.');
+  const db = await openDatabase();
+  const tx = db.transaction(STORE_RECEIPTS, 'readwrite');
+  tx.objectStore(STORE_RECEIPTS).add(structuredClone(receipt));
+  await transactionDone(tx);
+}
+
+
 function validateCyclePeriodDraft(draft: CyclePeriodDraft, periods: CyclePeriod[], editingId?: string): { startDate: string; endDate?: string; isUserMarkedAtypical?: boolean } {
   const startDate = draft.startDate.trim();
   const endDate = draft.endDate?.trim() || undefined;
@@ -1341,17 +1580,109 @@ export async function updateLocation(id: string, draft: LocationDraft): Promise<
 
 export async function deleteLocation(id: string): Promise<void> {
   const db = await openDatabase();
-  const tx = db.transaction([STORE_LOCATIONS, STORE_SETTINGS], 'readwrite');
-  tx.objectStore(STORE_LOCATIONS).delete(id);
-  const settingsStore = tx.objectStore(STORE_SETTINGS);
-  const settings = await requestToPromise(settingsStore.get('app') as IDBRequest<AppSettings | undefined>);
-  if (settings) {
-    if (settings.homeLocationId === id) delete settings.homeLocationId;
-    if (settings.workLocationId === id) delete settings.workLocationId;
-    settings.updatedAt = nowIso();
-    settingsStore.put(settings);
+  const tx = db.transaction([
+    STORE_LOCATIONS,
+    STORE_EVENTS,
+    STORE_SETTINGS,
+    STORE_WORK_PROFILES,
+    STORE_CHANGE_JOURNAL,
+  ], 'readwrite');
+
+  try {
+    const locationStore = tx.objectStore(STORE_LOCATIONS);
+    const eventStore = tx.objectStore(STORE_EVENTS);
+    const settingsStore = tx.objectStore(STORE_SETTINGS);
+    const workProfileStore = tx.objectStore(STORE_WORK_PROFILES);
+
+    const locationRequest = requestToPromise(locationStore.get(id) as IDBRequest<Location | undefined>);
+    const eventsRequest = requestToPromise(eventStore.getAll() as IDBRequest<CalendarEvent[]>);
+    const settingsRequest = requestToPromise(settingsStore.get('app') as IDBRequest<AppSettings | undefined>);
+    const workProfilesRequest = requestToPromise(workProfileStore.getAll() as IDBRequest<WorkProfile[]>);
+    const [location, allEvents, settings, workProfiles] = await Promise.all([
+      locationRequest,
+      eventsRequest,
+      settingsRequest,
+      workProfilesRequest,
+    ]);
+
+    if (!location) throw new Error('Nie znaleziono miejsca.');
+
+    const timestamp = nowIso();
+    const affectedEvents = allEvents.filter((event) => event.locationId === id);
+    const updatedEvents = affectedEvents.map((event) => {
+      const updated: CalendarEvent = { ...event, updatedAt: timestamp };
+      delete updated.locationId;
+      if (event.source === 'UNIVERSITY_XLSX' || event.source === 'WORK_PDF') {
+        const existingModifiedFields: UserModifiedEventField[] = event.userModifiedFields?.length
+          ? [...event.userModifiedFields]
+          : event.userModified
+            ? ['title', 'startDateTime', 'endDateTime', 'locationId', 'description', 'category']
+            : [];
+        updated.userModified = true;
+        updated.userModifiedFields = [...new Set<UserModifiedEventField>([...existingModifiedFields, 'locationId'])];
+      }
+      return updated;
+    });
+
+    const settingsAffected = Boolean(settings && (settings.homeLocationId === id || settings.workLocationId === id));
+    const updatedSettings = settingsAffected && settings ? { ...settings, updatedAt: timestamp } : undefined;
+    if (updatedSettings) {
+      if (updatedSettings.homeLocationId === id) delete updatedSettings.homeLocationId;
+      if (updatedSettings.workLocationId === id) delete updatedSettings.workLocationId;
+    }
+
+    const affectedWorkProfiles = workProfiles.filter((profile) => profile.locationId === id);
+    const updatedWorkProfiles = affectedWorkProfiles.map((profile) => {
+      const updated: WorkProfile = { ...profile, updatedAt: timestamp };
+      delete updated.locationId;
+      return updated;
+    });
+
+    for (const event of updatedEvents) eventStore.put(event);
+    if (updatedSettings) settingsStore.put(updatedSettings);
+    for (const profile of updatedWorkProfiles) workProfileStore.put(profile);
+    locationStore.delete(id);
+
+    putJournalEntry(tx, buildJournalEntry({
+      operationType: 'DELETE_LOCATION',
+      entityType: 'LOCATION',
+      entityIds: [
+        id,
+        ...affectedEvents.map((event) => event.id),
+        ...(settingsAffected ? ['app'] : []),
+        ...affectedWorkProfiles.map((profile) => profile.id),
+      ],
+      description: `Usunięto miejsce: ${location.name}`,
+      beforeState: {
+        location,
+        affectedEvents,
+        ...(settingsAffected && settings ? { settings } : {}),
+        affectedWorkProfiles,
+      },
+      afterState: {
+        location: null,
+        affectedEvents: updatedEvents,
+        ...(updatedSettings ? { settings: updatedSettings } : {}),
+        affectedWorkProfiles: updatedWorkProfiles,
+      },
+      reversible: false,
+      metadata: {
+        affectedEventCount: affectedEvents.length,
+        affectedWorkProfileCount: affectedWorkProfiles.length,
+        settingsAffected,
+      },
+    }));
+
+    await transactionDone(tx);
+  } catch (error) {
+    try {
+      tx.abort();
+    } catch {
+      // Transaction may already be completed or aborted by IndexedDB.
+    }
+    throw error;
   }
-  await transactionDone(tx);
+  await pruneChangeJournal();
 }
 
 export async function getSettings(): Promise<AppSettings> {
@@ -1409,10 +1740,14 @@ export async function getActiveUniversityImport(): Promise<UniversityScheduleImp
   const profile = await getStudyProfile();
   if (profile?.activeImportId) {
     const active = await getUniversityImport(profile.activeImportId);
-    if (active) return active;
+    if (active && active.lifecycleStatus !== 'HISTORICAL') return active;
   }
   const imports = await listUniversityImports();
-  return imports.find((item) => item.lifecycleStatus === 'ACTIVE') ?? imports[0];
+  const explicitActive = imports.find((item) => item.lifecycleStatus === 'ACTIVE');
+  if (explicitActive) return explicitActive;
+  // Starsze dane sprzed lifecycleStatus mogły mieć jeden aktywny import bez flagi.
+  // Nigdy jednak nie reaktywujemy automatycznie wpisu oznaczonego HISTORYCZNYM.
+  return imports.find((item) => item.lifecycleStatus === undefined);
 }
 
 export async function findUniversityImportByHash(fileHash: string): Promise<UniversityScheduleImport | undefined> {
@@ -1444,6 +1779,9 @@ export async function getStudyProfile(): Promise<StudyProfile | undefined> {
 
 export async function updateStudyProfileGroups(selectedGroups: string[]): Promise<StudyProfile> {
   const current = await getStudyProfile();
+  const availableGroups = current?.availableGroups ?? current?.selectedGroups ?? [];
+  const groupValidation = validateStudyGroupSelection(availableGroups, selectedGroups);
+  if (!groupValidation.valid) throw new Error(groupValidation.errors.join(' '));
   const profile: StudyProfile = {
     id: 'university',
     selectedGroups: [...new Set(selectedGroups)].sort((a, b) => a.localeCompare(b, 'pl')),
@@ -1463,7 +1801,7 @@ export async function updateStudyProfileGroups(selectedGroups: string[]): Promis
     operationType: 'UPDATE_STUDY_GROUPS',
     entityType: 'STUDY_GROUPS',
     entityIds: ['study-profile-university'],
-    description: `Zmieniono grupy dla kolejnych importów: ${profile.selectedGroups.join(', ')}`,
+    description: `Zmieniono grupy dla kolejnych importów: ${formatStudyGroupList(profile.selectedGroups)}`,
     beforeState: current,
     afterState: profile,
   }));
@@ -1475,16 +1813,41 @@ export async function updateStudyProfileGroups(selectedGroups: string[]): Promis
 type CompleteImportCandidate = StudyScheduleCandidate & Required<Pick<StudyScheduleCandidate, 'date' | 'startTime' | 'endTime'>>;
 
 function requireCompleteImportCandidate(candidate: StudyScheduleCandidate): CompleteImportCandidate {
-  if (!candidate.subject.trim() || !candidate.date || !candidate.startTime || !candidate.endTime || candidate.startTime >= candidate.endTime) {
-    throw new Error('Co najmniej jeden wybrany wpis nie ma poprawnej daty, godzin lub przedmiotu.');
+  const validation = validateCandidateForImport(candidate);
+  if (!validation.valid || !candidate.date || !candidate.startTime || !candidate.endTime) {
+    throw new Error(`Co najmniej jeden wybrany wpis nie ma poprawnej daty, godzin lub przedmiotu. ${validation.errors.join(' ')}`.trim());
   }
   return candidate as CompleteImportCandidate;
 }
 
+function candidateMatchesSelectedGroups(candidate: StudyScheduleCandidate, selectedGroups: string[]): boolean {
+  if (candidate.groupScope === 'ALL' || candidate.groupScope === 'UNKNOWN') return true;
+  return groupSetsIntersect(candidate.groupTags, selectedGroups);
+}
+
+function assertCandidatesBelongToSelection(
+  candidates: StudyScheduleCandidate[],
+  allCandidates: StudyScheduleCandidate[] | undefined,
+  selectedGroups: string[],
+): void {
+  if (!allCandidates?.length) return;
+  const sourceById = new Map(allCandidates.map((candidate) => [candidate.id, candidate]));
+  const invalid = candidates.filter((candidate) => {
+    const source = sourceById.get(candidate.id);
+    return !source || !candidateMatchesSelectedGroups(source, selectedGroups);
+  });
+  if (invalid.length) {
+    throw new Error(`Wykryto ${invalid.length} wpisów spoza wybranych grup. Odśwież podgląd planu przed zapisem.`);
+  }
+}
+
 function importedEventDescription(candidate: Pick<StudyScheduleCandidate, 'activityType' | 'groupTags' | 'clinic' | 'room'>): string | undefined {
+  const groupLabel = candidate.groupTags.length
+    ? `${candidate.groupTags.length === 1 ? 'Grupa' : 'Grupy'} ${formatStudyGroupList(candidate.groupTags)}`
+    : undefined;
   const parts = [
     candidate.activityType,
-    candidate.groupTags.length ? `Grupa ${candidate.groupTags.join(', ')}` : undefined,
+    groupLabel,
     candidate.clinic,
     candidate.room,
   ].filter((value): value is string => Boolean(value));
@@ -1500,6 +1863,7 @@ function entryFromCandidate(candidate: StudyScheduleCandidate, importId: string,
     sourceKey: identified.sourceKey,
     ...(eventId ? { eventId } : {}),
     ...(sourceOnly ? { sourceOnly: true } : {}),
+    sourceCandidateId: identified.id,
     sourceSheet: identified.sourceSheet,
     sourceRange: identified.sourceRange,
     originalText: identified.originalText,
@@ -1517,7 +1881,36 @@ function entryFromCandidate(candidate: StudyScheduleCandidate, importId: string,
     warnings: [...identified.warnings],
     ...(identified.occurrenceKey ? { occurrenceKey: identified.occurrenceKey } : {}),
     ...(identified.seriesKey ? { seriesKey: identified.seriesKey } : {}),
+    ...(identified.sourceWeekStart ? { sourceWeekStart: identified.sourceWeekStart } : {}),
+    ...(identified.sourceWeekEnd ? { sourceWeekEnd: identified.sourceWeekEnd } : {}),
+    ...(identified.sourceSectionKey ? { sourceSectionKey: identified.sourceSectionKey } : {}),
+    ...(identified.declaredTeachingHours ? { declaredTeachingHours: identified.declaredTeachingHours } : {}),
   };
+}
+
+function cloneStudySourceBlocks(blocks: StudySourceBlock[] | undefined): StudySourceBlock[] | undefined {
+  if (!blocks?.length) return undefined;
+  return blocks.map((block) => ({
+    ...block,
+    groupTags: [...block.groupTags],
+    weekdays: [...block.weekdays],
+    excludedDates: [...block.excludedDates],
+    candidateIds: [...block.candidateIds],
+  }));
+}
+
+function assertStudySourceCompleteness(candidates: StudyScheduleCandidate[], sourceBlocks: StudySourceBlock[] | undefined, selectedGroups: string[]): void {
+  if (!sourceBlocks?.length) return;
+  const audit = completenessForSelectedGroups({
+    adapterId: 'stored-completeness-gate',
+    sheetNames: [],
+    groups: [],
+    candidates,
+    sourceBlocks,
+    information: [],
+    warnings: [],
+  }, selectedGroups);
+  if (!audit.safe) throw new Error(`Plan nie przeszedł bramki kompletności: ${audit.reasons.join(' ')}`);
 }
 
 function locationMap(locations: Location[]): Map<string, Location> {
@@ -1580,6 +1973,8 @@ function eventFromCandidate(candidate: CompleteImportCandidate, importId: string
     ...(identified.occurrenceKey ? { occurrenceKey: identified.occurrenceKey } : {}),
     ...(identified.seriesKey ? { seriesKey: identified.seriesKey } : {}),
     studyIssueCodes: issueCodesForCandidate(identified),
+    studyGroupTags: [...identified.groupTags],
+    studyGroupScope: identified.groupScope,
     userModified: manualFields.length > 0,
     ...(manualFields.length ? { userModifiedFields: manualFields } : {}),
     createdAt: timestamp,
@@ -1614,9 +2009,17 @@ export async function listStudyCorrectionRules(): Promise<StudyCorrectionRule[]>
 export async function commitUniversityImport(input: CommitUniversityImportInput): Promise<CommitUniversityImportResult> {
   const duplicate = await findUniversityImportByHash(input.fileHash);
   if (duplicate) throw new Error('Ten plik planu został już wcześniej zaimportowany.');
-  const safetyPoint = await createRestorePoint('Przed importem planu studiów', 'BEFORE_STUDY_IMPORT', true);
+  const activeImport = await getActiveUniversityImport();
+  if (activeImport) throw new Error('Istnieje już aktywny plan. Nowy plik musi zostać porównany z aktywnym planem i zastosowany jako aktualizacja.');
+  const groupValidation = validateStudyGroupSelection(input.availableGroups ?? input.selectedGroups, input.selectedGroups);
+  if (!groupValidation.valid) throw new Error(groupValidation.errors.join(' '));
+  assertCandidatesBelongToSelection(input.candidates, input.allCandidates, input.selectedGroups);
+  assertStudySourceCompleteness(input.allCandidates ?? input.candidates, input.sourceBlocks, input.selectedGroups);
 
   const importable = input.candidates.filter((candidate) => candidate.include !== false).map((candidate) => identifyCandidate(requireCompleteImportCandidate(candidate)));
+  const conflicts = findStudyScheduleConflicts(importable);
+  if (conflicts.length && !input.allowScheduleConflicts) throw new Error(`Wykryto ${conflicts.length} konfliktów godzin. Wróć do podglądu i rozwiąż je albo świadomie zaakceptuj przed zapisem.`);
+  const safetyPoint = await createRestorePoint('Przed importem planu studiów', 'BEFORE_STUDY_IMPORT', true);
   const sourceCandidates = (input.allCandidates ?? input.candidates).map(identifyCandidate);
   const existingLocations = await listLocations();
   const existingImports = await listUniversityImports();
@@ -1655,6 +2058,7 @@ export async function commitUniversityImport(input: CommitUniversityImportInput)
     status: 'COMPLETED',
     lifecycleStatus: 'ACTIVE',
     sourceDataComplete: Boolean(input.allCandidates),
+    ...(input.sourceBlocks?.length ? { sourceBlocks: cloneStudySourceBlocks(input.sourceBlocks)! } : {}),
   };
   const profile: StudyProfile = {
     id: 'university',
@@ -1748,13 +2152,22 @@ export interface PrepareScheduleUpdateInput {
   detectedTerm?: string;
   selectedGroups: string[];
   availableGroups: string[];
+  allowScheduleConflicts?: boolean;
   candidates: StudyScheduleCandidate[];
   allCandidates: StudyScheduleCandidate[];
+  sourceBlocks?: StudySourceBlock[];
 }
 
 export async function prepareUniversityScheduleUpdate(input: PrepareScheduleUpdateInput): Promise<ScheduleUpdatePreview> {
   const duplicate = await findUniversityImportByHash(input.fileHash);
   if (duplicate) throw new Error('Ten plik planu został już wcześniej zaimportowany.');
+  const groupValidation = validateStudyGroupSelection(input.availableGroups, input.selectedGroups);
+  if (!groupValidation.valid) throw new Error(groupValidation.errors.join(' '));
+  assertCandidatesBelongToSelection(input.candidates, input.allCandidates, input.selectedGroups);
+  assertStudySourceCompleteness(input.allCandidates, input.sourceBlocks, input.selectedGroups);
+  const selectedCandidates = input.candidates.filter((candidate) => candidate.include !== false || !reviewCandidate(candidate).canImport);
+  const importConflicts = findStudyScheduleConflicts(selectedCandidates);
+  if (importConflicts.length && !input.allowScheduleConflicts) throw new Error(`Wykryto ${importConflicts.length} konfliktów godzin. Wróć do podglądu i rozwiąż je albo świadomie zaakceptuj przed porównaniem planów.`);
   const baseImport = await getActiveUniversityImport();
   if (!baseImport) throw new Error('Brak aktywnego planu do porównania.');
   const [entries, events, rules] = await Promise.all([
@@ -1763,7 +2176,7 @@ export async function prepareUniversityScheduleUpdate(input: PrepareScheduleUpda
     listStudyCorrectionRules(),
   ]);
   const oldEntries = entries.filter((entry) => (Boolean(entry.eventId) || entry.userDeleted) && !entry.sourceOnly);
-  const candidateCorrections = applyCorrectionRules(input.candidates, rules);
+  const candidateCorrections = applyCorrectionRules(selectedCandidates, rules);
   const candidates = candidateCorrections.candidates.map(identifyCandidate);
   const diff = buildScheduleDiff({ oldEntries, oldEvents: events, newCandidates: candidates, adapterId: input.adapterId });
   const correctionConflictByCandidate = new Map<string, typeof candidateCorrections.conflicts>();
@@ -1773,7 +2186,7 @@ export async function prepareUniversityScheduleUpdate(input: PrepareScheduleUpda
     correctionConflictByCandidate.set(conflict.candidateId, list);
   }
   const items = diff.items.map((item) => {
-    if (item.oldEntry?.userDeleted && item.newCandidate) {
+    if (item.oldEntry?.userDeleted && item.newCandidate && reviewCandidate(item.newCandidate).canImport) {
       return {
         ...item,
         kind: 'CONFLICT_USER_MODIFIED' as const,
@@ -1792,6 +2205,7 @@ export async function prepareUniversityScheduleUpdate(input: PrepareScheduleUpda
       note: `Zapisana poprawka serii różni się od jawnych danych nowego planu (${details}). Wybierz, którą wartość zachować.`,
     };
   });
+  const decisionConflicts = findStudyUpdateDecisionConflicts(items);
   const preview: ScheduleUpdatePreview = {
     id: createId('schedule-update'),
     baseImport,
@@ -1804,8 +2218,11 @@ export async function prepareUniversityScheduleUpdate(input: PrepareScheduleUpda
     ...(input.detectedTerm ? { detectedTerm: input.detectedTerm } : {}),
     selectedGroups: [...input.selectedGroups],
     availableGroups: [...input.availableGroups],
+    allowScheduleConflicts: false,
+    ...(decisionConflicts.length ? { scheduleConflicts: decisionConflicts } : {}),
     candidates,
     allCandidates: input.allCandidates.map(identifyCandidate),
+    ...(input.sourceBlocks?.length ? { sourceBlocks: cloneStudySourceBlocks(input.sourceBlocks)! } : {}),
     items,
     summary: recalculateDiffSummary(items),
     correctionConflicts: candidateCorrections.conflicts,
@@ -1818,7 +2235,7 @@ export async function prepareUniversityScheduleUpdate(input: PrepareScheduleUpda
     newFileName: input.fileName,
     createdAt: preview.createdAt,
     status: 'PREVIEW',
-    summary: diff.summary,
+    summary: preview.summary,
   };
   const db = await openDatabase();
   const tx = db.transaction(STORE_SCHEDULE_UPDATE_SESSIONS, 'readwrite');
@@ -1852,6 +2269,8 @@ function applyCandidateToExistingEvent(
     ...(identified.occurrenceKey ? { occurrenceKey: identified.occurrenceKey } : {}),
     ...(identified.seriesKey ? { seriesKey: identified.seriesKey } : {}),
     studyIssueCodes: issueCodesForCandidate(identified),
+    studyGroupTags: [...identified.groupTags],
+    studyGroupScope: identified.groupScope,
     userModified: preserveUserFields.length > 0,
     userModifiedFields: [...preserveUserFields],
     updatedAt: timestamp,
@@ -1885,7 +2304,13 @@ function preservedFieldsForUpdate(event: CalendarEvent, item: ScheduleDiffItem):
   const explicit = event.userModifiedFields ?? [];
   if (explicit.length > 0) {
     if (item.kind === 'CONFLICT_USER_MODIFIED' && item.resolution === 'USE_NEW') return [];
-    return [...explicit];
+    const preserved = new Set<UserModifiedEventField>(explicit);
+    if (item.changes.some((change) => change.field === 'date')
+      && (preserved.has('startDateTime') || preserved.has('endDateTime'))) {
+      preserved.add('startDateTime');
+      preserved.add('endDateTime');
+    }
+    return [...preserved];
   }
   if (item.kind === 'CONFLICT_USER_MODIFIED' && item.resolution === 'USE_NEW') return [];
   // Legacy userModified=true did not record which field changed. Preserve every
@@ -1909,12 +2334,106 @@ function detachStudyEventAsManual(event: CalendarEvent, timestamp: string): Cale
   return manual;
 }
 
+function eventPreviewFingerprint(event: CalendarEvent): string {
+  return JSON.stringify({
+    id: event.id,
+    title: event.title,
+    startDateTime: event.startDateTime,
+    endDateTime: event.endDateTime,
+    category: event.category,
+    source: event.source,
+    sourceImportId: event.sourceImportId ?? null,
+    sourceEntryId: event.sourceEntryId ?? null,
+    locationId: event.locationId ?? null,
+    description: event.description ?? null,
+    userModified: Boolean(event.userModified),
+    userModifiedFields: [...(event.userModifiedFields ?? [])].sort(),
+    occurrenceKey: event.occurrenceKey ?? null,
+    seriesKey: event.seriesKey ?? null,
+  });
+}
+
+function sortedConflictIds(conflicts: ReturnType<typeof findStudyUpdateDecisionConflicts> | undefined): string {
+  return [...(conflicts ?? [])].map((conflict) => conflict.id).sort().join('\n');
+}
+
+function retainedAmbiguousEvent(
+  oldEvent: CalendarEvent,
+  candidate: StudyScheduleCandidate,
+  importId: string,
+  entryId: string,
+  timestamp: string,
+): CalendarEvent {
+  const identified = identifyCandidate(candidate);
+  const preservedFields = new Set<UserModifiedEventField>(oldEvent.userModifiedFields ?? []);
+  preservedFields.add('title');
+  preservedFields.add('startDateTime');
+  preservedFields.add('endDateTime');
+  preservedFields.add('locationId');
+  preservedFields.add('description');
+  const retained: CalendarEvent = {
+    ...oldEvent,
+    source: 'UNIVERSITY_XLSX',
+    sourceImportId: importId,
+    sourceEntryId: entryId,
+    ...(identified.occurrenceKey ? { occurrenceKey: identified.occurrenceKey } : {}),
+    ...(identified.seriesKey ? { seriesKey: identified.seriesKey } : {}),
+    studyIssueCodes: issueCodesForCandidate(identified),
+    studyGroupTags: [...identified.groupTags],
+    studyGroupScope: identified.groupScope,
+    userModified: true,
+    userModifiedFields: [...preservedFields],
+    updatedAt: timestamp,
+  };
+  if (!identified.occurrenceKey) delete retained.occurrenceKey;
+  if (!identified.seriesKey) delete retained.seriesKey;
+  return retained;
+}
+
 export async function applyUniversityScheduleUpdate(preview: ScheduleUpdatePreview): Promise<ApplyScheduleUpdateResult> {
   const duplicate = await findUniversityImportByHash(preview.fileHash);
   if (duplicate) throw new Error('Ta aktualizacja została już wcześniej zastosowana.');
-  const safetyPoint = await createRestorePoint('Przed aktualizacją planu studiów', 'BEFORE_STUDY_UPDATE', true);
-  const [events, existingLocations, existingRules] = await Promise.all([listEvents(), listLocations(), listStudyCorrectionRules()]);
+  const currentActiveImport = await getActiveUniversityImport();
+  if (!currentActiveImport || currentActiveImport.id !== preview.baseImport.id) {
+    throw new Error('Aktywny plan zmienił się od czasu przygotowania podglądu. Przygotuj porównanie ponownie, aby nie zastosować zmian do nieaktualnej wersji planu.');
+  }
+  const groupValidation = validateStudyGroupSelection(preview.availableGroups, preview.selectedGroups);
+  if (!groupValidation.valid) throw new Error(groupValidation.errors.join(' '));
+  assertCandidatesBelongToSelection(preview.candidates, preview.allCandidates, preview.selectedGroups);
+  assertStudySourceCompleteness(preview.allCandidates, preview.sourceBlocks, preview.selectedGroups);
+
+  const [events, existingLocations, existingRules, currentEntries] = await Promise.all([
+    listEvents(),
+    listLocations(),
+    listStudyCorrectionRules(),
+    listUniversityImportEntries(preview.baseImport.id),
+  ]);
   const eventById = new Map(events.map((event) => [event.id, event]));
+  const currentEntryById = new Map(currentEntries.map((entry) => [entry.id, entry]));
+  for (const item of preview.items) {
+    if (item.oldEntry) {
+      const currentEntry = currentEntryById.get(item.oldEntry.id);
+      if (!currentEntry || currentEntry.eventId !== item.oldEntry.eventId || Boolean(currentEntry.userDeleted) !== Boolean(item.oldEntry.userDeleted)) {
+        throw new Error('Plan lub stan usuniętych zajęć zmienił się od czasu przygotowania podglądu. Przygotuj porównanie ponownie.');
+      }
+    }
+    if (item.oldEventSnapshot) {
+      const currentEvent = eventById.get(item.oldEventSnapshot.id);
+      if (!currentEvent || eventPreviewFingerprint(currentEvent) !== eventPreviewFingerprint(item.oldEventSnapshot)) {
+        throw new Error('Kalendarz zmienił się od czasu przygotowania podglądu aktualizacji. Przygotuj porównanie ponownie, aby zobaczyć aktualny wynik.');
+      }
+    }
+  }
+
+  const decisionConflicts = findStudyUpdateDecisionConflicts(preview.items);
+  if (sortedConflictIds(decisionConflicts) !== sortedConflictIds(preview.scheduleConflicts)) {
+    throw new Error('Decyzje w podglądzie zmieniły wynik konfliktów. Odśwież podgląd przed zastosowaniem aktualizacji.');
+  }
+  if (decisionConflicts.length && !preview.allowScheduleConflicts) {
+    throw new Error(`Wykryto ${decisionConflicts.length} konfliktów godzin w końcowym wyniku aktualizacji. Sprawdź je i świadomie zaakceptuj przed zapisem.`);
+  }
+
+  const safetyPoint = await createRestorePoint('Przed aktualizacją planu studiów', 'BEFORE_STUDY_UPDATE', true);
   const locationsByKey = locationMap(existingLocations);
   const timestamp = nowIso();
   const importId = createId('university-import');
@@ -1930,9 +2449,23 @@ export async function applyUniversityScheduleUpdate(preview: ScheduleUpdatePrevi
   let resolvedConflicts = 0;
 
   for (const item of preview.items) {
-    if (item.kind === 'AMBIGUOUS') continue;
     const oldEvent = item.oldEventId ? eventById.get(item.oldEventId) : undefined;
     const candidate = item.newCandidate;
+
+    if (item.kind === 'AMBIGUOUS') {
+      if (!candidate) continue;
+      if (item.oldEntry?.userDeleted && !oldEvent) {
+        linkedEntries.push({ ...entryFromCandidate(candidate, importId, undefined, false), userDeleted: true });
+        keptUserModified += 1;
+        continue;
+      }
+      if (!oldEvent) continue;
+      const entryId = createId('university-entry');
+      eventsToPut.push(retainedAmbiguousEvent(oldEvent, candidate, importId, entryId, timestamp));
+      linkedEntries.push({ ...entryFromCandidate(candidate, importId, oldEvent.id, false), id: entryId });
+      keptUserModified += 1;
+      continue;
+    }
 
     if (item.kind === 'REMOVED') {
       if (!oldEvent) continue;
@@ -2008,7 +2541,9 @@ export async function applyUniversityScheduleUpdate(preview: ScheduleUpdatePrevi
         if (change.field === 'address' || change.field === 'locationLabel') preserved.add('locationId');
         if (change.field === 'room' || change.field === 'clinic' || change.field === 'activityType' || change.field === 'groupTags') preserved.add('description');
       }
-      const locationId = ensureCandidateLocation(candidate, locationsByKey, newLocations, timestamp);
+      const locationId = preserved.has('locationId')
+        ? oldEvent.locationId
+        : ensureCandidateLocation(candidate, locationsByKey, newLocations, timestamp);
       const updated = applyCandidateToExistingEvent(oldEvent, complete, importId, entryId, locationId, [...preserved], timestamp);
       eventsToPut.push(updated);
       linkedEntries.push({ ...entryFromCandidate(candidate, importId, oldEvent.id, false), id: entryId });
@@ -2023,7 +2558,9 @@ export async function applyUniversityScheduleUpdate(preview: ScheduleUpdatePrevi
     }
     const effectivePreserveFields = item.kind === 'CONFLICT_USER_MODIFIED' && item.resolution === 'USE_NEW' ? [] : preserveFields;
     const entryId = createId('university-entry');
-    const locationId = ensureCandidateLocation(candidate, locationsByKey, newLocations, timestamp);
+    const locationId = effectivePreserveFields.includes('locationId')
+      ? oldEvent.locationId
+      : ensureCandidateLocation(candidate, locationsByKey, newLocations, timestamp);
     const updated = applyCandidateToExistingEvent(oldEvent, complete, importId, entryId, locationId, effectivePreserveFields, timestamp);
     eventsToPut.push(updated);
     linkedEntries.push({ ...entryFromCandidate(candidate, importId, oldEvent.id, false), id: entryId });
@@ -2055,6 +2592,7 @@ export async function applyUniversityScheduleUpdate(preview: ScheduleUpdatePrevi
     status: 'COMPLETED',
     lifecycleStatus: 'ACTIVE',
     sourceDataComplete: true,
+    ...(preview.sourceBlocks?.length ? { sourceBlocks: cloneStudySourceBlocks(preview.sourceBlocks)! } : {}),
     replacedImportId: preview.baseImport.id,
   };
   const profile: StudyProfile = {
@@ -2135,6 +2673,10 @@ export async function prepareGroupRecalculation(selectedGroups: string[]): Promi
   if (!active) {
     return { selectedGroups, currentGroups: profile?.selectedGroups ?? [], canRecalculate: false, requiresReupload: true, reason: 'Brak aktywnego planu.', addedEntryIds: [], removedEntryIds: [], unchangedEventCount: 0 };
   }
+  const availableGroups = active.availableGroups ?? active.selectedGroups;
+  const groupValidation = validateStudyGroupSelection(availableGroups, selectedGroups);
+  if (!groupValidation.valid) throw new Error(groupValidation.errors.join(' '));
+
   const entries = await listUniversityImportEntries(active.id);
   const sourceEntries = entries.filter((entry) => entry.sourceOnly);
   if (!active.sourceDataComplete || !sourceEntries.length) {
@@ -2143,7 +2685,7 @@ export async function prepareGroupRecalculation(selectedGroups: string[]): Promi
       currentGroups: active.selectedGroups,
       canRecalculate: false,
       requiresReupload: true,
-      reason: 'Ten plan został zapisany w starszej wersji aplikacji bez pełnego zestawu grup. Wskaż XLSX ponownie, aby bezpiecznie przeliczyć aktualny kalendarz.',
+      reason: 'Ten plan został zapisany w starszej wersji aplikacji bez pełnego zestawu grup. Wskaż ponownie plik Excel, aby bezpiecznie przeliczyć aktualny kalendarz.',
       addedEntryIds: [],
       removedEntryIds: [],
       unchangedEventCount: entries.filter((entry) => Boolean(entry.eventId)).length,
@@ -2155,14 +2697,32 @@ export async function prepareGroupRecalculation(selectedGroups: string[]): Promi
     sheetNames: [...active.sheetNames],
     groups: [...(active.availableGroups ?? [])],
     candidates: sourceEntries.map((entry) => candidateFromEntry(entry)),
+    ...(active.sourceBlocks?.length ? { sourceBlocks: cloneStudySourceBlocks(active.sourceBlocks)! } : {}),
     information: [],
     warnings: [],
   };
+  if (active.sourceBlocks?.length) {
+    const completeness = completenessForSelectedGroups(sourceAnalysis, selectedGroups);
+    if (!completeness.safe) {
+      return {
+        selectedGroups,
+        currentGroups: active.selectedGroups,
+        canRecalculate: false,
+        requiresReupload: true,
+        reason: `Zapisany plan nie przechodzi bramki kompletności dla wybranych grup. Wskaż ponownie plik Excel. ${completeness.reasons.join(' ')}`,
+        addedEntryIds: [],
+        removedEntryIds: [],
+        unchangedEventCount: entries.filter((entry) => Boolean(entry.eventId)).length,
+      };
+    }
+  }
   const correctionRules = await listStudyCorrectionRules();
-  const targetCandidates = applyCorrectionRules(
+  const correctedTargetCandidates = applyCorrectionRules(
     candidatesForSelectedGroups(sourceAnalysis, selectedGroups).map(identifyCandidate),
     correctionRules,
-  ).candidates.filter((candidate) => reviewCandidate(candidate).canImport && candidate.date && candidate.startTime && candidate.endTime);
+  ).candidates;
+  const targetCandidates = correctedTargetCandidates.filter((candidate) => reviewCandidate(candidate).canImport && candidate.date && candidate.startTime && candidate.endTime);
+  const incompleteCandidates = correctedTargetCandidates.filter((candidate) => !reviewCandidate(candidate).canImport);
   const linkedEntries = entries.filter((entry) => (Boolean(entry.eventId) || entry.userDeleted) && !entry.sourceOnly).map((entry) => identifyEntry(entry, active.adapterId));
   const currentKeys = new Set(linkedEntries.map((entry) => entry.occurrenceKey ?? entry.sourceKey));
   const targetKeys = new Set(targetCandidates.map((candidate) => candidate.occurrenceKey ?? candidate.sourceKey));
@@ -2172,6 +2732,7 @@ export async function prepareGroupRecalculation(selectedGroups: string[]): Promi
   const eventById = new Map(allEvents.map((event) => [event.id, event]));
   const removedEventIds = removedEntries.flatMap((entry) => entry.eventId ? [entry.eventId] : []);
   const protectedRemovedEventIds = removedEventIds.filter((eventId) => Boolean(eventById.get(eventId)?.userModified));
+  const scheduleConflicts = findStudyScheduleConflicts(targetCandidates);
   return {
     selectedGroups: [...selectedGroups],
     currentGroups: [...active.selectedGroups],
@@ -2182,12 +2743,29 @@ export async function prepareGroupRecalculation(selectedGroups: string[]): Promi
     addedCandidates,
     removedEventIds,
     protectedRemovedEventIds,
+    ...(incompleteCandidates.length ? { incompleteCandidates } : {}),
+    ...(scheduleConflicts.length ? { scheduleConflicts } : {}),
     unchangedEventCount: Math.max(0, linkedEntries.length - removedEntries.length),
   };
 }
 
-export async function applyGroupRecalculation(preview: GroupRecalculationPreview): Promise<void> {
+export async function applyGroupRecalculation(preview: GroupRecalculationPreview, allowScheduleConflicts = false, allowIncompleteCandidates = false): Promise<void> {
   if (!preview.canRecalculate || preview.requiresReupload) throw new Error(preview.reason ?? 'Nie można przeliczyć aktywnego planu.');
+  // Nie ufamy wyłącznie wcześniej wyświetlonemu podglądowi. Między przygotowaniem a zapisem
+  // dane mogły zmienić się w innej karcie, dlatego przeliczamy docelowy zestaw ponownie.
+  const freshPreview = await prepareGroupRecalculation(preview.selectedGroups);
+  if (!freshPreview.canRecalculate || freshPreview.requiresReupload) throw new Error(freshPreview.reason ?? 'Nie można przeliczyć aktywnego planu.');
+  const sortedKey = (values: string[] | undefined) => [...(values ?? [])].sort().join('\n');
+  const previewChanged = sortedKey(preview.addedEntryIds) !== sortedKey(freshPreview.addedEntryIds)
+    || sortedKey(preview.removedEntryIds) !== sortedKey(freshPreview.removedEntryIds)
+    || sortedKey(preview.protectedRemovedEventIds) !== sortedKey(freshPreview.protectedRemovedEventIds)
+    || sortedKey(preview.incompleteCandidates?.map((candidate) => candidate.id)) !== sortedKey(freshPreview.incompleteCandidates?.map((candidate) => candidate.id))
+    || sortedKey(preview.scheduleConflicts?.map((conflict) => conflict.id)) !== sortedKey(freshPreview.scheduleConflicts?.map((conflict) => conflict.id));
+  if (previewChanged) {
+    throw new Error('Plan lub dane kalendarza zmieniły się od czasu przygotowania podglądu zmiany grup. Przygotuj podgląd ponownie, aby świadomie ocenić aktualny wynik.');
+  }
+  if (freshPreview.scheduleConflicts?.length && !allowScheduleConflicts) throw new Error(`Wykryto ${freshPreview.scheduleConflicts.length} konfliktów godzin po zmianie grup. Sprawdź je i świadomie zaakceptuj albo zmień wybór grup.`);
+  if (freshPreview.incompleteCandidates?.length && !allowIncompleteCandidates) throw new Error(`Po zmianie grup ${freshPreview.incompleteCandidates.length} wpisów nadal nie ma pełnej daty lub godzin i pozostanie poza kalendarzem. Potwierdź to świadomie przed zapisem.`);
   const safetyPoint = await createRestorePoint('Przed przeliczeniem planu po zmianie grup', 'BEFORE_GROUP_RECALCULATION', true);
   const active = await getActiveUniversityImport();
   if (!active) throw new Error('Brak aktywnego planu.');
@@ -2197,13 +2775,13 @@ export async function applyGroupRecalculation(preview: GroupRecalculationPreview
   const newLocations: Location[] = [];
   const newEvents: CalendarEvent[] = [];
   const newEntries: UniversityImportEntry[] = [];
-  const protectedRemovedEventIds = new Set(preview.protectedRemovedEventIds ?? []);
-  const eventIdsToDelete = new Set((preview.removedEventIds ?? []).filter((id) => !protectedRemovedEventIds.has(id)));
-  const allRemovedEventIds = new Set(preview.removedEventIds ?? []);
+  const protectedRemovedEventIds = new Set(freshPreview.protectedRemovedEventIds ?? []);
+  const eventIdsToDelete = new Set((freshPreview.removedEventIds ?? []).filter((id) => !protectedRemovedEventIds.has(id)));
+  const allRemovedEventIds = new Set(freshPreview.removedEventIds ?? []);
   const entryIdsToDelete = new Set(entries.filter((entry) => entry.eventId && allRemovedEventIds.has(entry.eventId)).map((entry) => entry.id));
   const protectedEventsToDetach = events.filter((event) => protectedRemovedEventIds.has(event.id)).map((event) => detachStudyEventAsManual(event, timestamp));
 
-  for (const candidate of preview.addedCandidates ?? []) {
+  for (const candidate of freshPreview.addedCandidates ?? []) {
     const complete = requireCompleteImportCandidate(candidate);
     const locationId = ensureCandidateLocation(candidate, locationsByKey, newLocations, timestamp);
     const entryId = createId('university-entry');
@@ -2221,10 +2799,10 @@ export async function applyGroupRecalculation(preview: GroupRecalculationPreview
   for (const id of entryIdsToDelete) tx.objectStore(STORE_UNIVERSITY_IMPORT_ENTRIES).delete(id);
   for (const event of newEvents) tx.objectStore(STORE_EVENTS).add(event);
   for (const entry of newEntries) tx.objectStore(STORE_UNIVERSITY_IMPORT_ENTRIES).add(entry);
-  tx.objectStore(STORE_UNIVERSITY_IMPORTS).put({ ...active, selectedGroups: [...preview.selectedGroups], importedEventCount: remainingCount } satisfies UniversityScheduleImport);
+  tx.objectStore(STORE_UNIVERSITY_IMPORTS).put({ ...active, selectedGroups: [...freshPreview.selectedGroups], importedEventCount: remainingCount } satisfies UniversityScheduleImport);
   tx.objectStore(STORE_STUDY_PROFILE).put({
     id: 'university',
-    selectedGroups: [...preview.selectedGroups],
+    selectedGroups: [...freshPreview.selectedGroups],
     ...(profile?.availableGroups ? { availableGroups: [...profile.availableGroups] } : {}),
     ...(profile?.detectedAcademicYear ? { detectedAcademicYear: profile.detectedAcademicYear } : {}),
     ...(profile?.detectedTerm ? { detectedTerm: profile.detectedTerm } : {}),
@@ -2238,7 +2816,7 @@ export async function applyGroupRecalculation(preview: GroupRecalculationPreview
     operationType: 'RECALCULATE_STUDY_GROUPS',
     entityType: 'STUDY_GROUPS',
     entityIds: ['study-profile-university', active.id],
-    description: `Przeliczono aktualny plan dla grup: ${preview.selectedGroups.join(', ')}`,
+    description: `Przeliczono aktualny plan dla grup: ${formatStudyGroupList(freshPreview.selectedGroups)}`,
     restorePointId: safetyPoint.id,
   }));
   await transactionDone(tx);
@@ -2409,6 +2987,36 @@ async function replaceSnapshot(snapshot: DatabaseSnapshot, includeJournal = fals
   await transactionDone(tx);
 }
 
+async function verifySnapshotReplacement(snapshot: DatabaseSnapshot, includeJournal = false): Promise<void> {
+  const storeNames = includeJournal ? backupSnapshotStoreNames() : restoreSnapshotStoreNames();
+  const verification = await captureSnapshot(storeNames);
+  const expectedStores = Object.fromEntries(storeNames.map((name) => [name, snapshot.stores[name] ?? []]));
+  const actualStores = Object.fromEntries(storeNames.map((name) => [name, verification.stores[name] ?? []]));
+  if (await sha256Text(JSON.stringify(expectedStores)) !== await sha256Text(JSON.stringify(actualStores))) {
+    throw new Error('Nie udało się zweryfikować przywróconych danych.');
+  }
+}
+
+async function replaceSnapshotVerified(snapshot: DatabaseSnapshot, includeJournal = false): Promise<void> {
+  const rollbackSnapshot = await captureSnapshot(backupSnapshotStoreNames());
+  let replacementCommitted = false;
+  try {
+    await replaceSnapshot(snapshot, includeJournal);
+    replacementCommitted = true;
+    await verifySnapshotReplacement(snapshot, includeJournal);
+  } catch (cause) {
+    if (replacementCommitted) {
+      try {
+        await replaceSnapshot(rollbackSnapshot, true);
+        await verifySnapshotReplacement(rollbackSnapshot, true);
+      } catch {
+        throw new Error('Przywracanie danych nie powiodło się, a automatyczny rollback także nie został zweryfikowany. Nie wykonuj dalszych zmian przed ręcznym sprawdzeniem backupu.');
+      }
+    }
+    throw cause;
+  }
+}
+
 async function pruneChangeJournal(): Promise<void> {
   const db = await openDatabase();
   const txRead = db.transaction(STORE_CHANGE_JOURNAL, 'readonly');
@@ -2504,8 +3112,21 @@ export async function undoChange(id: string): Promise<void> {
   } else if (entry.operationType === 'RESTORE_TRASH') {
     const item = entry.metadata?.trashItem as TrashItem | undefined;
     if (!item) throw new Error('Brak danych potrzebnych do ponownego przeniesienia do Kosza.');
-    const tx = db.transaction([STORE_EVENTS, STORE_TRASH_ITEMS], 'readwrite');
-    for (const entityId of item.entityIds) tx.objectStore(STORE_EVENTS).delete(entityId);
+    const studyEntryBefore = entry.metadata?.studyEntryBefore as UniversityImportEntry | undefined;
+    const workEntryBefore = entry.metadata?.workEntryBefore as WorkScheduleEntry | undefined;
+    const stores = [STORE_TRASH_ITEMS];
+    if (item.entityType === 'CALENDAR_EVENT' || item.entityType === 'MANUAL_SERIES') stores.push(STORE_EVENTS);
+    if (item.entityType === 'DAY_CONSTRAINT') stores.push(STORE_DAY_CONSTRAINTS);
+    if (studyEntryBefore) stores.push(STORE_UNIVERSITY_IMPORT_ENTRIES);
+    if (workEntryBefore) stores.push(STORE_WORK_SCHEDULE_ENTRIES);
+    const tx = db.transaction([...new Set(stores)], 'readwrite');
+    if (item.entityType === 'CALENDAR_EVENT' || item.entityType === 'MANUAL_SERIES') {
+      for (const entityId of item.entityIds) tx.objectStore(STORE_EVENTS).delete(entityId);
+    } else if (item.entityType === 'DAY_CONSTRAINT') {
+      for (const entityId of item.entityIds) tx.objectStore(STORE_DAY_CONSTRAINTS).delete(entityId);
+    }
+    if (studyEntryBefore) tx.objectStore(STORE_UNIVERSITY_IMPORT_ENTRIES).put(studyEntryBefore);
+    if (workEntryBefore) tx.objectStore(STORE_WORK_SCHEDULE_ENTRIES).put(workEntryBefore);
     tx.objectStore(STORE_TRASH_ITEMS).put(item);
     await transactionDone(tx);
   } else if (entry.operationType === 'ADD_SHOPPING_ITEM') {
@@ -2637,6 +3258,68 @@ export async function undoChange(id: string): Promise<void> {
   await markJournalUndone(id);
 }
 
+interface StudyTrashRestoreResolution {
+  event: CalendarEvent;
+  entryBefore?: UniversityImportEntry;
+  entryAfter?: UniversityImportEntry;
+}
+
+function preservedFieldsForTrashRestore(event: CalendarEvent): UserModifiedEventField[] {
+  if (!event.userModified) return [];
+  return event.userModifiedFields?.length
+    ? [...event.userModifiedFields]
+    : ['title', 'startDateTime', 'endDateTime', 'locationId', 'description', 'category'];
+}
+
+async function resolveStudyTrashRestore(event: CalendarEvent): Promise<StudyTrashRestoreResolution> {
+  if (event.source !== 'UNIVERSITY_XLSX' || !event.sourceEntryId) return { event };
+  const active = await getActiveUniversityImport();
+  if (!active) return { event: detachStudyEventAsManual(event, nowIso()) };
+
+  const [activeEntries, allEntries, locations, liveEvents] = await Promise.all([
+    listUniversityImportEntries(active.id),
+    listUniversityImportEntries(),
+    listLocations(),
+    listEvents(),
+  ]);
+  const linkedActiveEntries = activeEntries.filter((entry) => !entry.sourceOnly);
+  const historicalEntry = allEntries.find((entry) => entry.id === event.sourceEntryId);
+  const eventIds = new Set(liveEvents.map((item) => item.id));
+
+  const uniqueMatch = (matches: UniversityImportEntry[]): UniversityImportEntry | undefined => matches.length === 1 ? matches[0] : undefined;
+  let match = uniqueMatch(linkedActiveEntries.filter((entry) => entry.id === event.sourceEntryId));
+  if (!match && historicalEntry?.sourceKey) match = uniqueMatch(linkedActiveEntries.filter((entry) => entry.sourceKey === historicalEntry.sourceKey));
+  if (!match && event.occurrenceKey) match = uniqueMatch(linkedActiveEntries.filter((entry) => entry.occurrenceKey === event.occurrenceKey));
+  if (!match && historicalEntry?.occurrenceKey) match = uniqueMatch(linkedActiveEntries.filter((entry) => entry.occurrenceKey === historicalEntry.occurrenceKey));
+
+  // Jeżeli aktywny wpis ma już inne żywe wydarzenie, nie wolno przejąć jego powiązania.
+  if (!match || (match.eventId && match.eventId !== event.id && eventIds.has(match.eventId))) {
+    return { event: detachStudyEventAsManual(event, nowIso()) };
+  }
+
+  const timestamp = nowIso();
+  const candidate = identifyCandidate(candidateFromEntry(match));
+  let restored: CalendarEvent;
+  if (reviewCandidate(candidate).canImport && candidate.date && candidate.startTime && candidate.endTime) {
+    const identity = candidate.address ?? candidate.locationLabel;
+    const existingLocationId = identity ? locationMap(locations).get(normalizeLocationKey(identity))?.id : undefined;
+    restored = applyCandidateToExistingEvent(
+      event,
+      requireCompleteImportCandidate(candidate),
+      active.id,
+      match.id,
+      existingLocationId,
+      preservedFieldsForTrashRestore(event),
+      timestamp,
+    );
+  } else {
+    restored = retainedAmbiguousEvent(event, candidate, active.id, match.id, timestamp);
+  }
+
+  const entryAfter: UniversityImportEntry = { ...match, eventId: restored.id, userDeleted: false };
+  return { event: restored, entryBefore: { ...match }, entryAfter };
+}
+
 export async function listTrashItems(): Promise<TrashItem[]> {
   const db = await openDatabase();
   const tx = db.transaction(STORE_TRASH_ITEMS, 'readonly');
@@ -2651,32 +3334,49 @@ async function restoreTrashItemInternal(id: string, writeJournal: boolean): Prom
   const item = await requestToPromise(readTx.objectStore(STORE_TRASH_ITEMS).get(id) as IDBRequest<TrashItem | undefined>);
   await transactionDone(readTx);
   if (!item) throw new Error('Nie znaleziono elementu w Koszu.');
-  const storeNames = [STORE_EVENTS, STORE_TRASH_ITEMS, STORE_UNIVERSITY_IMPORT_ENTRIES, STORE_WORK_SCHEDULE_ENTRIES];
+
+  const payload = item.payload as CalendarEvent | CalendarEvent[] | DayConstraint;
+  let restoredEvent: CalendarEvent | undefined;
+  let studyEntryBefore: UniversityImportEntry | undefined;
+  let studyEntryAfter: UniversityImportEntry | undefined;
+  let workEntryBefore: WorkScheduleEntry | undefined;
+  let workEntryAfter: WorkScheduleEntry | undefined;
+
+  if (item.entityType === 'CALENDAR_EVENT') {
+    const originalEvent = payload as CalendarEvent;
+    const studyResolution = await resolveStudyTrashRestore(originalEvent);
+    restoredEvent = studyResolution.event;
+    studyEntryBefore = studyResolution.entryBefore;
+    studyEntryAfter = studyResolution.entryAfter;
+
+    if (restoredEvent.source === 'WORK_PDF' && restoredEvent.sourceWorkEntryId) {
+      const workEntry = (await listWorkScheduleEntries()).find((entry) => entry.id === restoredEvent!.sourceWorkEntryId);
+      if (workEntry) {
+        workEntryBefore = { ...workEntry };
+        workEntryAfter = { ...workEntry, eventId: restoredEvent.id, userDeleted: false };
+      }
+    }
+  }
+
+  const storeNames = [STORE_EVENTS, STORE_TRASH_ITEMS];
+  if (studyEntryAfter) storeNames.push(STORE_UNIVERSITY_IMPORT_ENTRIES);
+  if (workEntryAfter) storeNames.push(STORE_WORK_SCHEDULE_ENTRIES);
   if (item.entityType === 'DAY_CONSTRAINT') storeNames.push(STORE_DAY_CONSTRAINTS);
   if (writeJournal) storeNames.push(STORE_CHANGE_JOURNAL);
   const tx = db.transaction([...new Set(storeNames)], 'readwrite');
   const eventStore = tx.objectStore(STORE_EVENTS);
-  const payload = item.payload as CalendarEvent | CalendarEvent[] | DayConstraint;
+
   if (item.entityType === 'CALENDAR_EVENT') {
-    const event = payload as CalendarEvent;
-    eventStore.put(event);
-    if (event.sourceEntryId) {
-      const req = tx.objectStore(STORE_UNIVERSITY_IMPORT_ENTRIES).get(event.sourceEntryId) as IDBRequest<UniversityImportEntry | undefined>;
-      req.onsuccess = () => {
-        if (req.result) tx.objectStore(STORE_UNIVERSITY_IMPORT_ENTRIES).put({ ...req.result, userDeleted: false });
-      };
-    }
-    if (event.sourceWorkEntryId) {
-      const req = tx.objectStore(STORE_WORK_SCHEDULE_ENTRIES).get(event.sourceWorkEntryId) as IDBRequest<WorkScheduleEntry | undefined>;
-      req.onsuccess = () => {
-        if (req.result) tx.objectStore(STORE_WORK_SCHEDULE_ENTRIES).put({ ...req.result, userDeleted: false });
-      };
-    }
+    if (!restoredEvent) throw new Error('Nie udało się odtworzyć wydarzenia z Kosza.');
+    eventStore.put(restoredEvent);
+    if (studyEntryAfter) tx.objectStore(STORE_UNIVERSITY_IMPORT_ENTRIES).put(studyEntryAfter);
+    if (workEntryAfter) tx.objectStore(STORE_WORK_SCHEDULE_ENTRIES).put(workEntryAfter);
   } else if (item.entityType === 'MANUAL_SERIES') {
     for (const event of payload as CalendarEvent[]) eventStore.put(event);
   } else if (item.entityType === 'DAY_CONSTRAINT') {
     tx.objectStore(STORE_DAY_CONSTRAINTS).put(payload as DayConstraint);
   }
+
   tx.objectStore(STORE_TRASH_ITEMS).delete(item.id);
   if (writeJournal) {
     putJournalEntry(tx, buildJournalEntry({
@@ -2685,7 +3385,12 @@ async function restoreTrashItemInternal(id: string, writeJournal: boolean): Prom
       entityIds: item.entityIds,
       description: `Przywrócono z Kosza: ${item.displayName}`,
       reversible: true,
-      metadata: { trashItem: item },
+      metadata: {
+        trashItem: item,
+        ...(restoredEvent ? { restoredEvent } : {}),
+        ...(studyEntryBefore ? { studyEntryBefore } : {}),
+        ...(workEntryBefore ? { workEntryBefore } : {}),
+      },
     }));
   }
   await transactionDone(tx);
@@ -2769,7 +3474,7 @@ async function restoreRestorePointInternal(id: string, createSafetyPoint: boolea
   await validateRestorePoint(point);
   if (point.snapshot.databaseSchemaVersion > DATABASE_SCHEMA_VERSION) throw new Error('Ten punkt pochodzi z nowszej, nieobsługiwanej wersji bazy.');
   if (createSafetyPoint) await createRestorePoint(`Przed przywróceniem: ${point.label}`, 'BEFORE_RESTORE_POINT', true);
-  await replaceSnapshot(point.snapshot, false);
+  await replaceSnapshotVerified(point.snapshot, false);
 }
 
 export async function restoreRestorePoint(id: string): Promise<void> {
@@ -2777,20 +3482,23 @@ export async function restoreRestorePoint(id: string): Promise<void> {
   const notificationsSuspended = await suspendNotificationsForDataReplace();
   try {
     await restoreRestorePointInternal(id, false);
-    const db = await openDatabase();
-    const tx = db.transaction(STORE_CHANGE_JOURNAL, 'readwrite');
-    putJournalEntry(tx, buildJournalEntry({
-      operationType: 'RESTORE_POINT',
-      entityType: 'APPLICATION_DATA',
-      entityIds: ['application-data'],
-      description: 'Przywrócono punkt przywracania',
-      restorePointId: before.id,
-    }));
-    await transactionDone(tx);
-    await pruneChangeJournal();
-  } catch (cause) {
-    await resumeNotificationsAfterFailedDataReplace(notificationsSuspended);
-    throw cause;
+    try {
+      const db = await openDatabase();
+      const tx = db.transaction(STORE_CHANGE_JOURNAL, 'readwrite');
+      putJournalEntry(tx, buildJournalEntry({
+        operationType: 'RESTORE_POINT',
+        entityType: 'APPLICATION_DATA',
+        entityIds: ['application-data'],
+        description: 'Przywrócono punkt przywracania',
+        restorePointId: before.id,
+      }));
+      await transactionDone(tx);
+      await pruneChangeJournal();
+    } catch {
+      // Historia jest pomocnicza; zweryfikowanego przywrócenia nie cofamy z powodu wpisu dziennika.
+    }
+  } finally {
+    await resumeNotificationsAfterDataReplace(notificationsSuspended);
   }
 }
 
@@ -2823,12 +3531,14 @@ function backupSummary(document: BackupDocument): BackupSummary {
     consistencyAcknowledgements: stores[STORE_CONSISTENCY_ACKNOWLEDGEMENTS]?.length ?? 0,
     availabilityPlans: stores[STORE_AVAILABILITY_PLANS]?.length ?? 0,
     shoppingItems: stores[STORE_SHOPPING_ITEMS]?.length ?? 0,
+    expenseCategories: stores[STORE_EXPENSE_CATEGORIES]?.length ?? 0,
+    receipts: stores[STORE_RECEIPTS]?.length ?? 0,
     cyclePeriods: stores[STORE_CYCLE_PERIODS]?.length ?? 0,
     cycleJournalEntries: stores[STORE_CYCLE_JOURNAL_ENTRIES]?.length ?? 0,
   };
 }
 
-export async function createBackupFile(): Promise<{ fileName: string; text: string; summary: BackupSummary }> {
+export async function createCanonicalDataTransferDocument(): Promise<BackupDocument> {
   const data = await captureSnapshot(backupSnapshotStoreNames());
   const unsigned = {
     format: 'inteligentny-kalendarz-backup' as const,
@@ -2839,7 +3549,11 @@ export async function createBackupFile(): Promise<{ fileName: string; text: stri
     data,
   };
   const checksum = await sha256Text(JSON.stringify(unsigned));
-  const document: BackupDocument = { ...unsigned, checksum };
+  return { ...unsigned, checksum };
+}
+
+export async function createBackupFile(): Promise<{ fileName: string; text: string; summary: BackupSummary }> {
+  const document = await createCanonicalDataTransferDocument();
   const now = new Date();
   const pad = (value: number) => String(value).padStart(2, '0');
   const fileName = `inteligentny-kalendarz-backup-${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}.json`;
@@ -2888,26 +3602,12 @@ function formatTransferRestorePointLabel(date = new Date()): string {
 export async function importDataTransfer(document: BackupDocument): Promise<{ restorePoint: RestorePoint; summary: BackupSummary }> {
   const inspected = await inspectDataTransferText(JSON.stringify(document));
   const migrated = migrateBackupSnapshotToCurrent(inspected.document.data);
-  const rollbackSnapshot = await captureSnapshot(backupSnapshotStoreNames());
   const restorePoint = await createRestorePoint(formatTransferRestorePointLabel(), 'BEFORE_DATA_TRANSFER_IMPORT', true);
   const notificationsSuspended = await suspendNotificationsForDataReplace();
-  let replacementCommitted = false;
   try {
-    await replaceSnapshot(migrated, true);
-    replacementCommitted = true;
-    const verification = await captureSnapshot(restoreSnapshotStoreNames());
-    const expectedStores = Object.fromEntries(restoreSnapshotStoreNames().map((name) => [name, migrated.stores[name] ?? []]));
-    const actualStores = Object.fromEntries(restoreSnapshotStoreNames().map((name) => [name, verification.stores[name] ?? []]));
-    if (await sha256Text(JSON.stringify(expectedStores)) !== await sha256Text(JSON.stringify(actualStores))) {
-      throw new Error('Nie udało się zweryfikować importu. Przywrócono stan sprzed operacji.');
-    }
-  } catch (cause) {
-    // replaceSnapshot uses one IndexedDB transaction. A transaction failure is
-    // atomic; if a committed replacement fails post-write verification, restore
-    // the exact pre-import logical snapshot, including Change Journal.
-    if (replacementCommitted) await replaceSnapshot(rollbackSnapshot, true);
-    await resumeNotificationsAfterFailedDataReplace(notificationsSuspended);
-    throw cause;
+    await replaceSnapshotVerified(migrated, true);
+  } finally {
+    await resumeNotificationsAfterDataReplace(notificationsSuspended);
   }
   try {
     const db = await openDatabase();
@@ -2954,15 +3654,15 @@ export async function inspectBackupText(text: string): Promise<BackupInspection>
   };
   const actual = await sha256Text(JSON.stringify(unsigned));
   if (actual !== document.checksum) throw new Error('Nie można przywrócić kopii. Plik jest uszkodzony lub został zmieniony.');
-  if (![DATABASE_SCHEMA_VERSION, 11, 10, 9, 8, 7].includes(document.databaseSchemaVersion)) {
-    throw new Error(`Backup używa schematu ${document.databaseSchemaVersion}. Ta wersja obsługuje przywracanie schematu ${DATABASE_SCHEMA_VERSION}, 11, 10, 9, 8 oraz 7.`);
+  if (![DATABASE_SCHEMA_VERSION, 12, 11, 10, 9, 8, 7].includes(document.databaseSchemaVersion)) {
+    throw new Error(`Backup używa schematu ${document.databaseSchemaVersion}. Ta wersja obsługuje przywracanie schematu ${DATABASE_SCHEMA_VERSION}, 12, 11, 10, 9, 8 oraz 7.`);
   }
   return { document, summary: backupSummary(document) };
 }
 
 function migrateBackupSnapshotToCurrent(snapshot: DatabaseSnapshot): DatabaseSnapshot {
   if (snapshot.databaseSchemaVersion === DATABASE_SCHEMA_VERSION) return snapshot;
-  if (![7, 8, 9, 10, 11].includes(snapshot.databaseSchemaVersion)) throw new Error('Ten backup wymaga nieobsługiwanej migracji danych.');
+  if (![7, 8, 9, 10, 11, 12].includes(snapshot.databaseSchemaVersion)) throw new Error('Ten backup wymaga nieobsługiwanej migracji danych.');
   return {
     ...snapshot,
     appVersion: APP_VERSION,
@@ -2971,6 +3671,8 @@ function migrateBackupSnapshotToCurrent(snapshot: DatabaseSnapshot): DatabaseSna
       ...snapshot.stores,
       ...(snapshot.databaseSchemaVersion === 7 ? { [STORE_AVAILABILITY_PLANS]: [] } : {}),
       [STORE_SHOPPING_ITEMS]: snapshot.stores[STORE_SHOPPING_ITEMS] ?? [],
+      [STORE_EXPENSE_CATEGORIES]: snapshot.stores[STORE_EXPENSE_CATEGORIES] ?? [],
+      [STORE_RECEIPTS]: snapshot.stores[STORE_RECEIPTS] ?? [],
       [STORE_CYCLE_PERIODS]: snapshot.stores[STORE_CYCLE_PERIODS] ?? [],
       [STORE_CYCLE_JOURNAL_ENTRIES]: snapshot.stores[STORE_CYCLE_JOURNAL_ENTRIES] ?? [],
     },
@@ -2982,21 +3684,24 @@ export async function restoreBackup(document: BackupDocument): Promise<void> {
   const safety = await createRestorePoint('Przed przywróceniem pełnego backupu', 'BEFORE_BACKUP_RESTORE', true);
   const notificationsSuspended = await suspendNotificationsForDataReplace();
   try {
-    await replaceSnapshot(migrateBackupSnapshotToCurrent(inspected.document.data), true);
-    const db = await openDatabase();
-    const tx = db.transaction(STORE_CHANGE_JOURNAL, 'readwrite');
-    putJournalEntry(tx, buildJournalEntry({
-      operationType: 'RESTORE_BACKUP',
-      entityType: 'APPLICATION_DATA',
-      entityIds: ['application-data'],
-      description: `Przywrócono backup z ${inspected.document.createdAt}`,
-      restorePointId: safety.id,
-    }));
-    await transactionDone(tx);
-    await pruneChangeJournal();
-  } catch (cause) {
-    await resumeNotificationsAfterFailedDataReplace(notificationsSuspended);
-    throw cause;
+    await replaceSnapshotVerified(migrateBackupSnapshotToCurrent(inspected.document.data), true);
+    try {
+      const db = await openDatabase();
+      const tx = db.transaction(STORE_CHANGE_JOURNAL, 'readwrite');
+      putJournalEntry(tx, buildJournalEntry({
+        operationType: 'RESTORE_BACKUP',
+        entityType: 'APPLICATION_DATA',
+        entityIds: ['application-data'],
+        description: `Przywrócono backup z ${inspected.document.createdAt}`,
+        restorePointId: safety.id,
+      }));
+      await transactionDone(tx);
+      await pruneChangeJournal();
+    } catch {
+      // Historia jest pomocnicza; zweryfikowanego przywrócenia nie cofamy z powodu wpisu dziennika.
+    }
+  } finally {
+    await resumeNotificationsAfterDataReplace(notificationsSuspended);
   }
 }
 
@@ -3393,7 +4098,7 @@ export async function saveStudyPreviewProfile(name: string, selectedGroups: stri
   const timestamp = nowIso();
   const profile: StudyPreviewProfile = {
     id: existing?.id ?? createId('study-preview-profile'),
-    name: name.trim() || `Podgląd ${selectedGroups.join(', ')}`,
+    name: name.trim() || `Podgląd ${formatStudyGroupList(selectedGroups)}`,
     selectedGroups: [...new Set(selectedGroups)].sort((a, b) => a.localeCompare(b, 'pl')),
     createdAt: existing?.createdAt ?? timestamp,
     updatedAt: timestamp,
@@ -3413,9 +4118,11 @@ export async function deleteStudyPreviewProfile(id: string): Promise<void> {
 }
 
 export async function buildStudyGroupPreview(selectedGroups: string[]): Promise<StudyGroupPreview> {
-  if (!selectedGroups.length) throw new Error('Wybierz co najmniej jedną grupę.');
   const active = await getActiveUniversityImport();
   if (!active) throw new Error('Brak aktywnego planu studiów.');
+  const availableGroups = active.availableGroups ?? active.selectedGroups;
+  const groupValidation = validateStudyGroupSelection(availableGroups, selectedGroups);
+  if (!groupValidation.valid) throw new Error(groupValidation.errors.join(' '));
   const entries = await listUniversityImportEntries(active.id);
   const sourceDataComplete = Boolean(active.sourceDataComplete);
   const sourceEntries = entries.filter((entry) => entry.sourceOnly);
@@ -3424,11 +4131,11 @@ export async function buildStudyGroupPreview(selectedGroups: string[]): Promise<
       activeImportId: active.id,
       sourceFileName: active.fileName,
       selectedGroups: [...selectedGroups],
-      availableGroups: [...(active.availableGroups ?? active.selectedGroups)],
+      availableGroups: [...availableGroups],
       candidates: [],
       sourceDataComplete,
       requiresReupload: true,
-      reason: 'Ten starszy import nie zawiera pełnych danych wszystkich grup. Wskaż ponownie XLSX, aby bezpiecznie podejrzeć inny plan.',
+      reason: 'Ten starszy import nie zawiera pełnych danych wszystkich grup. Wskaż ponownie plik Excel, aby bezpiecznie podejrzeć inny plan.',
     };
   }
   const analysis = {
@@ -3436,8 +4143,9 @@ export async function buildStudyGroupPreview(selectedGroups: string[]): Promise<
     sheetNames: active.sheetNames,
     ...(active.detectedAcademicYear ? { detectedAcademicYear: active.detectedAcademicYear } : {}),
     ...(active.detectedTerm ? { detectedTerm: active.detectedTerm } : {}),
-    groups: [...(active.availableGroups ?? [])],
+    groups: [...availableGroups],
     candidates: sourceEntries.map(candidateFromEntry),
+    ...(active.sourceBlocks?.length ? { sourceBlocks: cloneStudySourceBlocks(active.sourceBlocks)! } : {}),
     information: [],
     warnings: [],
   } satisfies import('../study/study.types').ScheduleAnalysis;
@@ -3446,7 +4154,7 @@ export async function buildStudyGroupPreview(selectedGroups: string[]): Promise<
     activeImportId: active.id,
     sourceFileName: active.fileName,
     selectedGroups: [...selectedGroups],
-    availableGroups: [...(active.availableGroups ?? active.selectedGroups)],
+    availableGroups: [...availableGroups],
     candidates,
     sourceDataComplete,
     requiresReupload: false,
@@ -3843,12 +4551,12 @@ export async function clearNotificationReminders(): Promise<void> {
 
 export async function suspendNotificationsForDataReplace(): Promise<boolean> {
   const runtime = await getNotificationRuntime();
-  if (!runtime.masterEnabled) return false;
+  if (!runtime.masterEnabled || runtime.suspended) return false;
   await updateNotificationRuntime({ suspended: true });
   return true;
 }
 
-async function resumeNotificationsAfterFailedDataReplace(wasSuspended: boolean): Promise<void> {
+async function resumeNotificationsAfterDataReplace(wasSuspended: boolean): Promise<void> {
   if (!wasSuspended) return;
   await updateNotificationRuntime({ suspended: false });
 }

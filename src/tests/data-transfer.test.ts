@@ -3,11 +3,15 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import {
   createDataTransferFile,
   createEvent,
+  createExpenseCategory,
+  createReceipt,
   createShoppingItem,
   deleteDatabaseForTests,
   importDataTransfer,
   inspectDataTransferText,
   listEvents,
+  listExpenseCategories,
+  listReceipts,
   listRestorePoints,
   listShoppingItems,
   restoreRestorePoint,
@@ -92,6 +96,40 @@ describe('0.3.6 one-file data transfer', () => {
     const inspected = await inspectDataTransferText(JSON.stringify(legacy));
     await importDataTransfer(inspected.document);
     expect(await listShoppingItems()).toEqual([]);
+  });
+
+  it('includes expense categories and receipts in canonical transfer and restores them', async () => {
+    const category = await createExpenseCategory('Zwierzęta');
+    await createReceipt({ merchant: 'Sklep zoologiczny', date: '2026-08-15', items: [{ name: 'Karma', categoryId: category.id, amountMinor: 1299 }] });
+    const transfer = await createDataTransferFile();
+    expect(transfer.summary.expenseCategories).toBe(12);
+    expect(transfer.summary.receipts).toBe(1);
+
+    const document = JSON.parse(transfer.text) as BackupDocument;
+    expect(document.data.stores.expenseCategories).toHaveLength(12);
+    expect(document.data.stores.receipts).toHaveLength(1);
+
+    await deleteDatabaseForTests();
+    await importDataTransfer(document);
+    expect((await listExpenseCategories()).some((entry) => entry.name === 'Zwierzęta')).toBe(true);
+    expect((await listReceipts()).map((entry) => entry.merchant)).toEqual(['Sklep zoologiczny']);
+  });
+
+  it('accepts schema 12 transfer without expenses and initializes defaults after restore', async () => {
+    const transfer = await createDataTransferFile();
+    const current = JSON.parse(transfer.text) as BackupDocument;
+    const legacyStores = Object.fromEntries(Object.entries(current.data.stores).filter(([name]) => !['expenseCategories', 'receipts'].includes(name)));
+    const legacyBase: BackupDocument = {
+      ...current,
+      appVersion: '1.0.1',
+      databaseSchemaVersion: 12,
+      data: { ...current.data, appVersion: '1.0.1', databaseSchemaVersion: 12, stores: legacyStores },
+    };
+    const legacy = await resign(legacyBase, 12);
+    const inspected = await inspectDataTransferText(JSON.stringify(legacy));
+    await importDataTransfer(inspected.document);
+    expect(await listReceipts()).toEqual([]);
+    expect(await listExpenseCategories()).toHaveLength(11);
   });
 
   it('blocks files from a newer database schema', async () => {

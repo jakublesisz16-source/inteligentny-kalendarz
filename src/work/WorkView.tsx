@@ -3,6 +3,7 @@ import type { AvailabilityPlan } from '../availability/availability.types';
 import { AvailabilityView } from '../availability/AvailabilityView';
 import type { CalendarEvent } from '../events/event.types';
 import { readPdfSnapshot } from '../imports/pdf/pdf-reader';
+import { validateWorkPdfFile } from '../imports/pdf/work-pdf-file';
 import { parseWorkScheduleDocument } from '../imports/pdf/work-adapter-registry';
 import type { Location } from '../locations/location.types';
 import { PlanningSettings } from '../planning/PlanningSettings';
@@ -111,7 +112,7 @@ export function WorkView({ locations, onDataChanged }: WorkViewProps) {
   async function analyzeFile(file: File) {
     setError(''); setMessage(''); setAnalysis(null); setAnalyzing(true);
     try {
-      if (!file.name.toLowerCase().endsWith('.pdf')) throw new Error('Wybierz plik w formacie .pdf.');
+      await validateWorkPdfFile(file);
       const currentProfile = await getWorkProfile();
       if (!currentProfile?.employeeMatchName.trim()) throw new Error('Najpierw ustaw profil pracy i imię/nazwisko używane w grafiku.');
       const buffer = await file.arrayBuffer();

@@ -513,3 +513,22 @@ Pole nie tworzy nowego store ani indeksu i nie zmienia `DATABASE_SCHEMA_VERSION 
 ## 0.6.3 - CycleOvulationEstimate
 
 `CycleOvulationEstimate` jest derived / ephemeral data. Powstaje z `CyclePrediction` i nie jest canonical user data. Nie ma własnego store, migracji, backup field ani Data Transfer field. `DATABASE_SCHEMA_VERSION` pozostaje 12.
+
+## 1.1.0-dev.1 - Paragony i Wydatki, schema 13
+
+`DATABASE_SCHEMA_VERSION = 13`. Migracja 12 -> 13 jest addytywna i dodaje wyłącznie dwa canonical store'y:
+
+- `expenseCategories` z `keyPath: id`,
+- `receipts` z `keyPath: id` oraz indeksem `date`.
+
+Istniejące store'y i rekordy schema 12 nie są przepisywane ani usuwane.
+
+`ExpenseCategory` przechowuje trwałe `id`, nazwę, `sortOrder` oraz timestamps. Zmiana nazwy nie zmienia ID, dzięki czemu stare pozycje paragonów zachowują przypisanie. Domyślne kategorie są seedowane tylko przy pustym store.
+
+`Receipt` przechowuje lokalną datę `YYYY-MM-DD`, sklep, tablicę `ReceiptItem`, `totalMinor` oraz timestamps. `ReceiptItem` zawiera nazwę, `categoryId` i `amountMinor`.
+
+Kwoty są canonicalnie przechowywane jako całkowite grosze (`449` = `4,49 zł`). `totalMinor` jest zawsze ponownie obliczany jako suma pozycji przed zapisem; UI nie zapisuje ręcznie podanej sumy.
+
+`expenseCategories` i `receipts` wchodzą do Restore Points, backupu oraz Data Transfer. Kompatybilne backupy schema 7-12 są migrowane z pustym zbiorem paragonów; po odtworzeniu starszego pliku normalny mechanizm inicjalizacji zapewnia domyślne kategorie.
+
+Zdjęcia paragonów, OCR, AI, VAT, ilości/unit price, rabaty i integracje bankowe są świadomie poza zakresem `1.1.0-dev.1`.

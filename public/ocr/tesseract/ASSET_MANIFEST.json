@@ -1,0 +1,64 @@
+{
+  "status": "complete",
+  "engine": "tesseract.js",
+  "engineVersion": "7.0.0",
+  "coreVersion": "7.0.0",
+  "language": "pol",
+  "oem": "LSTM_ONLY",
+  "runtime": [
+    {
+      "path": "tesseract.min.js",
+      "source": "npm package tesseract.js@7.0.0",
+      "packagePath": "dist/tesseract.min.js",
+      "license": "Apache-2.0",
+      "sha256": "000c27d9cd0def655f77b36c72a389c0ab13793aa31cb4d7aab56d09c0afbc7e",
+      "size": 62961
+    },
+    {
+      "path": "worker.min.js",
+      "source": "npm package tesseract.js@7.0.0",
+      "packagePath": "dist/worker.min.js",
+      "license": "Apache-2.0",
+      "sha256": "576b7df7e3393e137e51849357c9adb53fe7ac1bb69bfa06cf3d61520f182c6d",
+      "size": 111307
+    },
+    {
+      "path": "core/tesseract-core-lstm.wasm.js",
+      "source": "npm package tesseract.js-core@7.0.0",
+      "packagePath": "tesseract-core-lstm.wasm.js",
+      "license": "Apache-2.0",
+      "upstreamGitBlobSha": "57d52b25a1438b086ba0ae8c49e9105957f306b3",
+      "upstreamSize": 3896484,
+      "sha256": "eef5f8b2f8e20e150680b20adaec4a60babafee3adbe8a94583c81fee46e8680",
+      "size": 3896484
+    },
+    {
+      "path": "core/tesseract-core-simd-lstm.wasm.js",
+      "source": "npm package tesseract.js-core@7.0.0",
+      "packagePath": "tesseract-core-simd-lstm.wasm.js",
+      "license": "Apache-2.0",
+      "upstreamGitBlobSha": "c831ffec0db84e022ec5be2cdf1d4e4ae797d593",
+      "upstreamSize": 3899472,
+      "sha256": "c58b46a4c796c0b8afccf77591d5b875b6896b45d402bbce8caa6f5362447b38",
+      "size": 3899472
+    },
+    {
+      "path": "core/tesseract-core-relaxedsimd-lstm.wasm.js",
+      "source": "npm package tesseract.js-core@7.0.0",
+      "packagePath": "tesseract-core-relaxedsimd-lstm.wasm.js",
+      "license": "Apache-2.0",
+      "upstreamGitBlobSha": "dbc88c372a923875187d611d527774f169d47561",
+      "upstreamSize": 3905767,
+      "sha256": "861a536cf9ef8e63cb644d57bab39c388f37f7d6b6f60024b741c5f6b39a59b3",
+      "size": 3905767
+    },
+    {
+      "path": "lang/pol.traineddata.gz",
+      "source": "Debian tesseract-ocr-pol 1:4.1.0-2 / Tesseract Polish language data",
+      "packagePath": "pol.traineddata (gzip-compressed for Tesseract.js langPath)",
+      "license": "Apache-2.0",
+      "size": 2040190,
+      "sha256": "f1360bec1a677942c67b475a044642e8ce00ff815003488cbbf2f0b067c1646e"
+    }
+  ]
+}

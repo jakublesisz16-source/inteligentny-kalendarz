@@ -26,7 +26,7 @@ export function normalizeLocationIdentity(text: string): string {
 }
 
 function parseAddress(compact: string): string | undefined {
-  const prefixed = /\b(ul\.?|al\.?|aleja|aleje|plac|pl\.?)\s+([\p{L}0-9 .'-]*?\p{L}[\p{L} .'-]*\s+\d+[a-zA-Z]?(?:\/\d+)?)(?=\s*[,;|]|\s*$)/iu.exec(compact);
+  const prefixed = /\b(aleja|aleje|ul\.?|al\.?|plac|pl\.?)\s*([\p{L}0-9 .'-]*?\p{L}[\p{L} .'-]*\s+\d+[a-zA-Z]?(?:\/\d+)?)(?=\s*[,;|]|\s*[-–—]\s*|\s*\*+|\s*$)/iu.exec(compact);
   if (prefixed?.[2]) {
     const prefix = canonicalStreetPrefix(prefixed[1]);
     const body = compactWhitespace(prefixed[2]);
@@ -34,8 +34,8 @@ function parseAddress(compact: string): string | undefined {
   }
 
   // Bez prefiksu akceptujemy wyłącznie samodzielny, ulicopodobny fragment z nazwą i numerem.
-  if (!/\b(grupa|sala|klinika|godz|\d{1,2}[.:]\d{2})\b/i.test(compact)) {
-    const bare = /^([\p{L}][\p{L} .'-]{2,}\s+\d+[a-zA-Z]?(?:\/\d+)?)$/u.exec(compact);
+  if (!/\b(grupa|sala|klinika|godz|seminari|praktyk|cwicze|ćwicze|wyklad|wykład|\d{1,2}[.:]\d{2}|\d+\s*g\b)/i.test(compact)) {
+    const bare = /^([\p{L}][\p{L} .'-]{2,}\s+\d+[a-fA-F]?(?:\/\d+)?)$/u.exec(compact);
     if (bare?.[1]) return compactWhitespace(bare[1]);
   }
   return undefined;
@@ -61,6 +61,14 @@ export function parseLocationText(text: string): LocationParseResult {
   if (!result.label && /\bCBI\b/i.test(compact)) result.label = 'CBI';
   if (!result.label && /\bCSM\b/i.test(compact)) result.label = 'CSM';
 
+  if (!result.label) {
+    const institutionMatches = [...compact.matchAll(/\b(Zakład|Katedra(?:\s+i\s+Zakład)?|Klinika)\s+([\p{L}][\p{L} .'-]{2,}?)(?=\s*\(|\s*[,;|]|\s+-\s+|\s*$)/giu)];
+    if (institutionMatches.length === 1) {
+      const label = compactWhitespace(`${institutionMatches[0]?.[1] ?? ''} ${institutionMatches[0]?.[2] ?? ''}`);
+      if (label.length >= 8) result.label = label;
+    }
+  }
+
   return result;
 }
 
@@ -74,19 +82,86 @@ export function normalizeSubjectKey(text: string): string {
     .trim();
 }
 
-export function findBestFooterHint(subject: string, hints: FooterLocationHint[]): FooterLocationHint | undefined {
-  const subjectTokens = new Set(normalizeSubjectKey(subject).split(' ').filter((token) => token.length > 2));
+function footerMatchTokens(text: string): Set<string> {
+  const stopwords = new Set([
+    'prof', 'profesor', 'dr', 'hab', 'mgr', 'lek', 'med', 'pan', 'pani',
+    'grupa', 'grupy', 'osobowe', 'godz', 'godzina', 'godziny', 'sala', 'sale',
+    'zajecia', 'praktyczne', 'praktyki', 'seminaria', 'seminarium', 'cwiczenia', 'cwiczenie', 'wyklady', 'wyklad',
+    'ul', 'aleja', 'plac', 'warszawa', 'katedra', 'klinika', 'zaklad', 'oddzial',
+  ]);
+  const tokens = foldPolishText(text)
+    .replace(/[^a-z0-9 ]/g, ' ')
+    .split(/\s+/)
+    .filter((token) => token.length > 2 && !stopwords.has(token))
+    .filter((token) => !/^\d+(?:g|godz)?$/.test(token));
+  const canonical = tokens.map((token) => {
+    // Stemy tylko dla nazw przedmiotów, gdzie skróty są częste i znaczenie jest stabilne.
+    // Nie skracamy dowolnych słów do 4 liter - "Banaszkiewicz" kolidowałoby wtedy z "Banacha",
+    // a "Pietrzak" z "piętro".
+    if (/^rehab/.test(token)) return 'rehab';
+    if (/^promoc/.test(token) || token === 'prom') return 'prom';
+    if (/^pediatr/.test(token)) return 'pediatr';
+    if (/^chirurg/.test(token)) return 'chirurg';
+    if (/^intern/.test(token)) return 'intern';
+    if (/^farmak/.test(token)) return 'farmak';
+    // Krótkie nazwiska odmieniane a/y (Mucha/Muchy) oraz formy typu Stec/Steca.
+    if (token.length === 5 && /[ay]$/.test(token)) return token.slice(0, 4);
+    return token;
+  });
+  // "Podst." jest zbyt ogólne do wiązania lokalizacji.
+  return new Set(canonical.filter((token) => token !== 'podst'));
+}
+
+export function findUnambiguousFooterHint(subject: string, hints: FooterLocationHint[]): FooterLocationHint | undefined {
+  const subjectTokens = footerMatchTokens(subject);
   if (!subjectTokens.size) return undefined;
 
-  let best: { hint: FooterLocationHint; score: number; shared: number } | undefined;
+  const matches: Array<{ hint: FooterLocationHint; score: number; shared: number; identity: string }> = [];
   for (const hint of hints) {
-    const hintTokens = new Set(normalizeSubjectKey(hint.key).split(' ').filter((token) => token.length > 2));
+    const hintTokens = footerMatchTokens(hint.key);
     if (!hintTokens.size) continue;
     const shared = [...subjectTokens].filter((token) => hintTokens.has(token)).length;
     const score = shared / Math.min(subjectTokens.size, hintTokens.size);
-    if (shared >= 1 && score >= 0.5 && (!best || score > best.score || (score === best.score && shared > best.shared))) {
+    const requiredShared = subjectTokens.size >= 2 ? 2 : 1;
+    if (shared < requiredShared || score < 0.34) continue;
+    const identity = [hint.address ?? '', hint.label ?? '', hint.room ?? ''].join('|');
+    if (!identity.replace(/\|/g, '')) continue;
+    matches.push({ hint, score, shared, identity });
+  }
+  if (!matches.length) return undefined;
+
+  // Fallback po samym przedmiocie jest dozwolony tylko wtedy, gdy wszystkie
+  // wiarygodne trafienia wskazują dokładnie tę samą lokalizację. Przedmiot
+  // realizowany w kilku szpitalach ma pozostać nierozstrzygnięty bez nazwiska.
+  const identities = new Set(matches.map((match) => match.identity));
+  if (identities.size !== 1) return undefined;
+  return matches.sort((a, b) => b.score - a.score || b.shared - a.shared)[0]?.hint;
+}
+
+export function findBestFooterHint(subject: string, hints: FooterLocationHint[]): FooterLocationHint | undefined {
+  const subjectTokens = footerMatchTokens(subject);
+  if (!subjectTokens.size) return undefined;
+
+  let best: { hint: FooterLocationHint; score: number; shared: number } | undefined;
+  let tied = false;
+  for (const hint of hints) {
+    const hintTokens = footerMatchTokens(hint.key);
+    if (!hintTokens.size) continue;
+    const shared = [...subjectTokens].filter((token) => hintTokens.has(token)).length;
+    const score = shared / Math.min(subjectTokens.size, hintTokens.size);
+    const requiredShared = subjectTokens.size >= 2 ? 2 : 1;
+    if (shared < requiredShared || score < 0.34) continue;
+    if (!best || score > best.score || (score === best.score && shared > best.shared)) {
       best = { hint, score, shared };
+      tied = false;
+      continue;
+    }
+    if (best && score === best.score && shared === best.shared && hint.key !== best.hint.key) {
+      const bestIdentity = [best.hint.address ?? '', best.hint.label ?? '', best.hint.room ?? ''].join('|');
+      const hintIdentity = [hint.address ?? '', hint.label ?? '', hint.room ?? ''].join('|');
+      if (bestIdentity !== hintIdentity) tied = true;
     }
   }
-  return best?.hint;
+  // Przy remisie nie zgadujemy lokalizacji. Lepszy brak danych niż zły szpital w kalendarzu.
+  return tied ? undefined : best?.hint;
 }

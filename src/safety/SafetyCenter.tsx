@@ -22,6 +22,7 @@ interface SafetyCenterProps {
 }
 
 type SafetyTab = 'history' | 'trash' | 'restore' | 'backup';
+const MAX_BACKUP_FILE_BYTES = 25 * 1024 * 1024;
 
 function formatDateTime(value: string): string {
   return new Intl.DateTimeFormat('pl-PL', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value));
@@ -104,6 +105,7 @@ export function SafetyCenter({ onDataChanged }: SafetyCenterProps) {
     setMessage('');
     setInspection(null);
     try {
+      if (file.size > MAX_BACKUP_FILE_BYTES) throw new Error('Backup jest zbyt duży, aby bezpiecznie wczytać go do pamięci. Maksymalny rozmiar to 25 MB.');
       const text = await file.text();
       setInspection(await inspectBackupText(text));
     } catch (cause) {

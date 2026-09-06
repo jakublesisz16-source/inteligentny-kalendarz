@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { formatMonthLabel, localDateFromKey, sameMonth, toLocalDateKey } from '../calendar/date.utils';
+import { formatStudyGroupList } from '../imports/xlsx/group-normalizer';
 import { reviewCandidate } from './import-review';
 import {
   getStudyPreviewDayEvents,
@@ -27,7 +28,7 @@ function classCountLabel(count: number): string {
 function detailLabel(candidate: StudyScheduleCandidate): string {
   return [
     candidate.activityType,
-    candidate.groupTags.length ? `Grupy: ${candidate.groupTags.join(', ')}` : '',
+    candidate.groupTags.length ? `Grupy: ${formatStudyGroupList(candidate.groupTags)}` : '',
     candidate.clinic,
     candidate.room,
     candidate.address ?? candidate.locationLabel,
@@ -136,7 +137,7 @@ export function StudyPreviewCalendar({ candidates }: StudyPreviewCalendarProps) 
                     <strong>{candidate.subject || 'Nieustalony przedmiot'}</strong>
                     {details ? <span>{details}</span> : null}
                   </div>
-                  <span className={`status-pill ${review.state.toLowerCase()}`}>{review.state === 'READY' ? 'GOTOWE' : review.state === 'WARNING' ? 'DO SPRAWDZENIA' : 'WYMAGA POPRAWY'}</span>
+                  <span className={`status-pill ${review.state.toLowerCase()}`}>{review.state === 'READY' ? 'GOTOWE' : review.state === 'WARNING' ? 'DO SPRAWDZENIA' : review.state === 'INCOMPLETE' ? 'NIEPEŁNE' : 'WYMAGA POPRAWY'}</span>
                 </article>
               );
             })}

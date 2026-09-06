@@ -1,10 +1,4 @@
 import type { CalendarEvent } from './event.types';
-import type { StudyGroupScope } from '../study/study.types';
-
-export interface StudyEventGroupMetadata {
-  groupTags: string[];
-  groupScope: StudyGroupScope;
-}
 
 export interface StudyEventDisplay {
   groupLabel?: string;
@@ -41,15 +35,15 @@ function legacyGroupInfo(description: string | undefined): { groups: string[]; d
   };
 }
 
-export function studyEventDisplay(event: CalendarEvent, metadata?: StudyEventGroupMetadata): StudyEventDisplay {
+export function studyEventDisplay(event: CalendarEvent): StudyEventDisplay {
   if (event.source !== 'UNIVERSITY_XLSX') return event.description ? { description: event.description } : {};
 
   const legacy = legacyGroupInfo(event.description);
-  const explicitGroups = uniqueGroups(metadata?.groupTags);
+  const explicitGroups = uniqueGroups(event.studyGroupTags);
   const groups = explicitGroups.length ? explicitGroups : legacy.groups;
   const groupLabel = groups.length
     ? `${groups.length === 1 ? 'Grupa' : 'Grupy'} ${groups.join(', ')}`
-    : metadata?.groupScope === 'ALL'
+    : event.studyGroupScope === 'ALL'
       ? 'Wspólne'
       : undefined;
 

@@ -162,7 +162,7 @@ function bestSheetSignals(workbook: WorkbookSnapshot): SheetSignals | undefined 
 function adapterMatch(workbook: WorkbookSnapshot): ScheduleAdapterMatch {
   const best = bestSheetSignals(workbook);
   if (!best) {
-    return { adapterId: 'nursing-plan-v1', score: 0, handled: false, reasons: ['Skoroszyt nie zawiera arkuszy.'], detectedDays: [], timeGridCount: 0, detectedGroupCount: 0 };
+    return { adapterId: 'nursing-plan-v1', score: 0, handled: false, reasons: ['Skoroszyt nie zawiera arkuszy.'], detectedDays: [], layoutKind: 'TIME_GRID', timeGridCount: 0, detectedGroupCount: 0 };
   }
   const detectedAcademicYear = academicYearLabel(best.academicYear);
   return {
@@ -172,6 +172,7 @@ function adapterMatch(workbook: WorkbookSnapshot): ScheduleAdapterMatch {
     sheetName: best.sheet.name,
     reasons: best.reasons,
     detectedDays: [...new Set(best.days.map((item) => item.label))],
+    layoutKind: 'TIME_GRID',
     timeGridCount: best.timeGrids.length,
     ...(detectedAcademicYear ? { detectedAcademicYear } : {}),
     detectedGroupCount: best.explicitGroupCount,
@@ -448,6 +449,7 @@ export const nursingPlanV1Adapter: ScheduleAdapter = {
           ...(match.sheetName ? { matchedSheet: match.sheetName } : {}),
           adapterReasons: match.reasons,
           detectedDays: match.detectedDays,
+          layoutKind: 'TIME_GRID',
           timeGridCount: match.timeGridCount,
           usedRanges: workbook.sheets.map((sheet) => `${sheet.name}: ${sheet.usedRange ?? 'brak'}`),
         },
@@ -480,6 +482,7 @@ export const nursingPlanV1Adapter: ScheduleAdapter = {
         matchedSheet: practiceSheet.name,
         adapterReasons: match.reasons,
         detectedDays: blocks.map((block) => block.label),
+        layoutKind: 'TIME_GRID',
         timeGridCount: signals.timeGrids.length,
         timeGridIntervals: [...new Set(signals.timeGrids.flatMap((grid) => grid.intervalMinutes ? [grid.intervalMinutes] : []))],
         usedRanges: workbook.sheets.map((sheet) => `${sheet.name}: ${sheet.usedRange ?? 'brak'}`),

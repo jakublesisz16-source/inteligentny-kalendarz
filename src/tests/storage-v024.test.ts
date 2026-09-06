@@ -203,6 +203,47 @@ describe('legacy safety schema and isolated study preview', () => {
     expect(await listEvents()).toHaveLength(1);
   });
 
+  it('pozwala bezpiecznie podglądać aktywny plan wspólny bez sztucznego wyboru grupy', async () => {
+    await initializeDatabase();
+    const shared: StudyScheduleCandidate = {
+      id: 'lecture-all',
+      adapterId: 'nursing-week-matrix-v2',
+      sourceSheet: 'WYKŁADY',
+      sourceRange: 'A4,B4',
+      sourceKey: 'lecture-all-source',
+      originalText: '07.10. | FARMAKOLOGIA 15.00 - 16.30',
+      subject: 'FARMAKOLOGIA',
+      activityType: 'Wykład',
+      date: '2025-10-07',
+      startTime: '15:00',
+      endTime: '16:30',
+      groupScope: 'ALL',
+      groupTags: [],
+      status: 'READY',
+      warnings: [],
+      include: true,
+    };
+
+    await commitUniversityImport({
+      fileName: 'wyklady.xlsx',
+      fileSize: 100,
+      fileHash: 'lecture-only-preview-hash',
+      adapterId: 'nursing-week-matrix-v2',
+      sheetNames: ['WYKŁADY'],
+      selectedGroups: [],
+      availableGroups: [],
+      candidates: [shared],
+      allCandidates: [shared],
+    });
+
+    const preview = await buildStudyGroupPreview([]);
+    expect(preview.requiresReupload).toBe(false);
+    expect(preview.selectedGroups).toEqual([]);
+    expect(preview.availableGroups).toEqual([]);
+    expect(preview.candidates).toHaveLength(1);
+    expect(preview.candidates[0]).toMatchObject({ subject: 'FARMAKOLOGIA', groupScope: 'ALL' });
+  });
+
   it('migruje legacy schema 4 do aktualnego schema bez zmiany istniejących eventów i tworzy wymagane store\'y', async () => {
     resetDatabaseConnectionForTests();
     await new Promise<void>((resolve, reject) => {

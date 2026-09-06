@@ -43,3 +43,6 @@ docs/PROJECT_HISTORY.md
 docs/RELEASE_AUDIT_*.md
 
 *.tsbuildinfo
+
+# Private/local receipt benchmark build output
+.benchmark-dist/

@@ -44,6 +44,7 @@
 }
 
 @media (max-width: 370px) {
+  .receipt-scan-source-actions { grid-template-columns: 1fr; }
   .view-shell { padding-left: 12px; padding-right: 12px; }
   .calendar-weekdays span { font-size: .62rem; padding-inline: 0; }
   .calendar-day { min-height: 52px; padding: 4px; }
@@ -91,6 +92,10 @@
   .preview-bulk-actions .button { width: 100%; }
   .candidate-card { padding: 15px; }
   .candidate-issues { padding: 10px; }
+  .study-conflict-list li { grid-template-columns: 1fr; gap: 4px; align-items: start; }
+  .study-conflict-list.compact li { grid-template-columns: 1fr; }
+  .study-conflict-list .conflict-separator { display: none; }
+  .candidate-edit-action { white-space: normal; text-align: left; }
 }
 
 @media (max-width: 370px) {
@@ -115,7 +120,6 @@
   .diff-actions > div { justify-content: stretch; }
   .diff-actions .button { width: 100%; }
   .compact-group-grid { grid-template-columns: repeat(4, minmax(0,1fr)); }
-  .roadmap-item { grid-template-columns: 86px minmax(0,1fr); }
 }
 
 @media (max-width: 480px) {
@@ -123,9 +127,8 @@
   .diff-summary-grid { grid-template-columns: repeat(2, minmax(0,1fr)); }
   .study-profile-summary, .app-info-grid { grid-template-columns: 1fr 1fr; }
   .compact-group-grid { grid-template-columns: repeat(3, minmax(0,1fr)); }
-  .settings-study-actions, .application-links, .candidate-editor-actions { flex-direction: column; }
-  .settings-study-actions .button, .application-links .button, .candidate-editor-actions .button { width: 100%; }
-  .roadmap-item { grid-template-columns: 1fr; gap: 8px; }
+  .settings-study-actions, .candidate-editor-actions { flex-direction: column; }
+  .settings-study-actions .button, .candidate-editor-actions .button { width: 100%; }
   .event-actions-column { grid-column: 2; justify-items: start; }
 }
 
@@ -543,4 +546,210 @@
 @media (max-width: 370px) {
   .global-search-utility { padding-left: 12px; padding-right: 12px; }
   .global-search-result { min-height: 64px; padding: 11px 12px; }
+}
+
+/* 1.1.0-dev.1 - receipts */
+@media (max-width: 720px) {
+  .shopping-section-tabs { display: grid; grid-template-columns: 1fr 1fr; width: 100%; }
+  .expenses-toolbar { align-items: stretch; }
+  .expenses-month-switch { flex: 1; min-width: 0; }
+  .receipt-item-form { grid-template-columns: 1fr 1fr; }
+  .receipt-item-name { grid-column: 1 / -1; }
+  .receipt-item-remove { justify-self: end; }
+}
+
+@media (max-width: 520px) {
+  .expenses-toolbar { display: grid; }
+  .expenses-toolbar > .button { width: 100%; }
+  .expense-section-heading { padding: 18px 16px 14px; align-items: flex-start; }
+  .expense-section-heading .button { width: auto; }
+  .expense-category-summary-row { padding: 12px 16px; }
+  .receipt-row { grid-template-columns: minmax(0,1fr) auto; gap: 4px 12px; padding: 13px 16px; }
+  .receipt-date { grid-column: 1 / -1; }
+  .expense-empty-copy, .expense-empty-state { padding-inline: 16px; }
+  .receipt-main-fields { grid-template-columns: 1fr; }
+  .receipt-item-form { grid-template-columns: 1fr; }
+  .receipt-item-name { grid-column: auto; }
+  .receipt-item-remove { justify-self: start; min-height: 32px; }
+  .receipt-detail-item { align-items: flex-start; }
+  .expense-category-add { grid-template-columns: 1fr; }
+  .expense-category-manager-row { grid-template-columns: 1fr auto; }
+  .expense-category-manager-row input { grid-column: 1 / -1; }
+}
+
+/* 1.1.0-dev.2 - detailed expense analytics */
+@media (max-width: 900px) {
+  .expense-metrics-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .expense-products-layout { grid-template-columns: 1fr; }
+  .expense-insights-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .expense-insights-grid > div:nth-child(2) { border-right: 0; }
+  .expense-insights-grid > div:nth-child(-n+2) { border-bottom: 1px solid var(--line); }
+}
+
+@media (max-width: 620px) {
+  .expense-panel-body { padding: 14px 16px 18px; }
+  .expense-trend-values { grid-template-columns: repeat(3,minmax(0,1fr)); gap: 10px 8px; }
+  .expense-analytics-row { align-items: flex-start; padding: 13px 16px; }
+  .expense-products-layout { padding: 16px; gap: 18px; }
+  .expense-insights-grid { grid-template-columns: 1fr; }
+  .expense-insights-grid > div { border-right: 0; border-bottom: 1px solid var(--line); }
+  .expense-insights-grid > div:nth-child(2) { border-right: 0; }
+  .expense-insights-grid > div:last-child { border-bottom: 0; }
+}
+
+@media (max-width: 430px) {
+  .expense-metrics-grid { grid-template-columns: 1fr; }
+  .expense-metric-card { padding: 16px; }
+  .expense-analytics-row { display: grid; gap: 8px; }
+  .expense-analytics-amount { justify-self: start; }
+  .expense-ranked-row { grid-template-columns: 24px minmax(0,1fr); }
+  .expense-ranked-row > strong { grid-column: 2; justify-self: start; }
+  .expense-trend-values { grid-template-columns: repeat(2,minmax(0,1fr)); }
+}
+
+/* 1.1.0-dev.2 FIX1 - compact expenses dashboard responsive */
+@media (max-width: 980px) {
+  .expenses-dashboard-grid,
+  .expenses-secondary-grid { grid-template-columns: 1fr; }
+  .expense-products-layout.is-expanded { grid-template-columns: minmax(0, 1fr) minmax(220px, .8fr); }
+}
+
+@media (max-width: 620px) {
+  .shopping-view-expenses { padding-left: 12px; padding-right: 12px; }
+  .shopping-section-tabs { margin-bottom: 14px; }
+  .expenses-view { gap: 10px; }
+  .expenses-dashboard-header { gap: 8px; }
+  .expenses-dashboard-title { gap: 10px; }
+  .expenses-dashboard-title h2 { font-size: .94rem; }
+  .expenses-primary-action { width: auto; min-height: 38px; padding-inline: 13px; }
+  .expenses-toolbar { display: grid; grid-template-columns: minmax(0,1fr) auto; align-items: center; }
+  .expenses-toolbar > .button { width: auto; }
+  .expenses-month-switch { width: 100%; min-width: 0; grid-template-columns: 34px minmax(0,1fr) 34px; gap: 4px; }
+  .expenses-month-switch .icon-button { width: 34px; height: 34px; min-height: 34px; }
+  .expenses-month-switch strong { font-size: .86rem; }
+  .expenses-category-action { min-height: 36px; padding-inline: 11px; }
+  .expense-metrics-grid { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 7px; }
+  .expense-metric-card { min-height: 82px; padding: 11px 12px; }
+  .expense-metric-card span { font-size: .61rem; letter-spacing: .035em; }
+  .expense-metric-card strong,
+  .expense-metric-primary strong { font-size: clamp(1rem, 5.1vw, 1.28rem); overflow-wrap: normal; }
+  .expense-metric-card small { font-size: .63rem; }
+  .expense-section-heading-compact { padding: 11px 13px 8px; }
+  .expense-panel-body { padding: 8px 10px 10px; }
+  .expense-trend-chart { max-height: 126px; }
+  .expense-analytics-row { display: flex; align-items: flex-start; gap: 9px; padding: 9px 13px; }
+  .expense-analytics-amount { justify-self: auto; font-size: .82rem; }
+  .expense-share-track { width: min(100%, 210px); }
+  .expense-panel-footer { padding: 7px 13px 9px; }
+  .receipt-row { grid-template-columns: minmax(0,1fr) auto; gap: 3px 10px; padding: 10px 13px; }
+  .receipt-date { grid-column: 1 / -1; font-size: .68rem; }
+  .receipt-total { font-size: .82rem; }
+  .expense-empty-copy,
+  .expense-empty-state { padding-inline: 13px; }
+  .expense-products-layout,
+  .expense-products-layout.is-expanded { grid-template-columns: 1fr; padding: 10px 13px 12px; gap: 12px; }
+  .expense-ranked-row { grid-template-columns: 22px minmax(0,1fr) auto; padding: 8px 9px; }
+  .expense-ranked-row > strong { grid-column: auto; justify-self: auto; }
+}
+
+@media (max-width: 370px) {
+  .shopping-view-expenses { padding-left: 8px; padding-right: 8px; }
+  .expenses-dashboard-title .section-kicker { display: none; }
+  .expenses-dashboard-title h2 { font-size: .88rem; }
+  .expenses-primary-action { width: auto !important; min-width: 0; }
+  .expenses-category-action { width: auto !important; }
+  .expense-metrics-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .expense-metric-card { min-height: 78px; padding: 10px; }
+  .expense-metric-card strong,
+  .expense-metric-primary strong { font-size: .98rem; }
+  .expense-analytics-row { display: grid; grid-template-columns: minmax(0,1fr) auto; }
+  .expense-analytics-amount { justify-self: end; }
+  .expense-ranked-row { grid-template-columns: 20px minmax(0,1fr); }
+  .expense-ranked-row > strong { grid-column: 2; justify-self: start; }
+}
+
+/* 1.1.0-dev.2 FIX3 - keep category icons compact on narrow phones */
+@media (max-width: 430px) {
+  .expense-category-analytics-main { gap: 8px; }
+  .expense-category-icon { width: 28px; height: 28px; flex-basis: 28px; border-radius: 9px; }
+  .expense-category-icon svg { width: 16px; height: 16px; }
+}
+
+/* 1.1.0-dev.2 FIX4 - compact receipt history controls */
+@media (max-width: 700px) {
+  .receipt-history-tools { grid-template-columns: minmax(0, 1fr) minmax(0, .72fr); padding: 10px 13px; gap: 8px; }
+  .receipt-search-field { grid-column: 1 / -1; }
+  .receipt-active-filters { padding: 7px 13px; }
+  .expense-undo-toast { width: 100%; }
+}
+
+@media (max-width: 370px) {
+  .receipt-history-tools { grid-template-columns: 1fr; }
+  .receipt-search-field { grid-column: auto; }
+  .receipt-active-filters { align-items: flex-start; }
+}
+
+/* 1.1.0-dev.3 - compact receipt OCR review */
+@media (max-width: 760px) {
+  .receipt-scan-backdrop { padding: 0; }
+  .receipt-scan-shell { width: 100%; height: 100dvh; border-radius: 0; }
+  .receipt-scan-shell-header { padding: max(10px,env(safe-area-inset-top)) 12px 9px; }
+  .receipt-scan-review-heading { padding: 8px 10px; }
+  .receipt-scan-review-heading .section-kicker { display: none; }
+  .receipt-scan-mobile-tabs { display: grid; grid-template-columns: repeat(2,1fr); gap: 2px; padding: 2px; border-radius: 10px; background: var(--surface-soft); }
+  .receipt-scan-mobile-tabs button { min-height: 34px; border: 0; border-radius: 8px; padding: 5px 11px; background: transparent; color: var(--text-muted); font: inherit; font-size: .72rem; font-weight: 800; }
+  .receipt-scan-mobile-tabs button.is-active { background: var(--surface); color: var(--text); box-shadow: var(--shadow-sm); }
+  .receipt-scan-review-grid { display: block; min-height: 0; overflow: hidden; }
+  .receipt-scan-image-pane, .receipt-scan-data-pane { display: none; height: 100%; border: 0; }
+  .receipt-scan-image-pane.is-mobile-active { display: flex; padding: 10px; }
+  .receipt-scan-data-pane.is-mobile-active { display: grid; padding: 9px 10px max(12px,env(safe-area-inset-bottom)); }
+  .receipt-scan-image-actions { justify-content: center; }
+  .receipt-scan-processing { grid-template-columns: 112px minmax(0,1fr); gap: 14px; padding: 18px 14px; }
+  .receipt-scan-processing-thumb { height: 160px; }
+  .receipt-review-actions { bottom: calc(-1 * max(12px,env(safe-area-inset-bottom))); padding-bottom: max(10px,env(safe-area-inset-bottom)); }
+}
+
+@media (max-width: 520px) {
+  .expenses-receipt-actions { gap: 5px; }
+  .expenses-scan-action, .expenses-primary-action { min-height: 36px; padding-inline: 10px; font-size: .72rem; }
+  .receipt-review-main-fields { grid-template-columns: minmax(0,1.25fr) minmax(126px,.75fr); gap: 7px; }
+  .receipt-review-item { padding: 7px 8px 8px; }
+  .receipt-review-item-bottom { grid-template-columns: minmax(0,1fr) minmax(88px,31%); }
+  .receipt-ocr-diagnostic { grid-template-columns: 1fr; }
+  .receipt-ocr-diagnostic .button { justify-self: start; }
+  .receipt-review-totals { grid-template-columns: 1fr; gap: 4px; }
+  .receipt-review-totals > small { grid-column: 1; }
+}
+
+@media (max-width: 370px) {
+  .expenses-dashboard-title { align-items: flex-start; }
+  .expenses-receipt-actions { gap: 4px; }
+  .expenses-scan-action, .expenses-primary-action { padding-inline: 8px; font-size: .68rem; }
+  .receipt-scan-shell-header h1 { font-size: .94rem; }
+  .receipt-scan-review-heading h2 { font-size: .88rem; }
+  .receipt-scan-mobile-tabs button { min-height: 32px; padding-inline: 8px; }
+  .receipt-review-main-fields { grid-template-columns: 1fr; }
+  .receipt-review-item-bottom { grid-template-columns: minmax(0,1fr) 92px; }
+  .receipt-review-actions .button { flex: 1 1 0; min-width: 0; padding-inline: 9px; }
+  .receipt-scan-processing { grid-template-columns: 1fr; justify-items: center; text-align: center; }
+  .receipt-scan-processing-thumb { width: 108px; height: 130px; }
+  .receipt-scan-processing-copy { justify-items: center; }
+}
+
+/* 1.1.0-rc.8 - Study group context on narrow screens */
+@media (max-width: 620px) {
+  .calendar-study-context { align-items: flex-start; flex-direction: column; }
+  .calendar-study-group-chips { width: 100%; }
+  .import-history-card dl { grid-template-columns: 1fr; }
+}
+
+
+@media (max-width: 720px) {
+  .study-incomplete-marker { right: 3px; bottom: 24px; min-height: 15px; padding: 0 4px; font-size: .5rem; }
+  .study-incomplete-card { flex-direction: column; }
+}
+
+@media (max-width: 720px) {
+  .study-completeness-stats { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .study-completeness-heading { align-items: flex-start; }
 }

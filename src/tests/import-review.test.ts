@@ -73,15 +73,27 @@ describe('klasyfikacja problemów importu', () => {
     expect(codes(value)).toContain('MISSING_DATE');
   });
 
-  it('brak godziny początku jest BLOCKING', () => {
+  it('brak konkretnej daty w rozpoznanym bloku tygodniowym jest INCOMPLETE, a nie BLOCKING', () => {
+    const value = candidate({ date: undefined, startTime: undefined, endTime: undefined, status: 'REVIEW_REQUIRED', sourceWeekStart: '2027-01-04', sourceWeekEnd: '2027-01-08' });
+    const review = reviewCandidate(value);
+    expect(review.state).toBe('INCOMPLETE');
+    expect(review.canImport).toBe(false);
+    expect(classifyCandidateIssues(value).find((entry) => entry.code === 'MISSING_DATE')?.severity).toBe('INCOMPLETE');
+  });
+
+  it('brak godziny początku jest INCOMPLETE i pozostaje do podglądu', () => {
     const value = candidate({ startTime: undefined, status: 'REVIEW_REQUIRED' });
     expect(codes(value)).toContain('MISSING_START_TIME');
+    expect(reviewCandidate(value).state).toBe('INCOMPLETE');
+    expect(classifyCandidateIssues(value).find((entry) => entry.code === 'MISSING_START_TIME')?.severity).toBe('INCOMPLETE');
     expect(reviewCandidate(value).canImport).toBe(false);
   });
 
-  it('brak godziny końca jest BLOCKING', () => {
+  it('brak godziny końca jest INCOMPLETE i pozostaje do podglądu', () => {
     const value = candidate({ endTime: undefined, status: 'REVIEW_REQUIRED' });
     expect(codes(value)).toContain('MISSING_END_TIME');
+    expect(reviewCandidate(value).state).toBe('INCOMPLETE');
+    expect(classifyCandidateIssues(value).find((entry) => entry.code === 'MISSING_END_TIME')?.severity).toBe('INCOMPLETE');
     expect(reviewCandidate(value).canImport).toBe(false);
   });
 
@@ -91,38 +103,53 @@ describe('klasyfikacja problemów importu', () => {
     expect(reviewCandidate(value).state).toBe('BLOCKING');
   });
 
+  it('niemożliwa data kalendarzowa jest BLOCKING', () => {
+    const value = candidate({ date: '2027-02-31', status: 'REVIEW_REQUIRED' });
+    expect(codes(value)).toContain('MISSING_DATE');
+    expect(reviewCandidate(value).canImport).toBe(false);
+  });
+
+  it('godzina poza zakresem doby jest BLOCKING', () => {
+    const value = candidate({ startTime: '29:00', status: 'REVIEW_REQUIRED' });
+    expect(codes(value)).toContain('INVALID_START_TIME');
+    expect(reviewCandidate(value).state).toBe('BLOCKING');
+    expect(reviewCandidate(value).canImport).toBe(false);
+  });
+
   it('brak przedmiotu jest BLOCKING', () => {
     const value = candidate({ subject: '', status: 'REVIEW_REQUIRED' });
     expect(codes(value)).toContain('MISSING_SUBJECT');
     expect(reviewCandidate(value).state).toBe('BLOCKING');
   });
 
-  it('ostrzeżenie lokalizacji plus brak końca daje BLOCKING', () => {
+  it('ostrzeżenie lokalizacji plus brak końca daje INCOMPLETE', () => {
     const value = candidate({
       endTime: undefined,
       status: 'REVIEW_REQUIRED',
       warnings: ['Nie udało się jednoznacznie ustalić lokalizacji.'],
     });
-    expect(reviewCandidate(value).state).toBe('BLOCKING');
+    expect(reviewCandidate(value).state).toBe('INCOMPLETE');
   });
 });
 
 describe('domyślny wybór i akcje zbiorcze', () => {
-  it('READY i WARNING są domyślnie zaznaczone, BLOCKING nie', () => {
+  it('READY i WARNING są domyślnie zaznaczone, INCOMPLETE i BLOCKING nie', () => {
     expect(defaultIncludeForCandidate(candidate())).toBe(true);
     expect(defaultIncludeForCandidate(candidate({ status: 'REVIEW_REQUIRED' }))).toBe(true);
     expect(defaultIncludeForCandidate(candidate({ endTime: undefined, status: 'REVIEW_REQUIRED' }))).toBe(false);
   });
 
-  it('Zaznacz wszystkie możliwe pomija BLOCKING', () => {
+  it('Zaznacz wszystkie możliwe pomija INCOMPLETE i BLOCKING', () => {
     const values = selectAllImportable([
       candidate({ id: 'ready' }),
       candidate({ id: 'warning', status: 'REVIEW_REQUIRED' }),
-      candidate({ id: 'blocking', status: 'REVIEW_REQUIRED', endTime: undefined }),
+      candidate({ id: 'incomplete', status: 'REVIEW_REQUIRED', endTime: undefined }),
+      candidate({ id: 'blocking', status: 'REVIEW_REQUIRED', subject: '' }),
     ]);
     expect(values.map((entry) => [entry.id, entry.include])).toEqual([
       ['ready', true],
       ['warning', true],
+      ['incomplete', false],
       ['blocking', false],
     ]);
   });

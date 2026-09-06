@@ -63,7 +63,8 @@ export type ChangeOperationType =
   | 'SET_CYCLE_GAP_DECISION'
   | 'ADD_CYCLE_JOURNAL_ENTRY'
   | 'EDIT_CYCLE_JOURNAL_ENTRY'
-  | 'DELETE_CYCLE_JOURNAL_ENTRY';
+  | 'DELETE_CYCLE_JOURNAL_ENTRY'
+  | 'DELETE_LOCATION';
 
 export type ChangeEntityType =
   | 'CALENDAR_EVENT'
@@ -82,7 +83,8 @@ export type ChangeEntityType =
   | 'AVAILABILITY_PLAN'
   | 'SHOPPING_ITEM'
   | 'CYCLE_PERIOD'
-  | 'CYCLE_JOURNAL_ENTRY';
+  | 'CYCLE_JOURNAL_ENTRY'
+  | 'LOCATION';
 
 export interface ChangeJournalEntry {
   id: string;
@@ -186,6 +188,8 @@ export interface BackupSummary {
   consistencyAcknowledgements: number;
   availabilityPlans: number;
   shoppingItems: number;
+  expenseCategories: number;
+  receipts: number;
   cyclePeriods: number;
   cycleJournalEntries: number;
 }

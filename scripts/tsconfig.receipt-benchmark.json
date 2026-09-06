@@ -1,0 +1,34 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "CommonJS",
+    "moduleResolution": "Node",
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "rootDir": "..",
+    "outDir": "../.benchmark-dist",
+    "lib": [
+      "ES2022",
+      "DOM"
+    ],
+    "jsx": "react-jsx",
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true
+  },
+  "include": [
+    "../src/benchmarks/receipt-benchmark.ts",
+    "../src/benchmarks/receipt-gate2.ts",
+    "../src/shopping/receipt-ocr/receipt-parser.ts",
+    "../src/shopping/receipt-ocr/receipt-geometry-reconstruction.ts",
+    "../src/shopping/receipt-ocr/receipt-geometry-production-selector.ts",
+    "../src/shopping/receipt-ocr/receipt-value-column-recovery.ts",
+    "../src/shopping/receipt-ocr/receipt-local-numeric-verification.ts",
+    "../src/shopping/receipt-ocr/receipt-financial-reconciliation.ts",
+    "../src/shopping/receipt-ocr/receipt-columnar-reconstruction.ts",
+    "../src/shopping/receipt-ocr/receipt-strict-gating.ts",
+    "../src/shopping/receipt-ocr/category-suggestions.ts",
+    "../src/shopping/receipt-ocr/receipt-ocr.types.ts",
+    "../src/shopping/expenses.types.ts"
+  ]
+}

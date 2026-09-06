@@ -2,6 +2,7 @@ import 'fake-indexeddb/auto';
 import { beforeEach, describe, expect, it } from 'vitest';
 import {
   createBackupFile,
+  createCanonicalDataTransferDocument,
   createCyclePeriod,
   createDataTransferFile,
   deleteDatabaseForTests,
@@ -74,6 +75,14 @@ describe('notification storage compatibility under current schema', () => {
     const backup = JSON.parse((await createBackupFile()).text) as { data: { stores: Record<string, Array<Record<string, unknown>>> } };
     const appSettings = backup.data.stores.settings?.find((item) => item.id === 'app');
     expect(appSettings?.notificationPreferences).toMatchObject({ contentMode: 'FULL', cycle: { daysBeforeWindow: 5 } });
+  });
+
+  it('can capture canonical data for Excel without changing device-local export metadata', async () => {
+    await initializeDatabase();
+    expect((await getNotificationRuntime()).lastBackupExportAt).toBeUndefined();
+    const document = await createCanonicalDataTransferDocument();
+    expect(document.format).toBe('inteligentny-kalendarz-backup');
+    expect((await getNotificationRuntime()).lastBackupExportAt).toBeUndefined();
   });
 
   it('records the latest conscious export only in device-local runtime', async () => {

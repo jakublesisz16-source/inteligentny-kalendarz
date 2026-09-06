@@ -1,11 +1,12 @@
-import type { ScheduleAnalysis, ScheduleInformation, StudyScheduleCandidate } from '../../../study/study.types';
+import type { ScheduleAnalysis, ScheduleInformation, StudyScheduleCandidate, StudySourceBlock } from '../../../study/study.types';
 import type { ScheduleAdapter, ScheduleAdapterMatch } from '../adapter.types';
 import type { SheetCellSnapshot, SheetMergeSnapshot, SheetSnapshot, WorkbookSnapshot } from '../xlsx.types';
 import { academicYearLabel, detectAcademicYear, detectTerm, looksLikeDateExpression, parseDateExpression, type AcademicYearContext } from '../date-parser';
-import { normalizeGroupText, sortStudyGroups } from '../group-normalizer';
-import { findBestFooterHint, parseLocationText, type FooterLocationHint, type LocationParseResult } from '../location-parser';
+import { inferStudyGroupKind, normalizeGroupText, sortStudyGroups, studyGroupKey } from '../group-normalizer';
+import { findBestFooterHint, findUnambiguousFooterHint, parseLocationText, type FooterLocationHint, type LocationParseResult } from '../location-parser';
 import { compactWhitespace, foldPolishText } from '../parser-normalization';
 import { parseTimeRange, type ParsedTimeRange } from '../time-parser';
+import { auditStudyScheduleCompleteness } from '../../../study/study-completeness';
 
 const WEEKDAY_LABELS = ['PONIEDZIAŁEK', 'WTOREK', 'ŚRODA', 'CZWARTEK', 'PIĄTEK', 'SOBOTA', 'NIEDZIELA'] as const;
 type WeekdayLabel = (typeof WEEKDAY_LABELS)[number];
@@ -41,6 +42,13 @@ interface ColumnContext {
   time?: ParsedTimeRange;
   location: LocationParseResult;
   headerText: string;
+  sourceSectionKey: string;
+  declaredTeachingHours?: number;
+}
+
+interface FooterContextHint extends FooterLocationHint {
+  row: number;
+  startTimeOverride?: string;
 }
 
 interface DateException {
@@ -58,6 +66,8 @@ interface MatrixSignals {
   headerTimeCount: number;
   headerWeekdayCount: number;
   subjectHeaderCount: number;
+  unparsedAssignmentCells: SheetCellSnapshot[];
+  suspiciousUnparsedWeekRows: number[];
   score: number;
   reasons: string[];
 }
@@ -124,7 +134,7 @@ function weekRows(sheet: SheetSnapshot): WeekRangeRow[] {
   }
   const rows: WeekRangeRow[] = [];
   for (const [row, cells] of byRow.entries()) {
-    const left = [...cells].sort((a, b) => a.col - b.col).find((cell) => cell.col <= Math.min(sheet.minCol + 2, 3));
+    const left = [...cells].sort((a, b) => a.col - b.col).find((cell) => cell.col <= Math.min(sheet.minCol + 2, sheet.maxCol));
     if (!left) continue;
     const parsed = parseWeekRange(left.value);
     if (!parsed) continue;
@@ -198,6 +208,32 @@ function firstTimeRange(texts: string[]): ParsedTimeRange | undefined {
   return undefined;
 }
 
+function normalizeClock(hourToken: string, minuteToken: string): string | undefined {
+  const hour = Number(hourToken);
+  const minute = Number(minuteToken);
+  if (!Number.isInteger(hour) || !Number.isInteger(minute) || hour < 0 || hour > 23 || minute < 0 || minute > 59) return undefined;
+  return `${pad(hour)}:${pad(minute)}`;
+}
+
+function explicitStartTimeHint(text: string): string | undefined {
+  const folded = foldPolishText(text);
+  const patterns = [
+    /(?:zaczyn\w*|rozpoczyn\w*)\s+(?:sie\s+)?(?:od\s+)?(?:godz\.?\s*)?(\d{1,2})[.:](\d{2})/,
+    /\bzajecia\s+od\s+(?:godz\.?\s*)?(\d{1,2})[.:](\d{2})/,
+    /\bod\s+godz\.?\s*(\d{1,2})[.:](\d{2})/,
+  ];
+  for (const pattern of patterns) {
+    const match = pattern.exec(folded);
+    if (match?.[1] && match[2]) return normalizeClock(match[1], match[2]);
+  }
+  return undefined;
+}
+
+function withStartOverride(range: ParsedTimeRange | undefined, startOverride: string | undefined): ParsedTimeRange | undefined {
+  if (!range || !startOverride) return range;
+  return { ...range, start: startOverride };
+}
+
 function parseActivityType(subject: string): string | undefined {
   const lower = foldPolishText(subject);
   if (/zajecia\s+prakt|\bpraktyki\b/.test(lower)) return 'Zajęcia praktyczne';
@@ -221,12 +257,12 @@ function subjectScore(entry: HeaderEntry, sheet: SheetSnapshot): number {
   if (parseTimeRange(entry.value)) return -40;
   if (weekdayLabelsFromText(entry.value).length && entry.value.length < 80) return -30;
   if (/^(prof|dr\b|dr hab|mgr|lek\b|sala\b|ul\b|al\b|centrum\b|klinika\b|katedra\b|zaklad\b)/.test(folded)) return -20;
-  const strongSubject = /chirurg|interna|pediatr|rehab|farmak|promoc|\bpoz\b|prakty|semin|cwicz|wyklad/.test(folded);
+  const strongSubject = /chirurg|interna|pediatr|rehab|farmak|promoc|\bpoz\b|prakty|semin|cwicz|\bcw\b|wyklad/.test(folded);
   const locationLike = parseLocationText(entry.value);
   if (!strongSubject && (locationLike.address || locationLike.label || locationLike.room)) return -20;
   if (/pierwsze spotkanie|adres|terminach|godz\.|obowiazk|uwaga/.test(folded)) return -20;
 
-  let score = Math.max(0, 10 - entry.row);
+  let score = Math.max(0, 10 - (entry.row - sheet.minRow + 1));
   const width = entry.merge ? entry.merge.endCol - entry.merge.startCol + 1 : 1;
   if (width >= 2) score += 4;
   if (strongSubject) score += 6;
@@ -234,12 +270,52 @@ function subjectScore(entry: HeaderEntry, sheet: SheetSnapshot): number {
   return score;
 }
 
-function selectSubject(entries: HeaderEntry[], sheet: SheetSnapshot): string {
+function strongSubjectHeader(entry: HeaderEntry): boolean {
+  const folded = foldPolishText(entry.value);
+  if (/^(prof|profesor|dr\b|dr hab|mgr|lek\b|sala\b|ul\b|al\b|centrum\b|klinika\b|katedra\b|zaklad\b)/.test(folded)) return false;
+  return /chirurg|interna|pediatr|rehab|farmak|promoc|\bpoz\b|prakty|semin|cwicz|\bcw\b|wyklad/.test(folded)
+    && !/pierwsze spotkanie|adres|terminach|obowiazk|uwaga/.test(folded);
+}
+
+
+function declaredTeachingHoursFromText(text: string): number | undefined {
+  const folded = foldPolishText(text);
+  const match = /(?:^|\s)(\d{1,3})\s*(?:godz\.?|g)(?=\s|$|[.,;])/i.exec(folded);
+  if (!match?.[1]) return undefined;
+  const value = Number(match[1]);
+  return Number.isInteger(value) && value > 0 && value <= 300 ? value : undefined;
+}
+
+function sourceSectionKey(sheet: SheetSnapshot, entry: HeaderEntry | undefined, col: number): string {
+  if (entry?.merge?.ref) return `${sheet.name}|${entry.merge.ref}`;
+  if (entry) return `${sheet.name}|R${entry.row}C${col}`;
+  return `${sheet.name}|C${col}`;
+}
+
+function cleanMatrixSubject(value: string): string {
+  return compact(value)
+    .replace(/\s+zaj[eę]cia\s+praktyczne\b.*$/i, '')
+    .replace(/\s+(?:\d+\s*(?:godz\.?|g))\b.*$/i, '')
+    .replace(/\s+grupy?\s+\d+\s*[- ]?\s*osobowe.*$/i, '')
+    .trim();
+}
+
+function selectSubjectEntry(entries: HeaderEntry[], sheet: SheetSnapshot): HeaderEntry | undefined {
+  const strong = entries
+    .filter(strongSubjectHeader)
+    .map((entry) => ({ entry, score: subjectScore(entry, sheet) }))
+    .sort((a, b) => a.entry.row - b.entry.row || b.score - a.score);
+  if (strong[0]?.entry.value) return strong[0].entry;
+
   const ranked = entries
     .map((entry) => ({ entry, score: subjectScore(entry, sheet) }))
     .filter((item) => item.score > -20)
     .sort((a, b) => b.score - a.score || a.entry.row - b.entry.row);
-  return ranked[0]?.entry.value ?? '';
+  return ranked[0]?.entry;
+}
+
+function selectSubject(entries: HeaderEntry[], sheet: SheetSnapshot): string {
+  return selectSubjectEntry(entries, sheet)?.value ?? '';
 }
 
 function mergeLocation(primary: LocationParseResult, fallback?: FooterLocationHint): LocationParseResult {
@@ -253,29 +329,138 @@ function mergeLocation(primary: LocationParseResult, fallback?: FooterLocationHi
   };
 }
 
-function footerHints(sheet: SheetSnapshot, afterRow: number): FooterLocationHint[] {
-  const hints: FooterLocationHint[] = [];
-  for (const cell of sheet.cells.filter((candidate) => candidate.row > afterRow).sort((a, b) => a.row - b.row || a.col - b.col)) {
+function footerHints(sheet: SheetSnapshot, afterRow: number): FooterContextHint[] {
+  const footerCells = sheet.cells
+    .filter((candidate) => candidate.row > afterRow)
+    .sort((a, b) => a.row - b.row || a.col - b.col);
+  const hints: FooterContextHint[] = [];
+  const previousByCol = new Map<number, SheetCellSnapshot>();
+
+  const isSectionHeader = (text: string) => {
+    const value = compact(text);
+    if (!value) return false;
+    const folded = foldPolishText(value);
+    const parsed = parseLocationText(value);
+    if (parsed.address || parsed.label || parsed.room || parseTimeRange(value) || weekdayLabelsFromText(value).length) return false;
+    if (/^(prof|profesor|dr\b|mgr|lek\b|sala\b|ul\b|al\b)/.test(folded)) return false;
+    if (/uwaga|pierwsze\s+spotkanie|adresy?|lokalizacj|terminach|obowiazk|godz\.?/.test(folded)) return false;
+    if (strongSubjectHeader({ row: 0, value })) return true;
+    const words = folded.split(/\s+/).filter(Boolean);
+    return value === value.toUpperCase() && words.length >= 1 && words.length <= 8 && value.length <= 120;
+  };
+  const isLocationContinuation = (text: string) => /zajecia[^|]{0,100}(?:realiz|odbyw)/.test(foldPolishText(text));
+
+  for (const cell of footerCells) {
     const rawText = compact(cell.value);
     if (!rawText) continue;
-    const parsed = parseLocationText(rawText);
-    if (!parsed.address && !parsed.label && !parsed.room) continue;
-    hints.push({ key: rawText, rawText, ...parsed });
+    const previous = previousByCol.get(cell.col);
+    const currentLocation = parseLocationText(rawText);
+    const startTimeOverride = explicitStartTimeHint(rawText);
+
+    // Niektóre stopki zawierają kilka niezależnych jednostek w jednej komórce,
+    // rozdzielonych pustą linią. Każdy blok musi być osobnym hintem, inaczej
+    // prowadzący z drugiej części mógłby dostać lokalizację pierwszej.
+    const footerSegments = cell.value
+      .split(/\n\s*\n+/)
+      .map((segment) => compact(segment))
+      .filter(Boolean);
+    if (footerSegments.length > 1) {
+      for (const segment of footerSegments) {
+        const parsedSegment = parseLocationText(segment);
+        const segmentStartTime = explicitStartTimeHint(segment);
+        if (!parsedSegment.address && !parsedSegment.label && !parsedSegment.room && !segmentStartTime) continue;
+        hints.push({
+          key: segment,
+          rawText: segment,
+          row: cell.row,
+          ...(parsedSegment.room ? { room: parsedSegment.room } : {}),
+          ...(parsedSegment.address ? { address: parsedSegment.address } : {}),
+          ...(parsedSegment.label ? { label: parsedSegment.label } : {}),
+          ...(segmentStartTime ? { startTimeOverride: segmentStartTime } : {}),
+        });
+      }
+    }
+
+    if (currentLocation.address && isLocationContinuation(rawText) && previous) {
+      // Jawny dopisek "zajęcia będą realizowane..." zastępuje adres organizacyjny z poprzedniego wiersza.
+      for (let index = hints.length - 1; index >= 0; index -= 1) {
+        const prior = hints[index];
+        if (prior?.row === previous.row && prior.address) hints.splice(index, 1);
+      }
+    }
+
+    const windows: SheetCellSnapshot[][] = [[cell]];
+    if (previous && cell.row - previous.row <= 1) {
+      const previousText = compact(previous.value);
+      const previousLocation = parseLocationText(previousText);
+      const shouldCombine = isLocationContinuation(rawText)
+        || ((currentLocation.address || currentLocation.label || currentLocation.room) && !previousLocation.address && !previousLocation.label && !previousLocation.room && isSectionHeader(previousText));
+      if (shouldCombine) windows.push([previous, cell]);
+    }
+
+    for (const window of windows) {
+      const key = window.map((entry) => compact(entry.value)).filter(Boolean).join(' | ');
+      const parsed = currentLocation.address || currentLocation.label || currentLocation.room ? currentLocation : parseLocationText(key);
+      const windowStartTime = startTimeOverride ?? explicitStartTimeHint(key);
+      if (!parsed.address && !parsed.label && !parsed.room && !windowStartTime) continue;
+      hints.push({
+        key,
+        rawText: key,
+        row: cell.row,
+        ...(parsed.room ? { room: parsed.room } : {}),
+        ...(parsed.address ? { address: parsed.address } : {}),
+        ...(parsed.label ? { label: parsed.label } : {}),
+        ...(windowStartTime ? { startTimeOverride: windowStartTime } : {}),
+      });
+    }
+    previousByCol.set(cell.col, cell);
   }
   return hints;
 }
 
-function columnContext(sheet: SheetSnapshot, col: number, headerStartRow: number, headerEndRow: number, footer: FooterLocationHint[]): ColumnContext {
+function bestFooterContext(query: string, fallbackQuery: string, footer: FooterContextHint[]): FooterContextHint | undefined {
+  const locationHints = footer.filter((hint) => Boolean(hint.address || hint.label || hint.room));
+  const precise = findBestFooterHint(query, locationHints) as FooterContextHint | undefined;
+  if (precise) return precise;
+  return findUnambiguousFooterHint(fallbackQuery, locationHints) as FooterContextHint | undefined;
+}
+
+function bestFooterStartTime(query: string, footer: FooterContextHint[]): string | undefined {
+  // Godzina ze stopki jest zbyt ryzykowna, by dopasowywać ją po samym przedmiocie.
+  // Wymagamy precyzyjnego kontekstu kolumny (np. nazwiska/oznaczenia prowadzącego).
+  const timeHints = footer.filter((hint) => Boolean(hint.startTimeOverride));
+  return (findBestFooterHint(query, timeHints) as FooterContextHint | undefined)?.startTimeOverride;
+}
+
+function columnContext(sheet: SheetSnapshot, col: number, headerStartRow: number, headerEndRow: number, footer: FooterContextHint[]): ColumnContext {
   const entries = uniqueHeaderEntries(sheet, col, headerStartRow, headerEndRow).filter((entry) => !looksGlobalHeader(entry, sheet));
-  const subject = selectSubject(entries, sheet);
-  const detailTexts = entries.filter((entry) => entry.value !== subject).map((entry) => entry.value);
+  const subjectEntry = selectSubjectEntry(entries, sheet);
+  const subjectHeader = subjectEntry?.value ?? '';
+  const subject = cleanMatrixSubject(subjectHeader);
+  const sectionKey = sourceSectionKey(sheet, subjectEntry, col);
+  const declaredTeachingHours = declaredTeachingHoursFromText(subjectHeader);
+  const detailTexts = entries.filter((entry) => entry.value !== subjectHeader).map((entry) => entry.value);
+  const identityTexts = detailTexts.filter((text) => {
+    const folded = foldPolishText(text);
+    return !parseTimeRange(text)
+      && weekdayLabelsFromText(text).length === 0
+      && !/wskazane\s+ponizej|pierwsze\s+spotkanie|adresy\s+jednostek|centrum\s+symulacji/.test(folded);
+  });
   const allTexts = entries.map((entry) => entry.value);
   const weekdays = [...new Set(allTexts.flatMap(weekdayLabelsFromText))];
-  const time = firstTimeRange(allTexts);
-  const directLocation = parseLocationText(allTexts.join(' | '));
-  const fallback = findBestFooterHint(detailTexts.join(' | '), footer);
+  const baseTime = firstTimeRange(allTexts);
+  const combinedHeaderText = allTexts.join(' | ');
+  const directLocation = parseLocationText(combinedHeaderText);
+  const preciseFooterQuery = identityTexts.join(' | ');
+  const fallbackFooterQuery = subjectHeader;
+  const foldedHeaderText = foldPolishText(combinedHeaderText);
+  const locationExplicitlyDeferred = /(?:adresy?|lokalizacj\w*)[^|]{0,120}(?:podane|wskazane|zamieszczone|przekazane)\s+(?:zostana|beda)/.test(foldedHeaderText)
+    || /(?:adresy?|lokalizacj\w*)[^|]{0,120}(?:zostana|beda)\s+(?:podane|wskazane|zamieszczone|przekazane)/.test(foldedHeaderText);
+  const fallback = locationExplicitlyDeferred ? undefined : bestFooterContext(preciseFooterQuery, fallbackFooterQuery, footer);
+  const startTimeOverride = explicitStartTimeHint(combinedHeaderText) ?? bestFooterStartTime(preciseFooterQuery, footer);
+  const time = withStartOverride(baseTime, startTimeOverride);
   const location = mergeLocation(directLocation, fallback);
-  const activityType = parseActivityType(subject);
+  const activityType = parseActivityType(subjectHeader);
   return {
     col,
     subject,
@@ -284,6 +469,8 @@ function columnContext(sheet: SheetSnapshot, col: number, headerStartRow: number
     ...(time ? { time } : {}),
     location,
     headerText: allTexts.join(' | '),
+    sourceSectionKey: sectionKey,
+    ...(declaredTeachingHours ? { declaredTeachingHours } : {}),
   };
 }
 
@@ -386,8 +573,44 @@ function effectiveContext(base: ColumnContext, exception: DateException | undefi
   };
 }
 
-function buildMatrixCandidates(sheet: SheetSnapshot, signals: MatrixSignals): StudyScheduleCandidate[] {
-  if (!signals.weekRows.length) return [];
+function excludesOtherClassDays(context: ColumnContext): boolean {
+  const folded = foldPolishText(context.headerText);
+  return /bez\s+dni[^|]{0,120}(?:odbywaja\s+sie\s+)?zajec/.test(folded);
+}
+
+function sameNormalizedSubject(left: ColumnContext, right: ColumnContext): boolean {
+  const a = foldPolishText(left.subject).replace(/[^a-z0-9]/g, '');
+  const b = foldPolishText(right.subject).replace(/[^a-z0-9]/g, '');
+  return Boolean(a && b && a === b);
+}
+
+function groupLabels(cell: SheetCellSnapshot): string[] {
+  return normalizeGroupText(cell.value, true).groups;
+}
+
+function excludedDatesForCell(
+  cell: SheetCellSnapshot,
+  context: ColumnContext,
+  range: WeekRangeRow,
+  groupCells: SheetCellSnapshot[],
+  contexts: Map<number, ColumnContext>,
+): Set<string> {
+  if (!excludesOtherClassDays(context)) return new Set();
+  const ownGroups = new Set(groupLabels(cell));
+  const dates = new Set<string>();
+  for (const other of groupCells) {
+    if (other.address === cell.address) continue;
+    const otherContext = contexts.get(other.col);
+    if (!otherContext || !sameNormalizedSubject(context, otherContext)) continue;
+    const otherGroups = groupLabels(other);
+    if (!otherGroups.some((group) => ownGroups.has(group))) continue;
+    for (const date of datesWithinRangeForWeekdays(range, otherContext.weekdays)) dates.add(date);
+  }
+  return dates;
+}
+
+function buildMatrixCandidates(sheet: SheetSnapshot, signals: MatrixSignals): { candidates: StudyScheduleCandidate[]; sourceBlocks: StudySourceBlock[] } {
+  if (!signals.weekRows.length) return { candidates: [], sourceBlocks: [] };
   const firstWeekRow = signals.weekRows[0]?.row ?? 1;
   const lastWeekRow = signals.weekRows[signals.weekRows.length - 1]?.row ?? sheet.maxRow;
   const footer = footerHints(sheet, lastWeekRow);
@@ -398,6 +621,7 @@ function buildMatrixCandidates(sheet: SheetSnapshot, signals: MatrixSignals): St
   repairMissingColumnSubjects(contexts);
 
   const candidates: StudyScheduleCandidate[] = [];
+  const sourceBlocks: StudySourceBlock[] = [];
   for (const range of signals.weekRows) {
     const groupCells = groupCellsForWeekRow(sheet, range, signals.academicYear);
     const exceptions = detectDateExceptions(sheet, range, groupCells, contexts, signals.academicYear);
@@ -410,24 +634,33 @@ function buildMatrixCandidates(sheet: SheetSnapshot, signals: MatrixSignals): St
       if (!context) continue;
       const exception = exceptionByGroup.get(cell.address);
       let dates = datesWithinRangeForWeekdays(range, context.weekdays);
+      if (dates.length) {
+        const excluded = excludedDatesForCell(cell, context, range, groupCells, contexts);
+        if (excluded.size) dates = dates.filter((date) => !excluded.has(date));
+      }
       if (!dates.length && exception) dates = [exception.date];
       const unresolvedDates = !dates.length;
+      const excludedDates = dates.length ? [...excludedDatesForCell(cell, context, range, groupCells, contexts)] : [];
       if (!dates.length) dates = [''];
+      const blockCandidateIds: string[] = [];
 
       for (const date of dates) {
         const exceptionForDate = exception && exception.date === date ? exception : undefined;
         const resolved = effectiveContext(context, exceptionForDate);
+        const groupTags = groups.groups.map((group) => studyGroupKey(inferStudyGroupKind(resolved.headerText, group), group));
         const warnings: string[] = [];
         if (!resolved.subject) warnings.push('Nie udało się ustalić przedmiotu z nagłówka kolumny.');
-        if (unresolvedDates || !date) warnings.push('Nie udało się jednoznacznie ustalić daty w obrębie tygodnia planu.');
-        if (!resolved.time) warnings.push('Nie udało się jednoznacznie ustalić czasu zajęć z nagłówka kolumny.');
+        if (unresolvedDates || !date) warnings.push(`Plan przypisuje ten wpis do tygodnia ${range.start} - ${range.end}, ale nie podaje jednoznacznego dnia zajęć.`);
+        if (!resolved.time) warnings.push(`Plan nie podaje jednoznacznego pełnego zakresu godzin dla tego wpisu w tygodniu ${range.start} - ${range.end}.`);
         if (!resolved.location.address && !resolved.location.label) warnings.push('Nie udało się jednoznacznie ustalić lokalizacji.');
 
         const sourceRange = exceptionForDate ? `${cell.address},${exceptionForDate.markerCell.address}` : cell.address;
-        const sourceKey = [sheet.name, sourceRange, date || range.source, resolved.time?.start ?? 'unknown-start', resolved.time?.end ?? 'unknown-end', resolved.subject || 'unknown-subject', groups.groups.join('+')].join('|');
+        const sourceKey = [sheet.name, sourceRange, date || range.source, resolved.time?.start ?? 'unknown-start', resolved.time?.end ?? 'unknown-end', resolved.subject || 'unknown-subject', groupTags.join('+')].join('|');
+        const candidateId = stableId(sourceKey);
         const essential = Boolean(resolved.subject && date && resolved.time?.start && resolved.time?.end);
+        blockCandidateIds.push(candidateId);
         candidates.push({
-          id: stableId(sourceKey),
+          id: candidateId,
           adapterId: 'nursing-week-matrix-v2',
           sourceSheet: sheet.name,
           sourceRange,
@@ -439,8 +672,12 @@ function buildMatrixCandidates(sheet: SheetSnapshot, signals: MatrixSignals): St
           ...(resolved.time?.start ? { startTime: resolved.time.start } : {}),
           ...(resolved.time?.end ? { endTime: resolved.time.end } : {}),
           groupScope: 'SPECIFIC',
-          groupTags: groups.groups,
+          groupTags,
           originalGroupText: groups.originalText,
+          sourceWeekStart: range.start,
+          sourceWeekEnd: range.end,
+          sourceSectionKey: resolved.sourceSectionKey,
+          ...(resolved.declaredTeachingHours ? { declaredTeachingHours: resolved.declaredTeachingHours } : {}),
           ...(groups.clinic ? { clinic: groups.clinic } : {}),
           ...(resolved.location.room ? { room: resolved.location.room } : {}),
           ...(resolved.location.address ? { address: resolved.location.address } : {}),
@@ -450,16 +687,67 @@ function buildMatrixCandidates(sheet: SheetSnapshot, signals: MatrixSignals): St
           include: essential,
         });
       }
+
+      const blockContext = effectiveContext(context, exception);
+      const blockGroupTags = groups.groups.map((group) => studyGroupKey(inferStudyGroupKind(blockContext.headerText, group), group));
+      sourceBlocks.push({
+        id: stableId(`${sheet.name}|${cell.address}|${range.start}|${range.end}|${blockGroupTags.join('+')}`),
+        sourceSheet: sheet.name,
+        sourceRange: cell.address,
+        sourceSectionKey: blockContext.sourceSectionKey,
+        subject: blockContext.subject,
+        ...(blockContext.activityType ? { activityType: blockContext.activityType } : {}),
+        groupTags: blockGroupTags,
+        weekStart: range.start,
+        weekEnd: range.end,
+        weekdays: [...context.weekdays],
+        excludedDates,
+        ...(exception ? { exceptionDate: exception.date } : {}),
+        sourceHasFullTimeRange: Boolean(blockContext.time?.start && blockContext.time?.end),
+        ...(blockContext.declaredTeachingHours ? { declaredTeachingHours: blockContext.declaredTeachingHours } : {}),
+        candidateIds: blockCandidateIds,
+      });
     }
   }
-  return candidates;
+  return { candidates, sourceBlocks };
+}
+
+function unparsedAssignmentCellsForWeekRows(sheet: SheetSnapshot, rows: WeekRangeRow[], academicYear: AcademicYearContext | null): SheetCellSnapshot[] {
+  const result: SheetCellSnapshot[] = [];
+  for (const row of rows) {
+    for (const cell of sheet.cells.filter((entry) => entry.row === row.row && entry.col > sheet.minCol)) {
+      if (!compact(cell.value) || isDateMarkerCell(cell, academicYear)) continue;
+      if (normalizeGroupText(cell.value, true).groups.length) continue;
+      result.push(cell);
+    }
+  }
+  return result;
+}
+
+function suspiciousUnparsedWeekRows(sheet: SheetSnapshot, parsedRows: WeekRangeRow[]): number[] {
+  const parsed = new Set(parsedRows.map((entry) => entry.row));
+  const byRow = new Map<number, SheetCellSnapshot[]>();
+  for (const cell of sheet.cells) {
+    const list = byRow.get(cell.row) ?? [];
+    list.push(cell);
+    byRow.set(cell.row, list);
+  }
+  const suspicious: number[] = [];
+  for (const [row, cells] of byRow.entries()) {
+    if (parsed.has(row)) continue;
+    const groupLike = cells.filter((cell) => cell.col > sheet.minCol && normalizeGroupText(cell.value, true).groups.length > 0);
+    if (groupLike.length >= 3) suspicious.push(row);
+  }
+  return suspicious.sort((a, b) => a - b);
 }
 
 function matrixSignals(sheet: SheetSnapshot): MatrixSignals {
   const rows = weekRows(sheet);
-  const academicYear = detectAcademicYear(sheet.cells.filter((cell) => cell.row <= Math.min(12, sheet.maxRow)).map((cell) => cell.value));
-  const firstWeekRow = rows[0]?.row ?? Math.min(12, sheet.maxRow + 1);
+  const academicYear = detectAcademicYear(sheet.cells.filter((cell) => cell.row <= Math.min(sheet.minRow + 11, sheet.maxRow)).map((cell) => cell.value));
+  const firstWeekRow = rows[0]?.row ?? Math.min(sheet.minRow + 11, sheet.maxRow + 1);
   const groupCellCount = rows.reduce((count, row) => count + groupCellsForWeekRow(sheet, row, academicYear).length, 0);
+  const unparsedAssignmentCells = unparsedAssignmentCellsForWeekRows(sheet, rows, academicYear);
+  const suspiciousRows = suspiciousUnparsedWeekRows(sheet, rows);
   const headerCells = sheet.cells.filter((cell) => cell.row < firstWeekRow);
   const headerTimeCount = headerCells.filter((cell) => Boolean(parseTimeRange(cell.value))).length;
   const headerWeekdayCount = headerCells.filter((cell) => weekdayLabelsFromText(cell.value).length > 0).length;
@@ -474,6 +762,8 @@ function matrixSignals(sheet: SheetSnapshot): MatrixSignals {
     headerTimeCount ? `Wykryto ${headerTimeCount} zakresów godzin w wielowierszowych nagłówkach.` : 'Nie wykryto godzin w nagłówkach macierzy.',
     headerWeekdayCount ? `Wykryto ${headerWeekdayCount} wskazówek dni tygodnia w nagłówkach.` : 'Nie wykryto wskazówek dni tygodnia w nagłówkach.',
     academicYear ? `Wykryto rok akademicki ${academicYearLabel(academicYear)}.` : 'Nie wykryto roku akademickiego.',
+    unparsedAssignmentCells.length ? `Wykryto ${unparsedAssignmentCells.length} nieprzetworzonych komórek przypisań w rozpoznanych tygodniach.` : 'Wszystkie niepuste przypisania w rozpoznanych tygodniach mają rozpoznany model grup.',
+    suspiciousRows.length ? `Wykryto ${suspiciousRows.length} wierszy z wieloma grupami, ale bez rozpoznanego zakresu tygodnia.` : 'Nie wykryto podejrzanych wierszy grup poza rozpoznanymi tygodniami.',
   ];
   let score = 0;
   score += Math.min(rows.length, 12) * 3;
@@ -483,7 +773,7 @@ function matrixSignals(sheet: SheetSnapshot): MatrixSignals {
   score += Math.min(subjectHeaderCount, 12);
   if (academicYear) score += 4;
   if (/plan|zaj[eę]cia|prakty|harmonogram/i.test(sheet.name)) score += 3;
-  return { sheet, weekRows: rows, academicYear, groupCellCount, headerTimeCount, headerWeekdayCount, subjectHeaderCount, score, reasons };
+  return { sheet, weekRows: rows, academicYear, groupCellCount, headerTimeCount, headerWeekdayCount, subjectHeaderCount, unparsedAssignmentCells, suspiciousUnparsedWeekRows: suspiciousRows, score, reasons };
 }
 
 function bestMatrixSignals(workbook: WorkbookSnapshot): MatrixSignals | undefined {
@@ -496,10 +786,10 @@ function lectureSectionHeader(text: string): boolean {
 }
 
 function lectureSignals(sheet: SheetSnapshot): LectureSignals {
-  const academicYear = detectAcademicYear(sheet.cells.filter((cell) => cell.row <= Math.min(20, sheet.maxRow)).map((cell) => cell.value));
+  const academicYear = detectAcademicYear(sheet.cells.filter((cell) => cell.row <= Math.min(sheet.minRow + 19, sheet.maxRow)).map((cell) => cell.value));
   const sectionCount = sheet.cells.filter((cell) => lectureSectionHeader(cell.value)).length;
   const datedRows = new Set(sheet.cells
-    .filter((cell) => cell.col <= Math.min(2, sheet.maxCol))
+    .filter((cell) => cell.col <= Math.min(sheet.minCol + 1, sheet.maxCol))
     .filter((cell) => Boolean(cell.dateValue) || (looksLikeDateExpression(cell.value) && !parseTimeRange(cell.value)))
     .map((cell) => cell.row));
   const timedEntryCount = sheet.cells.filter((cell) => datedRows.has(cell.row) && cell.col > sheet.minCol && Boolean(parseTimeRange(cell.value))).length;
@@ -682,16 +972,17 @@ export const nursingWeekMatrixV2Adapter: ScheduleAdapter = {
       };
     }
 
-    const matrixCandidates = matrix && matrix.weekRows.length >= 3 && matrix.groupCellCount >= 8
+    const matrixData = matrix && matrix.weekRows.length >= 3 && matrix.groupCellCount >= 8
       ? buildMatrixCandidates(matrix.sheet, matrix)
-      : [];
+      : { candidates: [] as StudyScheduleCandidate[], sourceBlocks: [] as StudySourceBlock[] };
+    const matrixCandidates = matrixData.candidates;
     const lectureData = lecture && lecture.sectionCount >= 1 && lecture.timedEntryCount >= 3
       ? buildLectureCandidates(lecture.sheet, lecture.academicYear ?? matrix?.academicYear ?? null)
       : { candidates: [] as StudyScheduleCandidate[], information: [] as ScheduleInformation[] };
     const candidates = [...matrixCandidates, ...lectureData.candidates];
     const groups = sortStudyGroups([...new Set(matrixCandidates.flatMap((candidate) => candidate.groupTags))]);
     const academicYear = matrix?.academicYear ?? lecture?.academicYear ?? null;
-    const termTexts = workbook.sheets.flatMap((sheet) => sheet.cells.filter((cell) => cell.row <= Math.min(sheet.maxRow, 20)).map((cell) => cell.value));
+    const termTexts = workbook.sheets.flatMap((sheet) => sheet.cells.filter((cell) => cell.row <= Math.min(sheet.maxRow, sheet.minRow + 19)).map((cell) => cell.value));
     const warnings: string[] = [];
     if (!matrixCandidates.length && matrix?.weekRows.length) warnings.push('Rozpoznano macierz tygodniową, ale nie utworzono kandydatów zajęć grupowych.');
     if (!groups.length && matrixCandidates.length) warnings.push('Nie udało się wydobyć listy grup z macierzy.');
@@ -707,6 +998,8 @@ export const nursingWeekMatrixV2Adapter: ScheduleAdapter = {
       ...(detectedTerm ? { detectedTerm } : {}),
       groups,
       candidates,
+      sourceBlocks: matrixData.sourceBlocks,
+      completeness: auditStudyScheduleCompleteness({ candidates, sourceBlocks: matrixData.sourceBlocks }),
       information: lectureData.information,
       warnings,
       diagnostics: {
@@ -721,6 +1014,9 @@ export const nursingWeekMatrixV2Adapter: ScheduleAdapter = {
         hiddenRowCount: matrix?.sheet.hiddenRows?.length ?? 0,
         hiddenColumnCount: matrix?.sheet.hiddenColumns?.length ?? 0,
         unresolvedPatterns,
+        unparsedAssignmentCellCount: matrix?.unparsedAssignmentCells.length ?? 0,
+        unparsedAssignmentSamples: matrix?.unparsedAssignmentCells.slice(0, 8).map((cell) => `${cell.address}: ${compact(cell.value)}`) ?? [],
+        suspiciousUnparsedWeekRows: matrix?.suspiciousUnparsedWeekRows ?? [],
       },
     };
   },

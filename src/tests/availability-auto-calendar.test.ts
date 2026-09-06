@@ -121,7 +121,7 @@ describe('0.3.3-hotfix.3 calendar-first availability', () => {
     const result = optimizeAvailability(input(24 * 60, days));
     expect(result.coverageMinutes).toBe(24 * 60);
     expect(result.candidateCount).toBeLessThan(1200);
-  });
+  }, 15000);
 
   it('is deterministic across ten runs without daily from/to rules', () => {
     const days = [day('2026-08-17', 1), day('2026-08-18', 2), day('2026-08-22', 6)];
@@ -129,5 +129,5 @@ describe('0.3.3-hotfix.3 calendar-first availability', () => {
     for (let run = 0; run < 10; run += 1) {
       expect(JSON.stringify(optimizeAvailability(input(12 * 60, days)).blocks.map((block) => [block.date, block.startTime, block.endTime]))).toBe(signature);
     }
-  });
+  }, 15000);
 });

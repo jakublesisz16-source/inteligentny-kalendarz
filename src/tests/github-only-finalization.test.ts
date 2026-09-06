@@ -5,7 +5,7 @@ function source(path: string): string {
   return readFileSync(new URL(path, import.meta.url), 'utf8');
 }
 
-describe('1.0.2 GitHub-only release invariants', () => {
+describe('1.1.0-dev.2 GitHub-only architecture invariants', () => {
   it('removes Cloudflare/Web Push runtime and toolchain dependencies', () => {
     const packageJson = JSON.parse(source('../../package.json')) as {
       scripts: Record<string, string>;
@@ -38,7 +38,8 @@ describe('1.0.2 GitHub-only release invariants', () => {
     expect(serviceWorker).not.toContain("addEventListener('notificationclick'");
     expect(serviceWorker).not.toContain('indexedDB');
     expect(serviceWorker).toContain("'.pdf', '.xlsx', '.xls', '.json'");
-    expect(serviceWorker).toContain('inteligentny-kalendarz-shell-v1.0.2');
+    expect(serviceWorker).toContain("const CACHE_PREFIX = 'inteligentny-kalendarz-shell-'");
+    expect(serviceWorker).toContain("const CACHE_NAME = `${CACHE_PREFIX}v1.1.0`");
   });
 
   it('retains the pure reminder planner as a future Android-local integration seam', () => {
@@ -49,11 +50,15 @@ describe('1.0.2 GitHub-only release invariants', () => {
     expect(settingsTypes).toContain('notificationPreferences');
   });
 
-  it('rejects a non-PDF work schedule before reading file bytes', () => {
+  it('validates work PDF extension, size and signature before reading the full file', () => {
     const workView = source('../work/WorkView.tsx');
-    const validationAt = workView.indexOf("endsWith('.pdf')");
+    const validator = source('../imports/pdf/work-pdf-file.ts');
+    const validationAt = workView.indexOf('await validateWorkPdfFile(file)');
     const readAt = workView.indexOf('file.arrayBuffer()');
     expect(validationAt).toBeGreaterThan(-1);
     expect(readAt).toBeGreaterThan(validationAt);
+    expect(validator).toContain("endsWith('.pdf')");
+    expect(validator).toContain('MAX_WORK_PDF_FILE_BYTES = 32 * 1024 * 1024');
+    expect(validator).toContain('file.slice(0, 5).arrayBuffer()');
   });
 });

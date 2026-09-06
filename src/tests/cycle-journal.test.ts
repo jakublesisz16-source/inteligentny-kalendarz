@@ -66,10 +66,10 @@ async function resignAsSchema(document: BackupDocument, schemaVersion: number, o
 }
 
 describe('0.6.0 Cycle Journal storage', () => {
-  it('migrates schema 11 to 12, preserves cycle periods and creates a unique date index', async () => {
+  it('migrates legacy schema 11 to current schema, preserves cycle periods and creates a unique date index', async () => {
     await openLegacySchema11();
     await initializeDatabase();
-    expect(DATABASE_SCHEMA_VERSION).toBe(12);
+    expect(DATABASE_SCHEMA_VERSION).toBe(13);
     expect((await listCyclePeriods()).map((item) => item.id)).toContain('legacy-period');
     expect(await listCycleJournalEntries()).toEqual([]);
 

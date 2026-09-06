@@ -2,11 +2,9 @@ import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import { EventCard } from '../events/EventCard';
-import { studyEventDisplay, type StudyEventGroupMetadata } from '../events/study-event-display';
+import { studyEventDisplay } from '../events/study-event-display';
 import type { CalendarEvent } from '../events/event.types';
 import type { Location } from '../locations/location.types';
-import { studyEventGroupMetadataFromEntries } from '../study/use-study-event-groups';
-import type { UniversityImportEntry } from '../study/study.types';
 
 function studyEvent(overrides: Partial<CalendarEvent> = {}): CalendarEvent {
   return {
@@ -18,8 +16,6 @@ function studyEvent(overrides: Partial<CalendarEvent> = {}): CalendarEvent {
     spanType: 'SINGLE_DAY',
     category: 'STUDY',
     source: 'UNIVERSITY_XLSX',
-    sourceImportId: 'import-1',
-    sourceEntryId: 'entry-1',
     description: 'Wykład - Grupa 12A - aula A',
     createdAt: '2026-08-01T00:00:00.000Z',
     updatedAt: '2026-08-01T00:00:00.000Z',
@@ -27,56 +23,31 @@ function studyEvent(overrides: Partial<CalendarEvent> = {}): CalendarEvent {
   };
 }
 
-function render(event: CalendarEvent, metadata?: StudyEventGroupMetadata, location?: Location): string {
+function render(event: CalendarEvent, location?: Location): string {
   return renderToStaticMarkup(createElement(EventCard, {
     event,
-    ...(metadata ? { studyGroupMetadata: metadata } : {}),
     ...(location ? { location } : {}),
     timeFormat: '24h',
     onEdit: () => undefined,
   }));
 }
 
-function entry(overrides: Partial<UniversityImportEntry> = {}): UniversityImportEntry {
-  return {
-    id: 'entry-1',
-    importId: 'import-1',
-    sourceKey: 'source-1',
-    sourceOnly: true,
-    sourceSheet: 'WYKŁADY',
-    sourceRange: 'A1:B1',
-    originalText: 'test',
-    subject: 'Pediatria',
-    groupScope: 'ALL',
-    groupTags: [],
-    warnings: [],
-    eventId: 'study-event',
-    ...overrides,
-  };
-}
-
-describe('1.0.2 Study group visibility', () => {
+describe('DEV4-STUDY-CALENDAR-UI-FIX2 group visibility', () => {
   it('shows an explicit study group next to the event time and removes duplicate group text from description', () => {
-    const markup = render(studyEvent(), { groupTags: ['12A'], groupScope: 'SPECIFIC' });
+    const markup = render(studyEvent({ studyGroupTags: ['12A'], studyGroupScope: 'SPECIFIC' }));
     expect(markup).toContain('class="event-study-group">Grupa 12A</span>');
     expect(markup).toContain('Wykład - aula A');
     expect((markup.match(/Grupa 12A/g) ?? []).length).toBe(1);
   });
 
   it('uses a plural label for multiple groups', () => {
-    const display = studyEventDisplay(studyEvent(), { groupTags: ['12A', '12B'], groupScope: 'SPECIFIC' });
+    const display = studyEventDisplay(studyEvent({ studyGroupTags: ['12A', '12B'], studyGroupScope: 'SPECIFIC' }));
     expect(display.groupLabel).toBe('Grupy 12A, 12B');
   });
 
-  it('labels group-wide lectures as shared only when stored source metadata explicitly says ALL', () => {
-    expect(studyEventDisplay(studyEvent({ description: 'Wykład - aula A' }), { groupTags: [], groupScope: 'ALL' }).groupLabel).toBe('Wspólne');
-    expect(studyEventDisplay(studyEvent({ description: 'Wykład - aula A' }), { groupTags: [], groupScope: 'UNKNOWN' }).groupLabel).toBeUndefined();
-  });
-
-  it('maps persisted import-entry metadata back to its calendar event without changing the database schema', () => {
-    const event = studyEvent();
-    const metadata = studyEventGroupMetadataFromEntries(event, [entry()]);
-    expect(metadata).toEqual({ groupTags: [], groupScope: 'ALL' });
+  it('labels group-wide lectures as shared only when scope is explicitly ALL', () => {
+    expect(studyEventDisplay(studyEvent({ studyGroupTags: [], studyGroupScope: 'ALL', description: 'Wykład - aula A' })).groupLabel).toBe('Wspólne');
+    expect(studyEventDisplay(studyEvent({ studyGroupTags: [], studyGroupScope: 'UNKNOWN', description: 'Wykład - aula A' })).groupLabel).toBeUndefined();
   });
 
   it('keeps legacy imported events readable by extracting only the generated Grupa segment', () => {
@@ -91,18 +62,18 @@ describe('1.0.2 Study group visibility', () => {
     expect(display.description).toBe('Pediatria grupy 8-osobowe');
   });
 
-  it('does not repeat the same location name and address in the visible location row', () => {
+  it('does not repeat the same location name and address in a narrow study card', () => {
     const location: Location = {
       id: 'location-a',
-      name: 'ul. Akademicka 7',
+      name: 'ul. Trojdena 2a',
       type: 'UNIVERSITY',
-      address: 'ul. Akademicka 7',
+      address: 'ul. Trojdena 2a',
       createdAt: '2026-08-01T00:00:00.000Z',
       updatedAt: '2026-08-01T00:00:00.000Z',
     };
-    const markup = render(studyEvent({ locationId: location.id }), undefined, location);
-    expect((markup.match(/class="event-location">ul\. Akademicka 7<\/p>/g) ?? []).length).toBe(1);
-    expect(markup).not.toContain('class="event-location">ul. Akademicka 7 - ul. Akademicka 7</p>');
-    expect(markup).toContain('aria-label="Wyznacz trasę do ul. Akademicka 7 w Mapach Google"');
+    const markup = render(studyEvent({ locationId: location.id }), location);
+    expect((markup.match(/class=\"event-location\">ul\. Trojdena 2a<\/p>/g) ?? []).length).toBe(1);
+    expect(markup).not.toContain('class=\"event-location\">ul. Trojdena 2a - ul. Trojdena 2a</p>');
+    expect(markup).toContain('aria-label=\"Wyznacz trasę do ul. Trojdena 2a w Mapach Google\"');
   });
 });

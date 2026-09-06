@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { findStudyUpdateDecisionConflicts } from './study.service';
 import type { ScheduleDiffItem, ScheduleDiffResolution, ScheduleUpdatePreview } from './study.types';
 
 interface ScheduleDiffViewProps {
@@ -49,7 +50,12 @@ export function ScheduleDiffView({ preview, saving, onChange, onApply, onCancel 
   const unresolved = preview.items.filter((item) => item.kind === 'CONFLICT_USER_MODIFIED' && !['KEEP_USER', 'USE_NEW'].includes(item.resolution));
 
   function updateResolution(id: string, resolution: ScheduleDiffResolution) {
-    onChange({ ...preview, items: preview.items.map((item) => item.id === id ? setResolution(item, resolution) : item) });
+    const items = preview.items.map((item) => item.id === id ? setResolution(item, resolution) : item);
+    const scheduleConflicts = findStudyUpdateDecisionConflicts(items);
+    const next: ScheduleUpdatePreview = { ...preview, items, allowScheduleConflicts: false };
+    if (scheduleConflicts.length) next.scheduleConflicts = scheduleConflicts;
+    else delete next.scheduleConflicts;
+    onChange(next);
   }
 
   return (
@@ -69,7 +75,15 @@ export function ScheduleDiffView({ preview, saving, onChange, onApply, onCancel 
         </div>
         {preview.correctionConflicts.length ? (
           <div className="diff-alert warning-info">
-            {preview.correctionConflicts.length} zapisanych poprawek serii różni się od jawnych danych w nowym planie. Nowa wartość z XLSX nie została po cichu zastąpiona starą poprawką.
+            {preview.correctionConflicts.length} zapisanych poprawek serii różni się od jawnych danych w nowym planie. Nowa wartość z planu Excel nie została po cichu zastąpiona starą poprawką.
+          </div>
+        ) : null}
+        {preview.scheduleConflicts?.length ? (
+          <div className="diff-alert warning-info">
+            <strong>Końcowy wynik bieżących decyzji zawiera {preview.scheduleConflicts.length} konfliktów godzin.</strong>
+            <ul className="study-conflict-list">{preview.scheduleConflicts.slice(0, 6).map((conflict) => <li key={conflict.id}><time>{conflict.date}</time><span><strong>{conflict.left.subject}</strong> {conflict.left.startTime}-{conflict.left.endTime}</span><span className="conflict-separator">↔</span><span><strong>{conflict.right.subject}</strong> {conflict.right.startTime}-{conflict.right.endTime}</span></li>)}</ul>
+            {preview.scheduleConflicts.length > 6 ? <p>...oraz {preview.scheduleConflicts.length - 6} kolejnych.</p> : null}
+            <p>To informacja o wyniku bieżących decyzji. Kliknięcie „Zastosuj aktualizację planu” zapisze wybrane zmiany także wtedy, gdy część zajęć się nakłada.</p>
           </div>
         ) : null}
       </section>

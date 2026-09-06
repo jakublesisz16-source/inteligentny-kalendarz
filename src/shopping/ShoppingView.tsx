@@ -11,6 +11,7 @@ import {
 } from '../storage/database';
 import type { ShoppingItem } from './shopping.types';
 import { sortShoppingItems } from './shopping.utils';
+import { ExpensesView } from './ExpensesView';
 
 interface ShoppingToast {
   message: string;
@@ -18,6 +19,7 @@ interface ShoppingToast {
 }
 
 export function ShoppingView() {
+  const [section, setSection] = useState<'LIST' | 'EXPENSES'>('LIST');
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [items, setItems] = useState<ShoppingItem[]>([]);
   const [newName, setNewName] = useState('');
@@ -161,15 +163,21 @@ export function ShoppingView() {
   const nothingYet = items.length === 0;
 
   return (
-    <section className="view-shell shopping-view">
+    <section className={`view-shell shopping-view${section === 'EXPENSES' ? ' shopping-view-expenses' : ''}`}>
       <header className="view-header">
         <div>
-          <p className="eyebrow">Codzienna lista</p>
+          <p className="eyebrow">Zakupy lokalnie</p>
           <h1>Zakupy</h1>
-          <p className="view-subtitle">Jedna szybka lista. Dodaj produkt, odhacz po zakupie i gotowe.</p>
+          <p className="view-subtitle">{section === 'LIST' ? 'Jedna szybka lista. Dodaj produkt, odhacz po zakupie i gotowe.' : 'Prosty lokalny spis paragonów i miesięcznych wydatków.'}</p>
         </div>
       </header>
 
+      <div className="shopping-section-tabs" role="tablist" aria-label="Sekcja Zakupów">
+        <button type="button" role="tab" aria-selected={section === 'LIST'} className={section === 'LIST' ? 'active' : ''} onClick={() => setSection('LIST')}>Lista</button>
+        <button type="button" role="tab" aria-selected={section === 'EXPENSES'} className={section === 'EXPENSES' ? 'active' : ''} onClick={() => setSection('EXPENSES')}>Wydatki</button>
+      </div>
+
+      {section === 'EXPENSES' ? <ExpensesView /> : <>
       <form className="shopping-add" onSubmit={(event: FormEvent<HTMLFormElement>) => void addItem(event)}>
         <label className="visually-hidden" htmlFor="shopping-new-item">Dodaj produkt</label>
         <input
@@ -218,6 +226,7 @@ export function ShoppingView() {
       )}
 
       {toast ? <div className="toast toast-with-action" role="status"><span>{toast.message}</span>{toast.undoJournalId ? <button type="button" onClick={() => void undoLatest(toast.undoJournalId!)}>Cofnij</button> : null}</div> : null}
+      </>}
     </section>
   );
 }

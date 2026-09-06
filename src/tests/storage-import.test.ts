@@ -59,7 +59,7 @@ describe('university import storage', () => {
     expect(await listUniversityImports()).toHaveLength(1);
     const events = await listEvents();
     expect(events).toHaveLength(1);
-    expect(events[0]).toMatchObject({ source: 'UNIVERSITY_XLSX', sourceImportId: result.importRecord.id, userModified: false });
+    expect(events[0]).toMatchObject({ source: 'UNIVERSITY_XLSX', sourceImportId: result.importRecord.id, studyGroupTags: ['13A'], studyGroupScope: 'SPECIFIC', userModified: false });
     expect((await listLocations()).some((location) => location.address === 'ul. Testowa 1')).toBe(true);
   });
 

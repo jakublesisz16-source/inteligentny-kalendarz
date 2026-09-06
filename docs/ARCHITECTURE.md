@@ -1,3 +1,9 @@
+## 1.1.0-dev.1 - lokalny fundament Paragonów i Wydatków
+
+Architektura produkcyjna pozostaje `GitHub Pages -> PWA -> IndexedDB`. Nowy moduł nie dodaje backendu ani requestów sieciowych. `Zakupy -> Wydatki` korzysta z dwóch canonical store'ów schema 13: `expenseCategories` oraz `receipts`. UI i derived helpers liczą miesięczne sumy w pamięci; nie istnieje osobny store statystyk.
+
+Przepływ danych: `manual receipt form -> validation + integer minor units -> Receipt -> IndexedDB -> local aggregation -> UI`. Backup/Restore/Data Transfer korzystają z tych samych canonical store'ów. OCR i obrazy są poza zakresem dev.1.
+
 ## 1.0.0 - finalizacja GitHub-only
 
 Docelowa architektura `1.0.0` nie ma backendu aplikacji. Produkcja to `GitHub Pages -> PWA -> IndexedDB`. Service Worker obsługuje wyłącznie cache/offline i nie ma listenera `push`. Warstwa Cloudflare Worker/D1/Cron/VAPID oraz klient Web Push zostały usunięte z aktywnego kodu i toolchainu przed finalnym wydaniem.

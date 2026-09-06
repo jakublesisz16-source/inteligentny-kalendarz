@@ -4,20 +4,27 @@ import {
   applyGroupRecalculation,
   applyStudyCorrection,
   applyUniversityScheduleUpdate,
+  deleteEvent,
+  deleteUniversityImport,
   commitUniversityImport,
   deleteDatabaseForTests,
+  getActiveUniversityImport,
   getStudyProfile,
   initializeDatabase,
+  listChangeJournal,
   listEvents,
+  listTrashItems,
   listStudyCorrectionRules,
   listUniversityImportEntries,
   listUniversityImports,
   prepareGroupRecalculation,
   prepareUniversityScheduleUpdate,
+  restoreTrashItem,
   resetDatabaseConnectionForTests,
+  undoChange,
   updateEvent,
 } from '../storage/database';
-import type { StudyScheduleCandidate } from '../study/study.types';
+import type { StudyScheduleCandidate, StudySourceBlock } from '../study/study.types';
 
 function candidate(id: string, group: string, patch: Partial<StudyScheduleCandidate> = {}): StudyScheduleCandidate {
   return {
@@ -37,6 +44,26 @@ function candidate(id: string, group: string, patch: Partial<StudyScheduleCandid
     status: 'READY',
     warnings: [],
     include: true,
+    ...patch,
+  };
+}
+
+
+function sourceBlock(id: string, group: string, candidateIds: string[], patch: Partial<StudySourceBlock> = {}): StudySourceBlock {
+  return {
+    id,
+    sourceSheet: 'PRAKTYKI',
+    sourceRange: 'B8',
+    sourceSectionKey: 'PRAKTYKI|B2:D2',
+    subject: 'Farmakologia',
+    activityType: 'Ćwiczenia',
+    groupTags: [group],
+    weekStart: '2026-03-09',
+    weekEnd: '2026-03-13',
+    weekdays: ['PONIEDZIAŁEK'],
+    excludedDates: [],
+    sourceHasFullTimeRange: true,
+    candidateIds,
     ...patch,
   };
 }
@@ -121,7 +148,7 @@ describe('legacy study schema and current lifecycle', () => {
   it('propaguje brakujący adres tylko w tej samej serii i zapisuje regułę', async () => {
     await initializeDatabase();
     const sameSeriesSecond = candidate('b', '13A', { date: '2026-03-17', sourceKey: 'source-b', warnings: ['Brak dokładnego adresu.'], status: 'REVIEW_REQUIRED' });
-    const differentGroup = candidate('c', '13B', { date: '2026-03-17', sourceKey: 'source-c', warnings: ['Brak dokładnego adresu.'], status: 'REVIEW_REQUIRED' });
+    const differentGroup = candidate('c', '13B', { date: '2026-03-18', sourceKey: 'source-c', warnings: ['Brak dokładnego adresu.'], status: 'REVIEW_REQUIRED' });
     await commitUniversityImport({
       fileName: 'plan.xlsx', fileSize: 1, fileHash: 'correction-hash', adapterId: 'nursing-plan-v1', sheetNames: ['PRAKTYKI'],
       selectedGroups: ['13A', '13B'], availableGroups: ['13A', '13B'],
@@ -142,6 +169,85 @@ describe('legacy study schema and current lifecycle', () => {
     expect((await listStudyCorrectionRules()).some((rule) => rule.field === 'address' && rule.value === 'ul. Testowa 1, Warszawa')).toBe(true);
   });
 
+  it('zachowuje metadane niepełnego bloku źródłowego bez tworzenia fikcyjnego wydarzenia', async () => {
+    await initializeDatabase();
+    const complete = candidate('complete', '13A');
+    const incomplete = candidate('incomplete-week', '13A', {
+      include: false, status: 'REVIEW_REQUIRED',
+      sourceKey: 'source-incomplete-week', sourceRange: 'AT18', subject: 'POZ', activityType: 'Zajęcia praktyczne',
+      sourceWeekStart: '2027-01-04', sourceWeekEnd: '2027-01-08', sourceSectionKey: 'PLAN:AT2:AV2', declaredTeachingHours: 40,
+      warnings: ['Plan źródłowy przypisuje grupę do tygodnia, ale nie podaje pełnego rozkładu dni i godzin.'],
+    });
+    delete incomplete.date;
+    delete incomplete.startTime;
+    delete incomplete.endTime;
+    await commitUniversityImport({
+      fileName: 'plan-source-block.xlsx', fileSize: 1, fileHash: 'source-block-meta-v1', adapterId: 'nursing-week-matrix-v2', sheetNames: ['PLAN'],
+      selectedGroups: ['13A'], availableGroups: ['13A'], candidates: [complete], allCandidates: [complete, incomplete],
+      sourceBlocks: [
+        sourceBlock('complete-block', '13A', ['complete'], { weekStart: '2026-03-10', weekEnd: '2026-03-10', weekdays: ['WTOREK'] }),
+        sourceBlock('incomplete-block', '13A', ['incomplete-week'], { sourceRange: 'AT18', sourceSectionKey: 'PLAN:AT2:AV2', subject: 'POZ', activityType: 'Zajęcia praktyczne', weekStart: '2027-01-04', weekEnd: '2027-01-08', weekdays: [], sourceHasFullTimeRange: false, declaredTeachingHours: 40 }),
+      ],
+    });
+    const active = await getActiveUniversityImport();
+    if (!active) throw new Error('Brak aktywnego planu.');
+    const entries = await listUniversityImportEntries(active.id);
+    expect(active.sourceBlocks).toHaveLength(2);
+    expect(entries.find((entry) => entry.sourceOnly && entry.sourceKey === 'source-complete')?.sourceCandidateId).toBe('complete');
+    const sourceOnly = entries.find((entry) => entry.sourceOnly && entry.sourceKey === 'source-incomplete-week');
+    expect(sourceOnly).toMatchObject({
+      subject: 'POZ', sourceWeekStart: '2027-01-04', sourceWeekEnd: '2027-01-08',
+      sourceSectionKey: 'PLAN:AT2:AV2', declaredTeachingHours: 40,
+    });
+    expect(sourceOnly?.date).toBeUndefined();
+    expect(sourceOnly?.eventId).toBeUndefined();
+    expect(await listEvents()).toHaveLength(1);
+    const recalculation = await prepareGroupRecalculation(['13A']);
+    expect(recalculation.canRecalculate).toBe(true);
+    expect(recalculation.requiresReupload).toBe(false);
+  });
+
+
+  it('blokuje zapis, jeśli kompletna semantyka bloku źródłowego straci oczekiwany dzień', async () => {
+    await initializeDatabase();
+    const monday = candidate('monday', '13A', { date: '2026-03-09', sourceKey: 'source-monday' });
+    const broken = sourceBlock('broken-week', '13A', ['monday'], {
+      weekStart: '2026-03-09', weekEnd: '2026-03-13',
+      weekdays: ['PONIEDZIAŁEK', 'WTOREK'],
+    });
+    await expect(commitUniversityImport({
+      fileName: 'broken-plan.xlsx', fileSize: 1, fileHash: 'broken-completeness-v1', adapterId: 'nursing-week-matrix-v2', sheetNames: ['PRAKTYKI'],
+      selectedGroups: ['13A'], availableGroups: ['13A'], candidates: [monday], allCandidates: [monday], sourceBlocks: [broken],
+    })).rejects.toThrow(/bramki kompletności|brakuje.*oczekiwanych dni/i);
+    expect(await listEvents()).toHaveLength(0);
+  });
+
+
+  it('ponownie sprawdza kompletność przy przygotowaniu i zastosowaniu aktualizacji planu', async () => {
+    await initializeDatabase();
+    const original = candidate('original-complete', '13A');
+    await commitUniversityImport({
+      fileName: 'complete-v1.xlsx', fileSize: 1, fileHash: 'complete-v1', adapterId: 'nursing-week-matrix-v2', sheetNames: ['PRAKTYKI'],
+      selectedGroups: ['13A'], availableGroups: ['13A'], candidates: [original], allCandidates: [original],
+      sourceBlocks: [sourceBlock('original-block', '13A', ['original-complete'], { weekStart: '2026-03-10', weekEnd: '2026-03-10', weekdays: ['WTOREK'] })],
+    });
+    const next = candidate('next-complete', '13A', { sourceKey: 'source-next-complete' });
+    const validBlock = sourceBlock('next-block', '13A', ['next-complete'], { weekStart: '2026-03-10', weekEnd: '2026-03-10', weekdays: ['WTOREK'] });
+    await expect(prepareUniversityScheduleUpdate({
+      fileName: 'broken-v2.xlsx', fileSize: 1, fileHash: 'broken-v2', adapterId: 'nursing-week-matrix-v2', sheetNames: ['PRAKTYKI'],
+      selectedGroups: ['13A'], availableGroups: ['13A'], candidates: [next], allCandidates: [next],
+      sourceBlocks: [{ ...validBlock, weekEnd: '2026-03-11', weekdays: ['WTOREK', 'ŚRODA'] }],
+    })).rejects.toThrow(/bramki kompletności|brakuje.*oczekiwanych dni/i);
+
+    const preview = await prepareUniversityScheduleUpdate({
+      fileName: 'complete-v2.xlsx', fileSize: 1, fileHash: 'complete-v2', adapterId: 'nursing-week-matrix-v2', sheetNames: ['PRAKTYKI'],
+      selectedGroups: ['13A'], availableGroups: ['13A'], candidates: [next], allCandidates: [next], sourceBlocks: [validBlock],
+    });
+    expect(preview.sourceBlocks).toHaveLength(1);
+    const tampered = { ...preview, sourceBlocks: [{ ...validBlock, weekEnd: '2026-03-11', weekdays: ['WTOREK', 'ŚRODA'] }] };
+    await expect(applyUniversityScheduleUpdate(tampered)).rejects.toThrow(/bramki kompletności|brakuje.*oczekiwanych dni/i);
+  });
+
   it('aktualizacja planu zachowuje ręcznie zmienione pole, a aktualizuje niezależną godzinę', async () => {
     await initializeDatabase();
     await commitUniversityImport({
@@ -154,7 +260,7 @@ describe('legacy study schema and current lifecycle', () => {
       title: 'Farmakologia - moja nazwa', startDateTime: event.startDateTime, endDateTime: event.endDateTime, category: event.category,
       ...(event.description ? { description: event.description } : {}), ...(event.locationId ? { locationId: event.locationId } : {}),
     });
-    const next = candidate('new-a', '13A', { startTime: '09:00', endTime: '10:30', sourceKey: 'source-new-a' });
+    const next = candidate('new-a', '13A', { startTime: '09:00', endTime: '10:30', sourceKey: 'source-new-a', sourceRange: 'Aa' });
     const preview = await prepareUniversityScheduleUpdate({
       fileName: 'plan-v2.xlsx', fileSize: 1, fileHash: 'update-v2', adapterId: 'nursing-plan-v1', sheetNames: ['PRAKTYKI'], selectedGroups: ['13A'], availableGroups: ['13A'], candidates: [next], allCandidates: [next],
     });
@@ -166,6 +272,104 @@ describe('legacy study schema and current lifecycle', () => {
     expect(updated?.startDateTime).toBe('2026-03-10T09:00');
     expect(updated?.userModified).toBe(true);
     expect(updated?.userModifiedFields).toContain('title');
+  });
+
+  it('przeliczenie grup blokuje nowe konflikty godzin do świadomego potwierdzenia', async () => {
+    await initializeDatabase();
+    const groupA = candidate('a-conflict', '13A', { date: '2026-03-10', sourceKey: 'source-a-conflict' });
+    const groupB1 = candidate('b1-conflict', '13B', { date: '2026-03-11', startTime: '15:00', endTime: '18:45', sourceKey: 'source-b1-conflict' });
+    const groupB2 = candidate('b2-conflict', '13B', { subject: 'Interna', date: '2026-03-11', startTime: '15:15', endTime: '19:00', sourceKey: 'source-b2-conflict' });
+    await commitUniversityImport({
+      fileName: 'plan-conflicts.xlsx', fileSize: 1, fileHash: 'groups-conflicts-v1', adapterId: 'nursing-plan-v1', sheetNames: ['PRAKTYKI'], selectedGroups: ['13A'], availableGroups: ['13A', '13B'],
+      candidates: [groupA], allCandidates: [groupA, groupB1, groupB2],
+    });
+    const preview = await prepareGroupRecalculation(['13B']);
+    expect(preview.scheduleConflicts).toHaveLength(1);
+    // Warstwa zapisu nie może ufać tylko podglądowi z UI. Nawet po manipulacji/starym podglądzie
+    // konflikt ma zostać ponownie policzony na aktualnych danych źródłowych.
+    const stalePreview = { ...preview, scheduleConflicts: [] };
+    await expect(applyGroupRecalculation(stalePreview)).rejects.toThrow(/podgląd.*ponownie/i);
+    await expect(applyGroupRecalculation(preview, true)).resolves.toBeUndefined();
+  });
+
+  it('blokuje drugi pierwszy import, gdy istnieje aktywny plan', async () => {
+    await initializeDatabase();
+    const first = candidate('guard-a', '13A');
+    await commitUniversityImport({
+      fileName: 'plan-guard-v1.xlsx', fileSize: 1, fileHash: 'guard-v1', adapterId: 'nursing-plan-v1', sheetNames: ['PRAKTYKI'],
+      selectedGroups: ['13A'], availableGroups: ['13A'], candidates: [first], allCandidates: [first],
+    });
+    const second = candidate('guard-b', '13A', { date: '2026-03-11', sourceKey: 'guard-source-b' });
+    await expect(commitUniversityImport({
+      fileName: 'plan-guard-v2.xlsx', fileSize: 1, fileHash: 'guard-v2', adapterId: 'nursing-plan-v1', sheetNames: ['PRAKTYKI'],
+      selectedGroups: ['13A'], availableGroups: ['13A'], candidates: [second], allCandidates: [second],
+    })).rejects.toThrow(/aktywny plan/i);
+    expect(await listEvents()).toHaveLength(1);
+  });
+
+  it('nie reaktywuje planu historycznego po usunięciu aktualnie aktywnego', async () => {
+    await initializeDatabase();
+    const first = candidate('history-a', '13A');
+    await commitUniversityImport({
+      fileName: 'history-v1.xlsx', fileSize: 1, fileHash: 'history-v1', adapterId: 'nursing-plan-v1', sheetNames: ['PRAKTYKI'],
+      selectedGroups: ['13A'], availableGroups: ['13A'], candidates: [first], allCandidates: [first],
+    });
+    const next = candidate('history-a', '13A', { startTime: '09:00', endTime: '10:30' });
+    const preview = await prepareUniversityScheduleUpdate({
+      fileName: 'history-v2.xlsx', fileSize: 1, fileHash: 'history-v2', adapterId: 'nursing-plan-v1', sheetNames: ['PRAKTYKI'],
+      selectedGroups: ['13A'], availableGroups: ['13A'], candidates: [next], allCandidates: [next],
+    });
+    await applyUniversityScheduleUpdate(preview);
+    const active = await getActiveUniversityImport();
+    if (!active) throw new Error('Brak aktywnego planu po aktualizacji.');
+    await deleteUniversityImport(active.id);
+    expect(await getActiveUniversityImport()).toBeUndefined();
+    expect((await listUniversityImports()).some((item) => item.lifecycleStatus === 'HISTORICAL')).toBe(true);
+  });
+
+  it('utrzymuje świadomie usunięte zajęcie przez aktualizację, relinkuje je przy przywróceniu i poprawnie cofa przywrócenie', async () => {
+    await initializeDatabase();
+    const first = candidate('trash-a', '13A');
+    await commitUniversityImport({
+      fileName: 'trash-v1.xlsx', fileSize: 1, fileHash: 'trash-v1', adapterId: 'nursing-plan-v1', sheetNames: ['PRAKTYKI'],
+      selectedGroups: ['13A'], availableGroups: ['13A'], candidates: [first], allCandidates: [first],
+    });
+    const [originalEvent] = await listEvents();
+    if (!originalEvent) throw new Error('Brak wydarzenia do testu Kosza.');
+    await deleteEvent(originalEvent.id);
+    expect(await listEvents()).toHaveLength(0);
+
+    const next = candidate('trash-a', '13A', { startTime: '09:00', endTime: '10:30' });
+    const preview = await prepareUniversityScheduleUpdate({
+      fileName: 'trash-v2.xlsx', fileSize: 1, fileHash: 'trash-v2', adapterId: 'nursing-plan-v1', sheetNames: ['PRAKTYKI'],
+      selectedGroups: ['13A'], availableGroups: ['13A'], candidates: [next], allCandidates: [next],
+    });
+    expect(preview.items.some((item) => item.oldEntry?.userDeleted && item.resolution === 'KEEP_USER')).toBe(true);
+    await applyUniversityScheduleUpdate(preview);
+    expect(await listEvents()).toHaveLength(0);
+
+    const active = await getActiveUniversityImport();
+    if (!active) throw new Error('Brak aktywnego planu po aktualizacji.');
+    const beforeRestore = (await listUniversityImportEntries(active.id)).find((entry) => !entry.sourceOnly && entry.userDeleted);
+    expect(beforeRestore).toBeTruthy();
+    const [trash] = await listTrashItems();
+    if (!trash) throw new Error('Brak wpisu w Koszu.');
+    await restoreTrashItem(trash.id);
+
+    const [restored] = await listEvents();
+    expect(restored?.sourceImportId).toBe(active.id);
+    expect(restored?.startDateTime).toBe('2026-03-10T09:00');
+    const relinked = (await listUniversityImportEntries(active.id)).find((entry) => entry.eventId === restored?.id && !entry.sourceOnly);
+    expect(relinked?.userDeleted).toBe(false);
+
+    const journal = await listChangeJournal();
+    const restoreOperation = journal.find((entry) => entry.operationType === 'RESTORE_TRASH' && !entry.undoneAt);
+    if (!restoreOperation) throw new Error('Brak operacji przywrócenia w historii.');
+    await undoChange(restoreOperation.id);
+    expect(await listEvents()).toHaveLength(0);
+    const afterUndo = (await listUniversityImportEntries(active.id)).find((entry) => entry.id === relinked?.id);
+    expect(afterUndo?.userDeleted).toBe(true);
+    expect(await listTrashItems()).toHaveLength(1);
   });
 
   it('przeliczenie grup chroni ręcznie zmienione usuwane zajęcie i dodaje nową grupę', async () => {

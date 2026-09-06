@@ -5,8 +5,7 @@ import { buildGoogleMapsDirectionsUrl } from '../locations/google-maps';
 import type { TimeFormat } from '../settings/settings.types';
 import { importIssueLabel } from '../study/import-review';
 import type { CoworkerOverlap } from '../work/work.types';
-import { studyEventDisplay, type StudyEventGroupMetadata } from './study-event-display';
-import { useStudyEventGroupMetadata } from '../study/use-study-event-groups';
+import { studyEventDisplay } from './study-event-display';
 
 const categoryLabels = {
   STUDY: 'Studia',
@@ -24,17 +23,15 @@ interface EventCardProps {
   onStudyCorrect?: ((event: CalendarEvent) => void) | undefined;
   workCoworkers?: CoworkerOverlap[] | undefined;
   showAllWorkCoworkers?: boolean | undefined;
-  studyGroupMetadata?: StudyEventGroupMetadata | undefined;
 }
 
-export function EventCard({ event, location, timeFormat, seriesCount, onEdit, onStudyCorrect, workCoworkers = [], showAllWorkCoworkers = false, studyGroupMetadata }: EventCardProps) {
+export function EventCard({ event, location, timeFormat, seriesCount, onEdit, onStudyCorrect, workCoworkers = [], showAllWorkCoworkers = false }: EventCardProps) {
   const hasStudyIssues = event.source === 'UNIVERSITY_XLSX' && Boolean(event.studyIssueCodes?.length);
   const multiDay = event.spanType === 'MULTI_DAY' || eventDayCount(event) > 1;
   const directionsUrl = location ? buildGoogleMapsDirectionsUrl(location) : undefined;
   const visibleWorkCoworkers = showAllWorkCoworkers ? workCoworkers : workCoworkers.slice(0, 4);
   const hiddenWorkCoworkerCount = Math.max(0, workCoworkers.length - visibleWorkCoworkers.length);
-  const storedStudyGroupMetadata = useStudyEventGroupMetadata(event);
-  const studyDisplay = studyEventDisplay(event, studyGroupMetadata ?? storedStudyGroupMetadata);
+  const studyDisplay = studyEventDisplay(event);
   const locationText = location
     ? location.name.trim().toLocaleLowerCase('pl-PL') === location.address.trim().toLocaleLowerCase('pl-PL')
       ? location.address

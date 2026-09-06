@@ -185,3 +185,21 @@ W schema 12 mogą pozostać historyczne, lokalne store'y techniczne i preferencj
 `cycleJournalEntries` może zawierać prywatne informacje o krwawieniu, bólu, samopoczuciu i własnej notatce. Dane pozostają w lokalnym IndexedDB i nie są wysyłane do backendu aplikacji, analytics, AI, Google ani innych API.
 
 Pełny backup, Restore Points i ręczny plik transferu zawierają Dziennik Cyklu. Eksport JSON nadal nie jest szyfrowany; checksum SHA-256 służy integralności i nie ukrywa treści. Podglądy backupu/transferu pokazują tylko liczbę wpisów, nie ich treść.
+## Paragony i Wydatki 1.1.0-dev.1
+
+Ręcznie zapisane paragony, nazwy sklepów, pozycje, kategorie i kwoty pozostają wyłącznie w lokalnym IndexedDB. Moduł nie wykonuje requestów do usług OCR, AI, analytics, banków ani backendu aplikacji.
+
+`expenseCategories` i `receipts` są canonical user data i wchodzą do Restore Points, pełnego backupu oraz Data Transfer. Nieszyfrowany JSON może więc ujawnić historię zakupów i wydatków osobie mającej dostęp do pliku; należy przechowywać go jak prywatny dokument.
+
+`1.1.0-dev.1` nie przyjmuje zdjęć paragonów i ich nie zapisuje. Planowany lokalny OCR jest osobnym przyszłym etapem i nie jest częścią bieżącego kandydata.
+
+
+## Lokalny OCR paragonów 1.1.0-dev.3
+
+Zdjęcia i pliki PDF paragonów są przetwarzane lokalnie w przeglądarce przez lokalne zasoby Tesseract.js i lokalnie spakowany PDF.js. Przepływ OCR nie wysyła obrazu, PDF, surowego tekstu OCR ani danych rozpoznania do zewnętrznego API, chmury, CDN OCR, analytics ani telemetry.
+
+Obraz/PDF, renderowane strony PDF, surowy OCR, metadane fragmentów, kandydaci merchant oraz diagnostyka jakości są stanem przejściowym sesji i nie są zapisywane do IndexedDB, backupu JSON ani eksportu Excel. Po świadomym zapisie do canonical danych trafiają wyłącznie sprawdzone dane paragonu zgodne z istniejącym modelem: sklep, data, pozycje, kategorie i końcowe kwoty pozycji.
+
+Produkcja zachowuje komunikaty potrzebne użytkownikowi do bezpiecznego review, np. o bardzo niskiej jakości źródła lub konieczności sprawdzenia nazw. Techniczny panel FIX1J i kopiowanie surowego OCR są dostępne wyłącznie w buildzie developerskim.
+
+Service Worker może wymieniać stare wpisy Cache Storage podczas aktualizacji aplikacji, ale nie ma ścieżki usuwającej IndexedDB. Surowe prywatne pliki `.pdf`, `.xls`, `.xlsx` i `.json` nie są celowo cache'owane jako dane użytkownika.

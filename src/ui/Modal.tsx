@@ -11,6 +11,8 @@ const focusableSelector = 'button:not([disabled]), input:not([disabled]), select
 
 export function Modal({ title, children, onClose, wide = false }: ModalProps) {
   const cardRef = useRef<HTMLElement>(null);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
 
   useEffect(() => {
     const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null;
@@ -20,7 +22,7 @@ export function Modal({ title, children, onClose, wide = false }: ModalProps) {
     first?.focus();
 
     function onKeyDown(event: KeyboardEvent) {
-      if (event.key === 'Escape') { event.preventDefault(); onClose(); return; }
+      if (event.key === 'Escape') { event.preventDefault(); onCloseRef.current(); return; }
       if (event.key !== 'Tab' || !card) return;
       const focusable = [...card.querySelectorAll<HTMLElement>(focusableSelector)].filter((element) => !element.hidden);
       if (!focusable.length) return;
@@ -32,7 +34,7 @@ export function Modal({ title, children, onClose, wide = false }: ModalProps) {
 
     document.addEventListener('keydown', onKeyDown);
     return () => { document.removeEventListener('keydown', onKeyDown); previous?.focus(); };
-  }, [onClose]);
+  }, []);
 
   return (
     <div className="modal-backdrop" role="presentation" onMouseDown={onClose}>

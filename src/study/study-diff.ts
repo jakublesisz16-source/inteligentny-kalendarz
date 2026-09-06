@@ -49,7 +49,7 @@ export function changesBetweenEntryAndCandidate(entry: UniversityImportEntry, ca
 function eventFieldsForChange(change: ScheduleDiffFieldChange): string[] {
   switch (change.field) {
     case 'subject': return ['title'];
-    case 'date':
+    case 'date': return ['startDateTime', 'endDateTime'];
     case 'startTime': return ['startDateTime'];
     case 'endTime': return ['endDateTime'];
     case 'address':
@@ -92,6 +92,15 @@ function diffId(prefix: string, oldEntry?: UniversityImportEntry, candidate?: St
   return `${prefix}:${oldEntry?.occurrenceKey ?? oldEntry?.id ?? 'none'}:${candidate?.occurrenceKey ?? candidate?.id ?? 'none'}`;
 }
 
+function eventSnapshot(event: CalendarEvent): CalendarEvent {
+  return {
+    ...event,
+    ...(event.userModifiedFields ? { userModifiedFields: [...event.userModifiedFields] } : {}),
+    ...(event.studyIssueCodes ? { studyIssueCodes: [...event.studyIssueCodes] } : {}),
+    ...(event.studyGroupTags ? { studyGroupTags: [...event.studyGroupTags] } : {}),
+  };
+}
+
 function summarize(items: ScheduleDiffItem[]): ScheduleDiffSummary {
   return items.reduce<ScheduleDiffSummary>((summary, item) => {
     if (item.kind === 'ADDED') summary.added += 1;
@@ -118,7 +127,7 @@ export interface BuildScheduleDiffResult {
 
 export function buildScheduleDiff(input: BuildScheduleDiffInput): BuildScheduleDiffResult {
   const oldEntries = input.oldEntries
-    .filter((entry) => Boolean(entry.eventId))
+    .filter((entry) => Boolean(entry.eventId) || entry.userDeleted)
     .map((entry) => identifyEntry(entry, input.adapterId));
   const newCandidates = input.newCandidates.map(identifyCandidate);
   const eventById = new Map(input.oldEvents.map((event) => [event.id, event]));
@@ -143,7 +152,8 @@ export function buildScheduleDiff(input: BuildScheduleDiffInput): BuildScheduleD
     unmatchedNew.delete(candidate.id);
     const changes = changesBetweenEntryAndCandidate(oldEntry, candidate);
     const event = oldEntry.eventId ? eventById.get(oldEntry.eventId) : undefined;
-    const blocking = !reviewCandidate(candidate).canImport;
+    const review = reviewCandidate(candidate);
+    const blocking = !review.canImport;
     const conflict = hasUserConflict(event, changes);
     items.push({
       id: diffId(blocking ? 'ambiguous' : conflict ? 'conflict' : changes.length ? 'changed' : 'unchanged', oldEntry, candidate),
@@ -153,10 +163,11 @@ export function buildScheduleDiff(input: BuildScheduleDiffInput): BuildScheduleD
       oldEntry,
       newCandidate: candidate,
       ...(oldEntry.eventId ? { oldEventId: oldEntry.eventId } : {}),
+      ...(event ? { oldEventSnapshot: eventSnapshot(event) } : {}),
       ...(event?.userModified ? { oldEventUserModified: true } : {}),
       ...(event?.userModifiedFields?.length ? { oldEventUserModifiedFields: [...event.userModifiedFields] } : {}),
       resolution: blocking ? 'SKIP' : conflict ? 'SKIP' : 'APPLY',
-      ...(blocking ? { note: 'Nowy wpis ma nierozwiązany brak krytyczny i nie zostanie zastosowany automatycznie.' } : {}),
+      ...(blocking ? { note: review.state === 'INCOMPLETE' ? 'Nowy wpis jest niepełny w planie źródłowym i pozostaje do wglądu; nie zostanie zastosowany automatycznie.' : 'Nowy wpis ma nierozwiązany brak krytyczny i nie zostanie zastosowany automatycznie.' } : {}),
     });
   }
 
@@ -178,7 +189,8 @@ export function buildScheduleDiff(input: BuildScheduleDiffInput): BuildScheduleD
     unmatchedNew.delete(candidate.id);
     const changes = changesBetweenEntryAndCandidate(oldEntry, candidate);
     const event = oldEntry.eventId ? eventById.get(oldEntry.eventId) : undefined;
-    const blocking = !reviewCandidate(candidate).canImport;
+    const review = reviewCandidate(candidate);
+    const blocking = !review.canImport;
     const conflict = hasUserConflict(event, changes);
     items.push({
       id: diffId(blocking ? 'ambiguous-source' : conflict ? 'conflict-source' : changes.length ? 'changed-source' : 'unchanged-source', oldEntry, candidate),
@@ -188,14 +200,19 @@ export function buildScheduleDiff(input: BuildScheduleDiffInput): BuildScheduleD
       oldEntry,
       newCandidate: candidate,
       ...(oldEntry.eventId ? { oldEventId: oldEntry.eventId } : {}),
+      ...(event ? { oldEventSnapshot: eventSnapshot(event) } : {}),
       ...(event?.userModified ? { oldEventUserModified: true } : {}),
       ...(event?.userModifiedFields?.length ? { oldEventUserModifiedFields: [...event.userModifiedFields] } : {}),
       resolution: blocking ? 'SKIP' : conflict ? 'SKIP' : 'APPLY',
-      ...(blocking ? { note: 'Nowy wpis ma nierozwiązany brak krytyczny i wymaga ręcznej kontroli.' } : {}),
+      ...(blocking ? { note: review.state === 'INCOMPLETE' ? 'Nowy wpis jest niepełny w planie źródłowym i pozostaje do wglądu; nie zostanie zastosowany automatycznie.' : 'Nowy wpis ma nierozwiązany brak krytyczny i wymaga ręcznej kontroli.' } : {}),
     });
   }
 
-  // Conservative third pass: same series, with an unambiguous closest date/time candidate.
+  // Conservative third pass: same series AND the same source cell/range, with an
+  // unambiguous closest date/time candidate. Without the source-range guard a
+  // cancellation and a newly added occurrence of the same subject could be
+  // incorrectly merged into a fictitious date move. Different source ranges
+  // therefore remain explicit ADD/REMOVE operations, which is safer.
   const seriesKeys = new Set([...unmatchedOld.values()].map((entry) => entry.seriesKey).filter(Boolean));
   for (const seriesKey of seriesKeys) {
     if (!seriesKey) continue;
@@ -203,12 +220,14 @@ export function buildScheduleDiff(input: BuildScheduleDiffInput): BuildScheduleD
     const news = [...unmatchedNew.values()].filter((candidate) => candidate.seriesKey === seriesKey);
     if (!olds.length || !news.length) continue;
 
-    const pairs = news.flatMap((candidate) => olds.map((entry) => ({
-      candidate,
-      entry,
-      days: daysBetween(entry.date, candidate.date),
-      time: timeDistance(entry.startTime, candidate.startTime),
-    }))).sort((a, b) => a.days - b.days || a.time - b.time);
+    const pairs = news.flatMap((candidate) => olds
+      .filter((entry) => entry.sourceSheet === candidate.sourceSheet && entry.sourceRange === candidate.sourceRange)
+      .map((entry) => ({
+        candidate,
+        entry,
+        days: daysBetween(entry.date, candidate.date),
+        time: timeDistance(entry.startTime, candidate.startTime),
+      }))).sort((a, b) => a.days - b.days || a.time - b.time);
 
     while (pairs.length) {
       const pair = pairs.shift()!;
@@ -221,7 +240,8 @@ export function buildScheduleDiff(input: BuildScheduleDiffInput): BuildScheduleD
       unmatchedNew.delete(pair.candidate.id);
       const changes = changesBetweenEntryAndCandidate(pair.entry, pair.candidate);
       const event = pair.entry.eventId ? eventById.get(pair.entry.eventId) : undefined;
-      const blocking = !reviewCandidate(pair.candidate).canImport;
+      const review = reviewCandidate(pair.candidate);
+      const blocking = !review.canImport;
       const conflict = hasUserConflict(event, changes);
       items.push({
         id: diffId(blocking ? 'ambiguous' : conflict ? 'conflict' : 'changed', pair.entry, pair.candidate),
@@ -231,16 +251,18 @@ export function buildScheduleDiff(input: BuildScheduleDiffInput): BuildScheduleD
         oldEntry: pair.entry,
         newCandidate: pair.candidate,
         ...(pair.entry.eventId ? { oldEventId: pair.entry.eventId } : {}),
+        ...(event ? { oldEventSnapshot: eventSnapshot(event) } : {}),
         ...(event?.userModified ? { oldEventUserModified: true } : {}),
         ...(event?.userModifiedFields?.length ? { oldEventUserModifiedFields: [...event.userModifiedFields] } : {}),
         resolution: blocking ? 'SKIP' : conflict ? 'SKIP' : 'APPLY',
-        ...(blocking ? { note: 'Nowy wpis ma nierozwiązany brak krytyczny i wymaga ręcznej kontroli.' } : {}),
+        ...(blocking ? { note: review.state === 'INCOMPLETE' ? 'Nowy wpis jest niepełny w planie źródłowym i pozostaje do wglądu; nie zostanie zastosowany automatycznie.' : 'Nowy wpis ma nierozwiązany brak krytyczny i wymaga ręcznej kontroli.' } : {}),
       });
     }
   }
 
   for (const candidate of unmatchedNew.values()) {
-    const blocking = !reviewCandidate(candidate).canImport;
+    const review = reviewCandidate(candidate);
+    const blocking = !review.canImport;
     items.push({
       id: diffId(blocking ? 'ambiguous-new' : 'added', undefined, candidate),
       kind: blocking ? 'AMBIGUOUS' : 'ADDED',
@@ -248,7 +270,7 @@ export function buildScheduleDiff(input: BuildScheduleDiffInput): BuildScheduleD
       changes: [],
       newCandidate: candidate,
       resolution: blocking ? 'SKIP' : 'APPLY',
-      ...(blocking ? { note: 'Nowy wpis wymaga uzupełnienia danych krytycznych przed dodaniem.' } : {}),
+      ...(blocking ? { note: review.state === 'INCOMPLETE' ? 'Nowy wpis jest niepełny w planie źródłowym i pozostaje do wglądu; nie zostanie dodany bez pełnych danych.' : 'Nowy wpis wymaga uzupełnienia danych krytycznych przed dodaniem.' } : {}),
     });
   }
 
@@ -262,6 +284,7 @@ export function buildScheduleDiff(input: BuildScheduleDiffInput): BuildScheduleD
       changes: [],
       oldEntry,
       ...(oldEntry.eventId ? { oldEventId: oldEntry.eventId } : {}),
+      ...(event ? { oldEventSnapshot: eventSnapshot(event) } : {}),
       ...(event?.userModified ? { oldEventUserModified: true } : {}),
       ...(event?.userModifiedFields?.length ? { oldEventUserModifiedFields: [...event.userModifiedFields] } : {}),
       resolution: conflict ? 'SKIP' : 'APPLY',

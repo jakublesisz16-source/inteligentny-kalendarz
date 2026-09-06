@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ChangeEvent } from 'react';
-import { createDataTransferFile, importDataTransfer, inspectDataTransferText } from '../storage/database';
+import { createCanonicalDataTransferDocument, createDataTransferFile, importDataTransfer, inspectDataTransferText } from '../storage/database';
 import type { BackupInspection } from '../safety/safety.types';
+import { createExcelExportFile, downloadExcelFile } from './excel-export';
 
 interface DataTransferPanelProps {
   onDataChanged: () => Promise<void>;
@@ -60,6 +61,22 @@ export function DataTransferPanel({ onDataChanged }: DataTransferPanelProps) {
     }
   }
 
+  async function exportExcel() {
+    setBusy(true);
+    setMessage('');
+    setError('');
+    try {
+      const document = await createCanonicalDataTransferDocument();
+      const file = await createExcelExportFile(document);
+      downloadExcelFile(file);
+      setMessage('Plik Excel został przygotowany. Zawiera lokalny eksport danych aplikacji i nie został wysłany do internetu.');
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Nie udało się przygotować pliku Excel. Dane w aplikacji nie zostały zmienione.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function inspectFile(file: File) {
     setBusy(true);
     setMessage('');
@@ -112,6 +129,7 @@ export function DataTransferPanel({ onDataChanged }: DataTransferPanelProps) {
 
       <div className="data-transfer-actions">
         <button type="button" className="button button-primary" disabled={busy} onClick={() => void exportData()}>Eksportuj moje dane</button>
+        <button type="button" className="button button-secondary" disabled={busy} onClick={() => void exportExcel()}>Eksportuj do Excela</button>
         <input
           ref={fileInputRef}
           className="visually-hidden"
@@ -126,11 +144,11 @@ export function DataTransferPanel({ onDataChanged }: DataTransferPanelProps) {
         <button type="button" className="button button-secondary" disabled={busy} onClick={() => fileInputRef.current?.click()}>Importuj dane</button>
       </div>
 
-      <p className="data-transfer-privacy">Plik zawiera prywatne dane z aplikacji, w tym historię i Dziennik Cyklu, i nie jest szyfrowany. Przechowuj go w bezpiecznym miejscu. Aplikacja nie wysyła go do internetu.</p>
+      <p className="data-transfer-privacy">Eksport JSON służy do backupu i przywracania. Eksport Excel służy do czytelnego archiwum i analizy, ale nie można go importować z powrotem. Oba pliki mogą zawierać prywatne dane z aplikacji, w tym historię i Dziennik Cyklu, i nie są szyfrowane. Przechowuj je w bezpiecznym miejscu. Aplikacja nie wysyła ich do internetu.</p>
 
       {error ? <div className="study-message error-message" role="alert">{error}</div> : null}
       {message ? <div className="study-message success-message" role="status" aria-live="polite">{message}</div> : null}
-      {busy ? <p className="muted-copy" role="status" aria-live="polite">Przetwarzanie danych...</p> : null}
+      {busy ? <p className="muted-copy" role="status" aria-live="polite">Przetwarzanie danych / przygotowywanie pliku...</p> : null}
 
       {inspection ? (
         <div className="data-transfer-preview">
@@ -154,7 +172,9 @@ export function DataTransferPanel({ onDataChanged }: DataTransferPanelProps) {
             <div><span>Plany/importy studiów</span><strong>{inspection.summary.universityImports}</strong></div>
             <div><span>Zmiany pracy</span><strong>{inspection.summary.workScheduleEntries}</strong></div>
             <div><span>Plany dyspozycyjności</span><strong>{inspection.summary.availabilityPlans}</strong></div>
-            <div><span>Zakupy</span><strong>{inspection.summary.shoppingItems}</strong></div>
+            <div><span>Lista zakupów</span><strong>{inspection.summary.shoppingItems}</strong></div>
+            <div><span>Paragony</span><strong>{inspection.summary.receipts}</strong></div>
+            <div><span>Kategorie wydatków</span><strong>{inspection.summary.expenseCategories}</strong></div>
             <div><span>Historia cyklu</span><strong>{inspection.summary.cyclePeriods} wpisów</strong></div>
             <div><span>Dziennik cyklu</span><strong>{inspection.summary.cycleJournalEntries} wpisów</strong></div>
           </div>

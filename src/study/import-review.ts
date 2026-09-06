@@ -1,7 +1,8 @@
+import { hasValidStudyTimeRange, isValidStudyDate, isValidStudyTime } from '../imports/xlsx/import-validation';
 import type { StudyScheduleCandidate } from './study.types';
 
-export type ImportIssueSeverity = 'WARNING' | 'BLOCKING';
-export type ImportReviewState = 'READY' | 'WARNING' | 'BLOCKING' | 'IGNORED';
+export type ImportIssueSeverity = 'WARNING' | 'INCOMPLETE' | 'BLOCKING';
+export type ImportReviewState = 'READY' | 'WARNING' | 'INCOMPLETE' | 'BLOCKING' | 'IGNORED';
 
 export type ImportIssueCode =
   | 'MISSING_ADDRESS'
@@ -14,6 +15,8 @@ export type ImportIssueCode =
   | 'AMBIGUOUS_DATE'
   | 'MISSING_START_TIME'
   | 'MISSING_END_TIME'
+  | 'INVALID_START_TIME'
+  | 'INVALID_END_TIME'
   | 'INVALID_TIME_RANGE'
   | 'MISSING_SUBJECT'
   | 'OTHER_WARNING';
@@ -42,6 +45,8 @@ const ISSUE_LABELS: Record<ImportIssueCode, string> = {
   AMBIGUOUS_DATE: 'Data zajęć wymaga ręcznego potwierdzenia.',
   MISSING_START_TIME: 'Brak godziny rozpoczęcia.',
   MISSING_END_TIME: 'Brak godziny zakończenia.',
+  INVALID_START_TIME: 'Godzina rozpoczęcia ma nieprawidłowy format.',
+  INVALID_END_TIME: 'Godzina zakończenia ma nieprawidłowy format.',
   INVALID_TIME_RANGE: 'Godzina zakończenia musi być późniejsza od rozpoczęcia.',
   MISSING_SUBJECT: 'Brak nazwy przedmiotu.',
   OTHER_WARNING: 'Wpis zawiera informację wymagającą sprawdzenia.',
@@ -61,10 +66,15 @@ const WARNING_CODES = new Set<ImportIssueCode>([
   'OTHER_WARNING',
 ]);
 
+const INCOMPLETE_CODES = new Set<ImportIssueCode>([
+  'MISSING_START_TIME',
+  'MISSING_END_TIME',
+]);
+
 function issue(code: ImportIssueCode, source?: string): ImportIssue {
   return {
     code,
-    severity: WARNING_CODES.has(code) ? 'WARNING' : 'BLOCKING',
+    severity: WARNING_CODES.has(code) ? 'WARNING' : INCOMPLETE_CODES.has(code) ? 'INCOMPLETE' : 'BLOCKING',
     label: ISSUE_LABELS[code],
     ...(source ? { source } : {}),
   };
@@ -99,22 +109,22 @@ function addUnique(target: ImportIssue[], next: ImportIssue): void {
   target.push(next);
 }
 
-function hasValidDate(value: string | undefined): boolean {
-  return Boolean(value && /^\d{4}-\d{2}-\d{2}$/.test(value));
-}
-
-function hasValidTime(value: string | undefined): boolean {
-  return Boolean(value && /^\d{2}:\d{2}$/.test(value));
-}
 
 export function classifyCandidateIssues(candidate: StudyScheduleCandidate): ImportIssue[] {
   const issues: ImportIssue[] = [];
 
   if (!candidate.subject.trim()) addUnique(issues, issue('MISSING_SUBJECT'));
-  if (!hasValidDate(candidate.date)) addUnique(issues, issue('MISSING_DATE'));
-  if (!hasValidTime(candidate.startTime)) addUnique(issues, issue('MISSING_START_TIME'));
-  if (!hasValidTime(candidate.endTime)) addUnique(issues, issue('MISSING_END_TIME'));
-  if (hasValidTime(candidate.startTime) && hasValidTime(candidate.endTime) && candidate.startTime! >= candidate.endTime!) {
+  const hasSourceWeek = Boolean(candidate.sourceWeekStart && candidate.sourceWeekEnd);
+  if (!isValidStudyDate(candidate.date)) {
+    addUnique(issues, hasSourceWeek
+      ? { code: 'MISSING_DATE', severity: 'INCOMPLETE', label: 'Plan przypisuje zajęcia do tygodnia, ale nie podaje jednoznacznego dnia.' }
+      : issue('MISSING_DATE'));
+  }
+  if (!candidate.startTime) addUnique(issues, issue('MISSING_START_TIME'));
+  else if (!isValidStudyTime(candidate.startTime)) addUnique(issues, issue('INVALID_START_TIME'));
+  if (!candidate.endTime) addUnique(issues, issue('MISSING_END_TIME'));
+  else if (!isValidStudyTime(candidate.endTime)) addUnique(issues, issue('INVALID_END_TIME'));
+  if (isValidStudyTime(candidate.startTime) && isValidStudyTime(candidate.endTime) && !hasValidStudyTimeRange(candidate.startTime, candidate.endTime)) {
     addUnique(issues, issue('INVALID_TIME_RANGE'));
   }
 
@@ -123,11 +133,15 @@ export function classifyCandidateIssues(candidate: StudyScheduleCandidate): Impo
 
     // Parser warnings about fields that have already been corrected manually should not keep blocking the entry.
     if (code === 'MISSING_SUBJECT' && candidate.subject.trim()) continue;
-    if ((code === 'MISSING_DATE' || code === 'AMBIGUOUS_DATE') && candidate.manuallyReviewed && hasValidDate(candidate.date)) continue;
+    if ((code === 'MISSING_DATE' || code === 'AMBIGUOUS_DATE') && candidate.manuallyReviewed && isValidStudyDate(candidate.date)) continue;
+    if (code === 'MISSING_DATE' && hasSourceWeek) {
+      addUnique(issues, { code, severity: 'INCOMPLETE', label: 'Plan przypisuje zajęcia do tygodnia, ale nie podaje jednoznacznego dnia.', source: warning });
+      continue;
+    }
     if (code === 'AMBIGUOUS_LOCATION' && candidate.manuallyReviewed && Boolean(candidate.address || candidate.locationLabel)) continue;
 
     // A generic time warning becomes obsolete after the user supplies a valid full range.
-    if (code === 'OTHER_WARNING' && /czas|godzin/i.test(warning) && candidate.manuallyReviewed && hasValidTime(candidate.startTime) && hasValidTime(candidate.endTime)) continue;
+    if (code === 'OTHER_WARNING' && /czas|godzin/i.test(warning) && candidate.manuallyReviewed && isValidStudyTime(candidate.startTime) && isValidStudyTime(candidate.endTime)) continue;
 
     addUnique(issues, issue(code, warning));
   }
@@ -149,6 +163,9 @@ export function reviewCandidate(candidate: StudyScheduleCandidate): CandidateRev
   const issues = classifyCandidateIssues(candidate);
   if (issues.some((entry) => entry.severity === 'BLOCKING')) {
     return { state: 'BLOCKING', issues, canImport: false };
+  }
+  if (issues.some((entry) => entry.severity === 'INCOMPLETE')) {
+    return { state: 'INCOMPLETE', issues, canImport: false };
   }
   if (issues.length) {
     return { state: 'WARNING', issues, canImport: true };

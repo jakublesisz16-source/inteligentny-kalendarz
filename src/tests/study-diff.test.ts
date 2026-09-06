@@ -73,4 +73,66 @@ describe('schedule diff', () => {
     expect(result.items[0]?.changeTypes).toContain('CHANGED_GROUP');
   });
 
+  it('nie gubi wpisu świadomie usuniętego przez użytkownika podczas budowania diffu', () => {
+    const deleted = entry({ userDeleted: true });
+    delete deleted.eventId;
+    const result = buildScheduleDiff({ oldEntries: [deleted], oldEvents: [], newCandidates: [candidate()], adapterId: 'nursing-plan-v1' });
+    expect(result.items).toHaveLength(1);
+    expect(result.items[0]?.oldEntry?.userDeleted).toBe(true);
+  });
+
+  it('zmiana daty koliduje z ręczną zmianą zarówno początku, jak i końca wydarzenia', () => {
+    for (const field of ['startDateTime', 'endDateTime'] as const) {
+      const result = buildScheduleDiff({
+        oldEntries: [entry()],
+        oldEvents: [event({ userModified: true, userModifiedFields: [field] })],
+        newCandidates: [candidate({ date: '2026-03-22' })],
+        adapterId: 'nursing-plan-v1',
+      });
+      expect(result.summary.conflicts).toBe(1);
+    }
+  });
+
+  it('ostrożny fallback nie łączy usunięcia i nowego wpisu z różnych komórek źródłowych', () => {
+    const result = buildScheduleDiff({
+      oldEntries: [entry({ id: 'old-cancelled', eventId: 'event-cancelled', sourceKey: 'old-key', sourceRange: 'A3', date: '2026-03-23' })],
+      oldEvents: [event({ id: 'event-cancelled', sourceEntryId: 'old-cancelled', startDateTime: '2026-03-23T08:00', endDateTime: '2026-03-23T10:00' })],
+      newCandidates: [candidate({ id: 'new-extra', sourceKey: 'new-key', sourceRange: 'A4', date: '2026-03-25' })],
+      adapterId: 'nursing-plan-v1',
+    });
+    expect(result.summary).toMatchObject({ added: 1, removed: 1, changed: 0, ambiguous: 0 });
+  });
+
+  it('ostrożny fallback może rozpoznać przesunięcie w tej samej komórce źródłowej mimo zmiany sourceKey', () => {
+    const result = buildScheduleDiff({
+      oldEntries: [entry({ id: 'old-move', eventId: 'event-move', sourceKey: 'old-key', sourceRange: 'A2', date: '2026-03-22' })],
+      oldEvents: [event({ id: 'event-move', sourceEntryId: 'old-move', startDateTime: '2026-03-22T08:00', endDateTime: '2026-03-22T10:00' })],
+      newCandidates: [candidate({ id: 'new-move', sourceKey: 'new-key', sourceRange: 'A2', date: '2026-03-24' })],
+      adapterId: 'nursing-plan-v1',
+    });
+    expect(result.summary).toMatchObject({ added: 0, removed: 0, changed: 1, ambiguous: 0 });
+    expect(result.items[0]?.changeTypes).toContain('CHANGED_DATE');
+  });
+
+  it('obsługuje jednocześnie dodanie, usunięcie, przesunięcie i brak zmian bez duplikatów', () => {
+    const oldEntries = [
+      entry({ id: 'old-unchanged', eventId: 'event-unchanged', sourceKey: 'source-unchanged', sourceRange: 'A1' }),
+      entry({ id: 'old-moved', eventId: 'event-moved', sourceKey: 'source-moved', sourceRange: 'A2', date: '2026-03-22' }),
+      entry({ id: 'old-removed', eventId: 'event-removed', sourceKey: 'source-removed', sourceRange: 'A3', date: '2026-03-23' }),
+    ];
+    const oldEvents = [
+      event({ id: 'event-unchanged', sourceEntryId: 'old-unchanged' }),
+      event({ id: 'event-moved', sourceEntryId: 'old-moved', startDateTime: '2026-03-22T08:00', endDateTime: '2026-03-22T10:00' }),
+      event({ id: 'event-removed', sourceEntryId: 'old-removed', startDateTime: '2026-03-23T08:00', endDateTime: '2026-03-23T10:00' }),
+    ];
+    const newCandidates = [
+      candidate({ id: 'new-unchanged', sourceKey: 'source-unchanged', sourceRange: 'A1' }),
+      candidate({ id: 'new-moved', sourceKey: 'source-moved', sourceRange: 'A2', date: '2026-03-24' }),
+      candidate({ id: 'new-added', sourceKey: 'source-added', sourceRange: 'A4', date: '2026-03-25' }),
+    ];
+    const result = buildScheduleDiff({ oldEntries, oldEvents, newCandidates, adapterId: 'nursing-plan-v1' });
+    expect(result.summary).toMatchObject({ added: 1, removed: 1, changed: 1, conflicts: 0, unchanged: 1, ambiguous: 0 });
+    expect(result.items).toHaveLength(4);
+  });
+
 });

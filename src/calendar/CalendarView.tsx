@@ -3,6 +3,7 @@ import {
   createMonthGrid,
   eventOccursOnDate,
   formatMonthLabel,
+  formatTime,
   sameMonth,
   sortEventsForDay,
   toLocalDateKey,
@@ -19,6 +20,8 @@ import { EmptyState } from '../ui/EmptyState';
 import type { AvailabilityPlan } from '../availability/availability.types';
 import { ruleLabel } from '../availability/availability-day-rules';
 import type { CoworkerOverlap } from '../work/work.types';
+import type { UniversityImportEntry } from '../study/study.types';
+import { studyGroupCompactLabel, studyGroupDisplayLabel } from '../imports/xlsx/group-normalizer';
 
 interface CalendarViewProps {
   events: CalendarEvent[];
@@ -27,6 +30,8 @@ interface CalendarViewProps {
   dayConstraints: DayConstraint[];
   dayAttributes: DayAttribute[];
   consistencyIssues: CalendarConsistencyIssue[];
+  activeStudyGroups?: string[];
+  incompleteStudyEntries?: UniversityImportEntry[];
   onToggleWorkAvailabilityExclusion: (date: string, excluded: boolean) => Promise<void>;
   onToggleTradingSunday: (date: string, active: boolean) => Promise<void>;
   onAcknowledgeConsistency: (issue: CalendarConsistencyIssue) => Promise<void>;
@@ -55,7 +60,31 @@ function issueDateKeys(issue: CalendarConsistencyIssue): string[] {
   return result;
 }
 
-export function CalendarView({ events, locations, timeFormat, dayConstraints, dayAttributes, consistencyIssues, onToggleWorkAvailabilityExclusion, onToggleTradingSunday, onAcknowledgeConsistency, onAdd, onAddMany, onEdit, onStudyCorrect, onStudySeriesCorrect, availabilityPlans = [], coworkersByEvent = {}, onOpenAvailability }: CalendarViewProps) {
+function incompleteEntryAppliesOnDate(entry: UniversityImportEntry, dateKey: string): boolean {
+  if (entry.date) return entry.date === dateKey;
+  if (entry.sourceWeekStart && entry.sourceWeekEnd) return dateKey === entry.sourceWeekStart;
+  return false;
+}
+
+function incompleteEntryRangeLabel(entry: UniversityImportEntry): string {
+  if (entry.date) return entry.date;
+  if (entry.sourceWeekStart && entry.sourceWeekEnd) return `${entry.sourceWeekStart} - ${entry.sourceWeekEnd}`;
+  return 'Termin nieustalony';
+}
+
+function calendarEventTimeLabel(event: CalendarEvent, dateKey: string, timeFormat: TimeFormat): string {
+  if (event.allDay) return 'Cały dzień';
+  const startKey = toLocalDateKey(event.startDateTime);
+  const endKey = toLocalDateKey(event.endDateTime);
+  const start = formatTime(event.startDateTime, timeFormat);
+  const end = formatTime(event.endDateTime, timeFormat);
+  if (startKey === endKey) return `${start}-${end}`;
+  if (dateKey === startKey) return `od ${start}`;
+  if (dateKey === endKey) return `do ${end}`;
+  return 'trwa';
+}
+
+export function CalendarView({ events, locations, timeFormat, dayConstraints, dayAttributes, consistencyIssues, activeStudyGroups = [], incompleteStudyEntries = [], onToggleWorkAvailabilityExclusion, onToggleTradingSunday, onAcknowledgeConsistency, onAdd, onAddMany, onEdit, onStudyCorrect, onStudySeriesCorrect, availabilityPlans = [], coworkersByEvent = {}, onOpenAvailability }: CalendarViewProps) {
   const [visibleMonth, setVisibleMonth] = useState(() => new Date());
   const [selectedDate, setSelectedDate] = useState(() => new Date());
   const [selectionMode, setSelectionMode] = useState(false);
@@ -72,6 +101,15 @@ export function CalendarView({ events, locations, timeFormat, dayConstraints, da
   }, [selectionMode]);
 
   const countsByDate = useMemo(() => categoryCountsByDate(events), [events]);
+  const eventsByDate = useMemo(() => {
+    const map = new Map<string, CalendarEvent[]>();
+    for (const day of days) {
+      const key = toLocalDateKey(day);
+      const matching = sortEventsForDay(events.filter((event) => eventOccursOnDate(event, key)));
+      if (matching.length) map.set(key, matching);
+    }
+    return map;
+  }, [days, events]);
   const availabilityByDate = useMemo(() => { const map = new Map<string, Array<{ id: string; startTime: string; endTime: string; status: string; planStatus: string; origin?: string; validationState?: string; validationMessage?: string }>>(); for (const plan of availabilityPlans) for (const block of plan.blocks.filter((item) => item.status !== 'REJECTED')) map.set(block.date, [...(map.get(block.date) ?? []), { id: block.id, startTime: block.startTime, endTime: block.endTime, status: block.status, planStatus: plan.status, ...(block.origin ? { origin: block.origin } : {}), ...(block.validationState ? { validationState: block.validationState } : {}), ...(block.validationMessage ? { validationMessage: block.validationMessage } : {}) }]); return map; }, [availabilityPlans]);
   const dayRuleByDate = useMemo(() => { const map = new Map<string, NonNullable<AvailabilityPlan['dayRules']>[number]>(); for (const plan of availabilityPlans) for (const rule of plan.dayRules ?? []) map.set(rule.date, rule); return map; }, [availabilityPlans]);
   const issuesByDate = useMemo(() => {
@@ -82,6 +120,16 @@ export function CalendarView({ events, locations, timeFormat, dayConstraints, da
     return map;
   }, [consistencyIssues]);
 
+  const incompleteStudyByDate = useMemo(() => {
+    const map = new Map<string, UniversityImportEntry[]>();
+    for (const day of days) {
+      const key = toLocalDateKey(day);
+      const entries = incompleteStudyEntries.filter((entry) => incompleteEntryAppliesOnDate(entry, key));
+      if (entries.length) map.set(key, entries);
+    }
+    return map;
+  }, [days, incompleteStudyEntries]);
+
   const seriesCountById = useMemo(() => {
     const map = new Map<string, number>();
     events.forEach((event) => { if (event.seriesId && event.seriesType === 'MANUAL_MULTI_DATE') map.set(event.seriesId, (map.get(event.seriesId) ?? 0) + 1); });
@@ -89,8 +137,9 @@ export function CalendarView({ events, locations, timeFormat, dayConstraints, da
   }, [events]);
 
   const selectedKey = toLocalDateKey(selectedDate);
-  const selectedEvents = sortEventsForDay(events.filter((event) => eventOccursOnDate(event, selectedKey)));
+  const selectedEvents = eventsByDate.get(selectedKey) ?? [];
   const selectedAvailability = [...(availabilityByDate.get(selectedKey) ?? [])].sort((a, b) => a.startTime.localeCompare(b.startTime));
+  const selectedIncompleteStudyEntries = incompleteStudyByDate.get(selectedKey) ?? [];
   const locationMap = new Map(locations.map((location) => [location.id, location]));
   const excludedAvailabilityDates = useMemo(() => new Set(dayConstraints.filter((constraint) => constraint.active && constraint.type === 'EXCLUDE_FROM_WORK_AVAILABILITY').map((constraint) => constraint.date)), [dayConstraints]);
   const tradingSundays = useMemo(() => new Set(dayAttributes.filter((attribute) => attribute.active && attribute.type === 'TRADING_SUNDAY').map((attribute) => attribute.date)), [dayAttributes]);
@@ -119,6 +168,18 @@ export function CalendarView({ events, locations, timeFormat, dayConstraints, da
         {(Object.keys(categoryLabels) as Array<keyof typeof categoryLabels>).map((category) => <span key={category}><i className={`category-dot category-${category.toLowerCase()}`} aria-hidden="true" />{categoryLabels[category]}</span>)}
       </div>
 
+      {activeStudyGroups.length ? (
+        <div className="calendar-study-context" aria-label={`Aktywny plan studiów dla grup: ${activeStudyGroups.map(studyGroupDisplayLabel).join(', ')}`}>
+          <div>
+            <span>Aktywny plan studiów</span>
+            <strong>Plan dla grup</strong>
+          </div>
+          <div className="calendar-study-group-chips">
+            {activeStudyGroups.map((group) => <span key={group} title={studyGroupDisplayLabel(group)}>{studyGroupCompactLabel(group)}</span>)}
+          </div>
+        </div>
+      ) : null}
+
       <div className="calendar-layout">
         <div className="panel calendar-panel">
           <div className="calendar-toolbar"><button type="button" className="icon-button soft" onClick={() => changeMonth(-1)} aria-label="Poprzedni miesiąc">‹</button><h2>{formatMonthLabel(visibleMonth)}</h2><button type="button" className="icon-button soft" onClick={() => changeMonth(1)} aria-label="Następny miesiąc">›</button></div>
@@ -128,15 +189,20 @@ export function CalendarView({ events, locations, timeFormat, dayConstraints, da
             {days.map((day) => {
               const key = toLocalDateKey(day);
               const counts = countsByDate.get(key) ?? { STUDY: 0, WORK: 0, PERSONAL: 0, OTHER: 0 };
+              const dayEvents = eventsByDate.get(key) ?? [];
               const total = counts.STUDY + counts.WORK + counts.PERSONAL + counts.OTHER;
               const issueCount = issuesByDate.get(key)?.length ?? 0;
+              const incompleteStudyCount = incompleteStudyByDate.get(key)?.length ?? 0;
               const selected = key === selectedKey;
               const multiSelected = selectedDateKeys.includes(key);
               const isToday = key === toLocalDateKey(new Date());
-              const ariaCounts = (Object.keys(categoryLabels) as Array<keyof typeof categoryLabels>).filter((category) => counts[category] > 0).map((category) => `${categoryLabels[category]}: ${counts[category]}`).join(', ') || 'brak wydarzeń';
-              return <button type="button" key={key} className={`calendar-day${sameMonth(day, visibleMonth) ? '' : ' muted'}${!selectionMode && selected ? ' selected' : ''}${multiSelected ? ' multi-selected' : ''}${isToday ? ' today' : ''}`} onClick={() => selectionMode ? toggleSelection(key) : setSelectedDate(day)} aria-pressed={selectionMode ? multiSelected : undefined} aria-label={`${day.toLocaleDateString('pl-PL')}, ${ariaCounts}${issueCount ? `, niespójności: ${issueCount}` : ''}${selectionMode ? multiSelected ? ', zaznaczony' : ', niezaznaczony' : ''}`}>
+              const ariaEvents = dayEvents.length
+                ? dayEvents.map((event) => `${event.title}, ${calendarEventTimeLabel(event, key, timeFormat)}`).join('; ')
+                : 'brak wydarzeń';
+              return <button type="button" key={key} className={`calendar-day${sameMonth(day, visibleMonth) ? '' : ' muted'}${!selectionMode && selected ? ' selected' : ''}${multiSelected ? ' multi-selected' : ''}${isToday ? ' today' : ''}`} onClick={() => selectionMode ? toggleSelection(key) : setSelectedDate(day)} aria-pressed={selectionMode ? multiSelected : undefined} aria-label={`${day.toLocaleDateString('pl-PL')}, ${ariaEvents}${incompleteStudyCount ? `, niepełne dane planu studiów: ${incompleteStudyCount}` : ''}${issueCount ? `, niespójności: ${issueCount}` : ''}${selectionMode ? multiSelected ? ', zaznaczony' : ', niezaznaczony' : ''}`}>
                 <span className="day-number">{day.getDate()}</span>
-                {total > 0 ? <span className="category-count-row">{(Object.keys(categoryLabels) as Array<keyof typeof categoryLabels>).filter((category) => counts[category] > 0).map((category) => <span key={category} className={`category-count category-${category.toLowerCase()}`} aria-label={`${counts[category]} wydarzenia: ${categoryLabels[category]}`}><i aria-hidden="true" />{counts[category]}</span>)}</span> : <span className="event-placeholder" />}
+                {total > 0 ? <span className="category-count-row calendar-day-counts" title={dayEvents.map((event) => `${calendarEventTimeLabel(event, key, timeFormat)} ${event.title}`).join('\n')}>{(Object.keys(categoryLabels) as Array<keyof typeof categoryLabels>).filter((category) => counts[category] > 0).map((category) => <span key={category} className={`category-count category-${category.toLowerCase()}`} aria-label={`${counts[category]} wydarzenia: ${categoryLabels[category]}`}><i aria-hidden="true" />{counts[category]}</span>)}</span> : <span className="event-placeholder" />}
+                {incompleteStudyCount ? <span className="study-incomplete-marker" title="Niepełne dane z planu studiów - to nie jest potwierdzone wydarzenie" aria-label={`${incompleteStudyCount} niepełnych wpisów planu studiów`}>? {incompleteStudyCount}</span> : null}
                 {issueCount ? <span className="calendar-conflict-badge" aria-label={`${issueCount} niespójności kalendarza`}>! {issueCount}</span> : null}
                 {excludedAvailabilityDates.has(key) ? <span className="availability-excluded-marker" title="Bez automatycznej dyspozycyjności" aria-label="Bez automatycznej dyspozycyjności">×</span> : null}
                 {tradingSundays.has(key) ? <span className="trading-sunday-marker" title="Niedziela handlowa" aria-label="Niedziela handlowa">H</span> : null}
@@ -156,7 +222,7 @@ export function CalendarView({ events, locations, timeFormat, dayConstraints, da
             {selectedExcludedFromAvailability ? <div className="availability-legacy-exclusion"><span>Starsze wykluczenie dnia jest aktywne.</span><button type="button" className="text-button" onClick={() => void onToggleWorkAvailabilityExclusion(selectedKey, false)}>Przywróć</button></div> : null}
             {selectedIsSunday ? <label className={selectedIsTradingSunday ? 'day-constraint-toggle trading active compact' : 'day-constraint-toggle trading compact'}><input type="checkbox" checked={selectedIsTradingSunday} onChange={(event) => void onToggleTradingSunday(selectedKey, event.target.checked)} /><span><strong>Niedziela handlowa</strong><small>Wymagane, aby dodać dyspozycyjność w niedzielę.</small></span></label> : null}
           </> : null}
-          {selectionMode ? <div className="selection-help"><p>Zaznacz dni w siatce po lewej, a potem utwórz jedno wydarzenie wielodniowe albo serię na wybranych datach.</p><button type="button" className="button button-primary" disabled={!selectedDateKeys.length} onClick={addSelectedDates}>Dodaj dla wybranych dni</button></div> : <>{selectedEvents.length ? <div className="event-list compact-event-list">{selectedEvents.map((event) => <EventCard key={event.id} event={event} location={event.locationId ? locationMap.get(event.locationId) : undefined} timeFormat={timeFormat} seriesCount={event.seriesId ? seriesCountById.get(event.seriesId) : undefined} onEdit={onEdit} onStudyCorrect={onStudyCorrect} workCoworkers={coworkersByEvent[event.id] ?? []} showAllWorkCoworkers />)}</div> : null}{selectedAvailability.length ? <div className="selected-day-availability"><span className="section-kicker">Dyspozycyjność</span>{selectedAvailability.map((block) => <button type="button" key={block.id} className={`availability-overlay-card availability-overlay-button status-${block.status.toLowerCase()}${block.validationState === 'CONFLICT' ? ' has-conflict' : ''}`} aria-label={`${block.status === 'PROPOSED' ? 'Proponowana' : 'Zapisaną'} dyspozycyjność ${block.startTime}-${block.endTime}, edytuj`} onClick={() => onOpenAvailability(selectedKey, block.id)}><div><strong>{block.status === 'PROPOSED' ? 'Proponowana dyspozycyjność' : block.origin === 'MANUAL' ? 'Twoja dyspozycyjność' : 'Dyspozycyjność'}</strong><span>{block.startTime}-{block.endTime}</span></div>{block.validationState === 'CONFLICT' ? <small>{block.validationMessage ?? 'Wymaga poprawy'}</small> : block.planStatus === 'STALE' ? <small>Wymaga ponownego sprawdzenia</small> : null}</button>)}</div> : null}{!selectedEvents.length && !selectedAvailability.length ? <EmptyState title="Brak wydarzeń" description="Ten dzień jest jeszcze pusty." actionLabel="Dodaj tutaj" onAction={() => onAdd(selectedDate)} /> : null}</>}
+          {selectionMode ? <div className="selection-help"><p>Zaznacz dni w siatce po lewej, a potem utwórz jedno wydarzenie wielodniowe albo serię na wybranych datach.</p><button type="button" className="button button-primary" disabled={!selectedDateKeys.length} onClick={addSelectedDates}>Dodaj dla wybranych dni</button></div> : <>{selectedEvents.length ? <div className="event-list compact-event-list">{selectedEvents.map((event) => <EventCard key={event.id} event={event} location={event.locationId ? locationMap.get(event.locationId) : undefined} timeFormat={timeFormat} seriesCount={event.seriesId ? seriesCountById.get(event.seriesId) : undefined} onEdit={onEdit} onStudyCorrect={onStudyCorrect} workCoworkers={coworkersByEvent[event.id] ?? []} showAllWorkCoworkers />)}</div> : null}{selectedIncompleteStudyEntries.length ? <div className="selected-day-study-incomplete"><span className="section-kicker">Niepełne dane z planu studiów</span>{selectedIncompleteStudyEntries.map((entry) => <article key={entry.id} className="study-incomplete-card"><div><strong>{entry.subject || 'Zajęcia studiów'}</strong><span>{entry.date ? 'Godzina nie została podana w planie źródłowym.' : 'Plan przypisuje zajęcia do tego tygodnia, ale nie podaje jednoznacznego dnia i pełnych godzin.'}</span></div><small>{incompleteEntryRangeLabel(entry)}</small></article>)}</div> : null}{selectedAvailability.length ? <div className="selected-day-availability"><span className="section-kicker">Dyspozycyjność</span>{selectedAvailability.map((block) => <button type="button" key={block.id} className={`availability-overlay-card availability-overlay-button status-${block.status.toLowerCase()}${block.validationState === 'CONFLICT' ? ' has-conflict' : ''}`} aria-label={`${block.status === 'PROPOSED' ? 'Proponowana' : 'Zapisaną'} dyspozycyjność ${block.startTime}-${block.endTime}, edytuj`} onClick={() => onOpenAvailability(selectedKey, block.id)}><div><strong>{block.status === 'PROPOSED' ? 'Proponowana dyspozycyjność' : block.origin === 'MANUAL' ? 'Twoja dyspozycyjność' : 'Dyspozycyjność'}</strong><span>{block.startTime}-{block.endTime}</span></div>{block.validationState === 'CONFLICT' ? <small>{block.validationMessage ?? 'Wymaga poprawy'}</small> : block.planStatus === 'STALE' ? <small>Wymaga ponownego sprawdzenia</small> : null}</button>)}</div> : null}{!selectedEvents.length && !selectedAvailability.length && !selectedIncompleteStudyEntries.length ? <EmptyState title="Brak wydarzeń" description="Ten dzień jest jeszcze pusty." actionLabel="Dodaj tutaj" onAction={() => onAdd(selectedDate)} /> : null}</>}
         </aside>
       </div>
 

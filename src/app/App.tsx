@@ -5,6 +5,7 @@ import { Modal } from '../ui/Modal';
 import { AppBackgroundDecor } from '../ui/AppBackgroundDecor';
 import { FloralAccent } from '../ui/FloralAccent';
 import { AppIcon } from '../ui/AppIcon';
+import { AppSplash } from '../ui/AppSplash';
 import { GlobalSearch } from '../search/GlobalSearch';
 import { TodayView } from '../calendar/TodayView';
 import { CalendarView } from '../calendar/CalendarView';
@@ -24,6 +25,8 @@ import type { AppSettings, AppSettingsPatch } from '../settings/settings.types';
 import type { DayConstraint } from '../safety/safety.types';
 import type { CalendarConsistencyIssue, DayAttribute } from '../planning/planning.types';
 import type { AvailabilityPlan } from '../availability/availability.types';
+import type { UniversityImportEntry, UniversityScheduleImport } from '../study/study.types';
+import { groupSetsIntersect } from '../imports/xlsx/group-normalizer';
 import { refreshAllAvailabilityPlanStatuses } from '../availability/availability.service';
 import { DayAvailabilityEditor } from '../availability/DayAvailabilityEditor';
 import { StudySeriesTimingCorrection } from '../planning/StudySeriesTimingCorrection';
@@ -35,6 +38,8 @@ import {
   deleteManualEventSeries,
   deleteLocation,
   getSettings,
+  getActiveUniversityImport,
+  listUniversityImportEntries,
   initializeDatabase,
   listEvents,
   listLocations,
@@ -72,6 +77,7 @@ interface ToastState {
 
 export function App() {
   const [loading, setLoading] = useState(true);
+  const [splashVisible, setSplashVisible] = useState(true);
   const [fatalError, setFatalError] = useState('');
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
@@ -80,6 +86,8 @@ export function App() {
   const [dayAttributes, setDayAttributes] = useState<DayAttribute[]>([]);
   const [consistencyIssues, setConsistencyIssues] = useState<CalendarConsistencyIssue[]>([]);
   const [availabilityPlans, setAvailabilityPlans] = useState<AvailabilityPlan[]>([]);
+  const [activeStudyGroups, setActiveStudyGroups] = useState<string[]>([]);
+  const [incompleteStudyEntries, setIncompleteStudyEntries] = useState<UniversityImportEntry[]>([]);
   const [coworkersByEvent, setCoworkersByEvent] = useState<Record<string, CoworkerOverlap[]>>({});
   const [view, setView] = useState<AppView>('today');
   const [eventEditor, setEventEditor] = useState<EventEditorState | null>(null);
@@ -108,10 +116,20 @@ export function App() {
     return Object.fromEntries(pairs) as Record<string, CoworkerOverlap[]>;
   }
 
+  async function loadIncompleteStudyEntries(activeImport: UniversityScheduleImport | undefined): Promise<UniversityImportEntry[]> {
+    if (!activeImport) return [];
+    const entries = await listUniversityImportEntries(activeImport.id);
+    return entries.filter((entry) => {
+      if (!entry.sourceOnly) return false;
+      if (entry.groupScope === 'SPECIFIC' && !groupSetsIntersect(entry.groupTags, activeImport.selectedGroups)) return false;
+      return !entry.date || !entry.startTime || !entry.endTime;
+    });
+  }
+
   async function bootstrap() {
     try {
       await initializeDatabase();
-      const [loadedEvents, loadedLocations, loadedSettings, loadedConstraints, loadedAttributes, loadedIssues, loadedAvailability] = await Promise.all([
+      const [loadedEvents, loadedLocations, loadedSettings, loadedConstraints, loadedAttributes, loadedIssues, loadedAvailability, activeStudyImport] = await Promise.all([
         listEvents(),
         listLocations(),
         getSettings(),
@@ -119,6 +137,7 @@ export function App() {
         listDayAttributes(),
         listCalendarConsistencyIssues(),
         refreshAllAvailabilityPlanStatuses(),
+        getActiveUniversityImport(),
       ]);
       setEvents(loadedEvents);
       setLocations(loadedLocations);
@@ -127,6 +146,8 @@ export function App() {
       setDayAttributes(loadedAttributes);
       setConsistencyIssues(loadedIssues);
       setAvailabilityPlans(loadedAvailability);
+      setActiveStudyGroups(activeStudyImport?.selectedGroups ?? []);
+      setIncompleteStudyEntries(await loadIncompleteStudyEntries(activeStudyImport));
       setCoworkersByEvent(await loadCoworkerMap(loadedEvents));
       setView(loadedSettings.preferredStartView);
     } catch (error) {
@@ -160,7 +181,7 @@ export function App() {
   }
 
   async function refreshAllData() {
-    const [loadedEvents, loadedLocations, loadedSettings, loadedConstraints, loadedAttributes, loadedIssues, loadedAvailability] = await Promise.all([listEvents(), listLocations(), getSettings(), listDayConstraints(), listDayAttributes(), listCalendarConsistencyIssues(), refreshAllAvailabilityPlanStatuses()]);
+    const [loadedEvents, loadedLocations, loadedSettings, loadedConstraints, loadedAttributes, loadedIssues, loadedAvailability, activeStudyImport] = await Promise.all([listEvents(), listLocations(), getSettings(), listDayConstraints(), listDayAttributes(), listCalendarConsistencyIssues(), refreshAllAvailabilityPlanStatuses(), getActiveUniversityImport()]);
     setEvents(loadedEvents);
     setLocations(loadedLocations);
     setSettings(loadedSettings);
@@ -168,6 +189,8 @@ export function App() {
     setDayAttributes(loadedAttributes);
     setConsistencyIssues(loadedIssues);
     setAvailabilityPlans(loadedAvailability);
+    setActiveStudyGroups(activeStudyImport?.selectedGroups ?? []);
+    setIncompleteStudyEntries(await loadIncompleteStudyEntries(activeStudyImport));
     setCoworkersByEvent(await loadCoworkerMap(loadedEvents));
   }
 
@@ -282,22 +305,7 @@ export function App() {
     if (!locationEditor?.location) return;
     const removedId = locationEditor.location.id;
     await deleteLocation(removedId);
-    const affected = events.filter((event) => event.locationId === removedId);
-    if (affected.length) {
-      for (const event of affected) {
-        const draft: EventDraft = {
-          title: event.title,
-          startDateTime: event.startDateTime,
-          endDateTime: event.endDateTime,
-          allDay: event.allDay,
-          spanType: event.spanType,
-          category: event.category,
-          ...(event.description ? { description: event.description } : {}),
-        };
-        await updateEvent(event.id, draft);
-      }
-      await refreshEvents();
-    }
+    await refreshEvents();
     await refreshLocationsAndSettings();
     setLocationEditor(null);
     setToast({ message: 'Usunięto miejsce.' });
@@ -309,16 +317,8 @@ export function App() {
     setToast({ message: 'Ustawienia zapisane lokalnie.' });
   }
 
-  if (loading) {
-    return (
-      <main className="startup-screen">
-        <div className="startup-card">
-          <div className="startup-mark">IK</div>
-          <h1>Inteligentny Kalendarz</h1>
-          <p>Uruchamiam lokalną bazę danych...</p>
-        </div>
-      </main>
-    );
+  if (splashVisible) {
+    return <AppSplash ready={!loading} onComplete={() => setSplashVisible(false)} />;
   }
 
   if (fatalError || !settings) {
@@ -350,7 +350,7 @@ export function App() {
           <TodayView events={events} locations={locations} timeFormat={settings.timeFormat} consistencyIssues={consistencyIssues} onOpenConsistencyCenter={openConsistencyCenter} onAdd={(date) => setEventEditor(date ? { initialDate: date } : {})} onEdit={(event) => { void openEventEditor(event); }} onStudyCorrect={setStudyCorrectionEvent} availabilityPlans={availabilityPlans} coworkersByEvent={coworkersByEvent} />
         ) : null}
         {view === 'calendar' ? (
-          <CalendarView events={events} locations={locations} timeFormat={settings.timeFormat} dayConstraints={dayConstraints} dayAttributes={dayAttributes} consistencyIssues={consistencyIssues} onToggleWorkAvailabilityExclusion={toggleWorkAvailabilityExclusion} onToggleTradingSunday={toggleTradingSunday} onAcknowledgeConsistency={acknowledgeIssue} onStudySeriesCorrect={setStudySeriesTimingEvent} onAdd={(date) => setEventEditor(date ? { initialDate: date } : {})} onAddMany={(dates) => setEventEditor({ initialDates: dates })} onEdit={(event) => { void openEventEditor(event); }} onStudyCorrect={setStudyCorrectionEvent} availabilityPlans={availabilityPlans} coworkersByEvent={coworkersByEvent} onOpenAvailability={(date, blockId) => setAvailabilityEditor({ date, ...(blockId ? { blockId } : {}) })} />
+          <CalendarView events={events} locations={locations} timeFormat={settings.timeFormat} dayConstraints={dayConstraints} dayAttributes={dayAttributes} consistencyIssues={consistencyIssues} activeStudyGroups={activeStudyGroups} incompleteStudyEntries={incompleteStudyEntries} onToggleWorkAvailabilityExclusion={toggleWorkAvailabilityExclusion} onToggleTradingSunday={toggleTradingSunday} onAcknowledgeConsistency={acknowledgeIssue} onStudySeriesCorrect={setStudySeriesTimingEvent} onAdd={(date) => setEventEditor(date ? { initialDate: date } : {})} onAddMany={(dates) => setEventEditor({ initialDates: dates })} onEdit={(event) => { void openEventEditor(event); }} onStudyCorrect={setStudyCorrectionEvent} availabilityPlans={availabilityPlans} coworkersByEvent={coworkersByEvent} onOpenAvailability={(date, blockId) => setAvailabilityEditor({ date, ...(blockId ? { blockId } : {}) })} />
         ) : null}
         {view === 'study' ? (
           <StudyView onDataChanged={refreshAllData} />

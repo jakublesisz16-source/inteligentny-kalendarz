@@ -1,3 +1,71 @@
+## 1.1.0 - stabilne wydanie przygotowane do publikacji
+
+- zamrożono zweryfikowany funkcjonalnie stan `1.1.0-rc.11` bez dodawania nowych funkcji i bez zmian schematu bazy,
+- Studia zachowują bramkę kompletności bloków, bilans godzin, obsługę wpisów źródłowo niepełnych i bezpieczne aktualizacje planu bez zgadywania danych,
+- miesięczny Kalendarz pozostaje kompaktowy, a aktywne grupy są jednoznacznie opisane wielkością,
+- Service Worker otrzymuje finalny cache `v1.1.0`; prywatne PDF/XLS/XLSX/JSON nadal nie są cache'owane,
+- `DATABASE_SCHEMA_VERSION` pozostaje `13`; wydanie nie wymaga migracji danych względem ostatniego RC.
+- finalna ikona PWA zastępuje tymczasowy znak aplikacji w faviconie, ikonach 192/512 i Apple Touch,
+- import PDF grafiku Pracy odrzuca pliki większe niż 32 MB przed pełnym odczytem i weryfikuje sygnaturę `%PDF-`,
+- produkcyjne sourcemapy są wyłączone, a release gate skanuje paczkę pod kątem sekretów, prywatnych plików i artefaktów developerskich.
+
+## 1.1.0-rc.11 - finalizacja czytelności i kompletności Studiów
+
+- przywrócono kompaktowe liczniki w miesięcznym Kalendarzu; pełne dane pozostają w panelu dnia, a desktop może pokazać szczegóły pomocniczo bez zagęszczania siatki,
+- równobrzmiące grupy są rozróżniane wielkością, np. `10A · 12-os.` i `10A · 8-os.`,
+- tygodniowe wpisy bez jednoznacznego dnia/godziny pozostają jawnie `NIEPEŁNE` zamiast udawać normalne wydarzenia,
+- rozszerzono regresje aktualizacji planu oraz ścieżki źródło -> parser -> baza -> kalendarz; schema 13 pozostaje bez zmian.
+
+## 1.1.0-rc.9 - bramka kompletności planów Studiów
+
+- parser rejestruje źródłowe bloki tygodniowe niezależnie od wygenerowanych wydarzeń i sprawdza semantykę `pon.-pt.` oraz wyjątków,
+- deklaracje godzin dydaktycznych w jednoznacznych sekcjach praktycznych są porównywane z faktycznie odtworzonym harmonogramem; niedobór bez braku danych źródłowych i nadmiar blokują import,
+- brak pełnego dnia lub godzin w samym Excelu pozostaje jawnie `NIEPEŁNE` i nie jest uzupełniany przez zgadywanie,
+- tygodniowe przypisania bez dokładnego dnia/godziny są zachowane jako dane źródłowe i widoczne w Kalendarzu jako niepotwierdzone wpisy, a nie fikcyjne wydarzenia,
+- importer zatrzymuje plik, jeżeli w rozpoznanym tygodniu pozostaje nierozpoznane przypisanie grupowe albo wiersz zawiera wiele grup bez rozpoznanego zakresu tygodnia,
+- schema bazy pozostaje 13; metadane kompletności są przechowywane w istniejących rekordach źródłowych bez nowego store/indeksu.
+
+## 1.1.0-rc.8 - czytelny kontekst aktywnych grup Studiów
+
+- Kalendarz pokazuje nad siatką grupy aktywnego planu Studiów, więc od razu wiadomo, dla kogo wyświetlane są wydarzenia.
+- Grupy na karcie aktywnego importu są prezentowane jako osobne, czytelne znaczniki zamiast zwartego tekstu.
+- Ustawienia Studiów rozróżniają grupy aktywnego planu od grup zapisanych wyłącznie dla kolejnych importów.
+- Zmiana dotyczy tylko prezentacji i nie zmienia doboru grup, wydarzeń ani schematu bazy.
+
+## 1.1.0-rc.7 - mniej wymaganych kliknięć przy informacyjnych ostrzeżeniach Studiów
+
+- konflikty godzin pozostają wyraźnie widoczne, ale nie wymagają osobnego checkboxa przed przejściem dalej,
+- kliknięcie głównej akcji importu/aktualizacji jest wystarczającą decyzją użytkownika po wyświetleniu konfliktów,
+- analogicznie uproszczono zmianę grup; niepełne wpisy i konflikty są informacją, a nie dodatkowym formularzem zgody,
+- backendowe bramki konfliktów pozostają aktywne - UI przekazuje zgodę dopiero wraz z kliknięciem właściwej akcji zapisu,
+- nie zmieniono schematu bazy, parsera źródłowego planu ani zasad fail-closed dla uszkodzonego Excela.
+
+## 1.1.0-rc.6 - czytelność podglądu Studiów
+
+- poprawiono układ decyzji o konfliktach godzin: checkbox z opisem ma teraz pełną szerokość i nie łamie tekstu pionowo,
+- konflikty są prezentowane jako osobne, uporządkowane wiersze z datą i obiema kolidującymi pozycjami, z responsywnym układem mobilnym,
+- nieprzeznaczone do importu karty nie są już przygaszane globalną przezroczystością, dzięki czemu pozostają czytelne do wglądu,
+- zwiększono czytelność metadanych, statusów, źródła i komunikatów braków oraz wzmocniono widoczność przycisku ręcznego uzupełnienia,
+- te same zasady zastosowano do zmiany grup i porównania aktualizacji planu; logika importu, schema 13 i fail-closed pozostają bez zmian.
+
+## 1.1.0-dev.2 - analityka, kompaktowy dashboard i branding
+
+- dodano szczegółowe lokalne statystyki wydatków: metryki miesiąca, porównanie z poprzednim miesiącem, trend sześciu miesięcy oraz agregacje kategorii, sklepów i produktów,
+- statystyki pozostają derived data liczone z `receipts` i `expenseCategories`; `DATABASE_SCHEMA_VERSION` pozostaje `13`, bez migracji i nowych store,
+- FIX1 porządkuje hierarchię Wydatków: `+ Paragon` jest wysoko, podstawowe metryki są zwarte, a dłuższe listy domyślnie pokazują najważniejsze pozycje i rozwijają się na żądanie,
+- FIX2 zastępuje stary znak `IK` jednym minimalistycznym znakiem kalendarza używanym przez favicon, PWA/Apple icons i startup splash,
+- startup splash jest powiązany z rzeczywistym bootstrapem, ma krótki minimalny czas tylko przy szybkim starcie, obsługuje reduced motion oraz bezpieczny skip bez omijania gotowości aplikacji,
+- Service Worker otrzymuje nowy identyfikator shell cache dla odświeżenia tych samych nazw assetów; IndexedDB i dane użytkownika nie są czyszczone,
+- brak OCR, zdjęć paragonów, AI, backendu, telemetry, nowych requestów sieciowych i nowych zależności.
+
+## 1.1.0-dev.1 - fundament Paragonów i Wydatków
+
+- `DATABASE_SCHEMA_VERSION` rośnie z 12 do 13 przez dwa addytywne store'y: `expenseCategories` i `receipts`; istniejące dane nie są przepisywane ani usuwane.
+- Zakupy otrzymują wewnętrzne widoki `Lista` i `Wydatki`; dotychczasowa lista zakupów pozostaje domyślna i zachowuje dotychczasowe zachowanie.
+- Dodano ręczne paragony, lokalne kategorie, historię oraz miesięczne sumy; kwoty są zapisywane jako całkowite grosze zamiast liczb zmiennoprzecinkowych.
+- Backup/Restore/Data Transfer obejmuje paragony i kategorie; kompatybilne backupy schema 7-12 pozostają obsługiwane.
+- Brak OCR, zdjęć, AI, backendu, telemetrii i nowych requestów sieciowych.
+
 ## 1.0.1 - ergonomia nawigacji i czytelniejszy zespół pracy
 
 - uporządkowano nawigację na `Dziś | Kalendarz | Praca | Zakupy | Cykl | Studia | Miejsca | Ustawienia`, bez ukrywania zakładek i bez zmiany routingu,
