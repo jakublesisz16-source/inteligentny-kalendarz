@@ -39,7 +39,7 @@ describe('1.1.0-dev.2 GitHub-only architecture invariants', () => {
     expect(serviceWorker).not.toContain('indexedDB');
     expect(serviceWorker).toContain("'.pdf', '.xlsx', '.xls', '.json'");
     expect(serviceWorker).toContain("const CACHE_PREFIX = 'inteligentny-kalendarz-shell-'");
-    expect(serviceWorker).toContain("const CACHE_NAME = `${CACHE_PREFIX}v1.1.1`");
+    expect(serviceWorker).toContain("const CACHE_NAME = `${CACHE_PREFIX}v1.1.2`");
   });
 
   it('retains the pure reminder planner as a future Android-local integration seam', () => {

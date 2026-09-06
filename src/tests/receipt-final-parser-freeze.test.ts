@@ -33,9 +33,9 @@ describe('DEV4-B-FIX2-GATE1-BLOCKER1 reviewed receipt parser checkpoint', () => 
     expect(createHash('sha256').update(bytes).digest('hex')).toBe(DEV4_B_FIX2_GATE1_BLOCKER1_EXPECTED);
   });
 
-  it('keeps the reviewed receipt parser while app metadata advances to 1.1.1 with schema 13', () => {
+  it('keeps the reviewed receipt parser while app metadata advances to 1.1.2 with schema 13', () => {
     const version = readFileSync(new URL('../core/version.ts', import.meta.url), 'utf8');
-    expect(version).toMatch(/^export const APP_VERSION = '1\.1\.1';$/mu);
+    expect(version).toMatch(/^export const APP_VERSION = '1\.1\.2';$/mu);
     expect(version).toMatch(/^export const DATABASE_SCHEMA_VERSION = 13;$/mu);
   });
 });

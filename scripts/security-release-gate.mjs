@@ -56,6 +56,25 @@ for (const file of files) {
   }
 }
 
+
+const packageJson = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));
+const packageLock = JSON.parse(readFileSync(join(root, 'package-lock.json'), 'utf8'));
+if (packageJson.overrides?.exceljs?.uuid !== '11.1.1') fail('ExcelJS uuid security override must remain pinned to 11.1.1');
+const lockPackages = packageLock.packages ?? {};
+const excelJsLock = lockPackages['node_modules/exceljs'];
+const uuidLockEntries = Object.entries(lockPackages).filter(([path]) => path === 'node_modules/uuid' || path.endsWith('/node_modules/uuid'));
+if (excelJsLock?.version !== '4.4.0') fail(`validated ExcelJS dependency drifted from 4.4.0 (got ${excelJsLock?.version ?? 'missing'})`);
+if (uuidLockEntries.length !== 1 || uuidLockEntries[0]?.[1]?.version !== '11.1.1') {
+  fail(`validated UUID override resolution drifted (entries=${uuidLockEntries.length}, version=${uuidLockEntries[0]?.[1]?.version ?? 'missing'})`);
+}
+
+const xlsxReader = readFileSync(join(root, 'src/imports/xlsx/xlsx-reader.ts'), 'utf8');
+const xlsxSafety = readFileSync(join(root, 'src/imports/xlsx/xlsx-archive-safety.ts'), 'utf8');
+if (!xlsxReader.includes('await validateXlsxArchiveSafety(file);')) fail('XLSX archive safety preflight is not enforced before ExcelJS load');
+for (const requiredToken of ['MAX_XLSX_ARCHIVE_BYTES', 'MAX_XLSX_ENTRY_UNCOMPRESSED_BYTES', 'MAX_XLSX_TOTAL_UNCOMPRESSED_BYTES', 'MAX_XLSX_COMPRESSION_RATIO', 'REQUIRED_XLSX_ENTRIES']) {
+  if (!xlsxSafety.includes(requiredToken)) fail(`XLSX archive safety guard is missing ${requiredToken}`);
+}
+
 const viteConfig = readFileSync(join(root, 'vite.config.ts'), 'utf8');
 if (!viteConfig.includes('sourcemap: false')) fail('production sourcemaps are not explicitly disabled in vite.config.ts');
 

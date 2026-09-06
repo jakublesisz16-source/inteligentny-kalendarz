@@ -144,7 +144,7 @@ describe('1.1.0-dev.3 FIX1G preprocessing contract', () => {
   it('updates only the shell revision while retaining mandatory local OCR runtime', () => {
     const worker = source('../../public/service-worker.js');
     expect(worker).toContain("const CACHE_PREFIX = 'inteligentny-kalendarz-shell-'");
-    expect(worker).toContain("const CACHE_NAME = `${CACHE_PREFIX}v1.1.1`");
+    expect(worker).toContain("const CACHE_NAME = `${CACHE_PREFIX}v1.1.2`");
     expect(worker).toContain('MANDATORY_OCR_ASSET_PATHS');
     expect(worker).toContain("'ocr/tesseract/tesseract.min.js'");
     expect(worker).toContain("'ocr/tesseract/worker.min.js'");
