@@ -1,3 +1,11 @@
+## 1.1.2 - bezpieczeństwo XLSX i zależności
+
+- dodano fail-closed preflight struktury ZIP/OOXML przed `ExcelJS.load()`, aby ograniczyć ryzyko złośliwych lub skrajnie skompresowanych plików `.xlsx`,
+- zachowano `exceljs@4.4.0`, a jego zależność `uuid` przypięto do zweryfikowanego `11.1.1`,
+- release gate pilnuje dokładnej rezolucji zależności i zabezpieczenia XLSX,
+- Service Worker otrzymuje cache `v1.1.2`,
+- `DATABASE_SCHEMA_VERSION` pozostaje `13`; wydanie nie migruje danych użytkownika.
+
 ## 1.1.1 - spójny branding PWA
 
 - zastąpiono tekstowy znak `IK` w lewym górnym brandingu tym samym symbolem kalendarza, który jest używany na splash screenie,

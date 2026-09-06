@@ -57,10 +57,10 @@ describe('1.1.0-dev.2 FIX2 brand and startup splash contract', () => {
     expect(manifest).toContain('"theme_color": "#f5f3ef"');
   });
 
-  it('refreshes the offline shell cache for the 1.1.1 branding patch', () => {
+  it('refreshes the offline shell cache for the 1.1.2 security patch', () => {
     const worker = source('../../public/service-worker.js');
     expect(worker).toContain("const CACHE_PREFIX = 'inteligentny-kalendarz-shell-'");
-    expect(worker).toContain("const CACHE_NAME = `${CACHE_PREFIX}v1.1.1`");
+    expect(worker).toContain("const CACHE_NAME = `${CACHE_PREFIX}v1.1.2`");
     expect(worker).toContain('MANDATORY_SHELL_ASSET_PATHS');
     expect(worker).toContain("'favicon.svg'");
     expect(worker).toContain("'icon-192-v111.png'");
@@ -123,7 +123,7 @@ describe('1.1.0-dev.2 FIX2 brand and startup splash contract', () => {
     expect(splash).not.toContain('indexedDB');
     expect(packageJson).not.toContain('lottie');
     expect(packageJson).not.toContain('framer-motion');
-    expect(version).toContain("APP_VERSION = '1.1.1'");
+    expect(version).toContain("APP_VERSION = '1.1.2'");
     expect(version).toContain('DATABASE_SCHEMA_VERSION = 13');
   });
 });

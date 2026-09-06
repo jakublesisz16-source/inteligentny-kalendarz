@@ -4,7 +4,7 @@ import vm from 'node:vm';
 
 const SOURCE = await fs.readFile(new URL('../public/service-worker.js', import.meta.url), 'utf8');
 const SCOPE = 'https://calendar.test/app/';
-const CURRENT_CACHE = 'inteligentny-kalendarz-shell-v1.1.1';
+const CURRENT_CACHE = 'inteligentny-kalendarz-shell-v1.1.2';
 
 function requestKey(input) {
   if (typeof input === 'string') return input;

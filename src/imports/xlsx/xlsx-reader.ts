@@ -1,5 +1,6 @@
 import ExcelJS, { type Worksheet } from 'exceljs';
 import type { SheetCellSnapshot, SheetMergeSnapshot, SheetSnapshot, WorkbookSnapshot } from './xlsx.types';
+import { validateXlsxArchiveSafety } from './xlsx-archive-safety';
 
 function columnName(col: number): string {
   let value = col;
@@ -151,6 +152,7 @@ function sheetSnapshot(worksheet: Worksheet, date1904: boolean): SheetSnapshot {
 }
 
 export async function readXlsxFile(file: File): Promise<WorkbookSnapshot> {
+  await validateXlsxArchiveSafety(file);
   const buffer = await file.arrayBuffer();
   const workbook = new ExcelJS.Workbook();
   const loadInput = buffer as unknown as Parameters<typeof workbook.xlsx.load>[0];
