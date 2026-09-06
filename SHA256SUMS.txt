@@ -224,7 +224,7 @@ e620a06bfcc543ab672ce5de723dd1dfa8bdde92c2a20662af4e8fcd1bacff42  src/tests/navi
 ca1e2e7a65444e4931119f3bbafa8151c0d9d52595d612c3c0dcaa6942cead48  src/tests/nursing-week-matrix-adapter.test.ts
 2a984ee84ddbc4fe6e686c3d13ebb972cc6a54869106ac05a75de536d780f9ed  src/tests/planning-consistency.test.ts
 8731cee9dd6dc0035d5f293fae43bce12e2ad1f68d602329016b3eb6fff27ad3  src/tests/receipt-final-offline-static.test.ts
-f88b9cac556b57455358f9656208b1a7d11f72622ea2b04d416faa305a467bb6  src/tests/receipt-final-parser-freeze.test.ts
+5470cba30840edd458aafb35d9b3e28c025cda62bbf5561b905272a10bbcb64b  src/tests/receipt-final-parser-freeze.test.ts
 23af2db7e3d1d5a5d30539f32e6a01961d339bfe93168e0d2b3b698700ccceaf  src/tests/receipt-final-production-diagnostics.test.ts
 dff1a13c2b150d53e328787e96cada28eebf8c511a354313883a4e71c58005c5  src/tests/receipt-final-save-guard.test.ts
 fc19395d833ce07c9370408391b8b77dbee411fa4d2503b9e081dda2c69edde4  src/tests/receipt-final-save-persistence.test.ts
