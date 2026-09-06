@@ -1,3 +1,11 @@
+## 1.1.1 - spójny branding PWA
+
+- zastąpiono tekstowy znak `IK` w lewym górnym brandingu tym samym symbolem kalendarza, który jest używany na splash screenie,
+- launcher PWA otrzymuje nowy zestaw ikon 192/512 i Apple Touch oparty na ciemnym kalendarzu z różową kropką,
+- pliki ikon mają nowe wersjonowane adresy, a Service Worker używa cache `v1.1.1`, aby ograniczyć ryzyko zachowania starej ikony przez cache,
+- zachowano poprawione publiczne workflowy CI/Pages z 1.1.0; prywatne benchmark fixtures nadal nie są publikowane,
+- `DATABASE_SCHEMA_VERSION` pozostaje `13`; patch nie migruje ani nie zmienia danych użytkownika.
+
 ## 1.1.0 - stabilne wydanie przygotowane do publikacji
 
 - zamrożono zweryfikowany funkcjonalnie stan `1.1.0-rc.11` bez dodawania nowych funkcji i bez zmian schematu bazy,

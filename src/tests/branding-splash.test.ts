@@ -21,6 +21,15 @@ describe('1.1.0-dev.2 FIX2 brand and startup splash contract', () => {
     expect(mark).toContain('#cf789b');
   });
 
+  it('reuses the splash calendar mark in the sidebar instead of the IK text tile', () => {
+    const navigation = source('../ui/Navigation.tsx');
+    const layout = source('../styles/layout.css');
+    expect(navigation).toContain("import { AppBrandMark } from './AppBrandMark';");
+    expect(navigation).toContain('<AppBrandMark className="brand-mark" size={42} />');
+    expect(navigation).not.toContain('>IK</div>');
+    expect(layout).toContain('.brand-mark { width: 42px; height: 42px; display: block;');
+  });
+
   it('renders the splash brand mark transparently without the launcher tile background', () => {
     const mark = source('../ui/AppBrandMark.tsx');
     const splash = source('../ui/AppSplash.tsx');
@@ -31,32 +40,32 @@ describe('1.1.0-dev.2 FIX2 brand and startup splash contract', () => {
   });
 
   it('ships correctly sized PWA and Apple icon assets', () => {
-    expect(existsSync(new URL('../../public/icon-192.png', import.meta.url))).toBe(true);
-    expect(existsSync(new URL('../../public/icon-512.png', import.meta.url))).toBe(true);
-    expect(existsSync(new URL('../../public/apple-touch-icon.png', import.meta.url))).toBe(true);
-    expect(pngSize('../../public/icon-192.png')).toEqual({ width: 192, height: 192 });
-    expect(pngSize('../../public/icon-512.png')).toEqual({ width: 512, height: 512 });
-    expect(pngSize('../../public/apple-touch-icon.png')).toEqual({ width: 180, height: 180 });
+    expect(existsSync(new URL('../../public/icon-192-v111.png', import.meta.url))).toBe(true);
+    expect(existsSync(new URL('../../public/icon-512-v111.png', import.meta.url))).toBe(true);
+    expect(existsSync(new URL('../../public/apple-touch-icon-v111.png', import.meta.url))).toBe(true);
+    expect(pngSize('../../public/icon-192-v111.png')).toEqual({ width: 192, height: 192 });
+    expect(pngSize('../../public/icon-512-v111.png')).toEqual({ width: 512, height: 512 });
+    expect(pngSize('../../public/apple-touch-icon-v111.png')).toEqual({ width: 180, height: 180 });
   });
 
   it('keeps the manifest wired to local any-maskable assets', () => {
     const manifest = source('../../public/manifest.webmanifest');
-    expect(manifest).toContain('./icon-192.png');
-    expect(manifest).toContain('./icon-512.png');
+    expect(manifest).toContain('./icon-192-v111.png');
+    expect(manifest).toContain('./icon-512-v111.png');
     expect(manifest).toContain('"purpose": "any maskable"');
     expect(manifest).toContain('"background_color": "#f5f3ef"');
     expect(manifest).toContain('"theme_color": "#f5f3ef"');
   });
 
-  it('refreshes the offline shell cache while keeping the same application version', () => {
+  it('refreshes the offline shell cache for the 1.1.1 branding patch', () => {
     const worker = source('../../public/service-worker.js');
     expect(worker).toContain("const CACHE_PREFIX = 'inteligentny-kalendarz-shell-'");
-    expect(worker).toContain("const CACHE_NAME = `${CACHE_PREFIX}v1.1.0`");
+    expect(worker).toContain("const CACHE_NAME = `${CACHE_PREFIX}v1.1.1`");
     expect(worker).toContain('MANDATORY_SHELL_ASSET_PATHS');
     expect(worker).toContain("'favicon.svg'");
-    expect(worker).toContain("'icon-192.png'");
-    expect(worker).toContain("'icon-512.png'");
-    expect(worker).toContain("'apple-touch-icon.png'");
+    expect(worker).toContain("'icon-192-v111.png'");
+    expect(worker).toContain("'icon-512-v111.png'");
+    expect(worker).toContain("'apple-touch-icon-v111.png'");
   });
 
   it('replaces the old technical loading copy with a bootstrap-linked AppSplash', () => {
@@ -114,7 +123,7 @@ describe('1.1.0-dev.2 FIX2 brand and startup splash contract', () => {
     expect(splash).not.toContain('indexedDB');
     expect(packageJson).not.toContain('lottie');
     expect(packageJson).not.toContain('framer-motion');
-    expect(version).toContain("APP_VERSION = '1.1.0'");
+    expect(version).toContain("APP_VERSION = '1.1.1'");
     expect(version).toContain('DATABASE_SCHEMA_VERSION = 13');
   });
 });

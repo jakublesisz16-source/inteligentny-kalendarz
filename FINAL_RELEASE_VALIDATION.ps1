@@ -166,7 +166,7 @@ try {
   Write-Host "`n=== DIST SANITY ===" -ForegroundColor Cyan
   foreach ($Required in @(
     ".\dist\index.html", ".\dist\service-worker.js", ".\dist\manifest.webmanifest",
-    ".\dist\icon-192.png", ".\dist\icon-512.png", ".\dist\apple-touch-icon.png"
+    ".\dist\icon-192-v111.png", ".\dist\icon-512-v111.png", ".\dist\apple-touch-icon-v111.png"
   )) {
     if (-not (Test-Path -LiteralPath $Required -PathType Leaf)) { Fail "Required production file missing: $Required" }
   }

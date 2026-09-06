@@ -4,16 +4,16 @@ Local-first PWA do planowania dnia, kalendarza, Studiów, Pracy, Zakupów, Cyklu
 
 ## Status
 
-- APP_VERSION: `1.1.0`
+- APP_VERSION: `1.1.1`
 - DATABASE_SCHEMA_VERSION: `13`
 - `pdfjs-dist`: `6.2.108`
 - architektura produkcyjna: GitHub-only, bez backendu i bez Web Push
-- bieżące stabilne wydanie: `1.1.0`
-- `1.1.0` zamraża zweryfikowany stan RC11 oraz końcowy hardening bezpieczeństwa przed publikacją
+- bieżące stabilne wydanie: `1.1.1`
+- `1.1.1` to mały patch brandingowy na bazie zweryfikowanego 1.1.0
 - schema bazy pozostaje `13`; aktualizacja z ostatniego RC nie wymaga dodatkowej migracji
-- wydanie obejmuje nową ikonę PWA, bramkę kompletności Studiów, bezpieczne aktualizacje planu, twardszą walidację plików PDF i publiczne bramki bezpieczeństwa
+- wydanie 1.1.1 ujednolica znak aplikacji: splash, lewy górny branding i ikona PWA używają tego samego kalendarza z różową kropką; funkcje i schema bazy pozostają bez zmian
 
-Wydanie `1.1.0` jest przygotowane jako statyczna aplikacja GitHub Pages. Dane użytkownika pozostają lokalne, a prywatne pliki źródłowe nie są częścią repozytorium publicznego.
+Wydanie `1.1.1` jest przygotowane jako statyczna aplikacja GitHub Pages. Dane użytkownika pozostają lokalne, a prywatne pliki źródłowe nie są częścią repozytorium publicznego.
 
 ## Uruchomienie lokalne
 

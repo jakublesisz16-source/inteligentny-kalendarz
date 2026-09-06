@@ -46,7 +46,7 @@ if (!existsSync(swPath)) fail('service-worker.js missing from production dist.')
 else {
   const sw = readFileSync(swPath, 'utf8');
   if (!sw.includes("const CACHE_PREFIX = 'inteligentny-kalendarz-shell-'")) fail('Release Service Worker cache prefix missing.');
-  if (!sw.includes("const CACHE_NAME = `${CACHE_PREFIX}v1.1.0`")) fail('Release Service Worker revision missing.');
+  if (!sw.includes("const CACHE_NAME = `${CACHE_PREFIX}v1.1.1`")) fail('Release Service Worker revision missing.');
   if (!sw.includes('await caches.delete(CACHE_NAME)')) fail('Release Service Worker must clear a partial current-version cache before/after failed install.');
   if (/\bcaches\.match\s*\(/u.test(sw)) fail('Service Worker must not read arbitrary caches from the origin.');
   if (!sw.includes('key.startsWith(CACHE_PREFIX)')) fail('Service Worker must scope old-cache cleanup to Inteligentny Kalendarz caches.');
@@ -58,9 +58,9 @@ else {
 const mandatory = [
   'manifest.webmanifest',
   'favicon.svg',
-  'icon-192.png',
-  'icon-512.png',
-  'apple-touch-icon.png',
+  'icon-192-v111.png',
+  'icon-512-v111.png',
+  'apple-touch-icon-v111.png',
   'ocr/tesseract/tesseract.min.js',
   'ocr/tesseract/worker.min.js',
   'ocr/tesseract/core/tesseract-core-lstm.wasm.js',

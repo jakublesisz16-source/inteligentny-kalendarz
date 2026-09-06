@@ -16,7 +16,7 @@ describe('DEV3-B026 offline and Service Worker data-safety regression', () => {
   it('keeps all OCR runtime assets local and mandatory in the B026 Service Worker', () => {
     const worker = source('../../public/service-worker.js');
     expect(worker).toContain("const CACHE_PREFIX = 'inteligentny-kalendarz-shell-'");
-    expect(worker).toContain("const CACHE_NAME = `${CACHE_PREFIX}v1.1.0`");
+    expect(worker).toContain("const CACHE_NAME = `${CACHE_PREFIX}v1.1.1`");
     for (const path of OCR_PATHS) {
       expect(worker).toContain(`'${path}'`);
       expect(existsSync(new URL(`../../public/${path}`, import.meta.url))).toBe(true);

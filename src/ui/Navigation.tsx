@@ -1,6 +1,7 @@
 import type { AppView } from '../app/app.types';
 import { AppIcon, type AppIconName } from './AppIcon';
 import { FloralAccent } from './FloralAccent';
+import { AppBrandMark } from './AppBrandMark';
 
 interface NavigationProps {
   activeView: AppView;
@@ -31,7 +32,7 @@ export function Navigation({ activeView, onChange }: NavigationProps) {
       <aside className="sidebar" aria-label="Główna nawigacja">
         <div className="brand-block">
           <FloralAccent variant="sprig" className="brand-floral-accent" />
-          <div className="brand-mark" aria-hidden="true">IK</div>
+          <AppBrandMark className="brand-mark" size={42} />
           <div className="brand-copy">
             <strong>Inteligentny</strong>
             <span>Kalendarz</span>

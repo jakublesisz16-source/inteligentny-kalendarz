@@ -1,12 +1,12 @@
 const CACHE_PREFIX = 'inteligentny-kalendarz-shell-';
-const CACHE_NAME = `${CACHE_PREFIX}v1.1.0`;
+const CACHE_NAME = `${CACHE_PREFIX}v1.1.1`;
 
 const MANDATORY_SHELL_ASSET_PATHS = [
   'manifest.webmanifest',
   'favicon.svg',
-  'icon-192.png',
-  'icon-512.png',
-  'apple-touch-icon.png',
+  'icon-192-v111.png',
+  'icon-512-v111.png',
+  'apple-touch-icon-v111.png',
 ];
 
 const PRIVATE_FILE_EXTENSIONS = ['.pdf', '.xlsx', '.xls', '.json'];

@@ -4,7 +4,7 @@ import vm from 'node:vm';
 
 const SOURCE = await fs.readFile(new URL('../public/service-worker.js', import.meta.url), 'utf8');
 const SCOPE = 'https://calendar.test/app/';
-const CURRENT_CACHE = 'inteligentny-kalendarz-shell-v1.1.0';
+const CURRENT_CACHE = 'inteligentny-kalendarz-shell-v1.1.1';
 
 function requestKey(input) {
   if (typeof input === 'string') return input;
@@ -57,9 +57,9 @@ function baseResponses() {
     ['https://calendar.test/app/assets/pdf.worker.min-xyz.mjs', response('export {};', 'text/javascript')],
     ['https://calendar.test/app/manifest.webmanifest', response('{"name":"IK"}', 'application/manifest+json')],
     ['https://calendar.test/app/favicon.svg', response('<svg/>', 'image/svg+xml')],
-    ['https://calendar.test/app/icon-192.png', response('PNG192', 'image/png')],
-    ['https://calendar.test/app/icon-512.png', response('PNG512', 'image/png')],
-    ['https://calendar.test/app/apple-touch-icon.png', response('PNG180', 'image/png')],
+    ['https://calendar.test/app/icon-192-v111.png', response('PNG192', 'image/png')],
+    ['https://calendar.test/app/icon-512-v111.png', response('PNG512', 'image/png')],
+    ['https://calendar.test/app/apple-touch-icon-v111.png', response('PNG180', 'image/png')],
   ]);
   for (const path of [
     'ocr/tesseract/tesseract.min.js',
@@ -149,9 +149,9 @@ function createHarness(overrides = new Map()) {
     'https://calendar.test/app/assets/pdf.worker.min-xyz.mjs',
     'https://calendar.test/app/manifest.webmanifest',
     'https://calendar.test/app/favicon.svg',
-    'https://calendar.test/app/icon-192.png',
-    'https://calendar.test/app/icon-512.png',
-    'https://calendar.test/app/apple-touch-icon.png',
+    'https://calendar.test/app/icon-192-v111.png',
+    'https://calendar.test/app/icon-512-v111.png',
+    'https://calendar.test/app/apple-touch-icon-v111.png',
     'https://calendar.test/app/ocr/tesseract/tesseract.min.js',
     'https://calendar.test/app/ocr/tesseract/lang/pol.traineddata.gz',
   ]) assert.ok(await cache.match(required), `missing required cache entry: ${required}`);

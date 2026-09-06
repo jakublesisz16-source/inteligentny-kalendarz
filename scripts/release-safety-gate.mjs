@@ -34,10 +34,11 @@ const viteConfig = source('vite.config.ts');
 
 
 // RC package identity must be visible in-app and synchronized with build metadata.
-assert(version.includes("APP_VERSION = '1.1.0'"), 'APP_VERSION drifted');
+assert(version.includes("APP_VERSION = '1.1.1'"), 'APP_VERSION drifted');
 assert(!version.includes('APP_BUILD') && !version.includes('APP_STAGE'), 'technical build/stage metadata leaked back into app version module');
 assert(version.includes('DATABASE_SCHEMA_VERSION = 13'), 'database schema changed unexpectedly');
-assert(buildInfo.appVersion === '1.1.0' && buildInfo.channel === 'stable' && buildInfo.date === '2026-09-05', 'BUILD_INFO.json is not synchronized with 1.1.0 metadata');
+assert(buildInfo.appVersion === '1.1.1' && buildInfo.channel === 'stable' && buildInfo.date === '2026-09-06', 'BUILD_INFO.json is not synchronized with 1.1.1 metadata');
+assert(packageJson.version === '1.1.1', 'package.json version drifted');
 assert(packageJson.scripts?.build?.includes('service-worker-gate.mjs') && packageJson.scripts?.build?.includes('release-safety-gate.mjs'), 'future production build does not execute release gates');
 assert(packageJson.scripts?.build?.includes('security-release-gate.mjs'), 'future production build does not execute security release gate');
 assert(packageJson.scripts?.['security:public']?.includes('public-package-gate.mjs'), 'public package security gate script is missing');
@@ -107,13 +108,13 @@ assert(db.includes('return [...restoreSnapshotStoreNames(), STORE_CHANGE_JOURNAL
 
 // Production audit and service worker must agree on the current RC cache contract.
 assert(sw.includes("const CACHE_PREFIX = 'inteligentny-kalendarz-shell-'"), 'current service worker cache prefix missing');
-assert(sw.includes("const CACHE_NAME = `${CACHE_PREFIX}v1.1.0`"), 'current service worker cache version missing');
-assert(audit.includes("const CACHE_NAME = `${CACHE_PREFIX}v1.1.0`"), 'production audit still expects an obsolete service worker revision');
+assert(sw.includes("const CACHE_NAME = `${CACHE_PREFIX}v1.1.1`"), 'current service worker cache version missing');
+assert(audit.includes("const CACHE_NAME = `${CACHE_PREFIX}v1.1.1`"), 'production audit still expects an obsolete service worker revision');
 assert(!/\bcaches\.match\s*\(/u.test(sw), 'service worker can read foreign origin caches');
 assert(sw.includes('key.startsWith(CACHE_PREFIX)'), 'service worker can delete unrelated caches');
 assert(sw.includes('await caches.delete(CACHE_NAME)'), 'partial current cache cleanup missing');
 assert(sw.includes('MANDATORY_SHELL_ASSET_PATHS'), 'mandatory PWA shell asset list missing');
-for (const asset of ['manifest.webmanifest', 'favicon.svg', 'icon-192.png', 'icon-512.png', 'apple-touch-icon.png']) assert(sw.includes(`'${asset}'`), `mandatory PWA asset missing: ${asset}`);
+for (const asset of ['manifest.webmanifest', 'favicon.svg', 'icon-192-v111.png', 'icon-512-v111.png', 'apple-touch-icon-v111.png']) assert(sw.includes(`'${asset}'`), `mandatory PWA asset missing: ${asset}`);
 assert(sw.includes("const PRIVATE_FILE_EXTENSIONS = ['.pdf', '.xlsx', '.xls', '.json'];"), 'private document cache bypass list missing');
 
 const settingsView = source('src/settings/SettingsView.tsx');
