@@ -40,13 +40,15 @@ describe('1.2.0.54 global clarity pass', () => {
     expect(settings).toContain('Backup i przenoszenie');
     expect(settings).toContain('Dane i historia');
     expect(settings).not.toContain('settings-advanced-collapsible');
-    expect(settings).toContain(`Wersja {APP_VERSION}`);
+    expect(settings).toContain('Wersja {APP_RELEASE_VERSION}');
+    expect(settings).toContain('Build {APP_BUILD}');
     expect(css).toContain('/* 1.2.0.54 - global clarity pass');
     expect(responsive).toContain('/* 1.2.0.54 - real-device mobile clarity pass */');
   });
 
   it('keeps the database schema stable', () => {
     expect(version).toContain("APP_VERSION = '1.2.0.112'");
+    expect(version).toContain("APP_BUILD = APP_VERSION.split('.').pop()");
     expect(version).toContain('DATABASE_SCHEMA_VERSION = 14');
   });
 });

@@ -102,6 +102,8 @@ describe('1.0.1 selected calendar day coworkers', () => {
       events: [selectedDayEvent],
       locations: [],
       timeFormat: '24h',
+      showPolishHolidays: false,
+      showWumAcademicCalendar: false,
       dayConstraints: [],
       dayAttributes: [],
       consistencyIssues: [],

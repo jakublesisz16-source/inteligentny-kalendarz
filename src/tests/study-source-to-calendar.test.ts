@@ -92,6 +92,8 @@ describe('Study source -> parser -> IndexedDB -> calendar regression', () => {
         events,
         locations: [],
         timeFormat: '24h',
+      showPolishHolidays: false,
+      showWumAcademicCalendar: false,
         dayConstraints: [],
         dayAttributes: [],
         consistencyIssues: [],

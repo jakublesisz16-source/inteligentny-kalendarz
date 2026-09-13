@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { APP_VERSION, DATABASE_SCHEMA_VERSION } from '../core/version';
+import { APP_BUILD, APP_RELEASE_VERSION, DATABASE_SCHEMA_VERSION } from '../core/version';
 import type { Location } from '../locations/location.types';
 import { SafetyCenter } from '../safety/SafetyCenter';
 import { DataTransferPanel } from '../data-transfer/DataTransferPanel';
@@ -41,8 +41,8 @@ export function SettingsView({ settings, locations, onChange, onDataChanged }: S
             <label className="settings-layer-switch" title="Święta i dni ustawowo wolne w Polsce"><input type="checkbox" checked={settings.showPolishHolidays !== false} onChange={(event) => void onChange({ showPolishHolidays: event.target.checked })} /><span>Święta PL</span></label>
             <label className="settings-layer-switch" title="Oficjalny kalendarz akademicki WUM 2026/2027"><input type="checkbox" checked={settings.showWumAcademicCalendar !== false} onChange={(event) => void onChange({ showWumAcademicCalendar: event.target.checked })} /><span>WUM 26/27</span></label>
           </div>
-          <div className="settings-build-line" aria-label={`Wersja ${APP_VERSION}, schemat bazy ${DATABASE_SCHEMA_VERSION}, tryb lokalny`}>
-            <span>Wersja {APP_VERSION}</span><i aria-hidden="true">·</i><span>Baza {DATABASE_SCHEMA_VERSION}</span><i aria-hidden="true">·</i><span>Lokalnie</span>
+          <div className="settings-build-line" aria-label={`Wersja ${APP_RELEASE_VERSION}, build ${APP_BUILD}, schemat bazy ${DATABASE_SCHEMA_VERSION}, tryb lokalny`}>
+            <span>Wersja {APP_RELEASE_VERSION}</span><i aria-hidden="true">·</i><span>Build {APP_BUILD}</span><i aria-hidden="true">·</i><span>Baza {DATABASE_SCHEMA_VERSION}</span><i aria-hidden="true">·</i><span>Lokalnie</span>
           </div>
           <PwaInstallPanel />
         </section>

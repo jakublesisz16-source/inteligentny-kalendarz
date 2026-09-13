@@ -37,6 +37,8 @@ describe('1.1.0 compact month grid', () => {
       events,
       locations: [],
       timeFormat: '24h',
+      showPolishHolidays: false,
+      showWumAcademicCalendar: false,
       dayConstraints: [],
       dayAttributes: [],
       consistencyIssues: [],
