@@ -11,6 +11,7 @@ const work = readFileSync('src/work/WorkView.tsx', 'utf8');
 const css = readFileSync('src/styles/components.css', 'utf8');
 const responsive = readFileSync('src/styles/responsive.css', 'utf8');
 const version = readFileSync('src/core/version.ts', 'utf8');
+const build = readFileSync('src/core/build.ts', 'utf8');
 
 describe('1.2.0.54 global clarity pass', () => {
   it('keeps visible global search out of the primary interface', () => {
@@ -46,9 +47,10 @@ describe('1.2.0.54 global clarity pass', () => {
     expect(responsive).toContain('/* 1.2.0.54 - real-device mobile clarity pass */');
   });
 
-  it('keeps the database schema stable', () => {
+  it('keeps the database schema stable and build metadata separated', () => {
     expect(version).toContain("APP_VERSION = '1.2.0.112'");
-    expect(version).toContain("APP_BUILD = APP_VERSION.split('.').pop()");
+    expect(version).not.toContain('APP_BUILD');
+    expect(build).toContain("APP_BUILD = '112'");
     expect(version).toContain('DATABASE_SCHEMA_VERSION = 14');
   });
 });
