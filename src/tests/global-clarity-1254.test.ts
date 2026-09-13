@@ -42,7 +42,7 @@ describe('1.2.0.54 global clarity pass', () => {
     expect(settings).toContain('Dane i historia');
     expect(settings).not.toContain('settings-advanced-collapsible');
     expect(settings).toContain('Wersja {APP_RELEASE_VERSION}');
-    expect(settings).toContain('Build {APP_BUILD}');
+    expect(settings).toContain('Build {BUILD_NUMBER}');
     expect(css).toContain('/* 1.2.0.54 - global clarity pass');
     expect(responsive).toContain('/* 1.2.0.54 - real-device mobile clarity pass */');
   });
