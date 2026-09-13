@@ -29,7 +29,7 @@ describe('1.2.0.24 Today compact layout', () => {
     expect(components).toContain('1.2.0.24 - Today compact');
     expect(components).toContain('.today-plan-panel .event-actions-column');
     expect(responsive).toContain('1.2.0.24 - Today compact');
-    expect(version).toContain("APP_VERSION = '1.2.0'");
+    expect(version).toContain("APP_VERSION = '1.2.0.112'");
     expect(version).toContain('DATABASE_SCHEMA_VERSION = 14');
   });
 });

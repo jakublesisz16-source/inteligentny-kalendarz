@@ -25,7 +25,7 @@ describe('1.2.0.58 Today single-surface agenda', () => {
   });
 
   it('keeps database schema stable', () => {
-    expect(version).toContain("APP_VERSION = '1.2.0'");
+    expect(version).toContain("APP_VERSION = '1.2.0.112'");
     expect(version).toContain('DATABASE_SCHEMA_VERSION = 14');
   });
 });

@@ -27,7 +27,7 @@ describe('1.2.0.50 compact calendar study context placement', () => {
   });
 
   it('does not change the database schema', () => {
-    expect(version).toContain("APP_VERSION = '1.2.0'");
+    expect(version).toContain("APP_VERSION = '1.2.0.112'");
     expect(version).toContain('DATABASE_SCHEMA_VERSION = 14');
   });
 });

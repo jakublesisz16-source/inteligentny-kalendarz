@@ -1,35 +1,44 @@
 # Prywatność
 
-Inteligentny Kalendarz jest aplikacją local-first. Nie ma własnego backendu synchronizującego dane użytkownika i nie wymaga konta.
+## Local-first
 
-## Dane lokalne
+Inteligentny Kalendarz przechowuje dane aplikacji lokalnie w IndexedDB przeglądarki. Aplikacja nie wymaga konta użytkownika ani własnego backendu do przechowywania kalendarza, planu studiów, grafiku, finansów, zakupów czy danych cyklu.
 
-W IndexedDB mogą znajdować się m.in. wydarzenia, plan studiów, grafik pracy, ustawienia, finanse, wyjazdy, dane potrzebne do backupu/restore oraz inne dane wprowadzone przez użytkownika.
+Nie ma wbudowanej analityki ani trackera zachowania użytkownika.
 
-## Importy dokumentów
+## Pliki użytkownika
 
-- XLS/XLSX planu studiów są analizowane lokalnie.
-- PDF grafiku pracy jest analizowany lokalnie.
-- zdjęcia i PDF paragonów są przetwarzane lokalnym Tesseract.js/PDF.js.
+Importowane XLS/XLSX/PDF oraz obrazy używane w lokalnych przepływach są przetwarzane przez aplikację po stronie klienta. Repozytorium publiczne nie powinno zawierać takich plików ani screenshotów użytkownika.
 
-Surowe dokumenty nie są wysyłane do własnego backendu aplikacji.
+Service Worker celowo nie cache'uje prywatnych plików `.pdf`, `.xlsx`, `.xls` i `.json`.
 
-## Finanse i waluty
 
-Kursy walut używane w ręcznych wydatkach zagranicznych są orientacyjnym snapshotem zapisanym lokalnie w kodzie aplikacji. Moduł kursów nie wykonuje requestów do zewnętrznego API. Kwota, opis, kategoria, miejsce i nazwa wyjazdu pozostają lokalnie.
+## Lokalne kursy walut 1.2.0.85
 
-## Google Maps
+Bieżące przeliczenia wyjazdowe korzystają z kursów wbudowanych lokalnie w aplikację. Moduł kursów nie wysyła kwoty wydatku, opisu, miejsca, kategorii ani nazwy wyjazdu do zewnętrznego API. Przeliczenie do PLN odbywa się lokalnie, a zapisany wydatek zachowuje użyty kurs jako część lokalnych danych transakcji.
 
-Funkcja `Trasa` tworzy adres Google Maps dopiero po świadomym kliknięciu użytkownika. W takim przypadku przeglądarka otwiera zewnętrzną usługę mapową z wybranym celem podróży.
+## Backup i eksport
 
-## Backup i transfer
+Backup JSON i eksport Excel są tworzone lokalnie. Mogą zawierać prywatne dane i nie są szyfrowane, dlatego należy przechowywać je w bezpiecznym miejscu.
 
-Eksportowany JSON może zawierać prywatne dane całej aplikacji. Plik nie jest szyfrowany i należy traktować go jak prywatny dokument. Import/restore odbywa się lokalnie.
+Plik JSON używany do importu posiada checksum integralności. Przed zastąpieniem danych aplikacja tworzy lokalny punkt przywracania.
 
-## PWA i cache
+## Usługi zewnętrzne
 
-Service Worker służy do offline shell i lokalnych zasobów aplikacji. Pliki użytkownika `.pdf`, `.xls`, `.xlsx` i `.json` są wykluczane z cache'owania jako prywatne dokumenty.
+Aplikacja nie wysyła kalendarza ani importowanych planów do własnego serwera. Otwarcie funkcji trasy może skierować użytkownika do Google Maps - w takim przypadku adres docelowy jest przekazywany tej zewnętrznej usłudze dopiero po świadomej akcji użytkownika.
 
-## Telemetria
+Hosting statyczny (np. GitHub Pages) dostarcza pliki aplikacji i otrzymuje standardowe żądania sieciowe potrzebne do ich pobrania, ale prywatna baza IndexedDB nie jest publikowana razem z aplikacją.
 
-Aplikacja nie zawiera własnej telemetrii ani analytics.
+## Cykl i dane wrażliwe
+
+Dane Cyklu i Dziennika pozostają lokalne w aplikacji. Mogą wejść do ręcznie utworzonego backupu/transferu JSON, dlatego taki plik należy traktować jako prywatny.
+
+## Repozytorium publiczne
+
+Przed przygotowaniem GitHub source działa sanitizator i public-package gate. Blokowane są m.in.:
+
+- prywatne checkpointy i handoffy,
+- XLS/XLSX/PDF oraz backupy,
+- sekrety i pliki środowiskowe,
+- niezatwierdzone zdjęcia, screenshoty, audio i wideo,
+- lokalne buildy, cache i archiwa.

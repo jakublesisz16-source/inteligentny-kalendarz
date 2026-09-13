@@ -21,7 +21,7 @@ describe('1.2.0.48 adaptive desktop week density', () => {
   it('uses a compact visual treatment only when desktop hours become dense', () => {
     expect(calendar).toContain("weekHourHeight < 40 ? ' compact-density' : ''");
     expect(css).toContain('/* 1.2.0.48 - adaptive desktop week density, without changing the selected-day panel */');
-    expect(version).toContain("APP_VERSION = '1.2.0'");
+    expect(version).toContain("APP_VERSION = '1.2.0.112'");
     expect(version).toContain('DATABASE_SCHEMA_VERSION = 14');
   });
 });

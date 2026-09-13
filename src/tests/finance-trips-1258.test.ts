@@ -13,7 +13,7 @@ describe('1.2.0.58 trip expense summaries', () => {
     expect(types).toContain('tripName?: string;');
     expect(db).toContain("const tripName = normalizeExpenseText(draft.tripName ?? '')");
     expect(db).toContain('if (!normalized.tripName) delete updated.tripName;');
-    expect(version).toContain("APP_VERSION = '1.2.0'");
+    expect(version).toContain("APP_VERSION = '1.2.0.112'");
     expect(version).toContain('DATABASE_SCHEMA_VERSION = 14');
   });
 
@@ -22,7 +22,7 @@ describe('1.2.0.58 trip expense summaries', () => {
     expect(dashboard).toContain('>Wyjazdy</button>');
     expect(dashboard).toContain('finance-trip-summary');
     expect(dashboard).toContain('finance-trip-expense-list');
-    expect(dashboard).toContain('Np. Praga');
+    expect(dashboard).toContain('Np. Budapeszt');
   });
 
   it('automatically assigns manual and scanned expenses created from a trip', () => {

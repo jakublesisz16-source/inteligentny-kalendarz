@@ -2,40 +2,68 @@
 
 ## Założenie
 
-Inteligentny Kalendarz jest statyczną, local-first aplikacją PWA. Produkcja nie wymaga serwera aplikacyjnego ani kont użytkowników.
+Inteligentny Kalendarz jest aplikacją PWA typu local-first. Produkcyjna aplikacja nie wymaga własnego backendu, konta użytkownika ani chmurowej bazy danych.
+
+Główny przepływ danych:
 
 ```text
-GitHub Pages
-  -> React/Vite PWA
-      -> IndexedDB (dane użytkownika)
-      -> Cache Storage (wyłącznie powłoka PWA i lokalne zasoby OCR)
+React UI -> moduły domenowe/importery -> storage -> IndexedDB
 ```
 
-## Warstwy
+## Stos
 
-- `src/app` - składanie głównych widoków aplikacji.
-- `src/calendar`, `src/events` - kalendarz i wydarzenia.
-- `src/finance`, `src/shopping` - Finanse, kategorie, paragony i lokalny OCR.
-- `src/study`, `src/imports/xlsx` - import i utrzymanie planu studiów.
-- `src/work`, `src/imports/pdf` - grafik pracy i PDF.
-- `src/storage` - IndexedDB, backup/restore, migracje i journaling.
-- `src/safety`, `src/data-transfer` - historia, kosz, restore points i przenoszenie danych.
-- `public/service-worker.js` - cache powłoki PWA; bez Web Push.
+- React 19,
+- TypeScript,
+- Vite,
+- IndexedDB jako trwała baza lokalna,
+- Vitest do testów,
+- Service Worker do PWA/offline.
 
-## Zasady danych
+Aktualny schemat IndexedDB ma numer `14`.
 
-Canonical dane użytkownika są zapisywane lokalnie w IndexedDB. Widoki analityczne, podsumowania miesiąca i podglądy są derived UI i nie tworzą osobnego backendu ani synchronizacji.
+## Główne moduły
 
-## Offline
-
-Service Worker cache'uje statyczną powłokę aplikacji i lokalne zasoby OCR. Prywatne dokumenty użytkownika (`.pdf`, `.xls`, `.xlsx`, `.json`) nie są celowo zapisywane jako pliki użytkownika w Cache Storage.
+- `src/calendar` i `src/events` - kalendarz, wydarzenia, widoki miesiąca/tygodnia i konflikty terminów,
+- `src/study` + `src/imports/xlsx` - import planu XLS/XLSX, grupy, kontrola jakości i porównywanie aktualizacji,
+- `src/work` - grafik, współpracownicy, dyspozycyjność i podsumowania czasu pracy,
+- `src/finance` - moduły finansowe - lokalne finanse miesiąca i wyjazdów,
+- `src/shopping` - zakupy i lokalne przetwarzanie paragonów,
+- `src/cycle` - lokalne dane cyklu i dziennika,
+- `src/storage` - IndexedDB, migracje, backup, restore points i historia zmian,
+- `src/settings` - ustawienia i transfer danych,
+- `src/safety` - warstwa bezpieczeństwa danych i przywracania.
 
 ## Importy
 
-- XLS/XLSX są analizowane lokalnie i przechodzą walidację formatu przed zapisem.
-- PDF grafiku pracy jest analizowany lokalnie.
-- obrazy/PDF paragonów są przetwarzane lokalnym Tesseract.js/PDF.js.
+Plany XLS/XLSX oraz grafiki/załączniki są analizowane po stronie klienta. Do bazy trafiają znormalizowane rekordy potrzebne aplikacji, a nie robocze pliki użytkownika jako część repozytorium.
 
-## Deployment
+Aktualizacja planu studiów korzysta z istniejącego mechanizmu diffu. Zmiany nie są stosowane do aktywnego planu bez jawnej akcji użytkownika.
 
-`vite.config.ts` używa względnego `base: './'`. GitHub Actions buduje `dist` i publikuje go przez GitHub Pages.
+## Backup i przywracanie
+
+Eksport JSON zawiera kanoniczny logiczny stan aplikacji oraz checksum SHA256. Import:
+
+1. sprawdza format i obsługiwaną wersję schematu,
+2. weryfikuje checksum,
+3. tworzy punkt przywracania bieżącego urządzenia,
+4. zastępuje logiczny stan,
+5. weryfikuje zapisany snapshot,
+6. przy błędzie po zapisie próbuje automatycznego rollbacku.
+
+## PWA i offline
+
+Service Worker używa wersjonowanego cache aplikacji. Przy instalacji cache'uje powłokę aplikacji oraz wymagane zasoby lokalnego OCR/PDF. Stare cache należące do aplikacji są usuwane po aktywacji nowej wersji.
+
+Prywatne pliki użytkownika z rozszerzeniami `.pdf`, `.xlsx`, `.xls` i `.json` nie są zapisywane do cache Service Workera.
+
+## CI i wydanie
+
+GitHub Actions wykonuje:
+
+1. `npm ci`,
+2. release preflight,
+3. typecheck, testy i produkcyjny build,
+4. projektowe quality gates,
+5. audit zależności produkcyjnych.
+
+Publiczne wydanie powinno być tworzone dopiero po zielonym CI oraz Visual QA na desktopie i telefonie.

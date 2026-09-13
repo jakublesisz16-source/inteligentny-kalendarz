@@ -367,10 +367,10 @@ export function App() {
       <Navigation activeView={view} onChange={setView} />
       <main className="app-main">
         {view === 'today' ? (
-          <TodayView events={events} locations={locations} timeFormat={settings.timeFormat} consistencyIssues={consistencyIssues} onOpenConsistencyCenter={openConsistencyCenter} onAdd={(date) => setEventEditor(date ? { initialDate: date } : {})} onEdit={(event) => { void openEventEditor(event); }} onStudyCorrect={setStudyCorrectionEvent} availabilityPlans={availabilityPlans} coworkersByEvent={coworkersByEvent} />
+          <TodayView events={events} locations={locations} timeFormat={settings.timeFormat} showPolishHolidays={settings.showPolishHolidays !== false} showWumAcademicCalendar={settings.showWumAcademicCalendar !== false} consistencyIssues={consistencyIssues} onOpenConsistencyCenter={openConsistencyCenter} onAdd={(date) => setEventEditor(date ? { initialDate: date } : {})} onEdit={(event) => { void openEventEditor(event); }} onStudyCorrect={setStudyCorrectionEvent} availabilityPlans={availabilityPlans} coworkersByEvent={coworkersByEvent} />
         ) : null}
         {view === 'calendar' ? (
-          <CalendarView events={events} locations={locations} timeFormat={settings.timeFormat} dayConstraints={dayConstraints} dayAttributes={dayAttributes} consistencyIssues={consistencyIssues} activeStudyGroups={activeStudyGroups} incompleteStudyEntries={incompleteStudyEntries} onToggleWorkAvailabilityExclusion={toggleWorkAvailabilityExclusion} onToggleTradingSunday={toggleTradingSunday} onAcknowledgeConsistency={acknowledgeIssue} onStudySeriesCorrect={setStudySeriesTimingEvent} onAdd={(date, initialTitle, initialEndDate) => setEventEditor(date ? { initialDate: date, ...(initialTitle ? { initialTitle } : {}), ...(initialEndDate ? { initialEndDate } : {}) } : {})} onQuickAdd={async (draft) => { await saveEvent(draft); }} onQuickEdit={quickEditEvent} onQuickMove={quickMoveEvent} onQuickDelete={quickDeleteEvent} onAddMany={(dates) => setEventEditor({ initialDates: dates })} onEdit={(event) => { void openEventEditor(event); }} onStudyCorrect={setStudyCorrectionEvent} availabilityPlans={availabilityPlans} coworkersByEvent={coworkersByEvent} onOpenAvailability={(date, blockId) => setAvailabilityEditor({ date, ...(blockId ? { blockId } : {}) })} />
+          <CalendarView events={events} locations={locations} timeFormat={settings.timeFormat} showPolishHolidays={settings.showPolishHolidays !== false} showWumAcademicCalendar={settings.showWumAcademicCalendar !== false} dayConstraints={dayConstraints} dayAttributes={dayAttributes} consistencyIssues={consistencyIssues} activeStudyGroups={activeStudyGroups} incompleteStudyEntries={incompleteStudyEntries} onToggleWorkAvailabilityExclusion={toggleWorkAvailabilityExclusion} onToggleTradingSunday={toggleTradingSunday} onAcknowledgeConsistency={acknowledgeIssue} onStudySeriesCorrect={setStudySeriesTimingEvent} onAdd={(date, initialTitle, initialEndDate) => setEventEditor(date ? { initialDate: date, ...(initialTitle ? { initialTitle } : {}), ...(initialEndDate ? { initialEndDate } : {}) } : {})} onQuickAdd={async (draft) => { await saveEvent(draft); }} onQuickEdit={quickEditEvent} onQuickMove={quickMoveEvent} onQuickDelete={quickDeleteEvent} onAddMany={(dates) => setEventEditor({ initialDates: dates })} onEdit={(event) => { void openEventEditor(event); }} onStudyCorrect={setStudyCorrectionEvent} availabilityPlans={availabilityPlans} coworkersByEvent={coworkersByEvent} onOpenAvailability={(date, blockId) => setAvailabilityEditor({ date, ...(blockId ? { blockId } : {}) })} />
         ) : null}
         {view === 'finance' ? (
           <FinanceView />
@@ -406,6 +406,7 @@ export function App() {
           <EventForm
             event={eventEditor.event}
             locations={locations}
+            calendarEvents={events}
             initialDate={eventEditor.initialDate}
             initialTitle={eventEditor.initialTitle}
             initialEndDate={eventEditor.initialEndDate}

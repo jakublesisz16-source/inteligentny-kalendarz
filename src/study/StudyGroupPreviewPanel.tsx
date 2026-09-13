@@ -167,7 +167,7 @@ export function StudyGroupPreviewPanel({ activeImport, primaryGroups }: StudyGro
   const groupSelectionValidation = useMemo(() => validateStudyGroupSelection(availableGroups, selectedGroups), [availableGroups, selectedGroups]);
 
   return (
-    <section className="panel study-preview-sandbox">
+    <section className="study-preview-sandbox">
       <div className="panel-heading preview-sandbox-heading">
         <div>
           <p className="section-kicker">Bezpieczny podgląd</p>

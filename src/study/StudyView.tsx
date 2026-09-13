@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { analyzeScheduleWorkbook, diagnoseUnrecognizedWorkbook } from '../imports/xlsx/adapter-registry';
 import { validateCandidateForImport } from '../imports/xlsx/import-validation';
 import { readSpreadsheetFile } from '../imports/xlsx/spreadsheet-reader';
-import { formatStudyGroupList, studyGroupCompactLabel, studyGroupDisplayLabel } from '../imports/xlsx/group-normalizer';
+import { formatStudyGroupList, parseStudyGroupKey, studyGroupCompactLabel, studyGroupDisplayLabel, studyGroupPlainLabel, type StudyGroupKind } from '../imports/xlsx/group-normalizer';
 import {
   applyUniversityScheduleUpdate,
   cancelScheduleUpdate,
@@ -10,6 +10,7 @@ import {
   deleteUniversityImport,
   findUniversityImportByHash,
   getActiveUniversityImport,
+  getLatestAppliedScheduleUpdateSession,
   getStudyProfile,
   listUniversityImports,
   prepareUniversityScheduleUpdate,
@@ -33,6 +34,8 @@ import { StudyProfileSettings } from './StudyProfileSettings';
 import type {
   PendingStudyCorrectionRule,
   ScheduleAnalysis,
+  ScheduleDiffSummary,
+  ScheduleUpdateSession,
   ScheduleUpdatePreview,
   StudyScheduleCandidate,
   UniversityScheduleImport,
@@ -44,6 +47,13 @@ interface StudyViewProps {
 
 type Phase = 'idle' | 'groups' | 'preview' | 'diff';
 type PreviewFilter = 'all' | 'ready' | 'warning' | 'incomplete' | 'blocking';
+
+const IMPORT_GROUP_PARTITIONS: Array<{ kind: Exclude<StudyGroupKind, 'GENERIC'>; label: string; helper: string }> = [
+  { kind: 'MAIN', label: 'Grupa główna', helper: 'Twoja grupa bazowa' },
+  { kind: 'G12', label: '12-osobowa', helper: 'Niezależny podział zajęć' },
+  { kind: 'G8', label: '8-osobowa', helper: 'Podział zajęć 8-os.' },
+  { kind: 'G4', label: '4-osobowa', helper: 'Najdokładniejsze przypisanie' },
+];
 
 interface SelectedFileMeta {
   file: File;
@@ -58,6 +68,18 @@ function formatBytes(bytes: number): string {
 
 function formatImportDate(value: string): string {
   return new Intl.DateTimeFormat('pl-PL', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value));
+}
+
+function formatUpdateSummary(summary: ScheduleDiffSummary): string {
+  const conflicts = summary.conflicts + summary.ambiguous;
+  const parts = [
+    summary.added ? `Nowe +${summary.added}` : '',
+    summary.changed ? `Zmienione ${summary.changed}` : '',
+    summary.removed ? `Usunięte -${summary.removed}` : '',
+    conflicts ? `Konflikty ${conflicts}` : '',
+  ].filter(Boolean);
+  if (parts.length) return parts.join(' · ');
+  return 'bez zmian w zajęciach';
 }
 
 function candidateLabel(candidate: StudyScheduleCandidate): string {
@@ -173,6 +195,7 @@ export function StudyView({ onDataChanged }: StudyViewProps) {
   const [imports, setImports] = useState<UniversityScheduleImport[]>([]);
   const [profileGroups, setProfileGroups] = useState<string[]>([]);
   const [activeImport, setActiveImport] = useState<UniversityScheduleImport | null>(null);
+  const [latestAppliedUpdate, setLatestAppliedUpdate] = useState<ScheduleUpdateSession | null>(null);
   const [updatePreview, setUpdatePreview] = useState<ScheduleUpdatePreview | null>(null);
   const [pendingCorrectionRules, setPendingCorrectionRules] = useState<PendingStudyCorrectionRule[]>([]);
   const [diagnostics, setDiagnostics] = useState<string[]>([]);
@@ -180,10 +203,16 @@ export function StudyView({ onDataChanged }: StudyViewProps) {
   useEffect(() => { void refreshStudyData(); }, []);
 
   async function refreshStudyData() {
-    const [loadedImports, profile, active] = await Promise.all([listUniversityImports(), getStudyProfile(), getActiveUniversityImport()]);
+    const [loadedImports, profile, active, latestUpdate] = await Promise.all([
+      listUniversityImports(),
+      getStudyProfile(),
+      getActiveUniversityImport(),
+      getLatestAppliedScheduleUpdateSession(),
+    ]);
     setImports(loadedImports);
     setProfileGroups(profile?.selectedGroups ?? []);
     setActiveImport(active ?? null);
+    setLatestAppliedUpdate(latestUpdate ?? null);
   }
 
   async function processFile(file: File) {
@@ -240,6 +269,20 @@ export function StudyView({ onDataChanged }: StudyViewProps) {
 
   function toggleGroup(group: string) {
     setSelectedGroups((current) => current.includes(group) ? current.filter((item) => item !== group) : [...current, group]);
+  }
+
+  function setImportPartitionGroup(kind: Exclude<StudyGroupKind, 'GENERIC'>, group: string) {
+    setSelectedGroups((current) => {
+      const chosen = group ? parseStudyGroupKey(group) : null;
+      let next = current.filter((item) => parseStudyGroupKey(item).kind !== kind);
+      if (chosen?.number) {
+        next = next.filter((item) => {
+          const parsed = parseStudyGroupKey(item);
+          return parsed.kind === 'GENERIC' || !parsed.number || parsed.number === chosen.number;
+        });
+      }
+      return group ? [...next, group] : next;
+    });
   }
 
   function preparePreview(sourceAnalysis: ScheduleAnalysis, groups: string[]) {
@@ -480,6 +523,11 @@ export function StudyView({ onDataChanged }: StudyViewProps) {
   const attentionCount = warningPreviewCount + incompletePreviewCount + blockingPreviewCount;
   const importBlocked = Boolean(selectedCompleteness && !selectedCompleteness.safe) || invalidIncluded.length > 0 || !importable.length;
   const selectedGroupSummary = formatStudyGroupList(selectedGroups) || 'Wspólne / bez grup';
+  const parsedImportGroups = analysis?.groups.map((group) => ({ key: group, parsed: parseStudyGroupKey(group) })) ?? [];
+  const parsedSelectedGroups = selectedGroups.map(parseStudyGroupKey);
+  const selectedImportMainNumber = parsedSelectedGroups.find((group) => group.kind === 'MAIN' && group.number)?.number ?? parsedSelectedGroups.find((group) => group.number)?.number;
+  const genericImportGroups = parsedImportGroups.filter(({ parsed }) => parsed.kind === 'GENERIC').map(({ key }) => key);
+  const activePlanUpdate = activeImport && latestAppliedUpdate?.newFileHash === activeImport.fileHash ? latestAppliedUpdate : null;
 
   return (
     <section className="view-shell study-view">
@@ -499,12 +547,24 @@ export function StudyView({ onDataChanged }: StudyViewProps) {
       {diagnostics.length ? <section className="diagnostics-card"><div className="diagnostics-card-heading"><strong>Szczegóły techniczne problemu</strong></div><div className="diagnostics-card-body">{diagnostics.map((line) => <span key={line}>{line}</span>)}</div></section> : null}
 
       {phase === 'idle' ? (
-        <div className={dragActive ? 'upload-panel study-upload-simple panel drag-active' : 'upload-panel study-upload-simple panel'} onDragEnter={(event) => { event.preventDefault(); setDragActive(true); }} onDragOver={(event) => event.preventDefault()} onDragLeave={() => setDragActive(false)} onDrop={handleDrop}>
-          <h2>{activeImport ? 'Wczytaj nowszy plan' : 'Wczytaj plan zajęć'}</h2>
-          <p>{activeImport ? <>Aktualny plan: <strong>{activeImport.fileName}</strong>. Nowy plik najpierw porównamy z obecnym - nic nie zmieni się bez Twojego zatwierdzenia.</> : 'Wskaż plik planu. Format Excel zostanie rozpoznany automatycznie, a przed zapisem zobaczysz krótkie podsumowanie.'}</p>
-          <input ref={fileInputRef} className="visually-hidden" type="file" accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" onChange={(event) => { const file = event.target.files?.[0]; if (file) void processFile(file); }} />
-          <button type="button" className="button button-primary study-upload-primary" disabled={parsing} onClick={() => fileInputRef.current?.click()}>{parsing ? 'Sprawdzam plan...' : 'Wczytaj plan'}</button>
-          <span className="upload-hint">XLSX lub XLS - na komputerze możesz też przeciągnąć plik tutaj.</span>
+        <div className={dragActive ? 'upload-panel study-upload-simple study-upload-dashboard panel drag-active' : 'upload-panel study-upload-simple study-upload-dashboard panel'} onDragEnter={(event) => { event.preventDefault(); setDragActive(true); }} onDragOver={(event) => event.preventDefault()} onDragLeave={() => setDragActive(false)} onDrop={handleDrop}>
+          <div className="study-upload-copy">
+            <h2>{activeImport ? 'Wczytaj nowszy plan' : 'Wczytaj plan zajęć'}</h2>
+            <p>{activeImport ? 'Nowy plik najpierw porównamy z obecnym - nic nie zmieni się bez Twojego zatwierdzenia.' : 'Wskaż plik planu. Format Excel zostanie rozpoznany automatycznie, a przed zapisem zobaczysz krótkie podsumowanie.'}</p>
+            {activeImport ? (
+              <div className="study-plan-freshness" aria-label="Status aktualnego planu studiów">
+                <span><b>Aktualny plan</b><strong>{activeImport.fileName}</strong></span>
+                <span><b>Zaimportowano</b><strong>{formatImportDate(activeImport.importedAt)}</strong></span>
+                <span><b>Wydarzenia</b><strong>{activeImport.importedEventCount}</strong></span>
+                <span className="study-plan-last-change"><b>Ostatnie porównanie</b><strong>{activePlanUpdate ? formatUpdateSummary(activePlanUpdate.summary) : 'pierwszy import'}</strong>{activePlanUpdate?.appliedAt ? <small>{formatImportDate(activePlanUpdate.appliedAt)}</small> : null}</span>
+              </div>
+            ) : null}
+            <span className="upload-hint">XLSX lub XLS - na komputerze możesz też przeciągnąć plik tutaj.</span>
+          </div>
+          <div className="study-upload-action">
+            <input ref={fileInputRef} className="visually-hidden" type="file" accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" onChange={(event) => { const file = event.target.files?.[0]; if (file) void processFile(file); }} />
+            <button type="button" className="button button-primary study-upload-primary" disabled={parsing} onClick={() => fileInputRef.current?.click()}>{parsing ? 'Sprawdzam plan...' : 'Wczytaj plan'}</button>
+          </div>
         </div>
       ) : null}
 
@@ -512,7 +572,24 @@ export function StudyView({ onDataChanged }: StudyViewProps) {
         <section className="panel group-panel study-group-simple">
           <div className="panel-heading"><div><p className="section-kicker">Grupy</p><h2>Wybierz swoje grupy</h2></div><span className="selection-count">{selectedGroups.length} wybranych</span></div>
           <p className="panel-copy">Plan zawiera kilka grup. Zaznacz te, do których należysz - zapamiętamy wybór przy kolejnych planach.</p>
-          <StudyGroupSelector groups={analysis.groups} selectedGroups={selectedGroups} onToggle={toggleGroup} />
+          <div className="study-import-group-grid-desktop">
+            <StudyGroupSelector groups={analysis.groups} selectedGroups={selectedGroups} onToggle={toggleGroup} />
+          </div>
+          <div className="study-import-group-dashboard" aria-label="Kompaktowy wybór grup do importu">
+            {IMPORT_GROUP_PARTITIONS.map((partition) => {
+              const options = parsedImportGroups.filter(({ parsed }) => parsed.kind === partition.kind && (partition.kind === 'MAIN' || !selectedImportMainNumber || parsed.number === selectedImportMainNumber));
+              if (!options.length) return null;
+              const current = selectedGroups.find((group) => parseStudyGroupKey(group).kind === partition.kind) ?? '';
+              return <label key={partition.kind} className="study-import-group-select">
+                <span><strong>{partition.label}</strong><small>{partition.helper}</small></span>
+                <select value={current} onChange={(event) => setImportPartitionGroup(partition.kind, event.target.value)} aria-label={`Wybierz grupę importu: ${partition.label}`}>
+                  <option value="">Nie wybrano</option>
+                  {options.map(({ key }) => <option key={key} value={key}>{studyGroupPlainLabel(key)}</option>)}
+                </select>
+              </label>;
+            })}
+            {genericImportGroups.length ? <div className="study-import-generic-groups"><span>Pozostałe oznaczenia</span><StudyGroupSelector groups={genericImportGroups} selectedGroups={selectedGroups} onToggle={toggleGroup} compact /></div> : null}
+          </div>
           {!groupSelectionValidation.valid ? <div className="study-information warning-info"><strong>Wybór nie jest jeszcze kompletny.</strong><ul>{groupSelectionValidation.errors.map((item) => <li key={item}>{item}</li>)}</ul></div> : null}
           <section className="study-group-help"><strong>Jak aplikacja łączy grupy?</strong><p>Grupa 4-osobowa obejmuje odpowiadającą jej grupę 8-osobową i grupę główną. Podziału 12-osobowego nie wyliczamy z samej litery, bo może przecinać inny podział.</p></section>
           <footer className="study-actions split-study-actions"><button type="button" className="button button-secondary" onClick={() => resetFlow()}>Wybierz inny plik</button><button type="button" className="button button-primary" disabled={!groupSelectionValidation.valid} onClick={goToPreview}>Pokaż mój plan</button></footer>

@@ -121,9 +121,8 @@ export function DataTransferPanel({ onDataChanged }: DataTransferPanelProps) {
     <section className="data-transfer-panel" aria-labelledby="data-transfer-title">
       <div className="data-transfer-heading">
         <div>
-          <p className="section-kicker">Przenoszenie danych</p>
           <h3 id="data-transfer-title">Przenieś cały stan aplikacji</h3>
-          <p>Eksportuj jeden plik na tym urządzeniu, a następnie zaimportuj go na drugim. To ręczny transfer, nie synchronizacja w chmurze.</p>
+          <p>Eksportuj kopię, przenieś ją na drugie urządzenie i zaimportuj lokalnie.</p>
         </div>
       </div>
 
@@ -144,7 +143,10 @@ export function DataTransferPanel({ onDataChanged }: DataTransferPanelProps) {
         <button type="button" className="button button-secondary" disabled={busy} onClick={() => fileInputRef.current?.click()}>Importuj dane</button>
       </div>
 
-      <p className="data-transfer-privacy">Eksport JSON służy do backupu i przywracania. Eksport Excel służy do czytelnego archiwum i analizy, ale nie można go importować z powrotem. Oba pliki mogą zawierać prywatne dane z aplikacji, w tym historię i Dziennik Cyklu, i nie są szyfrowane. Przechowuj je w bezpiecznym miejscu. Aplikacja nie wysyła ich do internetu.</p>
+      <details className="data-transfer-privacy-details">
+        <summary>Informacje o bezpieczeństwie eksportu</summary>
+        <p className="data-transfer-privacy">JSON służy do backupu i przywracania. Excel jest czytelnym archiwum i nie można go importować z powrotem. Pliki mogą zawierać prywatne dane, nie są szyfrowane i powinny być przechowywane w bezpiecznym miejscu. Aplikacja nie wysyła ich do internetu.</p>
+      </details>
 
       {error ? <div className="study-message error-message" role="alert">{error}</div> : null}
       {message ? <div className="study-message success-message" role="status" aria-live="polite">{message}</div> : null}

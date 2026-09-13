@@ -53,7 +53,7 @@ describe('1.2.0.3 brand and startup splash contract', () => {
   it('refreshes the offline shell cache for 1.2.0.3 and includes the corrected icon set', () => {
     const worker = source('../../public/service-worker.js');
     expect(worker).toContain("const CACHE_PREFIX = 'inteligentny-kalendarz-shell-'");
-    expect(worker).toContain("const CACHE_NAME = `${CACHE_PREFIX}v1.2.0`");
+    expect(worker).toContain("const CACHE_NAME = `${CACHE_PREFIX}v1.2.0.112`");
     expect(worker).toContain('MANDATORY_SHELL_ASSET_PATHS');
     expect(worker).toContain("'favicon.svg'");
     expect(worker).toContain("'icon-192-v1203.png'");
@@ -116,7 +116,7 @@ describe('1.2.0.3 brand and startup splash contract', () => {
     expect(splash).not.toContain('indexedDB');
     expect(packageJson).not.toContain('lottie');
     expect(packageJson).not.toContain('framer-motion');
-    expect(version).toContain("APP_VERSION = '1.2.0'");
+    expect(version).toContain("APP_VERSION = '1.2.0.112'");
     expect(version).toContain('DATABASE_SCHEMA_VERSION = 14');
   });
 });

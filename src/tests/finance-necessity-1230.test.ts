@@ -70,7 +70,7 @@ describe('1.2.0.30 Finance necessity classification', () => {
     expect(types).toContain("export type ExpenseNecessity = 'essential' | 'nonessential' | 'unknown';");
     expect(types).toContain('necessity?: ExpenseNecessity;');
     expect(parser).not.toContain('ExpenseNecessity');
-    expect(version).toContain("APP_VERSION = '1.2.0'");
+    expect(version).toContain("APP_VERSION = '1.2.0.112'");
     expect(version).toContain('DATABASE_SCHEMA_VERSION = 14');
   });
 });

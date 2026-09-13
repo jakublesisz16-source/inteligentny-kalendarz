@@ -9,6 +9,14 @@ import type {
   UniversityImportEntry,
 } from './study.types';
 
+export interface ScheduleDiffChangeBreakdown {
+  time: number;
+  date: number;
+  location: number;
+  group: number;
+  details: number;
+}
+
 function asText(value: string | undefined): string | undefined {
   const result = value?.trim();
   return result ? result : undefined;
@@ -302,4 +310,18 @@ export function buildScheduleDiff(input: BuildScheduleDiffInput): BuildScheduleD
 
 export function recalculateDiffSummary(items: ScheduleDiffItem[]): ScheduleDiffSummary {
   return summarize(items);
+}
+
+export function summarizeScheduleDiffChangeTypes(items: ScheduleDiffItem[]): ScheduleDiffChangeBreakdown {
+  const result: ScheduleDiffChangeBreakdown = { time: 0, date: 0, location: 0, group: 0, details: 0 };
+  for (const item of items) {
+    if (item.kind !== 'CHANGED' && item.kind !== 'CONFLICT_USER_MODIFIED') continue;
+    const changeTypes = new Set(item.changeTypes);
+    if (changeTypes.has('CHANGED_TIME')) result.time += 1;
+    if (changeTypes.has('CHANGED_DATE')) result.date += 1;
+    if (changeTypes.has('CHANGED_LOCATION')) result.location += 1;
+    if (changeTypes.has('CHANGED_GROUP')) result.group += 1;
+    if (changeTypes.has('CHANGED_DETAILS')) result.details += 1;
+  }
+  return result;
 }

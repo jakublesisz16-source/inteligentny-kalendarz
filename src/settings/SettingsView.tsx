@@ -27,24 +27,31 @@ export function SettingsView({ settings, locations, onChange, onDataChanged }: S
         <div><h1>Ustawienia</h1></div>
       </header>
 
-      <section className="panel settings-essential-card" aria-label="Najważniejsze ustawienia aplikacji">
-        <div className="panel-heading compact-heading"><div><span className="section-kicker">Aplikacja</span><h2>Podstawy</h2></div></div>
-        <div className="settings-essential-grid">
-          <label className="field"><span>Ekran startowy</span><select value={settings.preferredStartView} onChange={(e) => onChange({ preferredStartView: e.target.value as StartView })}><option value="today">Dzisiaj</option><option value="calendar">Kalendarz</option></select></label>
-          <label className="field"><span>Format czasu</span><select value={settings.timeFormat} onChange={(e) => onChange({ timeFormat: e.target.value as TimeFormat })}><option value="24h">24-godzinny</option><option value="12h">12-godzinny</option></select></label>
-          <label className="field"><span>Obszar startowy</span><select value={settings.homeLocationId ?? ''} onChange={(e) => onChange({ homeLocationId: e.target.value || null })}><option value="">Nie ustawiono</option>{locations.map((location) => <option key={location.id} value={location.id}>{location.name}</option>)}</select></label>
-          <label className="field"><span>Miejsce pracy</span><select value={settings.workLocationId ?? ''} onChange={(e) => onChange({ workLocationId: e.target.value || null })}><option value="">Nie ustawiono</option>{locations.map((location) => <option key={location.id} value={location.id}>{location.name}</option>)}</select></label>
-        </div>
-        <div className="settings-build-line" aria-label={`Wersja ${APP_VERSION}, schemat bazy ${DATABASE_SCHEMA_VERSION}, tryb lokalny`}>
-          <span>Wersja {APP_VERSION}</span><i aria-hidden="true">·</i><span>Baza {DATABASE_SCHEMA_VERSION}</span><i aria-hidden="true">·</i><span>Lokalnie</span>
-        </div>
-        <PwaInstallPanel />
-      </section>
+      <div className="settings-dashboard-grid">
+        <section className="panel settings-essential-card" aria-label="Najważniejsze ustawienia aplikacji">
+          <div className="panel-heading compact-heading"><div><span className="section-kicker">Aplikacja</span><h2>Podstawy</h2></div></div>
+          <div className="settings-essential-grid">
+            <label className="field"><span>Ekran startowy</span><select value={settings.preferredStartView} onChange={(e) => onChange({ preferredStartView: e.target.value as StartView })}><option value="today">Dzisiaj</option><option value="calendar">Kalendarz</option></select></label>
+            <label className="field"><span>Format czasu</span><select value={settings.timeFormat} onChange={(e) => onChange({ timeFormat: e.target.value as TimeFormat })}><option value="24h">24-godzinny</option><option value="12h">12-godzinny</option></select></label>
+            <label className="field"><span>Obszar startowy</span><select value={settings.homeLocationId ?? ''} onChange={(e) => onChange({ homeLocationId: e.target.value || null })}><option value="">Nie ustawiono</option>{locations.map((location) => <option key={location.id} value={location.id}>{location.name}</option>)}</select></label>
+            <label className="field"><span>Miejsce pracy</span><select value={settings.workLocationId ?? ''} onChange={(e) => onChange({ workLocationId: e.target.value || null })}><option value="">Nie ustawiono</option>{locations.map((location) => <option key={location.id} value={location.id}>{location.name}</option>)}</select></label>
+          </div>
+          <div className="settings-calendar-layers" aria-label="Warstwy informacyjne kalendarza">
+            <span>Warstwy kalendarza</span>
+            <label className="settings-layer-switch" title="Święta i dni ustawowo wolne w Polsce"><input type="checkbox" checked={settings.showPolishHolidays !== false} onChange={(event) => void onChange({ showPolishHolidays: event.target.checked })} /><span>Święta PL</span></label>
+            <label className="settings-layer-switch" title="Oficjalny kalendarz akademicki WUM 2026/2027"><input type="checkbox" checked={settings.showWumAcademicCalendar !== false} onChange={(event) => void onChange({ showWumAcademicCalendar: event.target.checked })} /><span>WUM 26/27</span></label>
+          </div>
+          <div className="settings-build-line" aria-label={`Wersja ${APP_VERSION}, schemat bazy ${DATABASE_SCHEMA_VERSION}, tryb lokalny`}>
+            <span>Wersja {APP_VERSION}</span><i aria-hidden="true">·</i><span>Baza {DATABASE_SCHEMA_VERSION}</span><i aria-hidden="true">·</i><span>Lokalnie</span>
+          </div>
+          <PwaInstallPanel />
+        </section>
 
-      <section className="panel settings-section-card settings-advanced-transfer" aria-label="Backup i przenoszenie danych">
-        <div className="panel-heading compact-heading"><div><span className="section-kicker">Dane</span><h2>Backup i przenoszenie</h2></div></div>
-        <DataTransferPanel onDataChanged={handleTransferDataChanged} />
-      </section>
+        <section className="panel settings-section-card settings-advanced-transfer" aria-label="Backup i przenoszenie danych">
+          <div className="panel-heading compact-heading"><div><span className="section-kicker">Dane</span><h2>Backup i przenoszenie</h2></div></div>
+          <DataTransferPanel onDataChanged={handleTransferDataChanged} />
+        </section>
+      </div>
 
       <section className="panel settings-section-card" aria-label="Dane i bezpieczeństwo">
         <div className="panel-heading compact-heading"><div><span className="section-kicker">Bezpieczeństwo</span><h2>Dane i historia</h2></div></div>

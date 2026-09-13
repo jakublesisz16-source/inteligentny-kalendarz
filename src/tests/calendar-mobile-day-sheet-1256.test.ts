@@ -29,7 +29,7 @@ describe('1.2.0.56 mobile month day sheet', () => {
 
   it('does not change the database schema', () => {
     expect(components).toContain('/* 1.2.0.56 - mobile month details behave like a lightweight day sheet */');
-    expect(version).toContain("APP_VERSION = '1.2.0'");
+    expect(version).toContain("APP_VERSION = '1.2.0.112'");
     expect(version).toContain('DATABASE_SCHEMA_VERSION = 14');
   });
 });

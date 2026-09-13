@@ -50,11 +50,19 @@ docs/RELEASE_AUDIT_*.md
 # Tymczasowe screenshoty Visual QA
 artifacts/visual-qa/
 
-# Wewnętrzne checkpointy i paczki robocze - nigdy do publicznego repo
-HANDOFF_NEW_CHAT_*.md
+# Lokalne cache narzędzi i wyniki testów - przygotowanie pod repo GitHub
+.vite/
+.cache/
+test-results/
+playwright-report/
+*.orig
+*.rej
+
+# PRIVATE checkpoint/process files - nigdy nie dodawać do publicznego repo
 PRIVATE_*.md
-CURRENT_PROJECT_RULES.md
+HANDOFF_NEW_CHAT_*.md
 CLEAN_CHECKPOINT_CONTENTS.md
-SHA256SUMS.txt
-BUILD_INFO.private.json
-docs/TRAVEL_RELEASE_CHECKLIST.md
+CURRENT_PROJECT_RULES.md
+README_GITHUB.md
+docs/*_GITHUB.md
+project-skills/

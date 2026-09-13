@@ -28,11 +28,14 @@ import { buildWeekTimedEventLayout } from './week-layout';
 import { detectPeriodSwipe, type SwipePoint } from './swipe-navigation';
 import { buildMovedWeekEventDraft, buildResizedWeekEventDraft, canDragWeekEvent, canResizeWeekEvent, computeWeekDropStartMinutes, computeWeekResizeEndMinutes, weekEventDurationMinutes, weekEventStartMinutes } from './week-drag';
 import { computeMobileWeekTargetDayIndex, shouldCancelWeekLongPress } from './week-touch-drag';
+import { calendarOverlayMarkersForDate } from './calendar-overlays';
 
 interface CalendarViewProps {
   events: CalendarEvent[];
   locations: Location[];
   timeFormat: TimeFormat;
+  showPolishHolidays: boolean;
+  showWumAcademicCalendar: boolean;
   dayConstraints: DayConstraint[];
   dayAttributes: DayAttribute[];
   consistencyIssues: CalendarConsistencyIssue[];
@@ -129,6 +132,8 @@ type MobileWeekTouchSession = {
   grabOffsetMinutes: number;
   previewDateKey: string;
   previewStartMinutes: number;
+  startScrollTop: number;
+  startWindowScrollY: number;
   activated: boolean;
 };
 
@@ -243,7 +248,7 @@ function calendarEventTimeLabel(event: CalendarEvent, dateKey: string, timeForma
   return 'trwa';
 }
 
-export function CalendarView({ events, locations, timeFormat, dayConstraints, dayAttributes, consistencyIssues, activeStudyGroups = [], incompleteStudyEntries = [], onToggleWorkAvailabilityExclusion, onToggleTradingSunday, onAcknowledgeConsistency, onAdd, onQuickAdd, onQuickEdit, onQuickMove, onQuickDelete, onAddMany, onEdit, onStudyCorrect, onStudySeriesCorrect, availabilityPlans = [], coworkersByEvent = {}, onOpenAvailability }: CalendarViewProps) {
+export function CalendarView({ events, locations, timeFormat, showPolishHolidays, showWumAcademicCalendar, dayConstraints, dayAttributes, consistencyIssues, activeStudyGroups = [], incompleteStudyEntries = [], onToggleWorkAvailabilityExclusion, onToggleTradingSunday, onAcknowledgeConsistency, onAdd, onQuickAdd, onQuickEdit, onQuickMove, onQuickDelete, onAddMany, onEdit, onStudyCorrect, onStudySeriesCorrect, availabilityPlans = [], coworkersByEvent = {}, onOpenAvailability }: CalendarViewProps) {
   const [visibleMonth, setVisibleMonth] = useState(() => new Date());
   const [selectedDate, setSelectedDate] = useState(() => { const today = new Date(); return new Date(today.getFullYear(), today.getMonth(), today.getDate()); });
   const [currentTime, setCurrentTime] = useState(() => new Date());
@@ -412,6 +417,7 @@ export function CalendarView({ events, locations, timeFormat, dayConstraints, da
   }, [events]);
 
   const selectedKey = toLocalDateKey(selectedDate);
+  const selectedDayOverlayMarkers = calendarOverlayMarkersForDate(selectedKey, { showPolishHolidays, showWumAcademicCalendar });
   const todayKey = toLocalDateKey(currentTime);
   const selectedEvents = useMemo(() => sortEventsForDay(filteredEvents.filter((event) => eventOccursOnDate(event, selectedKey))), [filteredEvents, selectedKey]);
   const selectedIncompleteStudyEntries = useMemo(() => (filter === 'ALL' || filter === 'STUDY') ? incompleteStudyEntries.filter((entry) => incompleteEntryAppliesOnDate(entry, selectedKey)) : [], [filter, incompleteStudyEntries, selectedKey]);
@@ -716,12 +722,20 @@ export function CalendarView({ events, locations, timeFormat, dayConstraints, da
       grabOffsetMinutes,
       previewDateKey: originDateKey,
       previewStartMinutes,
+      startScrollTop: weekScrollRef.current?.scrollTop ?? 0,
+      startWindowScrollY: window.scrollY,
       activated: false,
     };
 
     mobileWeekLongPressTimerRef.current = window.setTimeout(() => {
+      mobileWeekLongPressTimerRef.current = null;
       const session = mobileWeekTouchSessionRef.current;
       if (!session || session.eventId !== calendarEvent.id || session.activated) return;
+      const scrollTop = weekScrollRef.current?.scrollTop ?? session.startScrollTop;
+      if (Math.abs(scrollTop - session.startScrollTop) > 1 || Math.abs(window.scrollY - session.startWindowScrollY) > 1) {
+        mobileWeekTouchSessionRef.current = null;
+        return;
+      }
       session.activated = true;
       periodSwipeStartRef.current = null;
       setQuickAdd(null);
@@ -736,6 +750,15 @@ export function CalendarView({ events, locations, timeFormat, dayConstraints, da
       });
       if (typeof navigator !== 'undefined' && 'vibrate' in navigator) navigator.vibrate?.(18);
     }, MOBILE_WEEK_LONG_PRESS_MS);
+  }
+
+  function handleMobileWeekScroll() {
+    const session = mobileWeekTouchSessionRef.current;
+    if (!session || session.activated) return;
+    const scrollTop = weekScrollRef.current?.scrollTop ?? session.startScrollTop;
+    if (Math.abs(scrollTop - session.startScrollTop) <= 1) return;
+    clearMobileWeekLongPressTimer();
+    mobileWeekTouchSessionRef.current = null;
   }
 
   function updateMobileWeekTouchPosition(touch: Pick<React.Touch, 'clientX' | 'clientY'>) {
@@ -1009,6 +1032,7 @@ export function CalendarView({ events, locations, timeFormat, dayConstraints, da
               <div className={selectionMode ? 'calendar-grid selection-mode' : 'calendar-grid'}>
                 {days.map((day) => {
                   const key = toLocalDateKey(day);
+                  const overlayMarkers = calendarOverlayMarkersForDate(key, { showPolishHolidays, showWumAcademicCalendar });
                   const counts = countsByDate.get(key) ?? { STUDY: 0, WORK: 0, PERSONAL: 0, OTHER: 0 };
                   const dayEvents = eventsByDate.get(key) ?? [];
                   const total = counts.STUDY + counts.WORK + counts.PERSONAL + counts.OTHER;
@@ -1022,9 +1046,10 @@ export function CalendarView({ events, locations, timeFormat, dayConstraints, da
                   const showMonthQuickAdd = Boolean(monthQuickAdd);
                   const monthQuickAddAlignEnd = day.getDay() === 0 || day.getDay() === 6;
                   return <div key={key} className="calendar-day-shell">
-                    <button type="button" className={`calendar-day${sameMonth(day, visibleMonth) ? '' : ' muted'}${day.getDay() === 0 || day.getDay() === 6 ? ' weekend' : ''}${!selectionMode && selected ? ' selected' : ''}${multiSelected ? ' multi-selected' : ''}${isToday ? ' today' : ''}`} onClick={() => selectionMode ? toggleSelection(key) : selectDay(day)} aria-pressed={selectionMode ? multiSelected : undefined} aria-label={`${day.toLocaleDateString('pl-PL')}, ${ariaEvents}${incompleteStudyCount ? `, niepełne dane planu studiów: ${incompleteStudyCount}` : ''}${issueCount ? `, niespójności: ${issueCount}` : ''}`}>
+                    <button type="button" className={`calendar-day${sameMonth(day, visibleMonth) ? '' : ' muted'}${day.getDay() === 0 || day.getDay() === 6 ? ' weekend' : ''}${!selectionMode && selected ? ' selected' : ''}${multiSelected ? ' multi-selected' : ''}${isToday ? ' today' : ''}`} onClick={() => selectionMode ? toggleSelection(key) : selectDay(day)} aria-pressed={selectionMode ? multiSelected : undefined} aria-label={`${day.toLocaleDateString('pl-PL')}, ${ariaEvents}${overlayMarkers.length ? `, ${overlayMarkers.map((marker) => marker.label).join(', ')}` : ''}${incompleteStudyCount ? `, niepełne dane planu studiów: ${incompleteStudyCount}` : ''}${issueCount ? `, niespójności: ${issueCount}` : ''}`}>
                       <span className="day-number">{day.getDate()}</span>
-                      {total > 0 ? <span className="category-count-row calendar-day-counts" title={dayEvents.map((event) => `${calendarEventTimeLabel(event, key, timeFormat)} ${event.title}`).join('\n')}>{(Object.keys(categoryLabels) as Array<keyof typeof categoryLabels>).filter((category) => counts[category] > 0).map((category) => <span key={category} className={`category-count category-${category.toLowerCase()}`} aria-label={`${counts[category]} wydarzenia: ${categoryLabels[category]}`}><i aria-hidden="true" />{counts[category]}</span>)}</span> : <span className="event-placeholder" />}
+                      {overlayMarkers.length ? <span className="calendar-overlay-dots" role="img" aria-label={overlayMarkers.map((marker) => marker.label).join(', ')} title={overlayMarkers.map((marker) => marker.label).join(' · ')}>{overlayMarkers.map((marker) => <i key={marker.kind} className={`overlay-${marker.kind.toLowerCase()}`} aria-hidden="true" />)}</span> : null}
+                      {total > 0 ? <span className="category-count-row calendar-day-counts" title={dayEvents.map((event) => `${calendarEventTimeLabel(event, key, timeFormat)} ${event.title}`).join('\n')}>{(Object.keys(categoryLabels) as Array<keyof typeof categoryLabels>).filter((category) => counts[category] > 0).map((category) => <span key={category} className={`category-count category-${category.toLowerCase()}`} aria-label={`${counts[category]} wydarzenia: ${categoryLabels[category]}`}>{counts[category]}</span>)}</span> : <span className="event-placeholder" />}
                       {incompleteStudyCount ? <span className="study-incomplete-marker" title="Niepełne dane z planu studiów - to nie jest potwierdzone wydarzenie" aria-label={`${incompleteStudyCount} niepełnych wpisów planu studiów`}>? {incompleteStudyCount}</span> : null}
                       {issueCount ? <span className="calendar-conflict-badge" aria-label={`${issueCount} niespójności kalendarza`}>! {issueCount}</span> : null}
                       {multiSelected ? <span className="multi-select-check" aria-hidden="true">✓</span> : null}
@@ -1048,15 +1073,16 @@ export function CalendarView({ events, locations, timeFormat, dayConstraints, da
                 })}
               </div>
             </div>
-              {!selectionMode && (selectedEvents.length || selectedIncompleteStudyEntries.length) ? (
+              {!selectionMode && (selectedEvents.length || selectedIncompleteStudyEntries.length || selectedDayOverlayMarkers.length) ? (
                 <section className="calendar-mobile-day-preview" aria-label={`Podgląd dnia ${selectedDate.toLocaleDateString('pl-PL')}`}>
                   <div className="calendar-mobile-day-preview-head">
                     <div>
                       <strong>{selectedDate.toLocaleDateString('pl-PL', { day: 'numeric', month: 'long' })}</strong>
-                      <span>{selectedEvents.length ? `${selectedEvents.length} ${selectedEvents.length === 1 ? 'wydarzenie' : selectedEvents.length >= 2 && selectedEvents.length <= 4 ? 'wydarzenia' : 'wydarzeń'}` : 'Niepełne dane planu'}</span>
+                      <span>{selectedEvents.length ? `${selectedEvents.length} ${selectedEvents.length === 1 ? 'wydarzenie' : selectedEvents.length >= 2 && selectedEvents.length <= 4 ? 'wydarzenia' : 'wydarzeń'}` : selectedIncompleteStudyEntries.length ? 'Niepełne dane planu' : 'Informacja o dniu'}</span>
                     </div>
                     {selectedEvents.length > 3 || selectedIncompleteStudyEntries.length ? <button type="button" className="text-button" onClick={() => setMobileDayPanelOpen(true)}>Pokaż szczegóły</button> : null}
                   </div>
+                  {selectedDayOverlayMarkers.length ? <div className="calendar-mobile-day-preview-overlays" aria-label="Informacje o wybranym dniu">{selectedDayOverlayMarkers.map((marker) => <span key={marker.kind} className={`overlay-${marker.kind.toLowerCase()}`}>{marker.label}</span>)}</div> : null}
                   {selectedEvents.length ? <div className="calendar-mobile-day-preview-list">{selectedEvents.slice(0, 3).map((event) => <button key={event.id} type="button" className={`calendar-mobile-day-preview-event category-${event.category.toLowerCase()}`} onClick={() => setMobileDayPanelOpen(true)} aria-label={`Otwórz szczegóły wydarzenia ${event.title}`}><span>{calendarEventTimeLabel(event, selectedKey, timeFormat)}</span><strong>{event.title}</strong><i aria-hidden="true">›</i></button>)}</div> : null}
                   {selectedIncompleteStudyEntries.length ? <button type="button" className="calendar-mobile-day-preview-incomplete" onClick={() => setMobileDayPanelOpen(true)}><span>?</span><strong>Niepełne dane z planu studiów</strong><i aria-hidden="true">›</i></button> : null}
                 </section>
@@ -1069,7 +1095,8 @@ export function CalendarView({ events, locations, timeFormat, dayConstraints, da
                 {weekDays.map((day) => {
                   const key = toLocalDateKey(day);
                   const isToday = key === todayKey;
-                  return <button type="button" key={key} className={`calendar-week-day-heading${day.getDay() === 0 || day.getDay() === 6 ? ' weekend' : ''}${key === selectedKey ? ' selected' : ''}${isToday ? ' today' : ''}`} onClick={() => selectDay(day)}><span>{weekdayLabels[(day.getDay() + 6) % 7]}</span><strong>{day.getDate()}</strong></button>;
+                  const overlayMarkers = calendarOverlayMarkersForDate(key, { showPolishHolidays, showWumAcademicCalendar });
+                  return <button type="button" key={key} className={`calendar-week-day-heading${day.getDay() === 0 || day.getDay() === 6 ? ' weekend' : ''}${key === selectedKey ? ' selected' : ''}${isToday ? ' today' : ''}`} onClick={() => selectDay(day)}><span>{weekdayLabels[(day.getDay() + 6) % 7]}</span><strong>{day.getDate()}</strong>{overlayMarkers.length ? <i className="calendar-week-overlay-dot" title={overlayMarkers.map((marker) => marker.label).join(' · ')} aria-label={overlayMarkers.map((marker) => marker.label).join(', ')} /> : null}</button>;
                 })}
               </div>
               {weekDays.some((day) => (weekEventsByDate.get(toLocalDateKey(day)) ?? []).some((event) => event.allDay)) ? (
@@ -1086,7 +1113,7 @@ export function CalendarView({ events, locations, timeFormat, dayConstraints, da
                   })}
                 </div>
               ) : null}
-              <div className="calendar-week-scroll" style={weekHourHeight < WEEK_HOUR_HEIGHT ? { height: weekTimelineHeight } : undefined}>
+              <div ref={weekScrollRef} className="calendar-week-scroll" onScroll={handleMobileWeekScroll} style={weekHourHeight < WEEK_HOUR_HEIGHT ? { height: weekTimelineHeight } : undefined}>
                 <div className="calendar-week-time-axis" style={weekHourHeight < WEEK_HOUR_HEIGHT ? { height: weekTimelineHeight } : undefined}>
                   {Array.from({ length: WEEK_END_HOUR - WEEK_START_HOUR }, (_, index) => <span key={index} style={{ top: index * weekHourHeight }}>{String(WEEK_START_HOUR + index).padStart(2, '0')}:00</span>)}
                 </div>
@@ -1153,17 +1180,18 @@ export function CalendarView({ events, locations, timeFormat, dayConstraints, da
           {mobileDayPanelOpen ? <button type="button" className="calendar-mobile-day-backdrop" aria-label="Zamknij szczegóły dnia" onClick={() => setMobileDayPanelOpen(false)} /> : null}
           <aside className={`panel selected-day-panel${mobileDayPanelOpen ? ' mobile-open' : ''}`}>
             <div className="panel-heading compact-heading"><div><span className="section-kicker">{selectionMode ? 'Tryb wyboru' : 'Wybrany dzień'}</span><h2>{selectionMode ? `${selectedDateKeys.length} zaznaczonych` : selectedDate.toLocaleDateString('pl-PL', { day: 'numeric', month: 'long' })}</h2></div><button type="button" className="calendar-mobile-day-close" onClick={() => setMobileDayPanelOpen(false)} aria-label="Zamknij szczegóły dnia">×</button></div>
+            {!selectionMode && selectedDayOverlayMarkers.length ? <div className="calendar-selected-day-overlays" aria-label="Informacje o dniu">{selectedDayOverlayMarkers.map((marker) => <span key={marker.kind} className={`overlay-${marker.kind.toLowerCase()}`}>{marker.label}</span>)}</div> : null}
             {!selectionMode && (selectedEvents.length || selectedIncompleteStudyEntries.length) ? <div className="selected-day-quick-actions"><button type="button" className="button button-primary button-small" onClick={() => onAdd(selectedDate)}>Dodaj wydarzenie</button></div> : null}
             {!selectionMode && selectedDayIssues.length ? <div className="calendar-day-alerts">{selectedDayIssues.slice(0, 2).map((issue) => <div key={issue.id} className="calendar-day-alert"><strong>{issue.title}</strong><span>{issue.description}</span></div>)}</div> : null}
             {selectionMode ? <div className="selection-help"><p>Zaznacz dni w siatce po lewej, a potem utwórz jedno wydarzenie wielodniowe albo serię na wybranych datach.</p><button type="button" className="button button-primary" disabled={!selectedDateKeys.length} onClick={addSelectedDates}>Dodaj dla wybranych dni</button></div> : <>{selectedEvents.length ? <div className="event-list compact-event-list">{selectedEvents.map((event) => quickEditEventId === event.id && canQuickEdit(event) ? <QuickEventEditor key={event.id} event={event} locations={locations} onSave={async (draft) => { await onQuickEdit(event, draft); setQuickEditEventId(null); }} onMore={() => openFullEditor(event)} onCancel={() => setQuickEditEventId(null)} /> : <EventCard key={event.id} event={event} location={event.locationId ? locationMap.get(event.locationId) : undefined} timeFormat={timeFormat} seriesCount={event.seriesId ? seriesCountById.get(event.seriesId) : undefined} onEdit={canQuickEdit(event) ? () => setQuickEditEventId(event.id) : onEdit} onDelete={event.source === 'MANUAL' && !event.seriesId ? () => { void onQuickDelete(event); } : undefined} onStudyCorrect={onStudyCorrect} workCoworkers={coworkersByEvent[event.id] ?? []} showAllWorkCoworkers compactTimeRange />)}</div> : null}{selectedIncompleteStudyEntries.length ? <div className="selected-day-study-incomplete"><span className="section-kicker">Niepełne dane z planu studiów</span>{selectedIncompleteStudyEntries.map((entry) => <article key={entry.id} className="study-incomplete-card"><div><strong>{entry.subject || 'Zajęcia studiów'}</strong><span>{entry.date ? 'Godzina nie została podana w planie źródłowym.' : 'Plan przypisuje zajęcia do tego tygodnia, ale nie podaje jednoznacznego dnia i pełnych godzin.'}</span></div><small>{incompleteEntryRangeLabel(entry)}</small></article>)}</div> : null}{!selectedEvents.length && !selectedIncompleteStudyEntries.length ? <EmptyState title="Brak wydarzeń" description="Ten dzień jest jeszcze pusty." actionLabel="Dodaj wydarzenie" onAction={() => onAdd(selectedDate)} /> : null}</>}
           </aside>
           {activeStudyGroups.length && (filter === 'ALL' || filter === 'STUDY') ? (
-            <div className="calendar-study-context-wrap calendar-study-context-compact calendar-side-study-context" aria-label={`Aktywny plan studiów dla grup: ${activeStudyGroups.map(studyGroupDisplayLabel).join(', ')}`}>
-              <div className="calendar-study-context"><span>Plan studiów aktywny</span></div>
+            <details className="calendar-study-context-wrap calendar-study-context-compact calendar-side-study-context calendar-study-context-details" aria-label={`Aktywny plan studiów dla grup: ${activeStudyGroups.map(studyGroupDisplayLabel).join(', ')}`}>
+              <summary className="calendar-study-context"><span>Plan studiów aktywny</span><strong>{activeStudyGroups.length} grupy</strong><i aria-hidden="true">›</i></summary>
               <div className="calendar-study-groups-preview" aria-label="Wybrane grupy aktywnego planu">
                 {activeStudyGroups.map((group) => <span key={group} title={studyGroupDisplayLabel(group)}>{studyGroupDisplayLabel(group)}</span>)}
               </div>
-            </div>
+            </details>
           ) : null}
         </div>
       </div>

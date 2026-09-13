@@ -1,7 +1,7 @@
 {
   "name": "Inteligentny Kalendarz",
   "short_name": "Kalendarz",
-  "description": "Lokalny kalendarz do planowania dnia, studiów, pracy i finansów.",
+  "description": "Prywatny, lokalny kalendarz do planowania studiów, pracy i dnia.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

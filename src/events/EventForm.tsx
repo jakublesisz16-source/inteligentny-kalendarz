@@ -18,10 +18,12 @@ import type {
 } from './event.types';
 import { validateEventDraft, validateManualMultiDateDraft } from './event.validation';
 import type { CoworkerOverlap } from '../work/work.types';
+import { findEventConflicts } from './event-conflicts';
 
 interface EventFormProps {
   event?: CalendarEvent | undefined;
   locations: Location[];
+  calendarEvents?: CalendarEvent[];
   initialDate?: Date | undefined;
   initialTitle?: string | undefined;
   initialEndDate?: Date | undefined;
@@ -50,7 +52,7 @@ function normalizeLocationText(value: string): string {
   return value.trim().toLocaleLowerCase('pl-PL').replace(/\s+/g, ' ');
 }
 
-export function EventForm({ event, locations, initialDate, initialTitle = '', initialEndDate, initialDates = [], onSubmit, workCoworkers = [], onDelete, onCancel }: EventFormProps) {
+export function EventForm({ event, locations, calendarEvents = [], initialDate, initialTitle = '', initialEndDate, initialDates = [], onSubmit, workCoworkers = [], onDelete, onCancel }: EventFormProps) {
   const normalizedInitialDates = useMemo(() => uniqueSortedDateKeys(initialDates), [initialDates]);
   const hasMultiSelection = !event && normalizedInitialDates.length > 1;
   const contiguousSelection = areDateKeysContiguous(normalizedInitialDates);
@@ -147,6 +149,26 @@ export function EventForm({ event, locations, initialDate, initialTitle = '', in
   function currentLocationFields(): Pick<EventDraft, 'locationId' | 'locationText'> {
     if (isManualLocation) return manualLocationFields();
     return locationId ? { locationId } : {};
+  }
+
+  const potentialConflicts = useMemo(() => {
+    if (isMultiDateCreation || allDay || !startDate || !startTime || !endTime) return [];
+    const effectiveEndDate = isMultiDayCreation || event?.spanType === 'MULTI_DAY' ? endDate : startDate;
+    const startDateTime = combineDateAndTime(startDate, startTime);
+    const endDateTime = combineDateAndTime(effectiveEndDate, endTime);
+    return findEventConflicts({ startDateTime, endDateTime }, calendarEvents, event?.id);
+  }, [allDay, calendarEvents, endDate, endTime, event?.id, event?.spanType, isMultiDateCreation, isMultiDayCreation, startDate, startTime]);
+
+  function conflictTimeLabel(conflict: CalendarEvent): string {
+    if (conflict.allDay) return 'cały dzień';
+    return `${conflict.startDateTime.slice(11, 16)}-${conflict.endDateTime.slice(11, 16)}`;
+  }
+
+  function conflictCategoryLabel(conflict: CalendarEvent): string {
+    if (conflict.category === 'STUDY') return 'Studia';
+    if (conflict.category === 'WORK') return 'Praca';
+    if (conflict.category === 'PERSONAL') return 'Prywatne';
+    return 'Inne';
   }
 
   async function handleSubmit(eventObject: React.FormEvent<HTMLFormElement>) {
@@ -313,6 +335,18 @@ export function EventForm({ event, locations, initialDate, initialTitle = '', in
       ) : null}
       {errors.startDateTime || errors.endDateTime || errors.timeRange || errors.dates ? (
         <small className="field-error block-error">{errors.startDateTime ?? errors.endDateTime ?? errors.timeRange ?? errors.dates}</small>
+      ) : null}
+
+      {potentialConflicts.length ? (
+        <div className="event-conflict-warning" role="status" aria-live="polite">
+          <div><strong>Ten termin nachodzi na kalendarz</strong><span>Możesz zapisać wydarzenie, ale sprawdź kolizję.</span></div>
+          <ul>
+            {potentialConflicts.slice(0, 3).map(({ event: conflict }) => (
+              <li key={conflict.id}><b>{conflict.title}</b><span>{conflictTimeLabel(conflict)} · {conflictCategoryLabel(conflict)}</span></li>
+            ))}
+          </ul>
+          {potentialConflicts.length > 3 ? <small>+{potentialConflicts.length - 3} kolejne kolizje</small> : null}
+        </div>
       ) : null}
 
       {isManualLocation ? (

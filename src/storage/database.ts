@@ -635,6 +635,8 @@ async function ensureInitialSettings(db: IDBDatabase): Promise<void> {
       timeFormat: '24h',
       notificationPreferences: DEFAULT_NOTIFICATION_PREFERENCES,
       decorativeBackgroundMode: DEFAULT_DECORATIVE_BACKGROUND_MODE,
+      showPolishHolidays: true,
+      showWumAcademicCalendar: true,
       updatedAt: timestamp,
     } satisfies AppSettings);
   }
@@ -2062,6 +2064,8 @@ export async function getSettings(): Promise<AppSettings> {
     ...(settings?.workLocationId ? { workLocationId: settings.workLocationId } : {}),
     notificationPreferences: normalizeNotificationPreferences(settings?.notificationPreferences),
     decorativeBackgroundMode: normalizeDecorativeBackgroundMode(settings?.decorativeBackgroundMode),
+    showPolishHolidays: settings?.showPolishHolidays ?? true,
+    showWumAcademicCalendar: settings?.showWumAcademicCalendar ?? true,
     updatedAt: settings?.updatedAt ?? nowIso(),
   };
 }
@@ -2077,6 +2081,8 @@ export async function updateSettings(patch: AppSettingsPatch): Promise<AppSettin
   else if (patch.workLocationId !== undefined) updated.workLocationId = patch.workLocationId;
   if (patch.notificationPreferences) updated.notificationPreferences = normalizeNotificationPreferences(patch.notificationPreferences);
   if (patch.decorativeBackgroundMode) updated.decorativeBackgroundMode = normalizeDecorativeBackgroundMode(patch.decorativeBackgroundMode);
+  if (patch.showPolishHolidays !== undefined) updated.showPolishHolidays = patch.showPolishHolidays;
+  if (patch.showWumAcademicCalendar !== undefined) updated.showWumAcademicCalendar = patch.showWumAcademicCalendar;
   const db = await openDatabase();
   const tx = db.transaction(STORE_SETTINGS, 'readwrite');
   tx.objectStore(STORE_SETTINGS).put(updated);
@@ -2090,6 +2096,16 @@ export async function listUniversityImports(): Promise<UniversityScheduleImport[
   const result = await requestToPromise(tx.objectStore(STORE_UNIVERSITY_IMPORTS).getAll() as IDBRequest<UniversityScheduleImport[]>);
   await transactionDone(tx);
   return result.sort((a, b) => b.importedAt.localeCompare(a.importedAt));
+}
+
+export async function getLatestAppliedScheduleUpdateSession(): Promise<ScheduleUpdateSession | undefined> {
+  const db = await openDatabase();
+  const tx = db.transaction(STORE_SCHEDULE_UPDATE_SESSIONS, 'readonly');
+  const result = await requestToPromise(tx.objectStore(STORE_SCHEDULE_UPDATE_SESSIONS).getAll() as IDBRequest<ScheduleUpdateSession[]>);
+  await transactionDone(tx);
+  return result
+    .filter((item) => item.status === 'APPLIED' && Boolean(item.appliedAt))
+    .sort((a, b) => (b.appliedAt ?? b.createdAt).localeCompare(a.appliedAt ?? a.createdAt))[0];
 }
 
 export async function getUniversityImport(id: string): Promise<UniversityScheduleImport | undefined> {

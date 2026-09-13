@@ -24,14 +24,14 @@ describe('1.2.0.54 global clarity pass', () => {
     expect(today).toContain('showAllWorkCoworkers');
     expect(today).toContain('compactTimeRange');
     expect(today).not.toContain('<h2>Plan dnia</h2>');
-    expect(eventCard).toContain('event-coworker-mobile-more');
+    expect(eventCard).not.toContain('event-coworker-mobile-more');
   });
 
   it('keeps Finance and Work focused on primary information', () => {
     expect(finance).toContain('>Dodaj</button>');
     expect(finance).toContain('Brak wydatków w');
-    expect(work).toContain('nearestCoworkers.slice(0, 5)');
-    expect(work).toContain('coworker-more');
+    expect(work).toContain('nearestCoworkers.map((person)');
+    expect(work).not.toContain('nearestCoworkers.slice(0, 5)');
   });
 
   it('keeps Settings simple: essentials, visible install/backup tools and a compact build line', () => {
@@ -46,7 +46,7 @@ describe('1.2.0.54 global clarity pass', () => {
   });
 
   it('keeps the database schema stable', () => {
-    expect(version).toContain("APP_VERSION = '1.2.0'");
+    expect(version).toContain("APP_VERSION = '1.2.0.112'");
     expect(version).toContain('DATABASE_SCHEMA_VERSION = 14');
   });
 });

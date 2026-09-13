@@ -6,18 +6,28 @@ import {
   prepareGroupRecalculation,
   updateStudyProfileGroups,
 } from '../storage/database';
-import { formatStudyGroupList, studyGroupCompactLabel, studyGroupDisplayLabel } from '../imports/xlsx/group-normalizer';
+import { formatStudyGroupList, parseStudyGroupKey, studyGroupPlainLabel, type StudyGroupKind } from '../imports/xlsx/group-normalizer';
 import type { GroupRecalculationPreview, StudyProfile, UniversityScheduleImport } from './study.types';
 import { StudyGroupSelector } from './StudyGroupSelector';
+
+const PROFILE_PARTITIONS: Array<{ kind: Exclude<StudyGroupKind, 'GENERIC'>; label: string; helper: string }> = [
+  { kind: 'MAIN', label: 'Grupa główna', helper: 'Twoja grupa bazowa' },
+  { kind: 'G12', label: '12-osobowa', helper: 'Niezależny podział zajęć' },
+  { kind: 'G8', label: '8-osobowa', helper: 'Opcjonalna przy grupie 4-os.' },
+  { kind: 'G4', label: '4-osobowa', helper: 'Najdokładniejsze przypisanie' },
+];
 
 interface StudyProfileSettingsProps {
   onDataChanged: () => Promise<void>;
 }
 
+function sameGroups(left: string[], right: string[]) {
+  return [...left].sort().join('|') === [...right].sort().join('|');
+}
+
 export function StudyProfileSettings({ onDataChanged }: StudyProfileSettingsProps) {
   const [profile, setProfile] = useState<StudyProfile | null>(null);
   const [activeImport, setActiveImport] = useState<UniversityScheduleImport | null>(null);
-  const [editing, setEditing] = useState(false);
   const [groupsDraft, setGroupsDraft] = useState<string[]>([]);
   const [recalculation, setRecalculation] = useState<GroupRecalculationPreview | null>(null);
   const [message, setMessage] = useState('');
@@ -33,9 +43,30 @@ export function StudyProfileSettings({ onDataChanged }: StudyProfileSettingsProp
     setGroupsDraft(loadedProfile?.selectedGroups ?? active?.selectedGroups ?? []);
   }
 
+  function resetFeedback() {
+    setRecalculation(null);
+    setMessage('');
+    setError('');
+  }
+
   function toggleGroup(group: string) {
     setGroupsDraft((current) => current.includes(group) ? current.filter((item) => item !== group) : [...current, group]);
-    setRecalculation(null); setMessage(''); setError('');
+    resetFeedback();
+  }
+
+  function setPartitionGroup(kind: Exclude<StudyGroupKind, 'GENERIC'>, group: string) {
+    setGroupsDraft((current) => {
+      const chosen = group ? parseStudyGroupKey(group) : null;
+      let next = current.filter((item) => parseStudyGroupKey(item).kind !== kind);
+      if (chosen?.number) {
+        next = next.filter((item) => {
+          const parsed = parseStudyGroupKey(item);
+          return parsed.kind === 'GENERIC' || !parsed.number || parsed.number === chosen.number;
+        });
+      }
+      return group ? [...next, group] : next;
+    });
+    resetFeedback();
   }
 
   async function saveFutureGroups() {
@@ -43,7 +74,10 @@ export function StudyProfileSettings({ onDataChanged }: StudyProfileSettingsProp
     setSaving(true);
     try {
       const next = await updateStudyProfileGroups(groupsDraft);
-      setProfile(next); setEditing(false); setRecalculation(null); setError('');
+      setProfile(next);
+      setGroupsDraft(next.selectedGroups);
+      setRecalculation(null);
+      setError('');
       setMessage('Grupy zapisano dla kolejnych importów. Aktualny kalendarz nie został zmieniony.');
     } catch (reason) { setError(reason instanceof Error ? reason.message : 'Nie udało się zapisać grup.'); }
     finally { setSaving(false); }
@@ -54,7 +88,8 @@ export function StudyProfileSettings({ onDataChanged }: StudyProfileSettingsProp
     setSaving(true);
     try {
       const preview = await prepareGroupRecalculation(groupsDraft);
-      setRecalculation(preview); setMessage('');
+      setRecalculation(preview);
+      setMessage('');
       setError(preview.requiresReupload ? preview.reason ?? 'Do przeliczenia potrzebny jest ponowny import pliku Excel.' : '');
     } catch (reason) { setError(reason instanceof Error ? reason.message : 'Nie udało się przygotować przeliczenia grup.'); }
     finally { setSaving(false); }
@@ -66,32 +101,74 @@ export function StudyProfileSettings({ onDataChanged }: StudyProfileSettingsProp
     try {
       await applyGroupRecalculation(recalculation, Boolean(recalculation.scheduleConflicts?.length), Boolean(recalculation.incompleteCandidates?.length));
       await Promise.all([refresh(), onDataChanged()]);
-      setEditing(false); setRecalculation(null); setError(''); setMessage('Aktualny plan został przeliczony dla nowych grup.');
+      setRecalculation(null);
+      setError('');
+      setMessage('Aktualny plan został przeliczony dla nowych grup.');
     } catch (reason) { setError(reason instanceof Error ? reason.message : 'Nie udało się przeliczyć aktywnego planu.'); }
     finally { setSaving(false); }
   }
 
   const activeGroups = activeImport?.selectedGroups ?? [];
   const futureGroups = profile?.selectedGroups ?? activeGroups;
-  const futureGroupsDiffer = [...futureGroups].sort().join('|') !== [...activeGroups].sort().join('|');
+  const futureGroupsDiffer = !sameGroups(futureGroups, activeGroups);
+  const draftDiffersFromFuture = !sameGroups(groupsDraft, futureGroups);
+  const draftDiffersFromActive = !sameGroups(groupsDraft, activeGroups);
   const availableGroups = profile?.availableGroups ?? activeImport?.availableGroups ?? profile?.selectedGroups ?? [];
+  const parsedAvailableGroups = availableGroups.map((group) => ({ key: group, parsed: parseStudyGroupKey(group) }));
+  const hasStructuredGroups = parsedAvailableGroups.some(({ parsed }) => parsed.encoded && parsed.kind !== 'GENERIC');
+  const parsedDraftGroups = groupsDraft.map(parseStudyGroupKey);
+  const selectedMainNumber = parsedDraftGroups.find((group) => group.kind === 'MAIN' && group.number)?.number ?? parsedDraftGroups.find((group) => group.number)?.number;
+  const genericGroups = parsedAvailableGroups.filter(({ parsed }) => parsed.kind === 'GENERIC').map(({ key }) => key);
   if (!profile && !activeImport) return null;
 
-  return <details className="panel study-profile-settings">
-    <summary><span><span className="section-kicker">Moje studia</span><strong>Grupy i aktywny plan</strong></span><span className="selected-group-row compact">{activeGroups.map((group) => <i key={group}>{studyGroupDisplayLabel(group)}</i>)}</span></summary>
+  return <section className="study-profile-settings study-profile-settings-always-open" aria-labelledby="study-profile-groups-title">
+    <div className="study-profile-settings-heading">
+      <div>
+        <span className="section-kicker">Moje studia</span>
+        <strong id="study-profile-groups-title">Grupy i aktywny plan</strong>
+      </div>
+      <span className="study-profile-heading-status">{activeGroups.length ? `${activeGroups.length} aktywne` : 'Brak grup'}</span>
+    </div>
+
     <div className="study-profile-settings-body">
       {error ? <div className="study-message error-message" role="alert">{error}</div> : null}
       {message ? <div className="study-message success-message" role="status">{message}</div> : null}
-      <div className="study-profile-summary minimal">
+
+      <div className="study-profile-summary minimal study-profile-plan-summary">
         <div><span>Aktywny plan</span><strong>{activeImport?.fileName ?? 'Brak'}</strong></div>
-        <div><span>Grupy aktywnego planu</span><span className="study-profile-group-chips">{activeGroups.length ? activeGroups.map((group) => <i key={group} title={studyGroupDisplayLabel(group)}>{studyGroupCompactLabel(group)}</i>) : <strong>Brak</strong>}</span></div>
       </div>
+
       {futureGroupsDiffer ? <div className="study-future-groups-note"><span>Dla kolejnych importów</span><strong>{formatStudyGroupList(futureGroups)}</strong></div> : null}
-      {!editing ? <button type="button" className="button button-secondary button-small" onClick={() => setEditing(true)}>Zmień grupy</button> : <div className="settings-group-editor">
-        <StudyGroupSelector groups={availableGroups} selectedGroups={groupsDraft} onToggle={toggleGroup} compact />
-        <p className="muted-copy">Możesz zapisać wybór dla przyszłych importów albo najpierw sprawdzić wpływ na aktywny plan.</p>
-        <div className="settings-study-actions"><button type="button" className="button button-secondary" disabled={saving} onClick={() => { setEditing(false); setGroupsDraft(profile?.selectedGroups ?? activeImport?.selectedGroups ?? []); setRecalculation(null); }}>Anuluj</button><button type="button" className="button button-secondary" disabled={saving} onClick={() => void saveFutureGroups()}>Tylko kolejne importy</button><button type="button" className="button button-primary" disabled={saving} onClick={() => void previewRecalculation()}>Sprawdź aktualny plan</button></div>
-      </div>}
+
+      <div className="study-profile-group-picker">
+        <div className="settings-groups-heading">
+          <div><strong>Wybór grup</strong><span>Zaznacz grupy, które dotyczą Ciebie.</span></div>
+          <span>{groupsDraft.length} wybranych</span>
+        </div>
+        {availableGroups.length ? <>
+          {hasStructuredGroups ? <div className="study-group-dashboard" aria-label="Stały wybór grup studiów">
+            {PROFILE_PARTITIONS.map((partition) => {
+              const options = parsedAvailableGroups.filter(({ parsed }) => parsed.kind === partition.kind && (partition.kind === 'MAIN' || !selectedMainNumber || parsed.number === selectedMainNumber));
+              if (!options.length) return null;
+              const current = groupsDraft.find((group) => parseStudyGroupKey(group).kind === partition.kind) ?? '';
+              return <label key={partition.kind} className="study-group-dashboard-card">
+                <span><strong>{partition.label}</strong><small>{partition.helper}</small></span>
+                <select value={current} onChange={(event) => setPartitionGroup(partition.kind, event.target.value)} aria-label={`Wybierz: ${partition.label}`}>
+                  <option value="">Nie wybrano</option>
+                  {options.map(({ key }) => <option key={key} value={key}>{studyGroupPlainLabel(key)}</option>)}
+                </select>
+              </label>;
+            })}
+          </div> : null}
+          {genericGroups.length ? <div className="study-generic-groups"><span>Pozostałe oznaczenia</span><StudyGroupSelector groups={genericGroups} selectedGroups={groupsDraft} onToggle={toggleGroup} compact /></div> : null}
+        </> : <p className="muted-copy">Aktywny plan nie udostępnia osobnych grup do wyboru.</p>}
+        <div className="settings-study-actions compact-study-actions">
+          {draftDiffersFromFuture ? <button type="button" className="button button-secondary" disabled={saving} onClick={() => { setGroupsDraft(futureGroups); setRecalculation(null); setError(''); setMessage(''); }}>Przywróć zapisany wybór</button> : null}
+          <button type="button" className="button button-secondary" disabled={saving || !groupsDraft.length || !draftDiffersFromFuture} onClick={() => void saveFutureGroups()}>Tylko kolejne importy</button>
+          <button type="button" className="button button-primary" disabled={saving || !groupsDraft.length || !draftDiffersFromActive} onClick={() => void previewRecalculation()}>Sprawdź aktualny plan</button>
+        </div>
+      </div>
+
       {recalculation ? <div className="group-recalc-preview">
         <strong>Wpływ zmiany</strong>
         {recalculation.requiresReupload ? <p>{recalculation.reason}</p> : <>
@@ -119,5 +196,5 @@ export function StudyProfileSettings({ onDataChanged }: StudyProfileSettingsProp
         </>}
       </div> : null}
     </div>
-  </details>;
+  </section>;
 }

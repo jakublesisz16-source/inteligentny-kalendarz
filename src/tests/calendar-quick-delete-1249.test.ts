@@ -26,7 +26,7 @@ describe('1.2.0.50 quick delete for manual calendar events', () => {
   });
 
   it('does not require a schema migration', () => {
-    expect(version).toContain("APP_VERSION = '1.2.0'");
+    expect(version).toContain("APP_VERSION = '1.2.0.112'");
     expect(version).toContain('DATABASE_SCHEMA_VERSION = 14');
   });
 });

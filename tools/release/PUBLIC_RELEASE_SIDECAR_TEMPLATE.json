@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "repository": "jakublesisz16-source/inteligentny-kalendarz",
+  "expectedBaseSha": "REPLACE_WITH_FULL_40_CHAR_PUBLIC_BASE_SHA",
+  "version": "REPLACE_WITH_RELEASE_VERSION",
+  "packageSha256": "REPLACE_WITH_PUBLIC_ZIP_SHA256",
+  "commitMessage": "Release REPLACE_WITH_RELEASE_VERSION",
+  "branchName": "release/REPLACE_WITH_RELEASE_VERSION",
+  "expectedChangedFiles": [
+    "REPLACE_WITH_EXACT_CHANGED_FILE_PATH"
+  ]
+}

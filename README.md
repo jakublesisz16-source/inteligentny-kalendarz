@@ -1,84 +1,64 @@
 # Inteligentny Kalendarz
 
-Local-first PWA do planowania dnia, kalendarza, studiów, pracy i finansów. Dane użytkownika są przechowywane lokalnie w IndexedDB; aplikacja nie wymaga konta ani własnego backendu.
-
-## Wersja
-
-- APP_VERSION: `1.2.0`
-- DATABASE_SCHEMA_VERSION: `14`
-- React 19 + TypeScript + Vite
-- statyczny deployment przez GitHub Pages
-- PWA z lokalnym cache powłoki aplikacji
+Lokalna aplikacja PWA do łączenia kalendarza, planu studiów, grafiku pracy, dyspozycyjności, finansów i codziennych zadań w jednym miejscu.
 
 ## Najważniejsze funkcje
 
-- `Dzisiaj` - szybki plan dnia i wydarzenia.
-- `Kalendarz` - Miesiąc/Tydzień, filtry Studia/Praca/Prywatne, drag & resize dla bezpiecznych ręcznych wydarzeń.
-- `Finanse` - miesięczne transakcje, kategorie, ręczne wydatki oraz wyjazdy z walutami i orientacyjnym przeliczeniem offline.
-- `Studia` - lokalny import planu XLS/XLSX z podglądem, wyborem grup i aktualizacją istniejącego planu.
-- `Praca` - lokalny import grafiku PDF, własne zmiany, współpracownicy i dyspozycyjność.
-- `Ustawienia` - podstawy, instalacja PWA, backup/restore oraz historia/kosz.
-- lokalny OCR paragonów - Tesseract.js/PDF.js bez zewnętrznego API OCR.
+- kalendarz miesiąca i tygodnia z wydarzeniami prywatnymi, studiami i pracą,
+- import planu zajęć z XLS/XLSX z wyborem grup i bezpiecznym porównaniem aktualizacji,
+- import i podgląd grafiku pracy oraz współpracowników,
+- planowanie dyspozycyjności i podsumowania czasu pracy,
+- lokalne finanse miesiąca i wyjazdów,
+- zakupy, cykl i widok `Dzisiaj`,
+- opcjonalne oznaczenia świąt w Polsce i kalendarza akademickiego WUM,
+- backup/import całego logicznego stanu aplikacji w jednym pliku JSON,
+- działanie jako instalowalna PWA i podstawowa obsługa offline.
+
+## Prywatność
+
+Aplikacja jest projektowana jako local-first. Dane użytkownika są przechowywane lokalnie w przeglądarce/IndexedDB. Eksportowane pliki JSON lub Excel mogą zawierać prywatne dane i nie są szyfrowane - należy przechowywać je w bezpiecznym miejscu.
+
+Repozytorium nie powinno zawierać prywatnych PDF/XLS/XLSX, backupów, zdjęć paragonów, screenshotów użytkownika ani lokalnych plików `.env`.
 
 ## Uruchomienie lokalne
 
-Wymagany Node.js 22.
+Wymagany jest Node.js 22.
 
 ```bash
 npm ci
-npm run check
-npm run dev -- --host 0.0.0.0 --port 5174
+npm run dev
 ```
 
-Nie używaj `npm audit fix --force`, `npm install --force` ani `npm install --legacy-peer-deps`.
-
-## Testy i build
+Pełna walidacja projektu:
 
 ```bash
-npm run typecheck
-npm run test
+npm run check
+npm run security:dependencies
+```
+
+Build produkcyjny powstaje przez:
+
+```bash
 npm run build
-npm run check
 ```
 
-`npm run build` wykonuje również gate'y Service Workera, bezpieczeństwa i krytycznych ścieżek wersji wyjazdowej.
+## PWA i offline
 
-## GitHub Pages
+Service Worker cache'uje wyłącznie zasoby aplikacji wymagane do działania offline. Prywatne pliki użytkownika, takie jak PDF, XLS/XLSX i JSON, nie są zapisywane w cache aplikacji.
 
-Repozytorium zawiera workflowy:
+## Backup danych
 
-- `.github/workflows/ci.yml` - pełny `npm run check` dla pull requestów,
-- `.github/workflows/pages.yml` - `npm ci`, `npm run check`, upload `dist` i deploy GitHub Pages po pushu do `main`.
+W Ustawieniach można wyeksportować cały logiczny stan aplikacji do pliku JSON. Import:
 
-`vite.config.ts` używa `base: './'`, więc build działa jako project site GitHub Pages bez wpisywania nazwy repo do kodu aplikacji.
+- sprawdza format i checksum pliku,
+- odrzuca pliki uszkodzone lub pochodzące z nieobsługiwanej nowszej wersji schematu,
+- przed zastąpieniem danych tworzy lokalny punkt przywracania,
+- po zapisie weryfikuje odtworzony snapshot.
 
-## Dane i prywatność
+## Rozwój i CI
 
-- dane aplikacji pozostają lokalnie w IndexedDB,
-- brak własnego backendu, chmury synchronizującej dane i analityki,
-- XLS/XLSX/PDF są analizowane lokalnie,
-- lokalny OCR nie wysyła obrazu ani surowego tekstu do API,
-- kursy walut w Finansach są orientacyjne i zapisane lokalnie w aplikacji,
-- backup/transfer danych tworzy lokalny plik JSON, który może zawierać prywatne dane i powinien być chroniony,
-- `Trasa` może otworzyć Google Maps dopiero po świadomym kliknięciu użytkownika.
+Workflow GitHub Actions wykonuje instalację z lockfile, release preflight, typecheck, testy, build i projektowe quality gates. Publiczne wydanie powinno być przygotowywane dopiero po zielonym CI i Visual QA na desktopie oraz telefonie.
 
-Szczegóły: `docs/PRIVACY.md`.
+## Licencja
 
-## Publiczne repozytorium
-
-Nie commituj:
-
-- `.env` i sekretów,
-- prywatnych PDF/XLS/XLSX,
-- backupów/eksportów JSON,
-- archiwów ZIP,
-- wewnętrznych handoffów i materiałów checkpointu,
-- danych identyfikujących użytkownika lub współpracowników.
-
-Przed publikacją można dodatkowo uruchomić gate na osobnym, sanitizowanym katalogu:
-
-```bash
-node scripts/public-package-gate.mjs <katalog-publiczny>
-```
-
-Więcej: `docs/PUBLIC_REPOSITORY.md`.
+Licencja publicznego repozytorium zostanie wybrana przed pierwszym publicznym wydaniem. Do tego czasu brak pliku `LICENSE` nie oznacza udzielenia dodatkowych praw do kodu.

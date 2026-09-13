@@ -8,7 +8,7 @@ const responsive = readFileSync('src/styles/responsive.css', 'utf8');
 const version = readFileSync('src/core/version.ts', 'utf8');
 const indexHtml = readFileSync('index.html', 'utf8');
 
-describe('1.2.0 mobile modal action safety', () => {
+describe('1.2.0.92 mobile modal action safety', () => {
   it('marks the document while a modal is open so bottom navigation cannot cover actions', () => {
     expect(modal).toContain("body.classList.add('modal-open')");
     expect(modal).toContain("body.classList.remove('modal-open')");
@@ -42,7 +42,7 @@ describe('1.2.0 mobile modal action safety', () => {
   });
 
   it('keeps database schema stable', () => {
-    expect(version).toContain("APP_VERSION = '1.2.0'");
+    expect(version).toContain("APP_VERSION = '1.2.0.112'");
     expect(version).toContain('DATABASE_SCHEMA_VERSION = 14');
   });
 });

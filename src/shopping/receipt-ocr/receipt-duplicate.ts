@@ -1,4 +1,4 @@
-import type { Receipt, ReceiptDraft } from '../expenses.types';
+import type { FinanceCurrencyCode, Receipt, ReceiptDraft } from '../expenses.types';
 import { normalizeExpenseProductKey } from '../expenses.utils';
 
 function receiptDraftTotalMinor(draft: ReceiptDraft): number {
@@ -33,23 +33,38 @@ function merchantFingerprint(value: string): string {
  * Conservative duplicate detector used only to warn before saving a scanned receipt.
  * Exact normalized item/name/value matches are preferred. As a second safe path,
  * the warning also triggers for the same date, merchant, total, item count and exact
- * multiset of item amounts. That catches a re-scan whose OCR changed product spelling
- * while keeping the receipt arithmetic identical. The user can still explicitly save.
+ * multiset of item amounts. Foreign-trip scans are compared against preserved original
+ * currency/total metadata because their stored item values have already been converted to PLN.
+ * The user can still explicitly save.
  */
-export function findLikelyDuplicateReceipt(draft: ReceiptDraft, receipts: Receipt[]): Receipt | null {
+export interface ReceiptDuplicateContext {
+  currency?: FinanceCurrencyCode;
+  tripName?: string;
+}
+
+export function findLikelyDuplicateReceipt(draft: ReceiptDraft, receipts: Receipt[], context: ReceiptDuplicateContext = {}): Receipt | null {
   if (!draft.items.length) return null;
   const merchantKey = merchantFingerprint(draft.merchant);
   if (!merchantKey) return null;
   const totalMinor = receiptDraftTotalMinor(draft);
   const itemFingerprint = receiptItemFingerprint(draft.items);
   const amountFingerprint = receiptAmountFingerprint(draft.items);
+  const foreignCurrency = context.currency && context.currency !== 'PLN' ? context.currency : null;
+  const tripKey = normalizeExpenseProductKey(context.tripName ?? '');
 
   return receipts.find((receipt) => {
     if (receipt.date !== draft.date) return false;
-    if (receipt.totalMinor !== totalMinor) return false;
     if (merchantFingerprint(receipt.merchant) !== merchantKey) return false;
     if (receipt.items.length !== draft.items.length) return false;
 
+    if (foreignCurrency) {
+      if (receipt.originalCurrency !== foreignCurrency) return false;
+      if (receipt.originalAmountMinor !== totalMinor) return false;
+      if (tripKey && normalizeExpenseProductKey(receipt.tripName ?? '') !== tripKey) return false;
+      return true;
+    }
+
+    if (receipt.totalMinor !== totalMinor) return false;
     if (receiptItemFingerprint(receipt.items) === itemFingerprint) return true;
     if (draft.items.length < 2) return false;
     return receiptAmountFingerprint(receipt.items) === amountFingerprint;

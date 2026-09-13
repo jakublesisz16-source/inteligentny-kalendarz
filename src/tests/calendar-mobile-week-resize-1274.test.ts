@@ -48,12 +48,12 @@ describe('1.2.0.76 explicit mobile week duration resize', () => {
   it('gives the touch handle its own non-scrolling hit area without reserving label space', () => {
     expect(responsive).toContain('/* 1.2.0.74 - explicit mobile duration resize without stealing long-press drag */');
     expect(responsive).toContain('.calendar-week-resize-handle.touch-resize-handle');
-    expect(responsive).toContain('height: min(20px, 100%);');
+    expect(responsive).toContain('height: min(18px, 100%);');
     expect(responsive).toContain('touch-action: none;');
   });
 
   it('keeps database schema stable', () => {
-    expect(version).toContain("APP_VERSION = '1.2.0'");
+    expect(version).toContain("APP_VERSION = '1.2.0.112'");
     expect(version).toContain('DATABASE_SCHEMA_VERSION = 14');
   });
 });

@@ -32,7 +32,7 @@ describe('Finance simplicity regression', () => {
     expect(database).toContain('Obsługiwany jest jeden poziom podkategorii. Wybierz kategorię główną.');
     expect(dashboard).toContain('ReceiptScanFlow');
     expect(ocrEngine).not.toContain('ExpenseProduct');
-    expect(version).toContain("APP_VERSION = '1.2.0'");
+    expect(version).toContain("APP_VERSION = '1.2.0.112'");
     expect(version).toContain('DATABASE_SCHEMA_VERSION = 14');
   });
 });

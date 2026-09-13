@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { findStudyUpdateDecisionConflicts } from './study.service';
+import { summarizeScheduleDiffChangeTypes } from './study-diff';
 import type { ScheduleDiffItem, ScheduleDiffResolution, ScheduleUpdatePreview } from './study.types';
 
 interface ScheduleDiffViewProps {
@@ -46,6 +47,8 @@ function setResolution(item: ScheduleDiffItem, resolution: ScheduleDiffResolutio
 export function ScheduleDiffView({ preview, saving, onChange, onApply, onCancel }: ScheduleDiffViewProps) {
   const [filter, setFilter] = useState<DiffFilter>('all');
   const visible = useMemo(() => preview.items.filter((item) => matchesFilter(item, filter)), [preview.items, filter]);
+  const changeBreakdown = useMemo(() => summarizeScheduleDiffChangeTypes(preview.items), [preview.items]);
+  const hasChangeBreakdown = Object.values(changeBreakdown).some((count) => count > 0);
   const actionable = preview.items.filter((item) => item.kind !== 'UNCHANGED' && item.kind !== 'AMBIGUOUS');
   const unresolved = preview.items.filter((item) => item.kind === 'CONFLICT_USER_MODIFIED' && !['KEEP_USER', 'USE_NEW'].includes(item.resolution));
 
@@ -73,6 +76,17 @@ export function ScheduleDiffView({ preview, saving, onChange, onApply, onCancel 
           <div className="diff-metric conflict"><span>Konflikty</span><strong>{preview.summary.conflicts + preview.summary.ambiguous}</strong></div>
           <div className="diff-metric unchanged"><span>Bez zmian</span><strong>{preview.summary.unchanged}</strong></div>
         </div>
+        {hasChangeBreakdown ? (
+          <div className="diff-change-breakdown" aria-label="Rodzaje zmian w planie">
+            <span>W zmienionych zajęciach:</span>
+            {changeBreakdown.time ? <strong>Godziny {changeBreakdown.time}</strong> : null}
+            {changeBreakdown.date ? <strong>Daty {changeBreakdown.date}</strong> : null}
+            {changeBreakdown.location ? <strong>Lokalizacje {changeBreakdown.location}</strong> : null}
+            {changeBreakdown.group ? <strong>Grupy {changeBreakdown.group}</strong> : null}
+            {changeBreakdown.details ? <strong>Szczegóły {changeBreakdown.details}</strong> : null}
+            <small>Jedne zajęcia mogą występować w kilku kategoriach.</small>
+          </div>
+        ) : null}
         {preview.correctionConflicts.length ? (
           <div className="diff-alert warning-info">
             {preview.correctionConflicts.length} zapisanych poprawek serii różni się od jawnych danych w nowym planie. Nowa wartość z planu Excel nie została po cichu zastąpiona starą poprawką.

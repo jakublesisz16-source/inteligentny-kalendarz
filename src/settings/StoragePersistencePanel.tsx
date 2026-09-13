@@ -33,10 +33,9 @@ export function StoragePersistencePanel() {
 
   return (
     <section className="storage-persistence-panel" aria-labelledby="storage-persistence-title">
-      <div>
-        <p className="section-kicker">Trwałość danych</p>
-        <h3 id="storage-persistence-title">Dane lokalne w tej przeglądarce</h3>
-        <p>Dane są zapisane lokalnie. Dla dodatkowego bezpieczeństwa możesz regularnie eksportować plik danych.</p>
+      <div className="storage-persistence-copy">
+        <strong id="storage-persistence-title">Dane lokalne</strong>
+        <span>Dane pozostają w tej przeglądarce. Kopię zapasową możesz wyeksportować powyżej.</span>
       </div>
       <div className="storage-persistence-status">
         <span>Status</span>

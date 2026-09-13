@@ -222,7 +222,6 @@
 @media (max-width: 430px) {
   .category-count-row { gap: 2px; }
   .category-count { min-width: 18px; height: 17px; padding: 0 4px; font-size: .56rem; gap: 2px; }
-  .category-count i { width: 4px; height: 4px; }
   .calendar-conflict-badge { right: 3px; bottom: 3px; min-height: 15px; font-size: .5rem; padding: 0 4px; }
   .trading-sunday-marker { top: 3px; right: 3px; min-width: 14px; height: 14px; font-size: .48rem; }
   .calendar-texture-surface::before { inset: 6px 2px 24px; background-size: 16px 16px, 100% 100%; }
@@ -1247,7 +1246,6 @@
 /* 1.2.0.39 - preserve counter contrast on compact month grids */
 @media (max-width: 620px) {
   .calendar-day .category-count { min-width: 20px; height: 18px; padding: 0 5px; gap: 3px; font-size: .59rem; }
-  .calendar-day .category-count i { width: 5px; height: 5px; flex-basis: 5px; }
 }
 
 /* 1.2.0.45 - mobile-first weekly planner
@@ -1669,13 +1667,13 @@
   .calendar-view-shell .selected-day-panel .selected-day-quick-actions { margin-bottom: 8px; }
   .calendar-view-shell .selected-day-panel .selected-day-quick-actions .button { min-height: 38px; }
   .calendar-view-shell .selected-day-panel .event-card { padding: 10px 9px 10px 12px; }
-  .calendar-view-shell .selected-day-panel .event-coworker-line:nth-child(n+5) { display: none !important; }
-  .calendar-view-shell .selected-day-panel .event-coworker-mobile-more { display: block; margin-top: 4px; color: var(--text-muted); font-size: .62rem; }
 
   .work-next-card { padding: 13px; }
   .work-next-card .panel-heading h2 { font-size: .94rem; }
   .work-next-card .coworker-inline > span { padding: 4px 7px; font-size: .62rem; }
   .work-next-card .coworker-inline small { margin-bottom: 1px; }
+  .work-next-card .coworker-inline { align-items: flex-start; max-width: 100%; }
+  .work-next-card .coworker-inline > span { max-width: 100%; overflow-wrap: anywhere; }
 
   .finance-dashboard-actions { grid-template-columns: auto minmax(0, .7fr) minmax(0, 1fr); }
   .finance-first-expense-empty { min-height: 120px; padding: 16px 14px; }
@@ -1791,6 +1789,12 @@
   .calendar-mobile-day-preview-head strong { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .76rem; }
   .calendar-mobile-day-preview-head span { flex: 0 0 auto; color: var(--text-muted); font-size: .61rem; }
   .calendar-mobile-day-preview-head .text-button { flex: 0 0 auto; padding: 2px 0; font-size: .61rem; }
+  /* 1.2.0.110 - mobile calendar overlay meaning is visible after selecting a marked day. */
+  .calendar-mobile-day-preview-overlays { display: flex; flex-wrap: wrap; gap: 5px; }
+  .calendar-mobile-day-preview-overlays span { min-height: 28px; display: inline-flex; align-items: center; padding: 4px 9px; border-radius: 999px; font-size: .63rem; font-weight: 800; }
+  .calendar-mobile-day-preview-overlays .overlay-polish_holiday { background: color-mix(in srgb, var(--accent-soft) 72%, var(--surface)); color: var(--accent-strong); }
+  .calendar-mobile-day-preview-overlays .overlay-wum_break,
+  .calendar-mobile-day-preview-overlays .overlay-wum_rector_day { background: color-mix(in srgb, var(--category-study-soft) 72%, var(--surface)); color: var(--category-study); }
   .calendar-mobile-day-preview-list { display: grid; }
   .calendar-mobile-day-preview-event,
   .calendar-mobile-day-preview-incomplete {
@@ -1968,17 +1972,20 @@
   .calendar-mobile-drag-status small { display: none; }
 }
 
+/* 1.2.0.96 - reduce mobile resize versus scroll conflicts */
 /* 1.2.0.76 - keep the mobile resize hit area inside its own event */
 /* 1.2.0.74 - explicit mobile duration resize without stealing long-press drag */
 @media (max-width: 820px) {
   .calendar-week-event.resizable { overflow: visible; }
   .calendar-week-resize-handle.touch-resize-handle {
     position: absolute;
-    left: 10px;
-    right: 8px;
+    left: 50%;
+    right: auto;
     bottom: 0;
     z-index: 8;
-    height: min(20px, 100%);
+    width: min(64px, calc(100% - 16px));
+    height: min(18px, 100%);
+    transform: translateX(-50%);
     touch-action: none;
     cursor: ns-resize;
   }
@@ -2296,7 +2303,7 @@
   .work-header-actions > .button-primary:not(.work-settings-button) { grid-column: 2; }
 }
 
-/* 1.2.0 - viewport-safe mobile modals and always-reachable primary actions. */
+/* 1.2.0.92 - viewport-safe mobile modals and always-reachable primary actions. */
 @media (max-width: 620px) {
   body.modal-open { overflow: hidden; }
   body.modal-open .bottom-nav {
@@ -2328,5 +2335,70 @@
   }
   .finance-quick-expense-form .modal-actions {
     display: none !important;
+  }
+}
+
+/* 1.2.0.93 - one expense CTA in empty Finance states on phones.
+ * 1.2.0.94 narrowed the hidden control to the duplicated manual-expense CTA.
+ */
+@media (max-width: 820px) {
+  .finance-month-is-empty > .finance-dashboard-controls-v1258 .finance-manual-expense,
+  .finance-trip-is-empty > .finance-dashboard-controls-v1258 .finance-core-actions {
+    display: none;
+  }
+
+  /* 1.2.0.95 - the compact mobile rule from 1.2.0.86 hides scanners globally;
+   * empty Month must explicitly expose the remaining scanner action after + Wydatek is removed.
+   */
+  .finance-month-is-empty > .finance-dashboard-controls-v1258 .finance-core-actions .finance-scan-receipt {
+    display: inline-flex;
+  }
+}
+
+/* 1.2.0.98 - shared safe-area clearance for bottom navigation and mobile PWA edges. */
+@media (max-width: 820px) {
+  :root {
+    --mobile-bottom-nav-clearance: calc(74px + max(8px, env(safe-area-inset-bottom)));
+  }
+
+  .app-main {
+    padding-bottom: calc(var(--mobile-bottom-nav-clearance) + 8px);
+  }
+
+  .app-main > .view-shell {
+    padding-top: max(8px, env(safe-area-inset-top));
+    padding-left: max(18px, env(safe-area-inset-left));
+    padding-right: max(18px, env(safe-area-inset-right));
+  }
+
+  .toast,
+  .finance-feedback-toast,
+  .sticky-import-actions,
+  .calendar-month-quick-add,
+  .calendar-month-quick-add.align-end {
+    bottom: var(--mobile-bottom-nav-clearance);
+  }
+}
+
+@media (max-width: 370px) {
+  .app-main > .view-shell {
+    padding-left: max(12px, env(safe-area-inset-left));
+    padding-right: max(12px, env(safe-area-inset-right));
+  }
+}
+
+/* 1.2.0.99 - mobile modals follow the real visual viewport when the software keyboard opens. */
+@media (max-width: 620px) {
+  .modal-backdrop {
+    inset: var(--modal-visual-viewport-offset-top, 0px) 0 auto;
+    height: var(--modal-visual-viewport-height, 100dvh);
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .modal-card,
+  .modal-wide {
+    max-height: calc(var(--modal-visual-viewport-height, 100dvh) - max(8px, env(safe-area-inset-top)));
+    scroll-padding-bottom: max(24px, env(safe-area-inset-bottom));
   }
 }

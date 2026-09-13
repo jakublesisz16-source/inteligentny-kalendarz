@@ -40,7 +40,7 @@ describe('1.2.0.85 interface consistency and semantic category contrast', () => 
   });
 
   it('keeps the database schema stable', () => {
-    expect(version).toContain("APP_VERSION = '1.2.0'");
+    expect(version).toContain("APP_VERSION = '1.2.0.112'");
     expect(version).toContain('DATABASE_SCHEMA_VERSION = 14');
   });
 });

@@ -508,7 +508,6 @@
 
 .category-count-row { display: flex; flex-wrap: wrap; gap: 3px; align-items: center; max-width: 100%; }
 .category-count { min-width: 23px; height: 20px; padding: 0 6px; border-radius: 999px; display: inline-flex; align-items: center; justify-content: center; gap: 4px; font-size: .64rem; font-weight: 850; border: 1px solid transparent; }
-.category-count i { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
 .category-count.category-study { color: var(--category-study); background: var(--category-study-soft); border-color: color-mix(in srgb, var(--category-study) 20%, transparent); }
 .category-count.category-work { color: var(--category-work); background: var(--category-work-soft); border-color: color-mix(in srgb, var(--category-work) 20%, transparent); }
 .category-count.category-personal { color: var(--category-personal); background: var(--category-personal-soft); border-color: color-mix(in srgb, var(--category-personal) 20%, transparent); }
@@ -2915,16 +2914,6 @@
   font-weight: 900;
   box-shadow: 0 1px 3px rgba(64,50,56,.07);
 }
-.calendar-day .category-count i {
-  width: 6px;
-  height: 6px;
-  flex: 0 0 6px;
-  box-shadow: 0 0 0 1px rgba(255,255,255,.82);
-}
-.calendar-day .category-count.category-study i { background: var(--category-study); }
-.calendar-day .category-count.category-work i { background: #8f7480; }
-.calendar-day .category-count.category-personal i { background: var(--category-personal); }
-.calendar-day .category-count.category-other i { background: var(--category-other); }
 
 /* 1.2.0.41 - today outline correction
    Today keeps the same day/weekend surface as its neighbours. Only the date number receives a neutral ring. */
@@ -3452,16 +3441,11 @@
 .today-add-button { min-height: 36px !important; padding-inline: 13px; }
 .today-plan-panel .today-event-list { padding: 10px 16px 14px; }
 .today-plan-panel .event-card { padding-block: 12px; }
-.event-coworker-mobile-more { display: none; }
 
 .work-next-card { margin-bottom: 12px; }
 .work-next-card .panel-heading { margin-bottom: 8px; }
 .work-next-card .coworker-inline { gap: 5px; }
 .work-next-card .coworker-inline > span { padding: 5px 8px; }
-.work-next-card .coworker-inline .coworker-more {
-  background: var(--surface-soft);
-  color: var(--text-muted);
-}
 
 .finance-first-expense-empty { min-height: 170px; padding: 24px; }
 .finance-first-expense-copy { gap: 5px; }
@@ -4285,5 +4269,5 @@ button.finance-overview-category-chip.is-active { background: var(--surface-soft
 .finance-expense-total small { color: var(--text-muted); font-size: .57rem; }
 .finance-expense-arrow { color: var(--text-muted); font-size: .92rem; text-align: center; }
 
-/* 1.2.0 - mobile modal actions must never be trapped behind navigation. */
+/* 1.2.0.92 - mobile modal actions must never be trapped behind navigation. */
 .modal-mobile-header-save { display: none; }

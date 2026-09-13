@@ -12,6 +12,8 @@ export interface AppSettings {
   timeFormat: TimeFormat;
   notificationPreferences: NotificationPreferences;
   decorativeBackgroundMode: DecorativeBackgroundMode;
+  showPolishHolidays?: boolean;
+  showWumAcademicCalendar?: boolean;
   updatedAt: string;
 }
 
@@ -22,4 +24,6 @@ export interface AppSettingsPatch {
   timeFormat?: TimeFormat;
   notificationPreferences?: NotificationPreferences;
   decorativeBackgroundMode?: DecorativeBackgroundMode;
+  showPolishHolidays?: boolean;
+  showWumAcademicCalendar?: boolean;
 }

@@ -28,7 +28,7 @@ describe('1.2.0.61 shared mobile event composer', () => {
     expect(responsive).toContain('/* 1.2.0.61 - shared mobile event bottom sheet */');
     expect(responsive).toContain('.event-form-create:not(.event-form-multi-create) .modal-actions { display: none; }');
     expect(responsive).toContain('.event-form-create .event-location-input > small { display: none; }');
-    expect(version).toContain("APP_VERSION = '1.2.0'");
+    expect(version).toContain("APP_VERSION = '1.2.0.112'");
     expect(version).toContain('DATABASE_SCHEMA_VERSION = 14');
   });
 });

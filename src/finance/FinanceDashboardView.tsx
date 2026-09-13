@@ -52,6 +52,7 @@ import { suggestCategoryId } from '../shopping/receipt-ocr/category-suggestions'
 import { Modal } from '../ui/Modal';
 import { FinanceQuickExpenseModal, type AutomaticRateStatus, type QuickExpenseForm } from './FinanceQuickExpenseModal';
 import { fetchCurrentPlnRate, type CurrentPlnRate } from './exchange-rates';
+import { convertForeignReceiptDraftToPln } from './foreign-receipt';
 import {
   buildExpenseProductAnalytics,
   buildExpenseUnitPriceSummaries,
@@ -713,10 +714,6 @@ export function FinanceDashboardView() {
 
   function openReceiptScan() {
     clearFeedback();
-    if (financeScope === 'TRIPS' && activeTripName && tripCurrency(activeTripDefinition) !== 'PLN') {
-      setError('Skanowanie zagranicznych paragonów nie jest jeszcze obsługiwane. Dodaj ten wydatek ręcznie.');
-      return;
-    }
     setQuickExpense(null);
     setReceiptScanOpen(true);
   }
@@ -724,7 +721,27 @@ export function FinanceDashboardView() {
   async function saveScannedReceipt(draft: ReceiptDraft) {
     clearFeedback();
     const tripName = financeScope === 'TRIPS' ? normalizeTripName(activeTripName) : '';
-    const savedReceipt = await createReceipt({ ...draft, source: 'receipt', ...(tripName ? { tripName } : {}) });
+    let receiptDraft: ReceiptDraft = { ...draft, source: 'receipt', ...(tripName ? { tripName } : {}) };
+    let fetchedTripRate: number | null = null;
+
+    if (tripName) {
+      const currency = tripCurrency(activeTripDefinition);
+      if (currency !== 'PLN') {
+        let rate = activeTripDefinition?.exchangeRatePlnPerUnit ?? null;
+        if (rate === null) {
+          const fetched = await fetchCurrentPlnRate(currency);
+          rate = fetched.ratePlnPerUnit;
+          fetchedTripRate = rate;
+        }
+        receiptDraft = convertForeignReceiptDraftToPln(receiptDraft, currency, rate);
+      }
+    }
+
+    const savedReceipt = await createReceipt(receiptDraft);
+    if (tripName && activeTripDefinition && fetchedTripRate && !activeTripDefinition.exchangeRatePlnPerUnit) {
+      const updatedTrip = await updateFinanceTripCurrency(activeTripDefinition.id, activeTripDefinition.currency ?? 'PLN', fetchedTripRate);
+      setTripDefinitions((current) => current.map((trip) => trip.id === updatedTrip.id ? updatedTrip : trip));
+    }
     setReceiptScanOpen(false);
     if (tripName) {
       setAutoReviewReceiptId(null);
@@ -1168,8 +1185,11 @@ export function FinanceDashboardView() {
     }
   }
 
+  const isEmptyMonth = financeScope === 'MONTH' && monthSummary.receiptCount === 0;
+  const isEmptyActiveTrip = financeScope === 'TRIPS' && Boolean(activeTripName) && activeTripReceipts.length === 0;
+
   return (
-    <div className="finance-dashboard-v2 finance-core-flow">
+    <div className={`finance-dashboard-v2 finance-core-flow${isEmptyMonth ? ' finance-month-is-empty' : ''}${isEmptyActiveTrip ? ' finance-trip-is-empty' : ''}`}>
       <div className="finance-dashboard-controls finance-core-controls finance-dashboard-controls-v1258">
         <div className="finance-scope-switch" aria-label="Widok finansów">
           <button type="button" className={financeScope === 'MONTH' ? 'is-active' : ''} onClick={() => { setFinanceScope('MONTH'); setActiveTripName(''); }}>Miesiąc</button>
@@ -1184,10 +1204,16 @@ export function FinanceDashboardView() {
         ) : activeTripName ? (
           <div className="finance-trip-current"><button type="button" className="text-button finance-trip-back" onClick={openTripList}>‹ Wyjazdy</button></div>
         ) : null}
-        {financeScope === 'MONTH' || activeTripName ? <div className="finance-dashboard-actions finance-core-actions">
-          <button type="button" className="button button-primary finance-manual-expense" onClick={openQuickExpense}>+ Wydatek</button>
-          {financeScope === 'MONTH' || (activeTripName && tripCurrency(activeTripDefinition) === 'PLN') ? <button type="button" className="button button-secondary finance-scan-receipt" onClick={openReceiptScan}>Skanuj paragon</button> : null}
-        </div> : null}
+        {financeScope === 'MONTH' ? (
+          <div className="finance-dashboard-actions finance-core-actions">
+            {!isEmptyMonth ? <button type="button" className="button button-primary finance-manual-expense" onClick={openQuickExpense}>+ Wydatek</button> : null}
+            <button type="button" className="button button-secondary finance-scan-receipt" onClick={openReceiptScan}>Skanuj paragon</button>
+          </div>
+        ) : activeTripName && !isEmptyActiveTrip ? (
+          <div className="finance-dashboard-actions finance-core-actions">
+            <button type="button" className="button button-primary finance-manual-expense" onClick={openQuickExpense}>+ Wydatek</button>
+          </div>
+        ) : null}
       </div>
 
       {error ? <div className="study-message error-message" role="alert">{error}</div> : null}
@@ -1255,7 +1281,7 @@ export function FinanceDashboardView() {
                 </div>
               </section>
             ) : (
-              <section className="panel finance-trip-empty"><h2>Dodaj pierwszy wydatek</h2><p>Wyjazd jest już zapisany. Wszystko dodane z tego widoku trafi do „{activeTripName}”.</p><div><button type="button" className="button button-primary" onClick={openQuickExpense}>+ Wydatek</button>{tripCurrency(activeTripDefinition) === 'PLN' ? <button type="button" className="button button-secondary" onClick={openReceiptScan}>Skanuj paragon</button> : null}</div>{tripCurrency(activeTripDefinition) !== 'PLN' ? <small className="finance-trip-scan-note">Skanowanie zagranicznych paragonów będzie osobnym etapem. Na razie dodaj wydatek ręcznie.</small> : null}{activeTripDefinition ? <button type="button" className="text-button finance-trip-delete-empty" disabled={busy} onClick={() => void deleteEmptyActiveTrip()}>Usuń pusty wyjazd</button> : null}</section>
+              <section className="panel finance-trip-empty"><h2>Dodaj pierwszy wydatek</h2><p>Wyjazd jest już zapisany. Wszystko dodane z tego widoku trafi do „{activeTripName}”.</p><div><button type="button" className="button button-primary" onClick={openQuickExpense}>+ Wydatek</button></div>{activeTripDefinition ? <button type="button" className="text-button finance-trip-delete-empty" disabled={busy} onClick={() => void deleteEmptyActiveTrip()}>Usuń pusty wyjazd</button> : null}</section>
             )}
           </div>
         ) : (
@@ -1264,11 +1290,11 @@ export function FinanceDashboardView() {
               <h2>Wyjazdy</h2>
               <div className="finance-trips-heading-actions">
                 <span>{tripSummaries.length} {polishCountLabel(tripSummaries.length, 'wyjazd', 'wyjazdy', 'wyjazdów')}</span>
-                {!newTripOpen ? <button type="button" className="button button-secondary button-small finance-new-trip-header-button" onClick={() => { clearFeedback(); setNewTripOpen(true); }}>+ Wyjazd</button> : null}
+                {!newTripOpen && tripSummaries.length ? <button type="button" className="button button-secondary button-small finance-new-trip-header-button" onClick={() => { clearFeedback(); setNewTripOpen(true); }}>+ Wyjazd</button> : null}
               </div>
             </div>
-            {newTripOpen ? <form className="finance-new-trip-form" onSubmit={createTrip}><label className="field"><span>Nazwa wyjazdu</span><input data-modal-autofocus="true" value={newTripName} onChange={(event) => setNewTripName(event.target.value)} placeholder="Np. Praga" autoFocus /></label><label className="field finance-new-trip-currency"><span>Waluta</span><select value={newTripCurrency} onChange={(event) => setNewTripCurrency(event.target.value as FinanceCurrencyCode)}>{FINANCE_CURRENCIES.map((currency) => <option key={currency} value={currency}>{currency}</option>)}</select></label><div><button type="button" className="button button-secondary" onClick={() => { setNewTripOpen(false); setNewTripName(''); setNewTripCurrency('PLN'); }}>Anuluj</button><button type="submit" className="button button-primary" disabled={busy}>{busy ? 'Zapisywanie...' : 'Utwórz'}</button></div></form> : null}
-            {tripSummaries.length ? <div className="finance-trip-card-list">{tripSummaries.map((trip) => <button type="button" className="finance-trip-card" key={tripIdentity(trip.name)} onClick={() => selectTrip(trip.name)}><span><strong>{trip.name}</strong><small>{trip.receipts.length && trip.firstDate && trip.lastDate ? `${formatTripDateRange(trip.firstDate, trip.lastDate)} · ${trip.receipts.length} ${polishCountLabel(trip.receipts.length, 'wydatek', 'wydatki', 'wydatków')} · ${trip.currency ?? 'PLN'}` : `Brak wydatków · ${trip.currency ?? 'PLN'}`}</small></span><strong>{formatMoneyMinor(trip.totalMinor)}</strong><span aria-hidden="true">›</span></button>)}</div> : !newTripOpen ? <div className="finance-trip-empty-list"><h2>Brak wyjazdów</h2><p>Utwórz pierwszy wyjazd przyciskiem w nagłówku. Wydatki będą zebrane w jednym miejscu.</p></div> : null}
+            {newTripOpen ? <form className="finance-new-trip-form" onSubmit={createTrip}><label className="field"><span>Nazwa wyjazdu</span><input data-modal-autofocus="true" value={newTripName} onChange={(event) => setNewTripName(event.target.value)} placeholder="Np. Budapeszt" autoFocus /></label><label className="field finance-new-trip-currency"><span>Waluta</span><select value={newTripCurrency} onChange={(event) => setNewTripCurrency(event.target.value as FinanceCurrencyCode)}>{FINANCE_CURRENCIES.map((currency) => <option key={currency} value={currency}>{currency}</option>)}</select></label><div><button type="button" className="button button-secondary" onClick={() => { setNewTripOpen(false); setNewTripName(''); setNewTripCurrency('PLN'); }}>Anuluj</button><button type="submit" className="button button-primary" disabled={busy}>{busy ? 'Zapisywanie...' : 'Utwórz'}</button></div></form> : null}
+            {tripSummaries.length ? <div className="finance-trip-card-list">{tripSummaries.map((trip) => <button type="button" className="finance-trip-card" key={tripIdentity(trip.name)} onClick={() => selectTrip(trip.name)}><span><strong>{trip.name}</strong><small>{trip.receipts.length && trip.firstDate && trip.lastDate ? `${formatTripDateRange(trip.firstDate, trip.lastDate)} · ${trip.receipts.length} ${polishCountLabel(trip.receipts.length, 'wydatek', 'wydatki', 'wydatków')} · ${trip.currency ?? 'PLN'}` : `Brak wydatków · ${trip.currency ?? 'PLN'}`}</small></span><strong>{formatMoneyMinor(trip.totalMinor)}</strong><span aria-hidden="true">›</span></button>)}</div> : !newTripOpen ? <div className="finance-trip-empty-list"><h2>Brak wyjazdów</h2><p>Utwórz pierwszy wyjazd, a jego wydatki będą zebrane w jednym miejscu.</p><button type="button" className="button button-primary button-small" onClick={() => { clearFeedback(); setNewTripOpen(true); }}>+ Wyjazd</button></div> : null}
           </section>
         )
       ) : monthSummary.receiptCount === 0 ? (
@@ -1539,7 +1565,7 @@ export function FinanceDashboardView() {
           onSave={saveScannedReceipt}
           onClose={() => setReceiptScanOpen(false)}
           onManualAdd={openQuickExpense}
-          {...(financeScope === 'TRIPS' && normalizeTripName(activeTripName) ? { tripName: normalizeTripName(activeTripName) } : {})}
+          {...(financeScope === 'TRIPS' && normalizeTripName(activeTripName) ? { tripName: normalizeTripName(activeTripName), displayCurrency: tripCurrency(activeTripDefinition) } : {})}
         />
       ) : null}
 
@@ -1641,7 +1667,7 @@ export function FinanceDashboardView() {
               </label>
               <label className="field">
                 <span>Wyjazd <small>opcjonalnie</small></span>
-                <input list="finance-trip-suggestions" value={editReceipt.tripName ?? ''} onChange={(event) => setEditReceipt((current) => current ? { ...current, tripName: event.target.value } : current)} placeholder="Np. Praga" />
+                <input list="finance-trip-suggestions" value={editReceipt.tripName ?? ''} onChange={(event) => setEditReceipt((current) => current ? { ...current, tripName: event.target.value } : current)} placeholder="Np. Budapeszt" />
                 <datalist id="finance-trip-suggestions">{tripSummaries.map((trip) => <option key={tripIdentity(trip.name)} value={trip.name} />)}</datalist>
               </label>
             </div>

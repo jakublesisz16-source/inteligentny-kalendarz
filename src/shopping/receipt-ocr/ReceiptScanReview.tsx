@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
-import type { ExpenseCategory, ReceiptDraft } from '../expenses.types';
-import { expenseCategoryPath, formatMoneyMinor } from '../expenses.utils';
+import type { ExpenseCategory, FinanceCurrencyCode, ReceiptDraft } from '../expenses.types';
+import { expenseCategoryPath, formatCurrencyAmountMinor, formatMoneyMinor } from '../expenses.utils';
 import type { ReceiptOcrDiagnostics, ReceiptOcrQuality, ReceiptReviewDraft, ReceiptReviewItem } from './receipt-ocr.types';
 import {
   isSignificantReceiptMismatch,
@@ -16,11 +16,19 @@ function reviewUnitLabel(unit: ReceiptReviewItem['unit']): string {
   return unit === 'op' ? 'op.' : unit;
 }
 
-function reviewQuantitySummary(item: ReceiptReviewItem): string {
+function reviewAmountMinor(value: number, currency: FinanceCurrencyCode): string {
+  return currency === 'PLN' ? formatMoneyMinor(value) : formatCurrencyAmountMinor(value, currency);
+}
+
+function reviewAmountText(value: string, currency: FinanceCurrencyCode): string {
+  return `${value} ${currency === 'PLN' ? 'zł' : currency}`;
+}
+
+function reviewQuantitySummary(item: ReceiptReviewItem, currency: FinanceCurrencyCode): string {
   const quantity = item.quantityText?.trim() || '?';
   const unit = reviewUnitLabel(item.unit);
   const unitPrice = item.unitPriceText?.trim() || '?';
-  return `${quantity}${unit ? ` ${unit}` : ''} × ${unitPrice} zł`;
+  return `${quantity}${unit ? ` ${unit}` : ''} × ${reviewAmountText(unitPrice, currency)}`;
 }
 
 interface ReceiptScanReviewProps {
@@ -38,6 +46,7 @@ interface ReceiptScanReviewProps {
   onRerun: () => void;
   onCancel: () => void;
   onSave: (draft: ReceiptDraft) => Promise<void>;
+  displayCurrency?: FinanceCurrencyCode;
 }
 
 function confidenceLabel(confidence: ReceiptReviewDraft['merchantConfidence']): string {
@@ -67,6 +76,7 @@ export function ReceiptScanReview({
   onRerun,
   onCancel,
   onSave,
+  displayCurrency = 'PLN',
 }: ReceiptScanReviewProps) {
   const [mobilePane, setMobilePane] = useState<'data' | 'image'>('data');
   const [localError, setLocalError] = useState('');
@@ -302,9 +312,9 @@ export function ReceiptScanReview({
                     <span className="receipt-review-item-number">#{index + 1}</span>
                     <button type="button" className="receipt-review-item-compact-main" onClick={() => setItemExpanded(item.localId, true)}>
                       <span><strong>{item.name || 'Bez nazwy'}</strong><small>{expenseCategoryPath(categories, item.categoryId)}</small></span>
-                      {(item.quantityText !== undefined || item.unitPriceText !== undefined) ? <small>{reviewQuantitySummary(item)}</small> : null}
+                      {(item.quantityText !== undefined || item.unitPriceText !== undefined) ? <small>{reviewQuantitySummary(item, displayCurrency)}</small> : null}
                     </button>
-                    <strong className="receipt-review-item-compact-amount">{item.amountText ? `${item.amountText} zł` : 'Brak kwoty'}</strong>
+                    <strong className="receipt-review-item-compact-amount">{item.amountText ? reviewAmountText(item.amountText, displayCurrency) : 'Brak kwoty'}</strong>
                     <button type="button" className="text-button" onClick={() => setItemExpanded(item.localId, true)}>Edytuj</button>
                   </article>
                 );
@@ -329,13 +339,13 @@ export function ReceiptScanReview({
                       </select>
                     </label>
                     <label className="field receipt-review-item-amount">
-                      <span>Kwota</span>
+                      <span>Kwota{displayCurrency === 'PLN' ? '' : ` (${displayCurrency})`}</span>
                       <input inputMode="decimal" value={item.amountText} onChange={(event: ChangeEvent<HTMLInputElement>) => patchItemAmount(index, event.target.value)} placeholder="0,00" aria-label={`Kwota pozycji ${index + 1}`} />
                     </label>
                   </div>
                   {(item.quantityText !== undefined || item.unitPriceText !== undefined) ? (
                     <details className="receipt-review-unit-details">
-                      <summary>Ilość i cena: <strong>{reviewQuantitySummary(item)}</strong></summary>
+                      <summary>Ilość i cena: <strong>{reviewQuantitySummary(item, displayCurrency)}</strong></summary>
                       <div className="receipt-review-unit-fields">
                         <label className="field">
                           <span>Ilość</span>
@@ -357,7 +367,7 @@ export function ReceiptScanReview({
                           </select>
                         </label>
                         <label className="field">
-                          <span>Cena jednostkowa</span>
+                          <span>Cena jednostkowa{displayCurrency === 'PLN' ? '' : ` (${displayCurrency})`}</span>
                           <input inputMode="decimal" value={item.unitPriceText ?? ''} onChange={(event: ChangeEvent<HTMLInputElement>) => patchItem(index, { unitPriceText: event.target.value })} placeholder="0,00" />
                         </label>
                       </div>
@@ -435,25 +445,25 @@ export function ReceiptScanReview({
                   {diagnosticOcrMeta.geometryAvailable ? <div><dt>Kolumny geom.</dt><dd>{diagnosticOcrMeta.geometryColumnSource ?? 'none'}{diagnosticOcrMeta.geometryColumnConfidence !== undefined ? ` (${Math.round(diagnosticOcrMeta.geometryColumnConfidence * 100)}%)` : ''}</dd></div> : null}
                   {diagnosticOcrMeta.geometryAvailable ? <div><dt>Geom. pozycje</dt><dd>kompletne {diagnosticOcrMeta.geometryReconstructedCompleteItemCount ?? 0}/{diagnosticOcrMeta.geometryReconstructedItemCount ?? 0} / nierozstrz. {diagnosticOcrMeta.geometryReconstructedUnresolvedItemCount ?? 0} / plain {diagnosticOcrMeta.geometryRowMajorParsedItemCount ?? 0} / parser {diagnosticOcrMeta.geometryParsedItemCount ?? 0}</dd></div> : null}
                   {diagnosticOcrMeta.geometryAvailable ? <div><dt>Geom. unresolved</dt><dd>rabat {diagnosticOcrMeta.geometryReconstructedDiscountUnresolvedCount ?? 0} / ilość {diagnosticOcrMeta.geometryReconstructedQuantityUnresolvedCount ?? 0}</dd></div> : null}
-                  {diagnosticOcrMeta.geometryReconstructedGrossTotalMinor !== undefined ? <div><dt>Geom. brutto poz.</dt><dd>{formatMoneyMinor(diagnosticOcrMeta.geometryReconstructedGrossTotalMinor)}</dd></div> : null}
-                  {diagnosticOcrMeta.geometryReconstructedDiscountTotalMinor !== undefined ? <div><dt>Geom. rabaty</dt><dd>{formatMoneyMinor(diagnosticOcrMeta.geometryReconstructedDiscountTotalMinor)}</dd></div> : null}
-                  {diagnosticOcrMeta.geometryReconstructedItemsTotalMinor !== undefined ? <div><dt>Geom. netto poz.</dt><dd>{formatMoneyMinor(diagnosticOcrMeta.geometryReconstructedItemsTotalMinor)}</dd></div> : null}
-                  {diagnosticOcrMeta.geometryRowMajorParsedItemsTotalMinor !== undefined ? <div><dt>Geom. plain suma</dt><dd>{formatMoneyMinor(diagnosticOcrMeta.geometryRowMajorParsedItemsTotalMinor)}</dd></div> : null}
-                  {diagnosticOcrMeta.geometryParsedItemsTotalMinor !== undefined ? <div><dt>Geom. parser suma</dt><dd>{formatMoneyMinor(diagnosticOcrMeta.geometryParsedItemsTotalMinor)}{diagnosticOcrMeta.geometryStructuredTextGenerated ? ' (structured)' : ''}</dd></div> : null}
+                  {diagnosticOcrMeta.geometryReconstructedGrossTotalMinor !== undefined ? <div><dt>Geom. brutto poz.</dt><dd>{reviewAmountMinor(diagnosticOcrMeta.geometryReconstructedGrossTotalMinor, displayCurrency)}</dd></div> : null}
+                  {diagnosticOcrMeta.geometryReconstructedDiscountTotalMinor !== undefined ? <div><dt>Geom. rabaty</dt><dd>{reviewAmountMinor(diagnosticOcrMeta.geometryReconstructedDiscountTotalMinor, displayCurrency)}</dd></div> : null}
+                  {diagnosticOcrMeta.geometryReconstructedItemsTotalMinor !== undefined ? <div><dt>Geom. netto poz.</dt><dd>{reviewAmountMinor(diagnosticOcrMeta.geometryReconstructedItemsTotalMinor, displayCurrency)}</dd></div> : null}
+                  {diagnosticOcrMeta.geometryRowMajorParsedItemsTotalMinor !== undefined ? <div><dt>Geom. plain suma</dt><dd>{reviewAmountMinor(diagnosticOcrMeta.geometryRowMajorParsedItemsTotalMinor, displayCurrency)}</dd></div> : null}
+                  {diagnosticOcrMeta.geometryParsedItemsTotalMinor !== undefined ? <div><dt>Geom. parser suma</dt><dd>{reviewAmountMinor(diagnosticOcrMeta.geometryParsedItemsTotalMinor, displayCurrency)}{diagnosticOcrMeta.geometryStructuredTextGenerated ? ' (structured)' : ''}</dd></div> : null}
                   {diagnosticOcrMeta.geometryAvailable ? <div><dt>Geom. kandydat</dt><dd>{diagnosticOcrMeta.geometryStructuredCandidateAccepted ? 'AKCEPTOWANY' : `ODRZUCONY${diagnosticOcrMeta.geometryStructuredCandidateRejectionReasons?.length ? ` (${diagnosticOcrMeta.geometryStructuredCandidateRejectionReasons.join(', ')})` : ''}`}</dd></div> : null}
                   {diagnosticOcrMeta.valueColumnRecoveryAttempted ? <div><dt>Value recovery</dt><dd>{diagnosticOcrMeta.valueColumnRecoveryUsed ? 'UŻYTE' : 'ODRZUCONE'} / pass {diagnosticOcrMeta.valueColumnRecoveryPasses ?? 0}</dd></div> : <div><dt>Value recovery</dt><dd>NIE</dd></div>}
                   {diagnosticOcrMeta.valueColumnRecoveryCropX0 !== undefined && diagnosticOcrMeta.valueColumnRecoveryCropY0 !== undefined && diagnosticOcrMeta.valueColumnRecoveryCropX1 !== undefined && diagnosticOcrMeta.valueColumnRecoveryCropY1 !== undefined ? <div><dt>Recovery crop</dt><dd>{diagnosticOcrMeta.valueColumnRecoveryCropX0},{diagnosticOcrMeta.valueColumnRecoveryCropY0} → {diagnosticOcrMeta.valueColumnRecoveryCropX1},{diagnosticOcrMeta.valueColumnRecoveryCropY1} ({diagnosticOcrMeta.valueColumnRecoveryCropPixels ?? 0} px)</dd></div> : null}
                   {diagnosticOcrMeta.valueColumnRecoveryAttempted ? <div><dt>Recovery tokeny</dt><dd>{diagnosticOcrMeta.valueColumnRecoveryTokenCount ?? 0} / użyteczne {diagnosticOcrMeta.valueColumnRecoveryUsableTokenCount ?? 0}</dd></div> : null}
                   {diagnosticOcrMeta.valueColumnRecoveryAttempted ? <div><dt>Recovery komórki</dt><dd>gross {diagnosticOcrMeta.valueColumnRecoveryRecoveredGrossCells ?? 0} / rabat {diagnosticOcrMeta.valueColumnRecoveryRecoveredDiscountCells ?? 0} / net {diagnosticOcrMeta.valueColumnRecoveryRecoveredNetCells ?? 0} / komplet +{diagnosticOcrMeta.valueColumnRecoveryRecoveredCompleteGroups ?? 0}</dd></div> : null}
-                  {diagnosticOcrMeta.geometryParsedFinalTotalMinor !== undefined ? <div><dt>Geom. final</dt><dd>{formatMoneyMinor(diagnosticOcrMeta.geometryParsedFinalTotalMinor)}</dd></div> : null}
-                  {diagnosticOcrMeta.geometryParsedPaymentTotalMinor !== undefined ? <div><dt>Geom. płatność</dt><dd>{formatMoneyMinor(diagnosticOcrMeta.geometryParsedPaymentTotalMinor)}</dd></div> : null}
+                  {diagnosticOcrMeta.geometryParsedFinalTotalMinor !== undefined ? <div><dt>Geom. final</dt><dd>{reviewAmountMinor(diagnosticOcrMeta.geometryParsedFinalTotalMinor, displayCurrency)}</dd></div> : null}
+                  {diagnosticOcrMeta.geometryParsedPaymentTotalMinor !== undefined ? <div><dt>Geom. płatność</dt><dd>{reviewAmountMinor(diagnosticOcrMeta.geometryParsedPaymentTotalMinor, displayCurrency)}</dd></div> : null}
                   <div><dt>Geom. wybrana</dt><dd>{diagnosticOcrMeta.geometrySelected ? 'TAK' : 'NIE - eksperyment'}</dd></div>
                   {diagnosticOcrQuality ? <div><dt>Jakość OCR</dt><dd>{qualityLabel(diagnosticOcrQuality.level)} ({diagnosticOcrQuality.score}/100)</dd></div> : null}
                   {diagnosticOcrQuality ? <div><dt>Finanse</dt><dd>{diagnosticOcrQuality.financialScore}/100</dd></div> : null}
-                  {review.ocrSubtotalMinor !== undefined ? <div><dt>Subtotal OCR</dt><dd>{formatMoneyMinor(review.ocrSubtotalMinor)}</dd></div> : null}
-                  {review.declaredSubtotalMinor !== undefined ? <div><dt>Subtotal uzgodniony</dt><dd>{formatMoneyMinor(review.declaredSubtotalMinor)}</dd></div> : null}
-                  {review.depositTotalMinor !== undefined ? <div><dt>Kaucja</dt><dd>{formatMoneyMinor(review.depositTotalMinor)}</dd></div> : null}
-                  {review.paymentTotalMinor !== undefined ? <div><dt>Płatność</dt><dd>{formatMoneyMinor(review.paymentTotalMinor)}</dd></div> : null}
+                  {review.ocrSubtotalMinor !== undefined ? <div><dt>Subtotal OCR</dt><dd>{reviewAmountMinor(review.ocrSubtotalMinor, displayCurrency)}</dd></div> : null}
+                  {review.declaredSubtotalMinor !== undefined ? <div><dt>Subtotal uzgodniony</dt><dd>{reviewAmountMinor(review.declaredSubtotalMinor, displayCurrency)}</dd></div> : null}
+                  {review.depositTotalMinor !== undefined ? <div><dt>Kaucja</dt><dd>{reviewAmountMinor(review.depositTotalMinor, displayCurrency)}</dd></div> : null}
+                  {review.paymentTotalMinor !== undefined ? <div><dt>Płatność</dt><dd>{reviewAmountMinor(review.paymentTotalMinor, displayCurrency)}</dd></div> : null}
                   {diagnosticOcrQuality ? <div><dt>Tekst</dt><dd>{diagnosticOcrQuality.textScore}/100</dd></div> : null}
                   {diagnosticOcrQuality ? <div><dt>Spójne fin.</dt><dd>{diagnosticOcrQuality.consistentFinancialLines}</dd></div> : null}
                   {diagnosticOcrQuality ? <div><dt>Podejrzane</dt><dd>{diagnosticOcrQuality.suspiciousFinancialLines + diagnosticOcrQuality.suspiciousTokens}</dd></div> : null}
@@ -467,11 +477,11 @@ export function ReceiptScanReview({
           ) : null}
 
           <div className={`receipt-review-totals${mismatch ? ' has-mismatch' : ''}`} aria-live="polite">
-            <div><span>Suma pozycji</span><strong>{formatMoneyMinor(finalItemsTotalMinor)}</strong></div>
-            <div><span>Oszczędność</span><strong>{formatMoneyMinor(savingsMinor)}</strong></div>
-            {review.depositTotalMinor !== undefined && review.depositTotalMinor > 0 ? <div><span>Kaucja</span><strong>{formatMoneyMinor(review.depositTotalMinor)}</strong></div> : null}
-            <div><span>Suma paragonu</span><strong>{review.declaredTotalMinor === undefined ? 'Nie rozpoznano' : formatMoneyMinor(review.declaredTotalMinor)}</strong></div>
-            {differenceMinor === undefined ? <small>Sprawdź sumę bezpośrednio na zdjęciu.</small> : Math.abs(differenceMinor) <= 1 ? <small className="receipt-review-match">Zgodne</small> : <small className="receipt-review-mismatch">Różnica {formatMoneyMinor(Math.abs(differenceMinor))}</small>}
+            <div><span>Suma pozycji</span><strong>{reviewAmountMinor(finalItemsTotalMinor, displayCurrency)}</strong></div>
+            <div><span>Oszczędność</span><strong>{reviewAmountMinor(savingsMinor, displayCurrency)}</strong></div>
+            {review.depositTotalMinor !== undefined && review.depositTotalMinor > 0 ? <div><span>Kaucja</span><strong>{reviewAmountMinor(review.depositTotalMinor, displayCurrency)}</strong></div> : null}
+            <div><span>Suma paragonu</span><strong>{review.declaredTotalMinor === undefined ? 'Nie rozpoznano' : reviewAmountMinor(review.declaredTotalMinor, displayCurrency)}</strong></div>
+            {differenceMinor === undefined ? <small>Sprawdź sumę bezpośrednio na zdjęciu.</small> : Math.abs(differenceMinor) <= 1 ? <small className="receipt-review-match">Zgodne</small> : <small className="receipt-review-mismatch">Różnica {reviewAmountMinor(Math.abs(differenceMinor), displayCurrency)}</small>}
           </div>
 
           {warnings.length ? (
@@ -482,7 +492,7 @@ export function ReceiptScanReview({
 
           {confirmMismatch ? (
             <div className="receipt-review-save-warning" role="alert">
-              <strong>Suma różni się co najmniej o 1,00 zł.</strong>
+              <strong>Suma różni się co najmniej o {displayCurrency === 'PLN' ? '1,00 zł' : `1 ${displayCurrency}`}.</strong>
               <span>Jeśli dane są poprawne, kliknij ponownie „Zapisz paragon”.</span>
             </div>
           ) : null}

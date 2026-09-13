@@ -141,6 +141,7 @@ export function AvailabilityView({ onDataChanged, onOpenSettings }: Availability
     <div className="availability-week-toolbar"><button type="button" className="icon-button soft" aria-label="Poprzedni tydzień" onClick={() => setWeekStart(addDaysToDateKey(weekStart, -7))}>‹</button><div><span className="section-kicker">Dyspozycyjność</span><h2>{weekLabel(weekStart)}</h2></div><button type="button" className="icon-button soft" aria-label="Następny tydzień" onClick={() => setWeekStart(addDaysToDateKey(weekStart, 7))}>›</button></div>
     {error ? <div className="study-message error-message" role="alert">{error}</div> : null}{message ? <div className="study-message success-message availability-flash-message" role="status">{message}</div> : null}
 
+    <div className="availability-dashboard-layout">
     <section className="panel availability-week-editor" aria-label="Dyspozycyjność na dni tygodnia">
       <div className="panel-heading compact-heading"><div><span className="section-kicker">Plan tygodnia</span><h3>Automat dopasowuje godziny do kalendarza</h3><p className="muted-copy">Znana praca jest stała. Jeśli jej brakuje do celu, aplikacja sama proponuje wolne godziny. Ręczny wpis lub wyjątek ma zawsze pierwszeństwo.</p></div></div>
       <div className="availability-week-days">
@@ -197,6 +198,7 @@ export function AvailabilityView({ onDataChanged, onOpenSettings }: Availability
         {proposals.length ? <section className="availability-plan-panel availability-proposal-inline availability-proposal-summary"><div><span className="section-kicker">Gotowa propozycja</span><h3>{minutesLabel(proposals.reduce((sum, block) => sum + block.minutes, 0))} dopasowane do kalendarza</h3><p className="muted-copy">Godziny są pokazane przy dniach tygodnia. Możesz zaakceptować je pojedynczo albo wszystkie naraz.</p></div><button type="button" className="button button-primary button-small" onClick={() => void acceptAll()}>Akceptuj wszystko</button></section> : null}
       </>}
     </section>
+    </div>
 
     {accepted.length ? <div className="availability-copy-row"><button type="button" className="button button-secondary" onClick={() => void copySummary()}>Kopiuj dyspozycyjność</button><button type="button" className="button button-secondary" onClick={() => void markSent()}>Oznacz jako wysłane</button>{plan?.sentSnapshots.length ? <span>Wysłane wersje: {plan.sentSnapshots.length}</span> : null}</div> : null}
 

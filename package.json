@@ -1,7 +1,7 @@
 {
   "name": "inteligentny-kalendarz",
   "private": true,
-  "version": "1.2.0",
+  "version": "1.2.0-private.112",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -10,11 +10,15 @@
     "test": "vitest run",
     "check": "npm run typecheck && npm run test && npm run build",
     "preview": "vite preview",
+    "benchmark:receipts": "tsc -p scripts/tsconfig.receipt-benchmark.json && node scripts/mark-benchmark-commonjs.mjs && node scripts/receipt-benchmark-runner.mjs",
+    "benchmark:receipts:geometry": "tsc -p scripts/tsconfig.receipt-benchmark.json && node scripts/mark-benchmark-commonjs.mjs && node scripts/receipt-geometry-benchmark-runner.mjs",
+    "benchmark:receipts:gate2": "tsc -p scripts/tsconfig.receipt-benchmark.json && node scripts/mark-benchmark-commonjs.mjs && node scripts/receipt-gate2-runner.mjs",
     "security:release": "node scripts/security-release-gate.mjs",
     "security:public": "node scripts/public-package-gate.mjs",
     "security:dependencies": "npm audit --omit=dev --audit-level=high",
     "visual:qa": "node scripts/visual-qa-capture.mjs",
-    "travel:gate": "node scripts/travel-release-gate.mjs"
+    "travel:gate": "node scripts/travel-release-gate.mjs",
+    "release:preflight": "node scripts/release-preflight.mjs"
   },
   "dependencies": {
     "react": "^19.1.1",

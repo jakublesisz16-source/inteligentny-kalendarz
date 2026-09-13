@@ -34,6 +34,7 @@ export function SafetyCenter({ onDataChanged }: SafetyCenterProps) {
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [showAllHistory, setShowAllHistory] = useState(false);
 
   useEffect(() => { void refresh(); }, []);
 
@@ -68,14 +69,8 @@ export function SafetyCenter({ onDataChanged }: SafetyCenterProps) {
 
 
   return (
-    <section className="panel safety-center">
-      <div className="panel-heading">
-        <div>
-          <p className="section-kicker">Dane i prywatność</p>
-          <h2>Centrum bezpieczeństwa</h2>
-          <p className="panel-copy">Cofaj pomyłki, odzyskuj usunięte elementy i wracaj do wcześniejszych stanów.</p>
-        </div>
-      </div>
+    <section className="safety-center">
+      <p className="settings-section-intro">Cofaj pomyłki, odzyskuj usunięte elementy i wracaj do wcześniejszych stanów.</p>
 
       <StoragePersistencePanel />
 
@@ -90,12 +85,13 @@ export function SafetyCenter({ onDataChanged }: SafetyCenterProps) {
 
       {tab === 'history' ? (
         <div className="safety-list">
-          {journal.length ? journal.map((entry) => (
+          {journal.length ? journal.slice(0, showAllHistory ? journal.length : 5).map((entry) => (
             <article key={entry.id} className="safety-list-item">
               <div><strong>{entry.description}</strong><span>{formatDateTime(entry.timestamp)}</span>{entry.undoneAt ? <small>Cofnięto: {formatDateTime(entry.undoneAt)}</small> : null}</div>
               {entry.reversible && !entry.undoneAt ? <button type="button" className="button button-secondary button-small" disabled={busy} onClick={() => void run(() => undoChange(entry.id), 'Cofnięto zmianę.')}>Cofnij</button> : <span className="history-status">Tylko historia</span>}
             </article>
           )) : <p className="muted-copy">Historia jest pusta. Nowe istotne operacje będą zapisywane tutaj.</p>}
+          {journal.length > 5 ? <button type="button" className="button button-secondary button-small safety-history-toggle" onClick={() => setShowAllHistory((value) => !value)}>{showAllHistory ? 'Pokaż ostatnie 5' : `Pokaż całą historię (${journal.length})`}</button> : null}
         </div>
       ) : null}
 

@@ -9,7 +9,7 @@ describe('1.2.0.76 mobile week resize hardening', () => {
   it('keeps the resize hit area inside the event footprint', () => {
     expect(responsive).toContain('/* 1.2.0.76 - keep the mobile resize hit area inside its own event */');
     expect(responsive).toContain('bottom: 0;');
-    expect(responsive).toContain('height: min(20px, 100%);');
+    expect(responsive).toContain('height: min(18px, 100%);');
     expect(responsive).not.toContain('bottom: -7px;');
   });
 
@@ -28,7 +28,7 @@ describe('1.2.0.76 mobile week resize hardening', () => {
   });
 
   it('keeps database schema stable', () => {
-    expect(version).toContain("APP_VERSION = '1.2.0'");
+    expect(version).toContain("APP_VERSION = '1.2.0.112'");
     expect(version).toContain('DATABASE_SCHEMA_VERSION = 14');
   });
 });

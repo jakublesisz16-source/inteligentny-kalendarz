@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ChangeEvent, type MouseEvent as ReactMouseEvent } from 'react';
-import type { ExpenseCategory, ExpenseProduct, Receipt, ReceiptDraft } from '../expenses.types';
+import type { ExpenseCategory, ExpenseProduct, FinanceCurrencyCode, Receipt, ReceiptDraft } from '../expenses.types';
 import type { OcrProgress, ProcessedReceiptImage, ReceiptOcrDiagnostics, ReceiptOcrGeometry, ReceiptOcrQuality, ReceiptOcrSourceType, ReceiptReviewDraft, ReceiptSourceQuality } from './receipt-ocr.types';
 import { ReceiptScanReview } from './ReceiptScanReview';
 import { createReceiptHeaderOcrChunk, createReceiptLocalNumericVerificationChunk, createReceiptValueColumnRecoveryChunk, preprocessReceiptImage } from './image-preprocess';
@@ -51,6 +51,7 @@ interface ReceiptScanFlowProps {
   onClose: () => void;
   onManualAdd: () => void;
   tripName?: string;
+  displayCurrency?: FinanceCurrencyCode;
 }
 
 type ScanPhase = 'select' | 'processing' | 'review' | 'error';
@@ -83,7 +84,7 @@ function combineReceiptPrimaryGeometryForSnapshot(
   };
 }
 
-export function ReceiptScanFlow({ categories, products = [], receipts, onSave, onClose, onManualAdd, tripName }: ReceiptScanFlowProps) {
+export function ReceiptScanFlow({ categories, products = [], receipts, onSave, onClose, onManualAdd, tripName, displayCurrency = 'PLN' }: ReceiptScanFlowProps) {
   const [phase, setPhase] = useState<ScanPhase>('select');
   const [file, setFile] = useState<File | null>(null);
   const [imageUrl, setImageUrl] = useState('');
@@ -799,7 +800,7 @@ export function ReceiptScanFlow({ categories, products = [], receipts, onSave, o
 
   async function saveDraft(draft: ReceiptDraft) {
     if (saveInFlightRef.current) return;
-    const duplicate = findLikelyDuplicateReceipt(draft, receipts);
+    const duplicate = findLikelyDuplicateReceipt(draft, receipts, { currency: displayCurrency, ...(tripName ? { tripName } : {}) });
     if (duplicate && !window.confirm(`Ten paragon wygląda na już zapisany (${duplicate.merchant}, ${duplicate.date}). Zapisać go ponownie?`)) {
       setError('Zapis anulowany - taki sam paragon jest już w historii.');
       return;
@@ -844,7 +845,7 @@ export function ReceiptScanFlow({ categories, products = [], receipts, onSave, o
           <div>
             <p className="section-kicker">Wydatki</p>
             <h1 id="receipt-scan-title">Skanuj paragon</h1>
-            {tripName ? <span className="receipt-scan-trip-context">Wyjazd: <strong>{tripName}</strong></span> : null}
+            {tripName ? <span className="receipt-scan-trip-context">Wyjazd: <strong>{tripName}</strong>{displayCurrency !== 'PLN' ? <> · waluta paragonu: <strong>{displayCurrency}</strong></> : null}</span> : null}
           </div>
           <button type="button" className="icon-button" onClick={closeFlow} aria-label="Zamknij skanowanie">×</button>
         </header>
@@ -910,6 +911,7 @@ export function ReceiptScanFlow({ categories, products = [], receipts, onSave, o
             onRerun={() => file && void runOcr(file, rotation)}
             onCancel={closeFlow}
             onSave={saveDraft}
+            displayCurrency={displayCurrency}
           />
         ) : null}
       </section>

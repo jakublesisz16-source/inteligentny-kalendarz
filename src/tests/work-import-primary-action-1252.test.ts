@@ -25,7 +25,7 @@ describe('1.2.0.53 work import primary action', () => {
   it('has dedicated mobile styling and does not change the database schema', () => {
     expect(css).toContain('1.2.0.53 - work import primary action is visible before preview details');
     expect(responsive).toContain('1.2.0.53 - keep Work import commit visible immediately on mobile');
-    expect(version).toContain("APP_VERSION = '1.2.0'");
+    expect(version).toContain("APP_VERSION = '1.2.0.112'");
     expect(version).toContain('DATABASE_SCHEMA_VERSION = 14');
   });
 });

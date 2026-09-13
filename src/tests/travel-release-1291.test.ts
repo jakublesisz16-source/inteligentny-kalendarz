@@ -9,7 +9,7 @@ const work = readFileSync('src/work/WorkView.tsx', 'utf8');
 const study = readFileSync('src/study/StudyView.tsx', 'utf8');
 const responsive = readFileSync('src/styles/responsive.css', 'utf8');
 
-describe('1.2.0 travel-ready hardening', () => {
+describe('1.2.0.92 travel-ready hardening', () => {
   it('keeps foreign expense conversion completely local', () => {
     expect(financeRates).toContain('LOCAL_CURRENT_PLN_RATES');
     expect(financeRates).not.toContain('fetch(');
