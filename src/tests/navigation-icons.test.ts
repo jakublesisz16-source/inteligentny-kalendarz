@@ -8,34 +8,37 @@ import { NAVIGATION_ITEMS } from '../ui/Navigation';
 const EXPECTED_VIEWS: AppView[] = [
   'today',
   'calendar',
-  'work',
-  'shopping',
-  'cycle',
+  'finance',
   'study',
-  'locations',
+  'work',
   'settings',
 ];
 
-describe('0.5.3 navigation icons', () => {
-  it('keeps exactly the eight existing navigation views in the same order', () => {
+describe('1.2.0.2 navigation foundation', () => {
+  it('keeps exactly the six product-level sections in the agreed order', () => {
     expect(NAVIGATION_ITEMS.map((item) => item.id)).toEqual(EXPECTED_VIEWS);
   });
 
-  it('maps every navigation item to a supported non-empty icon', () => {
-    expect(NAVIGATION_ITEMS).toHaveLength(8);
+  it('maps every visible navigation item to a supported non-empty icon', () => {
+    expect(NAVIGATION_ITEMS).toHaveLength(6);
     for (const item of NAVIGATION_ITEMS) {
       expect(item.icon).toBeTruthy();
       expect(APP_ICON_NAMES).toContain(item.icon);
       expect(item.label.trim()).not.toBe('');
       expect(item.short.trim()).not.toBe('');
     }
-    expect(new Set(NAVIGATION_ITEMS.map((item) => item.icon)).size).toBe(8);
+    expect(new Set(NAVIGATION_ITEMS.map((item) => item.icon)).size).toBe(6);
   });
 
-  it('keeps search as a utility icon rather than a ninth navigation item', () => {
+  it('keeps legacy module icons available for a future reactivation without exposing them in navigation', () => {
+    expect(APP_ICON_NAMES).toEqual(expect.arrayContaining(['shopping', 'cycle', 'locations']));
+    expect(NAVIGATION_ITEMS.some((item) => ['shopping', 'cycle', 'locations'].includes(item.id))).toBe(false);
+  });
+
+  it('keeps search as a utility icon rather than a seventh navigation item', () => {
     expect(APP_ICON_NAMES).toContain('search');
     expect(NAVIGATION_ITEMS.some((item) => item.icon === 'search')).toBe(false);
-    expect(NAVIGATION_ITEMS).toHaveLength(8);
+    expect(NAVIGATION_ITEMS).toHaveLength(6);
   });
 
   it('renders every icon as decorative currentColor SVG', () => {

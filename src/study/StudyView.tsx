@@ -42,7 +42,7 @@ interface StudyViewProps {
   onDataChanged: () => Promise<void>;
 }
 
-type Phase = 'idle' | 'analysis' | 'groups' | 'preview' | 'confirm' | 'diff';
+type Phase = 'idle' | 'groups' | 'preview' | 'diff';
 type PreviewFilter = 'all' | 'ready' | 'warning' | 'incomplete' | 'blocking';
 
 interface SelectedFileMeta {
@@ -74,6 +74,15 @@ function seriesPeerCount(candidates: StudyScheduleCandidate[], candidate: StudyS
   const identity = identifyCandidate(candidate);
   if (!identity.seriesKey) return 1;
   return candidates.filter((entry) => identifyCandidate(entry).seriesKey === identity.seriesKey).length;
+}
+
+function formatSchedulePeriod(candidates: StudyScheduleCandidate[]): string {
+  const dates = candidates.flatMap((candidate) => candidate.date ? [candidate.date] : []).sort();
+  if (!dates.length) return 'Nieustalony';
+  const formatter = new Intl.DateTimeFormat('pl-PL', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  const first = formatter.format(new Date(`${dates[0]!}T12:00:00`));
+  const last = formatter.format(new Date(`${dates[dates.length - 1]!}T12:00:00`));
+  return first === last ? first : `${first} - ${last}`;
 }
 
 interface CandidateEditorProps {
@@ -182,7 +191,7 @@ export function StudyView({ onDataChanged }: StudyViewProps) {
     setMessage('');
     setDiagnostics([]);
     if (!/\.xlsx?$/i.test(file.name)) {
-      setError('Wybierz plik programu Excel w formacie .xlsx albo .xls.');
+      setError('Wybierz plan w formacie .xlsx albo .xls.');
       return;
     }
     setParsing(true);
@@ -193,23 +202,37 @@ export function StudyView({ onDataChanged }: StudyViewProps) {
       const hash = await hashFile(file);
       const duplicate = await findUniversityImportByHash(hash);
       if (duplicate) {
-        setMessage(`Ten sam plik został już zaimportowany ${formatImportDate(duplicate.importedAt)}. Nie utworzono duplikatów.`);
+        setMessage(`Ten plan został już wczytany ${formatImportDate(duplicate.importedAt)}. Niczego nie zdublowano.`);
         return;
       }
       const workbook = await readSpreadsheetFile(file);
       const result = analyzeScheduleWorkbook(workbook);
       if (!result) {
-        setError('Nie rozpoznano formatu planu. Dane nie zostały zapisane.');
+        setError('Nie udało się rozpoznać tego planu. Nic nie zostało zapisane.');
         setDiagnostics(diagnoseUnrecognizedWorkbook(workbook));
         return;
       }
       setAnalysis(result);
       setFileMeta({ file, hash });
-      const remembered = profileGroups.filter((group) => result.groups.includes(group));
-      setSelectedGroups(remembered);
-      setPhase('analysis');
+
+      const preferredGroups = (profileGroups.length ? profileGroups : activeImport?.selectedGroups ?? []).filter((group) => result.groups.includes(group));
+      if (!result.groups.length) {
+        preparePreview(result, []);
+        return;
+      }
+      if (result.groups.length === 1) {
+        preparePreview(result, [result.groups[0]!]);
+        return;
+      }
+      const rememberedValidation = validateStudyGroupSelection(result.groups, preferredGroups);
+      if (preferredGroups.length && rememberedValidation.valid) {
+        preparePreview(result, preferredGroups);
+        return;
+      }
+      setSelectedGroups(preferredGroups);
+      setPhase('groups');
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'Nie udało się przeanalizować pliku Excel.');
+      setError(caught instanceof Error ? caught.message : 'Nie udało się przeanalizować planu.');
     } finally {
       setParsing(false);
     }
@@ -219,22 +242,27 @@ export function StudyView({ onDataChanged }: StudyViewProps) {
     setSelectedGroups((current) => current.includes(group) ? current.filter((item) => item !== group) : [...current, group]);
   }
 
-  function goToPreview() {
-    if (!analysis) return;
-    const groupValidation = validateStudyGroupSelection(analysis.groups, selectedGroups);
+  function preparePreview(sourceAnalysis: ScheduleAnalysis, groups: string[]) {
+    const groupValidation = validateStudyGroupSelection(sourceAnalysis.groups, groups);
     if (!groupValidation.valid) {
       setError(groupValidation.errors.join(' '));
       return;
     }
-    const filtered = candidatesForSelectedGroups(analysis, selectedGroups).map((candidate) => {
+    const filtered = candidatesForSelectedGroups(sourceAnalysis, groups).map((candidate) => {
       const identified = identifyCandidate(candidate);
       return { ...identified, include: defaultIncludeForCandidate(identified) };
     });
+    setSelectedGroups(groups);
     setWorkingCandidates(filtered);
     setPendingCorrectionRules([]);
     setPreviewFilter('all');
     setError('');
     setPhase('preview');
+  }
+
+  function goToPreview() {
+    if (!analysis) return;
+    preparePreview(analysis, selectedGroups);
   }
 
   function updateCandidate(source: StudyScheduleCandidate, updated: StudyScheduleCandidate, scope: 'SINGLE' | 'SERIES') {
@@ -327,7 +355,7 @@ export function StudyView({ onDataChanged }: StudyViewProps) {
   async function continueAfterPreview() {
     if (!analysis || !fileMeta || invalidIncluded.length || !importable.length) return;
     if (!activeImport) {
-      setPhase('confirm');
+      await confirmImport();
       return;
     }
     setSaving(true);
@@ -448,130 +476,117 @@ export function StudyView({ onDataChanged }: StudyViewProps) {
   const warningCount = analysisReviews.filter((review) => review.state === 'WARNING').length;
   const incompleteCount = analysisReviews.filter((review) => review.state === 'INCOMPLETE').length;
   const blockingCount = analysisReviews.filter((review) => review.state === 'BLOCKING').length;
-  const phaseIndex = phase === 'idle' ? (parsing ? 1 : 0) : phase === 'analysis' ? 1 : phase === 'groups' ? 2 : phase === 'preview' ? 3 : phase === 'diff' ? 4 : 5;
-  const progressLabels = ['Plik', 'Analiza', 'Grupy', 'Podgląd', 'Zmiany', 'Zapis'];
+  const schedulePeriod = formatSchedulePeriod(workingCandidates);
+  const attentionCount = warningPreviewCount + incompletePreviewCount + blockingPreviewCount;
+  const importBlocked = Boolean(selectedCompleteness && !selectedCompleteness.safe) || invalidIncluded.length > 0 || !importable.length;
+  const selectedGroupSummary = formatStudyGroupList(selectedGroups) || 'Wspólne / bez grup';
 
   return (
     <section className="view-shell study-view">
-      <header className="view-header hero-header">
+      <header className="view-header hero-header study-hero-simple">
         <div>
           <p className="eyebrow">Studia</p>
-          <h1>{activeImport ? 'Aktualizuj plan bez chaosu' : 'Plan zajęć bez ręcznego przepisywania'}</h1>
-          <p className="view-subtitle">{activeImport ? 'Nowy plan Excel zostanie najpierw porównany z aktywnym planem. Nic nie zmieni się bez Twojego zatwierdzenia.' : 'Wybierz plan Excel (.xlsx lub .xls), zaznacz swoje grupy i sprawdź wynik przed dodaniem czegokolwiek do kalendarza.'}</p>
+          <h1>{activeImport ? 'Zaktualizuj plan studiów' : 'Twój plan studiów'}</h1>
+          <p className="view-subtitle">Wczytaj Excel. Aplikacja pokaże zmiany przed zapisem i zapyta o grupy tylko wtedy, gdy to potrzebne.</p>
         </div>
-        {phase !== 'idle' ? <button type="button" className="button button-secondary" onClick={() => resetFlow()}>Zacznij od nowa</button> : null}
+        <div className="view-header-actions">
+          {phase !== 'idle' ? <button type="button" className="button button-secondary" onClick={() => resetFlow()}>Anuluj import</button> : null}
+        </div>
       </header>
-
-      <div className="study-progress six-steps" aria-label="Postęp importu">
-        {progressLabels.map((label, index) => <div key={label} className={index <= phaseIndex ? 'study-step active' : 'study-step'}><span>{index + 1}</span>{label}</div>)}
-      </div>
 
       {error ? <div className="study-message error-message" role="alert">{error}</div> : null}
       {message ? <div className="study-message success-message" role="status">{message}</div> : null}
-      {diagnostics.length ? <div className="diagnostics-card"><strong>Wykryte arkusze i zakresy</strong>{diagnostics.map((line) => <span key={line}>{line}</span>)}</div> : null}
-
-      {activeImport && phase === 'idle' ? <StudyGroupPreviewPanel activeImport={activeImport} primaryGroups={profileGroups} /> : null}
+      {diagnostics.length ? <section className="diagnostics-card"><div className="diagnostics-card-heading"><strong>Szczegóły techniczne problemu</strong></div><div className="diagnostics-card-body">{diagnostics.map((line) => <span key={line}>{line}</span>)}</div></section> : null}
 
       {phase === 'idle' ? (
-        <div className={dragActive ? 'upload-panel panel drag-active' : 'upload-panel panel'} onDragEnter={(event) => { event.preventDefault(); setDragActive(true); }} onDragOver={(event) => event.preventDefault()} onDragLeave={() => setDragActive(false)} onDrop={handleDrop}>
-          <div className="upload-mark" aria-hidden="true">XLS</div>
-          <h2>{activeImport ? 'Dodaj nowszą wersję planu' : 'Nie masz jeszcze planu zajęć'}</h2>
-          {activeImport ? <p>Aktywny plan: <strong>{activeImport.fileName}</strong>. Nowy plik zostanie porównany lokalnie i zobaczysz dokładnie, co się zmieniło.</p> : <p>Zaimportuj plik Excel, wybierz swoje grupy i sprawdź zajęcia przed zapisaniem ich w Kalendarzu. Plik jest analizowany wyłącznie lokalnie.</p>}
+        <div className={dragActive ? 'upload-panel study-upload-simple panel drag-active' : 'upload-panel study-upload-simple panel'} onDragEnter={(event) => { event.preventDefault(); setDragActive(true); }} onDragOver={(event) => event.preventDefault()} onDragLeave={() => setDragActive(false)} onDrop={handleDrop}>
+          <h2>{activeImport ? 'Wczytaj nowszy plan' : 'Wczytaj plan zajęć'}</h2>
+          <p>{activeImport ? <>Aktualny plan: <strong>{activeImport.fileName}</strong>. Nowy plik najpierw porównamy z obecnym - nic nie zmieni się bez Twojego zatwierdzenia.</> : 'Wskaż plik planu. Format Excel zostanie rozpoznany automatycznie, a przed zapisem zobaczysz krótkie podsumowanie.'}</p>
           <input ref={fileInputRef} className="visually-hidden" type="file" accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" onChange={(event) => { const file = event.target.files?.[0]; if (file) void processFile(file); }} />
-          <button type="button" className="button button-primary" disabled={parsing} onClick={() => fileInputRef.current?.click()}>{parsing ? 'Analizuję plan...' : activeImport ? 'Wybierz nowy plan Excel' : 'Importuj Excel'}</button>
-          <span className="upload-hint">Na komputerze możesz też przeciągnąć plik tutaj.</span>
+          <button type="button" className="button button-primary study-upload-primary" disabled={parsing} onClick={() => fileInputRef.current?.click()}>{parsing ? 'Sprawdzam plan...' : 'Wczytaj plan'}</button>
+          <span className="upload-hint">XLSX lub XLS - na komputerze możesz też przeciągnąć plik tutaj.</span>
         </div>
       ) : null}
 
-      {phase === 'analysis' && analysis && fileMeta ? (
-        <section className="panel analysis-summary">
-          <div className="panel-heading"><div><p className="section-kicker">Analiza</p><h2>{fileMeta.file.name}</h2></div><span className="file-size">{formatBytes(fileMeta.file.size)}</span></div>
-          <div className="analysis-metrics">
-            <div><span>Format</span><strong>{analysis.adapterId}</strong></div><div><span>Arkusze</span><strong>{analysis.sheetNames.length}</strong></div><div><span>Rok</span><strong>{analysis.detectedAcademicYear ?? 'Niepewny'}</strong></div><div><span>Semestr</span><strong>{analysis.detectedTerm ?? 'Niepewny'}</strong></div><div><span>Dni</span><strong>{analysis.diagnostics?.detectedDays?.length ?? 'Niepewne'}</strong></div>{analysis.diagnostics?.layoutKind === 'WEEK_MATRIX' ? <div><span>Tygodnie</span><strong>{analysis.diagnostics.weekRowCount ?? 0}</strong></div> : <div><span>Siatki czasu</span><strong>{analysis.diagnostics?.timeGridCount ?? 'Niepewne'}</strong></div>}{analysis.diagnostics?.lectureEntryCount ? <div><span>Wykłady</span><strong>{analysis.diagnostics.lectureEntryCount}</strong></div> : null}<div><span>Grupy</span><strong>{analysis.groups.length}</strong></div><div><span>Gotowe</span><strong>{readyCount}</strong></div><div><span>Do sprawdzenia</span><strong>{warningCount}</strong></div><div><span>Niepełne</span><strong>{incompleteCount}</strong></div><div><span>Wymagają poprawy</span><strong>{blockingCount}</strong></div>
-          </div>
-          {analysis.diagnostics ? <details className="parser-diagnostics"><summary>Diagnostyka parsera</summary><div className="parser-diagnostics-grid"><span><strong>Arkusz planu:</strong> {analysis.diagnostics.matchedSheet ?? 'nieustalony'}</span><span><strong>Wykryte dni:</strong> {analysis.diagnostics.detectedDays?.join(', ') || 'brak'}</span>{analysis.diagnostics.layoutKind === 'WEEK_MATRIX' ? <><span><strong>Układ:</strong> macierz tygodniowa</span><span><strong>Wiersze tygodni:</strong> {analysis.diagnostics.weekRowCount ?? 0}</span>{analysis.diagnostics.lectureEntryCount ? <span><strong>Wpisy wykładów:</strong> {analysis.diagnostics.lectureEntryCount}</span> : null}</> : <span><strong>Interwały siatek:</strong> {analysis.diagnostics.timeGridIntervals?.length ? `${analysis.diagnostics.timeGridIntervals.join(', ')} min` : 'nieustalone'}</span>}<span><strong>Ukryte wiersze/kolumny:</strong> {analysis.diagnostics.hiddenRowCount ?? 0} / {analysis.diagnostics.hiddenColumnCount ?? 0}</span>{analysis.diagnostics.usedRanges?.map((line) => <span key={line}><strong>Zakres:</strong> {line}</span>)}{analysis.diagnostics.adapterReasons?.map((line) => <span key={line}><strong>Sygnał:</strong> {line}</span>)}{analysis.diagnostics.unresolvedPatterns?.map((line) => <span key={line}><strong>Niepewność:</strong> {line}</span>)}</div></details> : null}
-          {analysis.information.map((item) => <div key={item.id} className="study-information"><strong>{item.title}</strong><span>{item.message}</span></div>)}
-          {analysis.warnings.map((warning) => <div key={warning} className="study-information warning-info">{warning}</div>)}
-          <footer className="study-actions analysis-actions"><button type="button" className="button button-primary" onClick={() => analysis.groups.length ? setPhase('groups') : goToPreview()}>{analysis.groups.length ? 'Przejdź do wyboru grup' : 'Pokaż zajęcia'}</button></footer>
-        </section>
-      ) : null}
-
       {phase === 'groups' && analysis ? (
-        <section className="panel group-panel">
-          <div className="panel-heading"><div><p className="section-kicker">Twoje przypisania</p><h2>{analysis.groups.length ? 'Wybierz wszystkie swoje grupy' : 'Plan wspólny dla wszystkich'}</h2></div>{analysis.groups.length ? <span className="selection-count">{selectedGroups.length} wybranych</span> : null}</div>
-          <p className="panel-copy">{analysis.groups.length ? 'Wybierz faktyczne przypisania. Grupa 4-osobowa obejmuje automatycznie odpowiadającą jej grupę 8-osobową i grupę główną. Podziału 12-osobowego nie wyliczamy z litery, bo przecina podział 8-osobowy.' : 'Ten plik nie zawiera rozróżnienia grup. Wpisy wspólne przejdą do podglądu bez wyboru grupy.'}</p>
-          {analysis.groups.length ? <StudyGroupSelector groups={analysis.groups} selectedGroups={selectedGroups} onToggle={toggleGroup} /> : null}
-          {!groupSelectionValidation.valid ? <div className="study-information warning-info"><strong>Uzupełnij wybór grup.</strong><ul>{groupSelectionValidation.errors.map((item) => <li key={item}>{item}</li>)}</ul></div> : null}
-          <footer className="study-actions split-study-actions"><button type="button" className="button button-secondary" onClick={() => setPhase('analysis')}>Wróć do analizy</button><button type="button" className="button button-primary" disabled={!groupSelectionValidation.valid} onClick={goToPreview}>Pokaż moje zajęcia</button></footer>
+        <section className="panel group-panel study-group-simple">
+          <div className="panel-heading"><div><p className="section-kicker">Grupy</p><h2>Wybierz swoje grupy</h2></div><span className="selection-count">{selectedGroups.length} wybranych</span></div>
+          <p className="panel-copy">Plan zawiera kilka grup. Zaznacz te, do których należysz - zapamiętamy wybór przy kolejnych planach.</p>
+          <StudyGroupSelector groups={analysis.groups} selectedGroups={selectedGroups} onToggle={toggleGroup} />
+          {!groupSelectionValidation.valid ? <div className="study-information warning-info"><strong>Wybór nie jest jeszcze kompletny.</strong><ul>{groupSelectionValidation.errors.map((item) => <li key={item}>{item}</li>)}</ul></div> : null}
+          <section className="study-group-help"><strong>Jak aplikacja łączy grupy?</strong><p>Grupa 4-osobowa obejmuje odpowiadającą jej grupę 8-osobową i grupę główną. Podziału 12-osobowego nie wyliczamy z samej litery, bo może przecinać inny podział.</p></section>
+          <footer className="study-actions split-study-actions"><button type="button" className="button button-secondary" onClick={() => resetFlow()}>Wybierz inny plik</button><button type="button" className="button button-primary" disabled={!groupSelectionValidation.valid} onClick={goToPreview}>Pokaż mój plan</button></footer>
         </section>
       ) : null}
 
-      {phase === 'preview' && analysis ? (
+      {phase === 'preview' && analysis && fileMeta ? (
         <div className="study-stack">
-          <section className="preview-toolbar panel">
-            <div><p className="section-kicker">Podgląd</p><h2>{workingCandidates.length} pasujących wpisów</h2><p>Jeśli plan źródłowy nie podaje pełnych godzin, wpis pozostaje widoczny jako niepełny. Aplikacja niczego nie zgaduje i nie zapisuje takiego terminu do kalendarza, dopóki godziny nie będą znane.</p></div>
-            <div className="preview-filters" role="group" aria-label="Filtr wpisów">
-              <button type="button" className={previewFilter === 'all' ? 'filter-button active' : 'filter-button'} onClick={() => setPreviewFilter('all')}>Wszystkie ({workingCandidates.length})</button>
-              <button type="button" className={previewFilter === 'ready' ? 'filter-button active' : 'filter-button'} onClick={() => setPreviewFilter('ready')}>Gotowe ({readyPreviewCount})</button>
-              <button type="button" className={previewFilter === 'warning' ? 'filter-button active' : 'filter-button'} onClick={() => setPreviewFilter('warning')}>Do sprawdzenia ({warningPreviewCount})</button>
-              <button type="button" className={previewFilter === 'incomplete' ? 'filter-button active' : 'filter-button'} onClick={() => setPreviewFilter('incomplete')}>Niepełne ({incompletePreviewCount})</button>
-              <button type="button" className={previewFilter === 'blocking' ? 'filter-button active' : 'filter-button'} onClick={() => setPreviewFilter('blocking')}>Wymagają poprawy ({blockingPreviewCount})</button>
+          <section className="panel study-import-summary">
+            <div className="study-import-summary-heading">
+              <div><p className="section-kicker">Podsumowanie</p><h2>{importBlocked ? 'Plan wymaga sprawdzenia' : 'Plan jest gotowy do dodania'}</h2><p>{fileMeta.file.name} <span>·</span> {formatBytes(fileMeta.file.size)}</p></div>
+              <span className={importBlocked ? 'study-summary-state blocking' : attentionCount ? 'study-summary-state attention' : 'study-summary-state ready'}>{importBlocked ? 'WYMAGA UWAGI' : attentionCount ? 'SPRAWDŹ UWAGI' : 'GOTOWY'}</span>
+            </div>
+            <div className="study-import-summary-grid">
+              <div><span>Do kalendarza</span><strong>{importable.length}</strong></div>
+              <div><span>Okres</span><strong>{schedulePeriod}</strong></div>
+              <div><span>Grupy</span><strong>{selectedGroupSummary}</strong></div>
+              <div><span>Niepełne</span><strong>{incompletePreviewCount}</strong></div>
+              <div><span>Do sprawdzenia</span><strong>{warningPreviewCount + blockingPreviewCount}</strong></div>
+            </div>
+            {selectedCompleteness && !selectedCompleteness.safe ? <div className="study-summary-alert blocking"><strong>Nie zapiszę jeszcze tego planu.</strong><span>{selectedCompleteness.reasons.join(' ')}</span></div> : null}
+            {incompletePreviewCount ? <div className="study-summary-alert"><strong>{incompletePreviewCount} wpisów jest niepełnych.</strong><span>Pozostaną do wglądu. Aplikacja nie zgaduje brakujących dni ani godzin.</span></div> : null}
+            {scheduleConflicts.length ? <div className="study-summary-alert"><strong>Wykryto {scheduleConflicts.length} nakładających się terminów.</strong><span>To informacja - możesz sprawdzić je w szczegółach przed zapisem.</span></div> : null}
+            <footer className="study-import-summary-actions"><button type="button" className="button button-secondary" onClick={() => resetFlow()}>Wybierz inny plik</button><button type="button" className="button button-primary" disabled={importBlocked || saving} onClick={() => activeImport ? void continueAfterPreview() : void confirmImport()}>{saving ? 'Przygotowuję...' : activeImport ? 'Porównaj zmiany' : `Dodaj ${importable.length} do kalendarza`}</button></footer>
+          </section>
+
+          <section className="panel study-review-details study-static-section">
+            <div className="study-static-section-heading"><span><strong>Szczegóły i korekty</strong><small>Tu możesz sprawdzić pojedyncze zajęcia, wykluczyć wpis albo uzupełnić brakujące dane.</small></span><span className="study-review-count">{workingCandidates.length} wpisów</span></div>
+            <div className="study-review-details-body">
+              {analysis.information.map((item) => <div key={item.id} className="study-information"><strong>{item.title}</strong><span>{item.message}</span></div>)}
+              {analysis.warnings.map((warning) => <div key={warning} className="study-information warning-info">{warning}</div>)}
+              {selectedCompleteness ? <section className="study-completeness-panel" aria-label="Kontrola kompletności planu źródłowego"><div className="study-completeness-heading"><div><p className="section-kicker">Kontrola kompletności</p><h3>Bloki i godziny źródłowe</h3></div><span className={selectedCompleteness.safe ? 'completeness-state safe' : 'completeness-state blocking'}>{selectedCompleteness.safe ? 'SPÓJNE' : 'BLOKADA'}</span></div><div className="study-completeness-stats"><div><span>Bloki źródłowe</span><strong>{selectedCompleteness.sourceBlockCount}</strong></div><div><span>Kompletne</span><strong>{selectedCompleteness.completeBlockCount}</strong></div><div><span>Niepełne w źródle</span><strong>{selectedCompleteness.incompleteSourceBlockCount}</strong></div><div><span>Bilans godzin</span><strong>{strictHourAudits.filter((audit) => audit.status === 'MATCH').length}/{strictHourAudits.length}</strong></div></div>{incompleteHourAudits.length ? <div className="study-completeness-note"><strong>{incompleteHourAudits.length} bilansów godzin nie da się zamknąć bez zgadywania.</strong><span>Źródło ma przypisanie grupy/bloku, ale nie podaje wszystkich dni lub pełnych godzin. Takie pozycje pozostają jako NIEPEŁNE i nie są zamieniane na fikcyjne wydarzenia.</span></div> : null}{advisoryHourInconsistencies.length ? <div className="study-completeness-note advisory"><strong>{advisoryHourInconsistencies.length} deklaracji godzin seminariów nie zgadza się z datowanymi terminami.</strong><span>To informacja o niespójności planu źródłowego. Aplikacja zachowuje konkretne daty i godziny z Excela i nie dopisuje brakujących zajęć.</span></div> : null}{selectedCompleteness.reasons.length ? <div className="inline-error">{selectedCompleteness.reasons.join(' ')}</div> : null}</section> : null}
+
+              <div className="preview-toolbar study-review-toolbar"><div><h3>Wpisy z planu</h3><p>Domyślnie zaznaczamy wszystkie bezpieczne wpisy. Niepełne dane pozostają tylko do wglądu.</p></div><div className="preview-filters" role="group" aria-label="Filtr wpisów"><button type="button" className={previewFilter === 'all' ? 'filter-button active' : 'filter-button'} onClick={() => setPreviewFilter('all')}>Wszystkie ({workingCandidates.length})</button><button type="button" className={previewFilter === 'ready' ? 'filter-button active' : 'filter-button'} onClick={() => setPreviewFilter('ready')}>Gotowe ({readyPreviewCount})</button><button type="button" className={previewFilter === 'warning' ? 'filter-button active' : 'filter-button'} onClick={() => setPreviewFilter('warning')}>Do sprawdzenia ({warningPreviewCount})</button><button type="button" className={previewFilter === 'incomplete' ? 'filter-button active' : 'filter-button'} onClick={() => setPreviewFilter('incomplete')}>Niepełne ({incompletePreviewCount})</button><button type="button" className={previewFilter === 'blocking' ? 'filter-button active' : 'filter-button'} onClick={() => setPreviewFilter('blocking')}>Wymagają poprawy ({blockingPreviewCount})</button></div></div>
+              <section className="preview-selection" aria-label="Wybór wpisów do importu"><div className="preview-selection-summary"><strong>{importable.length} wybranych z {possibleCount} możliwych</strong><span>{warningPreviewCount} do sprawdzenia{incompletePreviewCount ? ` - ${incompletePreviewCount} niepełnych tylko do wglądu` : ''}{blockingPreviewCount ? ` - ${blockingPreviewCount} wymaga poprawy` : ''}</span></div><div className="preview-bulk-actions"><button type="button" className="button button-secondary button-small" onClick={() => setWorkingCandidates((current) => selectAllImportable(current))}>Zaznacz wszystkie możliwe</button><button type="button" className="button button-secondary button-small" onClick={() => setWorkingCandidates((current) => deselectAllCandidates(current))}>Odznacz wszystkie</button></div></section>
+              {scheduleConflicts.length ? <section className="confirm-warning conflict-review-panel"><div className="conflict-review-heading"><strong>Wykryto {scheduleConflicts.length} konfliktów godzin.</strong><span>Informacja</span></div><p>To mogą być błędy źródłowego planu albo świadomie nakładające się zajęcia. Konflikty pozostają widoczne, ale nie wymagają dodatkowego potwierdzenia - przejście dalej oznacza zapis wybranych wpisów zgodnie z planem.</p><ul className="study-conflict-list">{scheduleConflicts.slice(0, 8).map((conflict) => <li key={conflict.id}><time>{conflict.date}</time><span><strong>{conflict.left.subject}</strong> {conflict.left.startTime}-{conflict.left.endTime}</span><span className="conflict-separator">↔</span><span><strong>{conflict.right.subject}</strong> {conflict.right.startTime}-{conflict.right.endTime}</span></li>)}</ul>{scheduleConflicts.length > 8 ? <p>...oraz {scheduleConflicts.length - 8} kolejnych konfliktów.</p> : null}</section> : null}
+
+              <div className="candidate-list study-review-candidate-list">
+                {visibleCandidates.map((candidate) => {
+                  const review = candidateReviews.get(candidate.id) ?? reviewCandidate(candidate);
+                  const selected = Boolean(candidate.include) && review.canImport;
+                  const stateClass = review.state.toLocaleLowerCase('en-US');
+                  const statusLabel = review.state === 'READY' ? 'GOTOWE' : review.state === 'WARNING' ? 'DO SPRAWDZENIA' : review.state === 'INCOMPLETE' ? 'NIEPEŁNE' : 'WYMAGA POPRAWY';
+                  const peerCount = seriesPeerCount(workingCandidates, candidate);
+                  return (
+                    <article key={candidate.id} className={`candidate-card panel ${stateClass}${selected ? ' selected' : ' unselected'}`} tabIndex={0} role="group" aria-label={`${selected ? 'Wybrano do importu. ' : 'Pominięto. '}${statusLabel}. ${candidate.subject || 'Nieustalony przedmiot'}`} aria-disabled={!review.canImport} onClick={(event) => { const target = event.target as Element; if (target.closest('button, input, select, textarea, a, label, .candidate-editor')) return; toggleCandidate(candidate.id); }} onKeyDown={(event) => handleCandidateKeyDown(event, candidate)}>
+                      <div className="candidate-main">
+                        <label className="candidate-toggle" title={review.canImport ? 'Importuj lub pomiń wpis' : review.state === 'INCOMPLETE' ? 'Brak danych w planie źródłowym - wpis pozostaje do wglądu' : 'Najpierw popraw dane krytyczne'}><input type="checkbox" checked={selected} disabled={!review.canImport} aria-label={`${selected ? 'Pomiń' : 'Importuj'}: ${candidate.subject || 'wpis bez nazwy'}`} onChange={() => toggleCandidate(candidate.id)} /></label>
+                        <div className="candidate-copy">
+                          <div className="candidate-title-row"><h3>{candidate.subject || 'Nieustalony przedmiot'}</h3><span className={`status-pill ${stateClass}`}>{statusLabel}</span>{peerCount > 1 ? <span className="series-pill">Seria: {peerCount}</span> : null}</div>
+                          <strong className="candidate-date">{candidateLabel(candidate)}</strong>
+                          <div className="candidate-meta">{candidate.activityType ? <span>{candidate.activityType}</span> : null}{candidate.groupTags.length ? <span>Grupy: {formatStudyGroupList(candidate.groupTags)}</span> : null}{candidate.clinic ? <span>{candidate.clinic}</span> : null}{candidate.room ? <span>{candidate.room}</span> : null}{candidate.address || candidate.locationLabel ? <span>{candidate.address ?? candidate.locationLabel}</span> : null}</div>
+                          {review.issues.length ? <div className={`candidate-issues ${review.state === 'BLOCKING' ? 'blocking' : review.state === 'INCOMPLETE' ? 'incomplete' : 'warning'}`}><strong>{review.state === 'BLOCKING' ? 'Przed importem popraw:' : review.state === 'INCOMPLETE' ? 'Brak danych w planie źródłowym:' : 'Brakujące lub niepewne dane:'}</strong><ul>{review.issues.map((issue) => <li key={`${issue.code}-${issue.source ?? ''}`}><span>{issue.label}</span>{issue.source && issue.source !== issue.label ? <small>{issue.source}</small> : null}</li>)}</ul></div> : null}
+                          <small className="source-ref">Źródło: {candidate.sourceSheet} {candidate.sourceRange}</small>
+                        </div>
+                        <button type="button" className="text-button candidate-edit-action" onClick={(event) => { event.stopPropagation(); setEditingCandidateId(candidate.id); }}>{review.state === 'READY' ? 'Popraw' : review.state === 'INCOMPLETE' ? 'Uzupełnij ręcznie' : 'Uzupełnij dane'}</button>
+                      </div>
+                      {editingCandidateId === candidate.id ? <div onClick={(event) => event.stopPropagation()} onKeyDown={(event) => event.stopPropagation()}><CandidateEditor candidate={candidate} peerCount={peerCount} onSave={(updated, scope) => updateCandidate(candidate, updated, scope)} onCancel={() => setEditingCandidateId(null)} /></div> : null}
+                    </article>
+                  );
+                })}
+              </div>
             </div>
           </section>
-          {selectedCompleteness ? <section className="panel study-completeness-panel" aria-label="Kontrola kompletności planu źródłowego"><div className="study-completeness-heading"><div><p className="section-kicker">Kontrola kompletności</p><h3>Bloki i godziny źródłowe</h3></div><span className={selectedCompleteness.safe ? 'completeness-state safe' : 'completeness-state blocking'}>{selectedCompleteness.safe ? 'SPÓJNE' : 'BLOKADA'}</span></div><div className="study-completeness-stats"><div><span>Bloki źródłowe</span><strong>{selectedCompleteness.sourceBlockCount}</strong></div><div><span>Kompletne</span><strong>{selectedCompleteness.completeBlockCount}</strong></div><div><span>Niepełne w źródle</span><strong>{selectedCompleteness.incompleteSourceBlockCount}</strong></div><div><span>Bilans godzin</span><strong>{strictHourAudits.filter((audit) => audit.status === 'MATCH').length}/{strictHourAudits.length}</strong></div></div>{incompleteHourAudits.length ? <div className="study-completeness-note"><strong>{incompleteHourAudits.length} bilansów godzin nie da się zamknąć bez zgadywania.</strong><span>Źródło ma przypisanie grupy/bloku, ale nie podaje wszystkich dni lub pełnych godzin. Takie pozycje pozostają jako NIEPEŁNE i nie są zamieniane na fikcyjne wydarzenia.</span></div> : null}{advisoryHourInconsistencies.length ? <div className="study-completeness-note advisory"><strong>{advisoryHourInconsistencies.length} deklaracji godzin seminariów nie zgadza się z datowanymi terminami.</strong><span>To informacja o niespójności planu źródłowego. Aplikacja zachowuje konkretne daty i godziny z Excela i nie dopisuje brakujących zajęć.</span></div> : null}{selectedCompleteness.reasons.length ? <div className="inline-error">{selectedCompleteness.reasons.join(' ')}</div> : null}</section> : null}
-          <section className="preview-selection panel" aria-label="Wybór wpisów do importu">
-            <div className="preview-selection-summary"><strong>{importable.length} wybranych z {possibleCount} możliwych</strong><span>{warningPreviewCount} do sprawdzenia{incompletePreviewCount ? ` - ${incompletePreviewCount} niepełnych tylko do wglądu` : ''}{blockingPreviewCount ? ` - ${blockingPreviewCount} wymaga poprawy` : ''}</span></div>
-            <div className="preview-bulk-actions"><button type="button" className="button button-secondary button-small" onClick={() => setWorkingCandidates((current) => selectAllImportable(current))}>Zaznacz wszystkie możliwe</button><button type="button" className="button button-secondary button-small" onClick={() => setWorkingCandidates((current) => deselectAllCandidates(current))}>Odznacz wszystkie</button></div>
-          </section>
-          {scheduleConflicts.length ? <section className="panel confirm-warning conflict-review-panel"><div className="conflict-review-heading"><strong>Wykryto {scheduleConflicts.length} konfliktów godzin.</strong><span>Informacja</span></div><p>To mogą być błędy źródłowego planu albo świadomie nakładające się zajęcia. Konflikty pozostają widoczne, ale nie wymagają dodatkowego potwierdzenia - przejście dalej oznacza zapis wybranych wpisów zgodnie z planem.</p><ul className="study-conflict-list">{scheduleConflicts.slice(0, 8).map((conflict) => <li key={conflict.id}><time>{conflict.date}</time><span><strong>{conflict.left.subject}</strong> {conflict.left.startTime}-{conflict.left.endTime}</span><span className="conflict-separator">↔</span><span><strong>{conflict.right.subject}</strong> {conflict.right.startTime}-{conflict.right.endTime}</span></li>)}</ul>{scheduleConflicts.length > 8 ? <p>...oraz {scheduleConflicts.length - 8} kolejnych konfliktów.</p> : null}</section> : null}
-          <div className="candidate-list">
-            {visibleCandidates.map((candidate) => {
-              const review = candidateReviews.get(candidate.id) ?? reviewCandidate(candidate);
-              const selected = Boolean(candidate.include) && review.canImport;
-              const stateClass = review.state.toLocaleLowerCase('en-US');
-              const statusLabel = review.state === 'READY' ? 'GOTOWE' : review.state === 'WARNING' ? 'DO SPRAWDZENIA' : review.state === 'INCOMPLETE' ? 'NIEPEŁNE' : 'WYMAGA POPRAWY';
-              const peerCount = seriesPeerCount(workingCandidates, candidate);
-              return (
-                <article key={candidate.id} className={`candidate-card panel ${stateClass}${selected ? ' selected' : ' unselected'}`} tabIndex={0} role="group" aria-label={`${selected ? 'Wybrano do importu. ' : 'Pominięto. '}${statusLabel}. ${candidate.subject || 'Nieustalony przedmiot'}`} aria-disabled={!review.canImport} onClick={(event) => { const target = event.target as Element; if (target.closest('button, input, select, textarea, a, label, .candidate-editor')) return; toggleCandidate(candidate.id); }} onKeyDown={(event) => handleCandidateKeyDown(event, candidate)}>
-                  <div className="candidate-main">
-                    <label className="candidate-toggle" title={review.canImport ? 'Importuj lub pomiń wpis' : review.state === 'INCOMPLETE' ? 'Brak danych w planie źródłowym - wpis pozostaje do wglądu' : 'Najpierw popraw dane krytyczne'}><input type="checkbox" checked={selected} disabled={!review.canImport} aria-label={`${selected ? 'Pomiń' : 'Importuj'}: ${candidate.subject || 'wpis bez nazwy'}`} onChange={() => toggleCandidate(candidate.id)} /></label>
-                    <div className="candidate-copy">
-                      <div className="candidate-title-row"><h3>{candidate.subject || 'Nieustalony przedmiot'}</h3><span className={`status-pill ${stateClass}`}>{statusLabel}</span>{peerCount > 1 ? <span className="series-pill">Seria: {peerCount}</span> : null}</div>
-                      <strong className="candidate-date">{candidateLabel(candidate)}</strong>
-                      <div className="candidate-meta">{candidate.activityType ? <span>{candidate.activityType}</span> : null}{candidate.groupTags.length ? <span>Grupy: {formatStudyGroupList(candidate.groupTags)}</span> : null}{candidate.clinic ? <span>{candidate.clinic}</span> : null}{candidate.room ? <span>{candidate.room}</span> : null}{candidate.address || candidate.locationLabel ? <span>{candidate.address ?? candidate.locationLabel}</span> : null}</div>
-                      {review.issues.length ? <div className={`candidate-issues ${review.state === 'BLOCKING' ? 'blocking' : review.state === 'INCOMPLETE' ? 'incomplete' : 'warning'}`}><strong>{review.state === 'BLOCKING' ? 'Przed importem popraw:' : review.state === 'INCOMPLETE' ? 'Brak danych w planie źródłowym:' : 'Brakujące lub niepewne dane:'}</strong><ul>{review.issues.map((issue) => <li key={`${issue.code}-${issue.source ?? ''}`}><span>{issue.label}</span>{issue.source && issue.source !== issue.label ? <small>{issue.source}</small> : null}</li>)}</ul></div> : null}
-                      <small className="source-ref">Źródło: {candidate.sourceSheet} {candidate.sourceRange}</small>
-                    </div>
-                    <button type="button" className="text-button candidate-edit-action" onClick={(event) => { event.stopPropagation(); setEditingCandidateId(candidate.id); }}>{review.state === 'READY' ? 'Popraw' : review.state === 'INCOMPLETE' ? 'Uzupełnij ręcznie' : 'Uzupełnij dane'}</button>
-                  </div>
-                  {editingCandidateId === candidate.id ? <div onClick={(event) => event.stopPropagation()} onKeyDown={(event) => event.stopPropagation()}><CandidateEditor candidate={candidate} peerCount={peerCount} onSave={(updated, scope) => updateCandidate(candidate, updated, scope)} onCancel={() => setEditingCandidateId(null)} /></div> : null}
-                </article>
-              );
-            })}
-          </div>
-          <footer className="sticky-import-actions"><div><strong>{importable.length}</strong><span>wybranych</span>{incompletePreviewCount ? <small>{incompletePreviewCount} niepełnych pozostanie tylko do wglądu</small> : null}{blockingPreviewCount ? <small>{blockingPreviewCount} wymaga poprawy i zostanie pominiętych</small> : null}</div><button type="button" className="button button-primary" disabled={!importable.length || invalidIncluded.length > 0 || saving} onClick={() => void continueAfterPreview()}>{saving ? 'Przygotowuję...' : activeImport ? 'Porównaj z aktywnym planem' : 'Przejdź do potwierdzenia'}</button></footer>
         </div>
       ) : null}
 
       {phase === 'diff' && updatePreview ? <ScheduleDiffView preview={updatePreview} saving={saving} onChange={setUpdatePreview} onApply={() => void applyUpdate()} onCancel={() => void cancelUpdate()} /> : null}
 
-      {phase === 'confirm' && analysis && fileMeta ? (
-        <section className="panel confirm-panel">
-          <p className="section-kicker">Potwierdzenie</p><h2>Sprawdź zakres przed zapisem</h2>
-          <div className="confirm-grid"><div><span>Wydarzenia do dodania</span><strong>{importable.length}</strong></div><div><span>Do sprawdzenia</span><strong>{selectedWarningCount}</strong></div><div><span>Ręcznie poprawione</span><strong>{reviewedCount}</strong></div><div><span>Pominięte ręcznie</span><strong>{manuallyExcludedCount}</strong></div><div><span>Niepełne - tylko do wglądu</span><strong>{incompletePreviewCount}</strong></div><div><span>Wymagają poprawy</span><strong>{blockingPreviewCount}</strong></div><div><span>Reguły serii</span><strong>{pendingCorrectionRules.length}</strong></div><div><span>Wybrane grupy</span><strong>{formatStudyGroupList(selectedGroups) || 'Wspólne / bez grup'}</strong></div></div>
-          {incompletePreviewCount ? <div className="confirm-warning">{incompletePreviewCount} wpisów nie ma pełnych godzin w planie źródłowym. Pozostają widoczne w podglądzie, ale nie zostaną zapisane do kalendarza bez pełnego zakresu godzin.</div> : null}
-          {blockingPreviewCount ? <div className="confirm-warning">{blockingPreviewCount} wpisów ma rzeczywisty błąd wymagający poprawy i nie zostanie dodanych w tym imporcie.</div> : null}
-          {scheduleConflicts.length ? <div className="confirm-warning">Konflikty godzin: {scheduleConflicts.length}. Zostaną zapisane zgodnie z wybranymi wpisami; możesz wrócić do podglądu, jeśli chcesz któryś pominąć.</div> : null}
-          <div className="privacy-confirm">Plik źródłowy nie zostanie zapisany w bazie. Zachowamy fingerprint, znormalizowane dane potrzebne do kolejnych porównań i świadome poprawki serii.</div>
-          <footer className="study-actions split-study-actions"><button type="button" className="button button-secondary" onClick={() => setPhase('preview')}>Wróć do podglądu</button><button type="button" className="button button-primary" disabled={saving} onClick={() => void confirmImport()}>{saving ? 'Zapisuję...' : `Dodaj ${importable.length} wydarzeń`}</button></footer>
-        </section>
-      ) : null}
+      {phase === 'idle' && (activeImport || profileGroups.length) ? <section className="panel study-secondary-tools study-static-section"><div className="study-static-section-heading"><span><strong>Grupy i podgląd</strong><small>Zmień swoje grupy albo sprawdź plan innej grupy.</small></span></div><div className="study-secondary-tools-body"><StudyProfileSettings onDataChanged={async () => { await Promise.all([refreshStudyData(), onDataChanged()]); }} />{activeImport ? <StudyGroupPreviewPanel activeImport={activeImport} primaryGroups={profileGroups} /> : null}</div></section> : null}
 
-      {phase === 'idle' ? <StudyProfileSettings onDataChanged={async () => { await Promise.all([refreshStudyData(), onDataChanged()]); }} /> : null}
-
-      {imports.length ? (
-        <section className="imports-section">
-          <div className="compact-heading"><p className="section-kicker">Historia lokalna</p><h2>Plany studiów</h2></div>
+      {phase === 'idle' && imports.length ? (
+        <section className="panel imports-section study-history-details study-static-section">
+          <div className="study-static-section-heading"><span><strong>Historia planów</strong><small>{imports.length} {imports.length === 1 ? 'zapisany plan' : 'zapisane plany'}</small></span></div>
           <div className="import-history-grid">
             {imports.map((item) => {
               const active = item.id === activeImport?.id || item.lifecycleStatus === 'ACTIVE';

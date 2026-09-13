@@ -1,15 +1,20 @@
 const CACHE_PREFIX = 'inteligentny-kalendarz-shell-';
-const CACHE_NAME = `${CACHE_PREFIX}v1.1.2`;
+const CACHE_NAME = `${CACHE_PREFIX}v1.2.0`;
 
 const MANDATORY_SHELL_ASSET_PATHS = [
   'manifest.webmanifest',
   'favicon.svg',
-  'icon-192-v111.png',
-  'icon-512-v111.png',
-  'apple-touch-icon-v111.png',
+  'icon-192-v1203.png',
+  'icon-512-v1203.png',
+  'apple-touch-icon-v1203.png',
 ];
 
 const PRIVATE_FILE_EXTENSIONS = ['.pdf', '.xlsx', '.xls', '.json'];
+
+function isDevelopmentOrigin() {
+  const host = new URL(self.registration.scope).hostname;
+  return host === 'localhost' || host === '127.0.0.1' || host === '[::1]';
+}
 
 const MANDATORY_OCR_ASSET_PATHS = [
   'ocr/tesseract/tesseract.min.js',
@@ -131,7 +136,7 @@ async function cacheApplicationShell() {
 
 self.addEventListener('install', (event) => {
   event.waitUntil((async () => {
-    await cacheApplicationShell();
+    if (!isDevelopmentOrigin()) await cacheApplicationShell();
     await self.skipWaiting();
   })());
 });
@@ -139,6 +144,14 @@ self.addEventListener('install', (event) => {
 self.addEventListener('activate', (event) => {
   event.waitUntil((async () => {
     const keys = await caches.keys();
+    if (isDevelopmentOrigin()) {
+      await Promise.all(keys
+        .filter((key) => key.startsWith(CACHE_PREFIX))
+        .map((key) => caches.delete(key)));
+      await self.registration.unregister();
+      await self.clients.claim();
+      return;
+    }
     await Promise.all(keys
       .filter((key) => key.startsWith(CACHE_PREFIX) && key !== CACHE_NAME)
       .map((key) => caches.delete(key)));
@@ -151,6 +164,7 @@ function isPrivateUserFile(url) {
 }
 
 self.addEventListener('fetch', (event) => {
+  if (isDevelopmentOrigin()) return;
   const request = event.request;
   if (request.method !== 'GET') return;
   const url = new URL(request.url);

@@ -25,17 +25,20 @@ export function ConsistencyCenter({ issues, events, onEdit, onAcknowledge, onStu
     if (filter === 'TOUCHING') return issue.type === 'TOUCHING';
     return issue.categories.includes(filter);
   });
-  const openBlocking = issues.filter((issue) => issue.planningImpact === 'BLOCKING' && !issue.acknowledged).length;
+  const unresolved = issues.filter((issue) => !issue.acknowledged);
+  const openBlocking = unresolved.filter((issue) => issue.planningImpact === 'BLOCKING').length;
+
+  if (!unresolved.length && !showAcknowledged) return null;
 
   return <section className="panel consistency-center" id="consistency-center">
-    <div className="panel-heading"><div><span className="section-kicker">Spójność kalendarza</span><h2>Centrum niespójności</h2><p>{openBlocking ? `${openBlocking} problemów blokujących wymaga sprawdzenia.` : 'Brak nierozwiązanych problemów blokujących.'}</p></div></div>
+    <div className="panel-heading"><div><span className="section-kicker">Spójność kalendarza</span><h2>Do sprawdzenia</h2><p>{openBlocking ? `${openBlocking} problemów blokujących wymaga sprawdzenia.` : `${unresolved.length} ostrzeżeń do sprawdzenia.`}</p></div></div>
     <div className="consistency-toolbar"><div className="consistency-filters">{(['ALL','STUDY','WORK','PERSONAL','OVERLAP','TOUCHING'] as Filter[]).map((item) => <button type="button" key={item} className={filter === item ? 'choice-button active' : 'choice-button'} onClick={() => setFilter(item)}>{({ALL:'Wszystkie',STUDY:'Zajęcia',WORK:'Praca',PERSONAL:'Prywatne',OVERLAP:'Nakładanie',TOUCHING:'Brak buforu'} as Record<Filter,string>)[item]}</button>)}</div><label className="compact-check"><input type="checkbox" checked={showAcknowledged} onChange={(e) => setShowAcknowledged(e.target.checked)} /><span>Pokaż zaakceptowane</span></label></div>
     {visible.length ? <div className="consistency-list">{visible.map((issue) => {
       const related = issue.eventIds.map((id) => eventMap.get(id)).filter(Boolean) as CalendarEvent[];
       return <article className={`consistency-card impact-${issue.planningImpact.toLowerCase()}${issue.acknowledged ? ' acknowledged' : ''}`} key={issue.fingerprint}>
         <div className="consistency-card-top"><div><span className="consistency-impact">{issue.planningImpact === 'BLOCKING' ? 'WYMAGA SPRAWDZENIA' : issue.planningImpact === 'WARNING' ? 'OSTRZEŻENIE' : 'INFORMACJA'}</span><h3>{issue.title}</h3><p>{dateLabel(issue.startDateTime)} · {timeLabel(issue.startDateTime)}-{timeLabel(issue.endDateTime)}{issue.overlapMinutes ? ` · ${issue.overlapMinutes} min` : ''}</p></div>{issue.acknowledged ? <span className="ack-badge">Zaakceptowane</span> : null}</div>
         <p className="consistency-description">{issue.description}</p>
-        {related.length ? <div className="consistency-events">{related.map((event) => <div key={event.id}><span className={`category-dot category-${event.category.toLowerCase()}`} aria-hidden="true"/><div><strong>{event.title}</strong><small>{event.startDateTime.slice(11,16)}-{event.endDateTime.slice(11,16)} · {event.category}</small></div><button type="button" className="text-button" onClick={() => onEdit(event)}>Popraw</button>{event.source === 'UNIVERSITY_XLSX' && event.seriesKey ? <button type="button" className="text-button" onClick={() => onStudySeriesCorrect(event)}>Popraw serię</button> : null}</div>)}</div> : null}
+        {related.length ? <div className="consistency-events">{related.map((event) => <div key={event.id}><span className={`category-dot category-${event.category.toLowerCase()}`} aria-hidden="true"/><div><strong>{event.title}</strong><small>{event.startDateTime.slice(11,16)}-{event.endDateTime.slice(11,16)} · {event.category}</small></div><button type="button" className="text-button" onClick={() => onEdit(event)}>Edytuj</button>{event.source === 'UNIVERSITY_XLSX' && event.seriesKey ? <button type="button" className="text-button" onClick={() => onStudySeriesCorrect(event)}>Edytuj serię</button> : null}</div>)}</div> : null}
         {!issue.acknowledged ? <div className="consistency-actions"><button type="button" className="button button-secondary button-small" onClick={() => void onAcknowledge(issue)}>Zostaw bez zmian</button></div> : null}
       </article>;
     })}</div> : <div className="diff-empty">Brak niespójności dla wybranego filtra.</div>}

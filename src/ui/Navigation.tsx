@@ -1,6 +1,5 @@
 import type { AppView } from '../app/app.types';
 import { AppIcon, type AppIconName } from './AppIcon';
-import { FloralAccent } from './FloralAccent';
 import { AppBrandMark } from './AppBrandMark';
 
 interface NavigationProps {
@@ -16,14 +15,12 @@ export interface NavigationItem {
 }
 
 export const NAVIGATION_ITEMS: NavigationItem[] = [
-  { id: 'today', label: 'Dzisiaj', short: 'Dziś', icon: 'today' },
-  { id: 'calendar', label: 'Kalendarz', short: 'Kal.', icon: 'calendar' },
-  { id: 'work', label: 'Praca', short: 'Praca', icon: 'work' },
-  { id: 'shopping', label: 'Zakupy', short: 'Zak.', icon: 'shopping' },
-  { id: 'cycle', label: 'Cykl', short: 'Cykl', icon: 'cycle' },
+  { id: 'today', label: 'Dzisiaj', short: 'Dzisiaj', icon: 'today' },
+  { id: 'calendar', label: 'Kalendarz', short: 'Kalendarz', icon: 'calendar' },
+  { id: 'finance', label: 'Finanse', short: 'Finanse', icon: 'finance' },
   { id: 'study', label: 'Studia', short: 'Studia', icon: 'study' },
-  { id: 'locations', label: 'Miejsca', short: 'Miej.', icon: 'locations' },
-  { id: 'settings', label: 'Ustawienia', short: 'Ustaw.', icon: 'settings' },
+  { id: 'work', label: 'Praca', short: 'Praca', icon: 'work' },
+  { id: 'settings', label: 'Ustawienia', short: 'Ustawienia', icon: 'settings' },
 ];
 
 export function Navigation({ activeView, onChange }: NavigationProps) {
@@ -31,8 +28,7 @@ export function Navigation({ activeView, onChange }: NavigationProps) {
     <>
       <aside className="sidebar" aria-label="Główna nawigacja">
         <div className="brand-block">
-          <FloralAccent variant="sprig" className="brand-floral-accent" />
-          <AppBrandMark className="brand-mark" size={42} />
+          <AppBrandMark className="brand-mark" size={44} />
           <div className="brand-copy">
             <strong>Inteligentny</strong>
             <span>Kalendarz</span>
@@ -47,15 +43,11 @@ export function Navigation({ activeView, onChange }: NavigationProps) {
               onClick={() => onChange(item.id)}
               aria-current={activeView === item.id ? 'page' : undefined}
             >
-              <AppIcon name={item.icon} className="nav-icon" size={19} />
+              <span className="nav-icon-shell" aria-hidden="true"><AppIcon name={item.icon} className="nav-icon" size={19} /></span>
               <span>{item.label}</span>
             </button>
           ))}
         </nav>
-        <div className="sidebar-note">
-          <span className="privacy-dot" aria-hidden="true" />
-          Dane pozostają lokalnie na tym urządzeniu.
-        </div>
       </aside>
 
       <nav className="bottom-nav" aria-label="Główna nawigacja mobilna">
@@ -67,7 +59,7 @@ export function Navigation({ activeView, onChange }: NavigationProps) {
             onClick={() => onChange(item.id)}
             aria-current={activeView === item.id ? 'page' : undefined}
           >
-            <AppIcon name={item.icon} className="bottom-nav-icon" size={19} />
+            <span className="bottom-nav-icon-shell" aria-hidden="true"><AppIcon name={item.icon} className="bottom-nav-icon" size={19} /></span>
             <span>{item.short}</span>
           </button>
         ))}

@@ -60,6 +60,20 @@ describe('0.3.4 work monthly summary', () => {
     expect(result.sundayCount).toBe(1);
   });
 
+
+  it('liczy dni wolne i najdłuższą serię kolejnych dni pracy', () => {
+    const result = buildWorkMonthlySummary('2026-09', [
+      shift('a', '2026-09-01T08:00', '2026-09-01T16:00'),
+      shift('b', '2026-09-02T08:00', '2026-09-02T16:00'),
+      shift('c', '2026-09-03T08:00', '2026-09-03T16:00'),
+      shift('d', '2026-09-05T08:00', '2026-09-05T16:00'),
+      shift('e', '2026-09-06T08:00', '2026-09-06T16:00'),
+    ]);
+    expect(result.workDayCount).toBe(5);
+    expect(result.daysOffCount).toBe(25);
+    expect(result.longestWorkStreakDays).toBe(3);
+  });
+
   it('deduplikuje identyczny MANUAL i WORK_PDF preferując PDF', () => {
     const deduped = dedupeConfirmedWorkShifts([
       shift('manual', '2026-08-03T17:00', '2026-08-03T22:00', 'MANUAL'),

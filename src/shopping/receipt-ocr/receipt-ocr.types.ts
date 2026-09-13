@@ -1,4 +1,4 @@
-import type { ReceiptDraft } from '../expenses.types';
+import type { ReceiptDraft, ReceiptItemUnit } from '../expenses.types';
 
 export type ReceiptOcrConfidence = 'high' | 'medium' | 'low';
 export type ReceiptOcrSourceType = 'photo' | 'pdf';
@@ -31,6 +31,9 @@ export interface ParsedReceiptItem {
   taxMarker?: string;
   financialResolution?: 'explicit-line-total' | 'quantity-unit-total-consensus' | 'quantity-unit-recovery' | 'fallback';
   suggestedCategoryId?: string;
+  quantity?: number;
+  unit?: ReceiptItemUnit;
+  unitPriceMinor?: number;
   confidence: ReceiptOcrConfidence;
   warnings: string[];
 }
@@ -67,6 +70,9 @@ export interface ReceiptReviewItem {
   name: string;
   categoryId: string;
   amountText: string;
+  quantityText?: string;
+  unit?: ReceiptItemUnit;
+  unitPriceText?: string;
   baseAmountMinor?: number;
   discountMinor?: number;
   confidence: ReceiptOcrConfidence;

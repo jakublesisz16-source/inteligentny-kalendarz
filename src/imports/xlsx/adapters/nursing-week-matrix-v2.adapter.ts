@@ -200,12 +200,68 @@ function weekdayLabelsFromText(text: string): WeekdayLabel[] {
   return result;
 }
 
-function firstTimeRange(texts: string[]): ParsedTimeRange | undefined {
-  for (const text of texts) {
-    const range = parseTimeRange(text);
+function headerEntryWidth(entry: HeaderEntry): number {
+  return entry.merge ? entry.merge.endCol - entry.merge.startCol + 1 : 1;
+}
+
+function entriesMostSpecificFirst(entries: HeaderEntry[]): HeaderEntry[] {
+  return [...entries].sort((left, right) => {
+    const widthDifference = headerEntryWidth(left) - headerEntryWidth(right);
+    if (widthDifference !== 0) return widthDifference;
+    return right.row - left.row;
+  });
+}
+
+function entriesBroadToSpecific(entries: HeaderEntry[]): HeaderEntry[] {
+  return [...entries].sort((left, right) => {
+    const widthDifference = headerEntryWidth(right) - headerEntryWidth(left);
+    if (widthDifference !== 0) return widthDifference;
+    return left.row - right.row;
+  });
+}
+
+function mostSpecificWeekdays(entries: HeaderEntry[]): WeekdayLabel[] {
+  const weekdayEntries = entriesMostSpecificFirst(entries)
+    .map((entry) => ({ entry, labels: weekdayLabelsFromText(entry.value) }))
+    .filter((item) => item.labels.length > 0);
+  const first = weekdayEntries[0];
+  if (!first) return [];
+
+  // W planach uczelni nagłówek całej sekcji może wymieniać kilka dni (np.
+  // "PON., WT. i CZW."), a niższy, węższy nagłówek mówi, do którego dnia
+  // należy konkretna kolumna. Kolumna ma pierwszeństwo - inaczej jedna grupa
+  // trafia do wszystkich dni wymienionych w opisie przedmiotu.
+  const bestWidth = headerEntryWidth(first.entry);
+  const bestRow = first.entry.row;
+  return [...new Set(weekdayEntries
+    .filter((item) => headerEntryWidth(item.entry) === bestWidth && item.entry.row === bestRow)
+    .flatMap((item) => item.labels))];
+}
+
+function mostSpecificTime(entries: HeaderEntry[]): ParsedTimeRange | undefined {
+  for (const entry of entriesMostSpecificFirst(entries)) {
+    const range = parseTimeRange(entry.value);
     if (range) return range;
   }
   return undefined;
+}
+
+function headerLocation(entries: HeaderEntry[]): LocationParseResult {
+  // Szeroki opis sekcji może podać lokalizację domyślną, ale dopisek w
+  // konkretnej kolumnie jest bardziej precyzyjny. Składamy pola od ogólnych
+  // do szczegółowych, więc nowa sala/adres w aktualizacji planu nadpisuje
+  // starszą wartość sekcji bez utraty pozostałych danych.
+  return entriesBroadToSpecific(entries).reduce<LocationParseResult>((location, entry) => {
+    const parsed = parseLocationText(entry.value);
+    return {
+      ...(location.room ? { room: location.room } : {}),
+      ...(location.address ? { address: location.address } : {}),
+      ...(location.label ? { label: location.label } : {}),
+      ...(parsed.room ? { room: parsed.room } : {}),
+      ...(parsed.address ? { address: parsed.address } : {}),
+      ...(parsed.label ? { label: parsed.label } : {}),
+    };
+  }, {});
 }
 
 function normalizeClock(hourToken: string, minuteToken: string): string | undefined {
@@ -447,10 +503,10 @@ function columnContext(sheet: SheetSnapshot, col: number, headerStartRow: number
       && !/wskazane\s+ponizej|pierwsze\s+spotkanie|adresy\s+jednostek|centrum\s+symulacji/.test(folded);
   });
   const allTexts = entries.map((entry) => entry.value);
-  const weekdays = [...new Set(allTexts.flatMap(weekdayLabelsFromText))];
-  const baseTime = firstTimeRange(allTexts);
+  const weekdays = mostSpecificWeekdays(entries);
+  const baseTime = mostSpecificTime(entries);
   const combinedHeaderText = allTexts.join(' | ');
-  const directLocation = parseLocationText(combinedHeaderText);
+  const directLocation = headerLocation(entries);
   const preciseFooterQuery = identityTexts.join(' | ');
   const fallbackFooterQuery = subjectHeader;
   const foldedHeaderText = foldPolishText(combinedHeaderText);

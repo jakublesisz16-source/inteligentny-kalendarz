@@ -11,10 +11,12 @@ import {
   inspectDataTransferText,
   listEvents,
   listExpenseCategories,
+  listExpenseProducts,
   listReceipts,
   listRestorePoints,
   listShoppingItems,
   restoreRestorePoint,
+  syncExpenseProductsFromReceipts,
 } from '../storage/database';
 import { DATABASE_SCHEMA_VERSION } from '../core/version';
 import type { BackupDocument } from '../safety/safety.types';
@@ -101,24 +103,28 @@ describe('0.3.6 one-file data transfer', () => {
   it('includes expense categories and receipts in canonical transfer and restores them', async () => {
     const category = await createExpenseCategory('Zwierzęta');
     await createReceipt({ merchant: 'Sklep zoologiczny', date: '2026-08-15', items: [{ name: 'Karma', categoryId: category.id, amountMinor: 1299 }] });
+    await syncExpenseProductsFromReceipts();
     const transfer = await createDataTransferFile();
     expect(transfer.summary.expenseCategories).toBe(12);
+    expect(transfer.summary.expenseProducts).toBe(1);
     expect(transfer.summary.receipts).toBe(1);
 
     const document = JSON.parse(transfer.text) as BackupDocument;
     expect(document.data.stores.expenseCategories).toHaveLength(12);
+    expect(document.data.stores.expenseProducts).toHaveLength(1);
     expect(document.data.stores.receipts).toHaveLength(1);
 
     await deleteDatabaseForTests();
     await importDataTransfer(document);
     expect((await listExpenseCategories()).some((entry) => entry.name === 'Zwierzęta')).toBe(true);
+    expect((await listExpenseProducts()).map((entry) => entry.originalName)).toEqual(['Karma']);
     expect((await listReceipts()).map((entry) => entry.merchant)).toEqual(['Sklep zoologiczny']);
   });
 
   it('accepts schema 12 transfer without expenses and initializes defaults after restore', async () => {
     const transfer = await createDataTransferFile();
     const current = JSON.parse(transfer.text) as BackupDocument;
-    const legacyStores = Object.fromEntries(Object.entries(current.data.stores).filter(([name]) => !['expenseCategories', 'receipts'].includes(name)));
+    const legacyStores = Object.fromEntries(Object.entries(current.data.stores).filter(([name]) => !['expenseCategories', 'expenseProducts', 'receipts'].includes(name)));
     const legacyBase: BackupDocument = {
       ...current,
       appVersion: '1.0.1',

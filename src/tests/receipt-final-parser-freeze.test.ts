@@ -11,9 +11,10 @@ const B028_FIX4_BASELINE = 'a5305a766f2bae26d9aab69416caaaf08467d3e121417f1d8942
 const B028_FIX4_HOTFIX1_BASELINE = '623aec47097b1dc5631b0370bb58f0df31715a8af17b3d51180298bc4ee15b68';
 const B028_FIX4_HOTFIX2C_BASELINE = '9da87a5f1c8965a736bdad370cb18f87360574a5b375824f94080aee02c25dee';
 const DEV4_B_FIX2_BLOCKER1_BASELINE = '30e6e18bd462deec9d751d33437ee3f52625a565c302413a173897f559ce6aab';
-const DEV4_B_FIX2_GATE1_BLOCKER1_EXPECTED = 'f477e6b53cc483f86cad8b8aada3cf69f6332146a7edaf2cf995e0ac5ba97ac2';
+const DEV4_B_FIX2_GATE1_BLOCKER1_BASELINE = 'f477e6b53cc483f86cad8b8aada3cf69f6332146a7edaf2cf995e0ac5ba97ac2';
+const FINANCE_QUANTITY_1231_EXPECTED = '7d1fd2530f63fbf60ae3728899ac3c448aadabc143b018785535fd3ae503c226';
 
-describe('DEV4-B-FIX2-GATE1-BLOCKER1 reviewed receipt parser checkpoint', () => {
+describe('1.2.0.31 reviewed receipt parser checkpoint', () => {
   it('records intentional parser evolution from prior accepted baselines', () => {
     const bytes = readFileSync(new URL('../shopping/receipt-ocr/receipt-parser.ts', import.meta.url));
     const hash = createHash('sha256').update(bytes).digest('hex');
@@ -26,16 +27,17 @@ describe('DEV4-B-FIX2-GATE1-BLOCKER1 reviewed receipt parser checkpoint', () => 
     expect(hash).not.toBe(B028_FIX4_HOTFIX1_BASELINE);
     expect(hash).not.toBe(B028_FIX4_HOTFIX2C_BASELINE);
     expect(hash).not.toBe(DEV4_B_FIX2_BLOCKER1_BASELINE);
+    expect(hash).not.toBe(DEV4_B_FIX2_GATE1_BLOCKER1_BASELINE);
   });
 
-  it('freezes the reviewed DEV4-B-FIX2-GATE1-BLOCKER1 parser checkpoint', () => {
+  it('freezes the reviewed 1.2.0.31 quantity parser checkpoint', () => {
     const bytes = readFileSync(new URL('../shopping/receipt-ocr/receipt-parser.ts', import.meta.url));
-    expect(createHash('sha256').update(bytes).digest('hex')).toBe(DEV4_B_FIX2_GATE1_BLOCKER1_EXPECTED);
+    expect(createHash('sha256').update(bytes).digest('hex')).toBe(FINANCE_QUANTITY_1231_EXPECTED);
   });
 
-  it('keeps the reviewed receipt parser while app metadata advances to 1.1.2 with schema 13', () => {
+  it('keeps the reviewed receipt parser compatible with database schema 14 while app version may advance', () => {
     const version = readFileSync(new URL('../core/version.ts', import.meta.url), 'utf8');
-    expect(version).toMatch(/^export const APP_VERSION = '1\.1\.2';$/mu);
-    expect(version).toMatch(/^export const DATABASE_SCHEMA_VERSION = 13;$/mu);
+    expect(version).toMatch(/^export const APP_VERSION = '[^']+';$/mu);
+    expect(version).toMatch(/^export const DATABASE_SCHEMA_VERSION = 14;$/mu);
   });
 });

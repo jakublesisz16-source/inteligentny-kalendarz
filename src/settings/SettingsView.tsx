@@ -5,7 +5,6 @@ import { SafetyCenter } from '../safety/SafetyCenter';
 import { DataTransferPanel } from '../data-transfer/DataTransferPanel';
 import { PwaInstallPanel } from './PwaInstallPanel';
 import type { AppSettings, AppSettingsPatch, StartView, TimeFormat } from './settings.types';
-import type { DecorativeBackgroundMode } from './appearance';
 
 interface SettingsViewProps {
   settings: AppSettings;
@@ -13,7 +12,6 @@ interface SettingsViewProps {
   onChange: (patch: AppSettingsPatch) => Promise<void>;
   onDataChanged: () => Promise<void>;
 }
-
 
 export function SettingsView({ settings, locations, onChange, onDataChanged }: SettingsViewProps) {
   const [safetyRevision, setSafetyRevision] = useState(0);
@@ -25,49 +23,33 @@ export function SettingsView({ settings, locations, onChange, onDataChanged }: S
 
   return (
     <section className="view-shell settings-minimal-view">
-      <header className="view-header">
-        <div>
-          <p className="eyebrow">Ustawienia</p>
-          <h1>Prosto i lokalnie</h1>
-          <p className="view-subtitle">Ustawienia pracy są teraz przy Pracy, a grupy przy Studiach. Tutaj zostają tylko rzeczy wspólne dla całej aplikacji.</p>
-        </div>
+      <header className="view-header settings-compact-header">
+        <div><h1>Ustawienia</h1></div>
       </header>
 
-      <div className="settings-grid settings-grid-minimal">
-        <section className="panel settings-card">
-          <div className="panel-heading compact-heading"><div><span className="section-kicker">Aplikacja</span><h2>Podstawy</h2></div></div>
-          <label className="field full-field"><span>Ekran startowy</span><select value={settings.preferredStartView} onChange={(e) => onChange({ preferredStartView: e.target.value as StartView })}><option value="today">Dzisiaj</option><option value="calendar">Kalendarz</option></select></label>
-          <label className="field full-field"><span>Format czasu</span><select value={settings.timeFormat} onChange={(e) => onChange({ timeFormat: e.target.value as TimeFormat })}><option value="24h">24-godzinny</option><option value="12h">12-godzinny</option></select></label>
-        </section>
+      <section className="panel settings-essential-card" aria-label="Najważniejsze ustawienia aplikacji">
+        <div className="panel-heading compact-heading"><div><span className="section-kicker">Aplikacja</span><h2>Podstawy</h2></div></div>
+        <div className="settings-essential-grid">
+          <label className="field"><span>Ekran startowy</span><select value={settings.preferredStartView} onChange={(e) => onChange({ preferredStartView: e.target.value as StartView })}><option value="today">Dzisiaj</option><option value="calendar">Kalendarz</option></select></label>
+          <label className="field"><span>Format czasu</span><select value={settings.timeFormat} onChange={(e) => onChange({ timeFormat: e.target.value as TimeFormat })}><option value="24h">24-godzinny</option><option value="12h">12-godzinny</option></select></label>
+          <label className="field"><span>Obszar startowy</span><select value={settings.homeLocationId ?? ''} onChange={(e) => onChange({ homeLocationId: e.target.value || null })}><option value="">Nie ustawiono</option>{locations.map((location) => <option key={location.id} value={location.id}>{location.name}</option>)}</select></label>
+          <label className="field"><span>Miejsce pracy</span><select value={settings.workLocationId ?? ''} onChange={(e) => onChange({ workLocationId: e.target.value || null })}><option value="">Nie ustawiono</option>{locations.map((location) => <option key={location.id} value={location.id}>{location.name}</option>)}</select></label>
+        </div>
+        <div className="settings-build-line" aria-label={`Wersja ${APP_VERSION}, schemat bazy ${DATABASE_SCHEMA_VERSION}, tryb lokalny`}>
+          <span>Wersja {APP_VERSION}</span><i aria-hidden="true">·</i><span>Baza {DATABASE_SCHEMA_VERSION}</span><i aria-hidden="true">·</i><span>Lokalnie</span>
+        </div>
+        <PwaInstallPanel />
+      </section>
 
-        <section className="panel settings-card">
-          <div className="panel-heading compact-heading"><div><span className="section-kicker">Wygląd</span><h2>Kwiatowy charakter</h2></div></div>
-          <label className="field full-field"><span>Motyw kwiatowy</span><select value={settings.decorativeBackgroundMode} onChange={(e) => onChange({ decorativeBackgroundMode: e.target.value as DecorativeBackgroundMode })}><option value="off">Wyłączone</option><option value="static">Statyczne</option><option value="animated">Delikatnie animowane</option></select></label>
-          <p className="settings-hint">Motyw kwiatowy tworzy wizualny charakter aplikacji. Możesz pozostawić go statyczny, włączyć bardzo delikatny ruch albo całkowicie wyłączyć. Przy systemowym ograniczeniu ruchu animacja automatycznie staje się statyczna.</p>
-        </section>
-
-        <section className="panel settings-card">
-          <div className="panel-heading compact-heading"><div><span className="section-kicker">Lokalizacje</span><h2>Domyślne miejsca</h2></div></div>
-          <label className="field full-field"><span>Obszar startowy</span><select value={settings.homeLocationId ?? ''} onChange={(e) => onChange({ homeLocationId: e.target.value || null })}><option value="">Nie ustawiono</option>{locations.map((location) => <option key={location.id} value={location.id}>{location.name}</option>)}</select></label>
-          <label className="field full-field"><span>Miejsce pracy</span><select value={settings.workLocationId ?? ''} onChange={(e) => onChange({ workLocationId: e.target.value || null })}><option value="">Nie ustawiono</option>{locations.map((location) => <option key={location.id} value={location.id}>{location.name}</option>)}</select></label>
-        </section>
-
-        <section className="panel settings-card application-settings-card">
-          <div className="panel-heading compact-heading"><div><span className="section-kicker">Wersja</span><h2>Inteligentny Kalendarz</h2></div></div>
-          <div className="app-info-grid"><div><span>Wersja</span><strong>{APP_VERSION}</strong></div><div><span>Schemat bazy</span><strong>{DATABASE_SCHEMA_VERSION}</strong></div><div><span>Tryb</span><strong>Lokalny</strong></div></div>
-          <PwaInstallPanel />
-        </section>
-      </div>
-
-
-      <section id="data-transfer-settings" className="panel settings-transfer-card" aria-label="Przenoszenie danych między urządzeniami">
+      <section className="panel settings-section-card settings-advanced-transfer" aria-label="Backup i przenoszenie danych">
+        <div className="panel-heading compact-heading"><div><span className="section-kicker">Dane</span><h2>Backup i przenoszenie</h2></div></div>
         <DataTransferPanel onDataChanged={handleTransferDataChanged} />
       </section>
 
-      <details className="panel settings-safety-collapsible">
-        <summary><span><span className="section-kicker">Dane i bezpieczeństwo</span><strong>Trwałość danych, backup, Kosz i historia</strong></span><span className="muted-copy">Otwórz</span></summary>
+      <section className="panel settings-section-card" aria-label="Dane i bezpieczeństwo">
+        <div className="panel-heading compact-heading"><div><span className="section-kicker">Bezpieczeństwo</span><h2>Dane i historia</h2></div></div>
         <SafetyCenter key={safetyRevision} onDataChanged={onDataChanged} />
-      </details>
+      </section>
     </section>
   );
 }

@@ -175,6 +175,7 @@ export function DataTransferPanel({ onDataChanged }: DataTransferPanelProps) {
             <div><span>Lista zakupów</span><strong>{inspection.summary.shoppingItems}</strong></div>
             <div><span>Paragony</span><strong>{inspection.summary.receipts}</strong></div>
             <div><span>Kategorie wydatków</span><strong>{inspection.summary.expenseCategories}</strong></div>
+            <div><span>Produkty finansów</span><strong>{inspection.summary.expenseProducts}</strong></div>
             <div><span>Historia cyklu</span><strong>{inspection.summary.cyclePeriods} wpisów</strong></div>
             <div><span>Dziennik cyklu</span><strong>{inspection.summary.cycleJournalEntries} wpisów</strong></div>
           </div>

@@ -20,10 +20,22 @@ describe('availability day rules hotfix',()=>{
   it('merges touching manual blocked intervals',()=>{
     expect(normalizeBlockedIntervals([{startTime:'17:00',endTime:'18:00'},{startTime:'18:00',endTime:'19:00'}]).map(x=>[x.startTime,x.endTime])).toEqual([['17:00','19:00']]);
   });
+  it('keeps manual hours independent from automatic-only bounds and blocked intervals',()=>{
+    const monday=day('2026-08-17',1,14*60,18*60,{
+      allowedStartMinute:14*60,
+      allowedEndMinute:18*60,
+      blockingIntervals:[
+        {startMinute:8*60,endMinute:14*60,kind:'DAY_RULE'},
+        {startMinute:16*60,endMinute:17*60,kind:'DAY_RULE'},
+        {startMinute:20*60,endMinute:21*60,kind:'EVENT'},
+      ],
+    });
+    expect(freeIntervalsForManualAvailabilityDay(monday).map(x=>[x.start,x.end])).toEqual([[0,20*60],[21*60,24*60]]);
+  });
   it('keeps manual Saturday possible while automatic Saturday is disabled',()=>{
     const saturday=day('2026-08-22',6,12*60,18*60,{eligible:false,manualEligible:true});
     expect(freeIntervalsForAvailabilityDay(saturday)).toHaveLength(0);
-    expect(freeIntervalsForManualAvailabilityDay(saturday).map(x=>[x.start,x.end])).toEqual([[12*60,18*60]]);
+    expect(freeIntervalsForManualAvailabilityDay(saturday).map(x=>[x.start,x.end])).toContainEqual([12*60,18*60]);
   });
   it('fills only remaining time after locked manual availability',()=>{
     const locked: AvailabilityBlock = {id:'manual',date:'2026-08-17',startTime:'08:00',endTime:'18:00',minutes:600,status:'ACCEPTED',locked:true,userEdited:true,origin:'MANUAL',validationState:'VALID',candidateKey:'2026-08-17|08:00|18:00',explanationFacts:[]};

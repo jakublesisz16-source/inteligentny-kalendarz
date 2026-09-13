@@ -1,42 +1,33 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_DECORATIVE_BACKGROUND_MODE, normalizeDecorativeBackgroundMode } from '../settings/appearance';
 
 function read(relativePath: string) {
   return readFileSync(new URL(relativePath, import.meta.url), 'utf8');
 }
 
-describe('floral UI identity', () => {
-  it('keeps one existing off/static/animated setting and static default', () => {
-    expect(normalizeDecorativeBackgroundMode('off')).toBe('off');
-    expect(normalizeDecorativeBackgroundMode('static')).toBe('static');
-    expect(normalizeDecorativeBackgroundMode('animated')).toBe('animated');
-    expect(DEFAULT_DECORATIVE_BACKGROUND_MODE).toBe('static');
-  });
-
-  it('exposes the floral mode once at the app root', () => {
+describe('1.2.0.2 clean visual surface', () => {
+  it('does not mount the legacy floral background or inline floral accents', () => {
     const app = read('../app/App.tsx');
-    expect(app).toContain('data-floral-mode={settings.decorativeBackgroundMode}');
-  });
-
-  it('uses shared decorative accents instead of domain-specific copies', () => {
-    const app = read('../app/App.tsx');
-    const navigation = read('../ui/Navigation.tsx');
     const emptyState = read('../ui/EmptyState.tsx');
-    expect(app).toContain('view-floral-accent');
-    expect(navigation).toContain('brand-floral-accent');
-    expect(emptyState).toContain('empty-floral-accent');
+    expect(app).not.toContain('AppBackgroundDecor');
+    expect(app).not.toContain('FloralAccent');
+    expect(app).not.toContain('data-floral-mode');
+    expect(emptyState).not.toContain('FloralAccent');
   });
 
-  it('makes all inline floral accents decorative and non-focusable', () => {
-    const accent = read('../ui/FloralAccent.tsx');
-    expect(accent).toContain('aria-hidden="true"');
-    expect(accent).toContain('focusable="false"');
+  it('removes the floral appearance control from Settings while retaining data compatibility elsewhere', () => {
+    const settings = read('../settings/SettingsView.tsx');
+    expect(settings).not.toContain('Motyw kwiatowy');
+    expect(settings).not.toContain('Kwiatowy charakter');
   });
 
-  it('keeps the global off switch authoritative in CSS', () => {
-    const layout = read('../styles/layout.css');
-    expect(layout).toContain('.app-shell[data-floral-mode="off"] .floral-ui-accent');
-    expect(layout).toContain('display: none');
+  it('keeps the refined calendar-bloom mark shared by navigation and splash', () => {
+    const navigation = read('../ui/Navigation.tsx');
+    const splash = read('../ui/AppSplash.tsx');
+    const mark = read('../ui/AppBrandMark.tsx');
+    expect(navigation).toContain('AppBrandMark');
+    expect(splash).toContain('AppBrandMark');
+    expect(mark).toContain('data-brand-mark="calendar-bloom"');
+    expect(mark).toContain('rx="17"');
   });
 });

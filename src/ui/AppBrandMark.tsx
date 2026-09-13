@@ -18,17 +18,31 @@ export function AppBrandMark({ className, size = 96, title }: AppBrandMarkProps)
       aria-label={title}
       aria-hidden={labelled ? undefined : true}
       focusable="false"
-      data-brand-mark="calendar-today"
+      data-brand-mark="calendar-bloom"
     >
-      <rect x="112" y="126" width="288" height="278" rx="64" stroke="#1f2725" strokeWidth="30" />
-      <path d="M112 218H400" stroke="#1f2725" strokeWidth="30" strokeLinecap="round" />
-      <path d="M190 102V158M322 102V158" stroke="#1f2725" strokeWidth="30" strokeLinecap="round" />
-      <circle cx="192" cy="286" r="15" fill="#1f2725" />
-      <circle cx="256" cy="286" r="15" fill="#1f2725" />
-      <circle cx="320" cy="286" r="15" fill="#1f2725" />
-      <circle cx="192" cy="346" r="15" fill="#1f2725" />
-      <circle cx="256" cy="346" r="15" fill="#1f2725" />
-      <circle cx="320" cy="346" r="17" fill="#cf789b" />
+      <rect width="512" height="512" rx="112" fill="#FFF9FB" />
+      <circle cx="419" cy="91" r="78" fill="#FBEAF1" />
+      <circle cx="92" cy="426" r="96" fill="#FDF0F5" />
+
+      <rect x="88" y="106" width="336" height="320" rx="88" fill="#FFFFFF" stroke="#B87892" strokeWidth="22" />
+      <path d="M105 214H407" stroke="#F0C8D7" strokeWidth="26" strokeLinecap="round" />
+
+      <rect x="164" y="70" width="34" height="106" rx="17" fill="#B87892" />
+      <rect x="314" y="70" width="34" height="106" rx="17" fill="#B87892" />
+
+      <circle cx="174" cy="286" r="12" fill="#D6C9CE" />
+      <circle cx="256" cy="286" r="12" fill="#E6B0C4" />
+      <circle cx="338" cy="286" r="12" fill="#D6C9CE" />
+      <circle cx="174" cy="354" r="12" fill="#D6C9CE" />
+      <circle cx="256" cy="354" r="12" fill="#D6C9CE" />
+
+      <g transform="translate(338 354)" fill="#D98EAB" aria-hidden="true">
+        <ellipse cx="0" cy="-12" rx="8" ry="12" />
+        <ellipse cx="12" cy="0" rx="12" ry="8" />
+        <ellipse cx="0" cy="12" rx="8" ry="12" />
+        <ellipse cx="-12" cy="0" rx="12" ry="8" />
+        <circle cx="0" cy="0" r="6" fill="#FFFFFF" />
+      </g>
     </svg>
   );
 }

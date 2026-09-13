@@ -17,6 +17,7 @@ import { candidatesForSelectedGroups, findStudyScheduleConflicts, findStudyUpdat
 import { completenessForSelectedGroups } from '../study/study-completeness';
 import { formatStudyGroupList, groupSetsIntersect } from '../imports/xlsx/group-normalizer';
 import { validateCandidateForImport } from '../imports/xlsx/import-validation';
+import { sha256Hex } from '../core/sha256';
 import type {
   ConfirmedWorkBlock,
   CoworkerOverlap,
@@ -32,12 +33,12 @@ import { analyzeCalendarConsistency, openPlanningBlockingIssues } from '../plann
 import type { CalendarConsistencyIssue, ConsistencyAcknowledgement, DailyRoutineRule, DayAttribute, DayPlanningContext, DayPlanningProfile, WeekPlanningContext } from '../planning/planning.types';
 import type { AvailabilityPlan } from '../availability/availability.types';
 import type { ShoppingItem, ShoppingItemDraft } from '../shopping/shopping.types';
-import type { ExpenseCategory, Receipt, ReceiptDraft, ReceiptItem } from '../shopping/expenses.types';
+import type { ExpenseCategory, ExpenseProduct, ExpenseProductDraft, FinanceConversionSource, FinanceCurrencyCode, FinanceTrip, Receipt, ReceiptDraft, ReceiptItem, ReceiptItemUnit } from '../shopping/expenses.types';
 import { CYCLE_BLEEDING_LEVELS, CYCLE_PAIN_LEVELS, CYCLE_WELLBEING_LEVELS } from '../cycle/cycle.types';
 import type { CycleGapDecision, CycleJournalEntry, CycleJournalEntryDraft, CyclePeriod, CyclePeriodDraft } from '../cycle/cycle.types';
 import { cycleDaysBetween, isValidCycleDateKey } from '../cycle/cycle-prediction';
 import { normalizeShoppingName, normalizeShoppingQuantity, sortShoppingItems } from '../shopping/shopping.utils';
-import { DEFAULT_EXPENSE_CATEGORY_DEFINITIONS, expenseCategoryNameKey, isDepositExpenseCategoryName, normalizeExpenseText } from '../shopping/expenses.utils';
+import { DEFAULT_EXPENSE_CATEGORY_DEFINITIONS, expenseCategoryNameKey, inferExpenseNecessity, isDepositExpenseCategoryName, isFinanceCurrencyCode, normalizeExpenseProductKey, normalizeExpenseText } from '../shopping/expenses.utils';
 import type {
   ApplyScheduleUpdateResult,
   CommitUniversityImportInput,
@@ -84,7 +85,9 @@ const STORE_CONSISTENCY_ACKNOWLEDGEMENTS = 'consistencyAcknowledgements';
 const STORE_AVAILABILITY_PLANS = 'availabilityPlans';
 const STORE_SHOPPING_ITEMS = 'shoppingItems';
 const STORE_EXPENSE_CATEGORIES = 'expenseCategories';
+const STORE_EXPENSE_PRODUCTS = 'expenseProducts';
 const STORE_RECEIPTS = 'receipts';
+const FINANCE_TRIPS_META_KEY = 'financeTrips.v1';
 const STORE_CYCLE_PERIODS = 'cyclePeriods';
 const STORE_CYCLE_JOURNAL_ENTRIES = 'cycleJournalEntries';
 const STORE_NOTIFICATION_RUNTIME = 'notificationRuntime';
@@ -155,9 +158,7 @@ function putJournalEntry(transaction: IDBTransaction, entry: ChangeJournalEntry)
 }
 
 async function sha256Text(value: string): Promise<string> {
-  const bytes = new TextEncoder().encode(value);
-  const digest = await crypto.subtle.digest('SHA-256', bytes);
-  return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, '0')).join('');
+  return sha256Hex(value);
 }
 
 function restoreSnapshotStoreNames(): string[] {
@@ -185,6 +186,7 @@ function restoreSnapshotStoreNames(): string[] {
     STORE_AVAILABILITY_PLANS,
     STORE_SHOPPING_ITEMS,
     STORE_EXPENSE_CATEGORIES,
+    STORE_EXPENSE_PRODUCTS,
     STORE_RECEIPTS,
     STORE_CYCLE_PERIODS,
     STORE_CYCLE_JOURNAL_ENTRIES,
@@ -196,7 +198,7 @@ function backupSnapshotStoreNames(): string[] {
 }
 
 function createMigrationSafetySnapshot(transaction: IDBTransaction, oldVersion: number): void {
-  if (![4, 5, 6, 7, 8, 9, 10, 11, 12].includes(oldVersion)) return;
+  if (![4, 5, 6, 7, 8, 9, 10, 11, 12, 13].includes(oldVersion)) return;
   if (!transaction.objectStoreNames.contains(STORE_RESTORE_POINTS)) return;
   const storeNames = [
     STORE_EVENTS,
@@ -223,6 +225,7 @@ function createMigrationSafetySnapshot(transaction: IDBTransaction, oldVersion: 
     STORE_AVAILABILITY_PLANS,
     STORE_SHOPPING_ITEMS,
     STORE_EXPENSE_CATEGORIES,
+    STORE_EXPENSE_PRODUCTS,
     STORE_RECEIPTS,
     STORE_CYCLE_PERIODS,
     STORE_CYCLE_JOURNAL_ENTRIES,
@@ -237,7 +240,7 @@ function createMigrationSafetySnapshot(transaction: IDBTransaction, oldVersion: 
       remaining -= 1;
       if (remaining !== 0) return;
       const capturedAt = nowIso();
-      const fromAppVersion = oldVersion === 4 ? '0.2.3' : oldVersion === 5 ? '0.2.4' : oldVersion === 6 ? '0.3.0' : oldVersion === 7 ? '0.3.1' : oldVersion === 8 ? '0.3.4' : oldVersion === 9 ? '0.3.7' : oldVersion === 10 ? '0.4.1' : oldVersion === 11 ? '0.5.4' : '1.0.1';
+      const fromAppVersion = oldVersion === 4 ? '0.2.3' : oldVersion === 5 ? '0.2.4' : oldVersion === 6 ? '0.3.0' : oldVersion === 7 ? '0.3.1' : oldVersion === 8 ? '0.3.4' : oldVersion === 9 ? '0.3.7' : oldVersion === 10 ? '0.4.1' : oldVersion === 11 ? '0.5.4' : oldVersion === 12 ? '1.0.1' : '1.2.0.25';
       const snapshot: DatabaseSnapshot = {
         format: 'inteligentny-kalendarz-snapshot',
         snapshotVersion: 1,
@@ -541,6 +544,15 @@ function openDatabase(): Promise<IDBDatabase> {
           categories.put({ ...definition, sortOrder, createdAt: timestamp, updatedAt: timestamp } satisfies ExpenseCategory);
         });
       }
+      if (!db.objectStoreNames.contains(STORE_EXPENSE_PRODUCTS)) {
+        const products = db.createObjectStore(STORE_EXPENSE_PRODUCTS, { keyPath: 'id' });
+        products.createIndex('normalizedKey', 'normalizedKey', { unique: true });
+        products.createIndex('categoryId', 'categoryId');
+      } else if (transaction) {
+        const products = transaction.objectStore(STORE_EXPENSE_PRODUCTS);
+        if (!products.indexNames.contains('normalizedKey')) products.createIndex('normalizedKey', 'normalizedKey', { unique: true });
+        if (!products.indexNames.contains('categoryId')) products.createIndex('categoryId', 'categoryId');
+      }
       if (!db.objectStoreNames.contains(STORE_RECEIPTS)) {
         const receipts = db.createObjectStore(STORE_RECEIPTS, { keyPath: 'id' });
         receipts.createIndex('date', 'date');
@@ -575,7 +587,7 @@ function openDatabase(): Promise<IDBDatabase> {
         if (!reminders.indexNames.contains('scheduleId')) reminders.createIndex('scheduleId', 'scheduleId', { unique: true });
       }
 
-      if ([4, 5, 6, 7, 8, 9, 10, 11, 12].includes(oldVersion) && transaction) createMigrationSafetySnapshot(transaction, oldVersion);
+      if ([4, 5, 6, 7, 8, 9, 10, 11, 12, 13].includes(oldVersion) && transaction) createMigrationSafetySnapshot(transaction, oldVersion);
       if (oldVersion >= 2 && oldVersion < 3 && transaction) backfillSchema3(transaction);
       if (oldVersion < 4 && transaction) backfillSchema4(transaction);
     };
@@ -667,6 +679,7 @@ export async function createEvent(draft: EventDraft): Promise<CalendarEvent> {
     updatedAt: timestamp,
     ...(draft.description?.trim() ? { description: draft.description.trim() } : {}),
     ...(draft.locationId ? { locationId: draft.locationId } : {}),
+    ...(draft.locationText?.trim() ? { locationText: draft.locationText.trim() } : {}),
   };
   const tx = db.transaction([STORE_EVENTS, STORE_CHANGE_JOURNAL], 'readwrite');
   tx.objectStore(STORE_EVENTS).add(event);
@@ -717,6 +730,8 @@ export async function updateEvent(id: string, draft: EventDraft): Promise<Calend
   else delete updated.description;
   if (draft.locationId) updated.locationId = draft.locationId;
   else delete updated.locationId;
+  if (draft.locationText?.trim()) updated.locationText = draft.locationText.trim();
+  else delete updated.locationText;
 
   const db = await openDatabase();
   const tx = db.transaction([STORE_EVENTS, STORE_CHANGE_JOURNAL], 'readwrite');
@@ -758,6 +773,7 @@ export async function createManualEventSeries(draft: ManualMultiDateDraft): Prom
     updatedAt: timestamp,
     ...(draft.description?.trim() ? { description: draft.description.trim() } : {}),
     ...(draft.locationId ? { locationId: draft.locationId } : {}),
+    ...(draft.locationText?.trim() ? { locationText: draft.locationText.trim() } : {}),
   } satisfies CalendarEvent));
   const tx = db.transaction([STORE_EVENTS, STORE_CHANGE_JOURNAL], 'readwrite');
   const store = tx.objectStore(STORE_EVENTS);
@@ -806,6 +822,8 @@ export async function updateManualEventSeries(eventId: string, draft: EventDraft
     else delete next.description;
     if (draft.locationId) next.locationId = draft.locationId;
     else delete next.locationId;
+    if (draft.locationText?.trim()) next.locationText = draft.locationText.trim();
+    else delete next.locationText;
     return next;
   });
   if (members.length >= 5) await createRestorePoint(`Przed edycją serii: ${current.title}`, 'BEFORE_SERIES_BULK_CHANGE', true);
@@ -1085,17 +1103,33 @@ export async function listExpenseCategories(): Promise<ExpenseCategory[]> {
   return categories.sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name, 'pl-PL'));
 }
 
-export async function createExpenseCategory(nameInput: string): Promise<ExpenseCategory> {
+function resolveExpenseCategoryParent(
+  categories: ExpenseCategory[],
+  parentIdInput: string | null | undefined,
+  currentId?: string,
+): string | null {
+  const parentId = parentIdInput?.trim() || null;
+  if (!parentId) return null;
+  if (parentId === currentId) throw new Error('Kategoria nie może być własną podkategorią.');
+  const parent = categories.find((category) => category.id === parentId);
+  if (!parent) throw new Error('Nie znaleziono kategorii nadrzędnej.');
+  if (parent.parentId) throw new Error('Obsługiwany jest jeden poziom podkategorii. Wybierz kategorię główną.');
+  return parent.id;
+}
+
+export async function createExpenseCategory(nameInput: string, parentIdInput?: string | null): Promise<ExpenseCategory> {
   const name = normalizeExpenseText(nameInput);
   if (!name) throw new Error('Wpisz nazwę kategorii.');
   const categories = await listExpenseCategories();
   const key = expenseCategoryNameKey(name);
   if (categories.some((category) => expenseCategoryNameKey(category.name) === key)) throw new Error('Taka kategoria już istnieje.');
+  const parentId = resolveExpenseCategoryParent(categories, parentIdInput);
   const timestamp = nowIso();
   const category: ExpenseCategory = {
     id: createId('expense-category'),
     name,
     sortOrder: categories.reduce((max, item) => Math.max(max, item.sortOrder), -1) + 1,
+    ...(parentId ? { parentId } : {}),
     createdAt: timestamp,
     updatedAt: timestamp,
   };
@@ -1106,7 +1140,7 @@ export async function createExpenseCategory(nameInput: string): Promise<ExpenseC
   return category;
 }
 
-export async function updateExpenseCategory(id: string, nameInput: string): Promise<ExpenseCategory> {
+export async function updateExpenseCategory(id: string, nameInput: string, parentIdInput?: string | null): Promise<ExpenseCategory> {
   const name = normalizeExpenseText(nameInput);
   if (!name) throw new Error('Wpisz nazwę kategorii.');
   const categories = await listExpenseCategories();
@@ -1114,7 +1148,17 @@ export async function updateExpenseCategory(id: string, nameInput: string): Prom
   if (!current) throw new Error('Nie znaleziono kategorii.');
   const key = expenseCategoryNameKey(name);
   if (categories.some((category) => category.id !== id && expenseCategoryNameKey(category.name) === key)) throw new Error('Taka kategoria już istnieje.');
-  const updated: ExpenseCategory = { ...current, name, updatedAt: nowIso() };
+  const requestedParent = parentIdInput === undefined ? current.parentId ?? null : parentIdInput;
+  const parentId = resolveExpenseCategoryParent(categories, requestedParent, id);
+  if (parentId && categories.some((category) => category.parentId === id)) {
+    throw new Error('Kategoria z podkategoriami nie może sama zostać podkategorią.');
+  }
+  const updated: ExpenseCategory = {
+    ...current,
+    name,
+    ...(parentId ? { parentId } : { parentId: null }),
+    updatedAt: nowIso(),
+  };
   const db = await openDatabase();
   const tx = db.transaction(STORE_EXPENSE_CATEGORIES, 'readwrite');
   tx.objectStore(STORE_EXPENSE_CATEGORIES).put(updated);
@@ -1125,6 +1169,9 @@ export async function updateExpenseCategory(id: string, nameInput: string): Prom
 export async function deleteExpenseCategory(id: string): Promise<void> {
   const categories = await listExpenseCategories();
   if (!categories.some((category) => category.id === id)) return;
+  if (categories.some((category) => category.parentId === id)) {
+    throw new Error('Ta kategoria ma podkategorie. Najpierw przenieś lub usuń podkategorie.');
+  }
   const receipts = await listReceipts();
   if (receipts.some((receipt) => receipt.items.some((item) => item.categoryId === id))) {
     throw new Error('Ta kategoria jest używana przez zapisane paragony. Najpierw zmień kategorię tych pozycji.');
@@ -1133,6 +1180,140 @@ export async function deleteExpenseCategory(id: string): Promise<void> {
   const tx = db.transaction(STORE_EXPENSE_CATEGORIES, 'readwrite');
   tx.objectStore(STORE_EXPENSE_CATEGORIES).delete(id);
   await transactionDone(tx);
+}
+
+export async function listExpenseProducts(): Promise<ExpenseProduct[]> {
+  const db = await openDatabase();
+  const tx = db.transaction(STORE_EXPENSE_PRODUCTS, 'readonly');
+  const products = await requestToPromise(tx.objectStore(STORE_EXPENSE_PRODUCTS).getAll() as IDBRequest<ExpenseProduct[]>);
+  await transactionDone(tx);
+  return products.sort((a, b) => a.name.localeCompare(b.name, 'pl-PL') || a.id.localeCompare(b.id));
+}
+
+function inferredProductCategoryId(
+  occurrences: Array<{ categoryId: string; receiptDate: string; receiptCreatedAt: string }>,
+  validCategoryIds: ReadonlySet<string>,
+): string {
+  const counts = new Map<string, number>();
+  for (const occurrence of occurrences) {
+    if (!validCategoryIds.has(occurrence.categoryId)) continue;
+    counts.set(occurrence.categoryId, (counts.get(occurrence.categoryId) ?? 0) + 1);
+  }
+  const ranked = [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+  if (ranked[0]) return ranked[0][0];
+  const latest = [...occurrences]
+    .sort((a, b) => b.receiptDate.localeCompare(a.receiptDate) || b.receiptCreatedAt.localeCompare(a.receiptCreatedAt))
+    .find((occurrence) => validCategoryIds.has(occurrence.categoryId));
+  return latest?.categoryId ?? '';
+}
+
+export async function syncExpenseProductsFromReceipts(): Promise<ExpenseProduct[]> {
+  const [existing, receipts, categories] = await Promise.all([listExpenseProducts(), listReceipts(), listExpenseCategories()]);
+  const existingKeys = new Set(existing.map((product) => product.normalizedKey));
+  const validCategoryIds = new Set(categories.map((category) => category.id));
+  const occurrencesByKey = new Map<string, Array<{ name: string; categoryId: string; receiptDate: string; receiptCreatedAt: string }>>();
+
+  for (const receipt of receipts) {
+    for (const item of receipt.items) {
+      const normalizedKey = normalizeExpenseProductKey(item.name);
+      if (!normalizedKey) continue;
+      const list = occurrencesByKey.get(normalizedKey) ?? [];
+      list.push({ name: normalizeExpenseText(item.name), categoryId: item.categoryId, receiptDate: receipt.date, receiptCreatedAt: receipt.createdAt });
+      occurrencesByKey.set(normalizedKey, list);
+    }
+  }
+
+  const missing = [...occurrencesByKey.entries()].filter(([normalizedKey]) => !existingKeys.has(normalizedKey));
+  const timestamp = nowIso();
+  const repaired = existing.map((product) => {
+    const occurrences = occurrencesByKey.get(product.normalizedKey) ?? [];
+    const categoryId = validCategoryIds.has(product.categoryId)
+      ? product.categoryId
+      : inferredProductCategoryId(occurrences, validCategoryIds) || categories[0]?.id || '';
+    const necessity = product.necessity ?? inferExpenseNecessity(product.name || product.originalName);
+    if (categoryId === product.categoryId && necessity === product.necessity) return product;
+    return { ...product, ...(categoryId ? { categoryId } : {}), necessity, updatedAt: timestamp } satisfies ExpenseProduct;
+  });
+  const repairedById = new Map(repaired.map((product) => [product.id, product]));
+  const changed = repaired.filter((product, index) => product !== existing[index]);
+
+  const created: ExpenseProduct[] = missing.map(([normalizedKey, occurrences]) => {
+    const first = [...occurrences].sort((a, b) => a.receiptDate.localeCompare(b.receiptDate) || a.receiptCreatedAt.localeCompare(b.receiptCreatedAt))[0]!;
+    const categoryId = inferredProductCategoryId(occurrences, validCategoryIds) || categories[0]?.id || '';
+    return {
+      id: createId('expense-product'),
+      name: first.name,
+      originalName: first.name,
+      normalizedKey,
+      categoryId,
+      necessity: inferExpenseNecessity(first.name),
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    } satisfies ExpenseProduct;
+  }).filter((product) => Boolean(product.categoryId));
+
+  if (created.length || changed.length) {
+    const db = await openDatabase();
+    const tx = db.transaction(STORE_EXPENSE_PRODUCTS, 'readwrite');
+    const store = tx.objectStore(STORE_EXPENSE_PRODUCTS);
+    for (const product of changed) store.put(repairedById.get(product.id)!);
+    for (const product of created) store.add(product);
+    await transactionDone(tx);
+  }
+  return [...repaired, ...created].sort((a, b) => a.name.localeCompare(b.name, 'pl-PL') || a.id.localeCompare(b.id));
+}
+
+export async function updateExpenseProduct(id: string, draft: ExpenseProductDraft): Promise<ExpenseProduct> {
+  const name = normalizeExpenseText(draft.name);
+  if (!name) throw new Error('Wpisz ujednoliconą nazwę produktu.');
+  const [products, categories] = await Promise.all([listExpenseProducts(), listExpenseCategories()]);
+  const current = products.find((product) => product.id === id);
+  if (!current) throw new Error('Nie znaleziono produktu.');
+  if (!categories.some((category) => category.id === draft.categoryId)) throw new Error('Wybierz istniejącą kategorię produktu.');
+  const updated: ExpenseProduct = {
+    ...current,
+    name,
+    categoryId: draft.categoryId,
+    necessity: draft.necessity ?? current.necessity ?? inferExpenseNecessity(name),
+    updatedAt: nowIso(),
+  };
+  const db = await openDatabase();
+  const tx = db.transaction(STORE_EXPENSE_PRODUCTS, 'readwrite');
+  tx.objectStore(STORE_EXPENSE_PRODUCTS).put(updated);
+  await transactionDone(tx);
+  return updated;
+}
+
+export async function updateReceiptItemCategory(
+  receiptId: string,
+  itemId: string,
+  categoryId: string,
+): Promise<{ receipt: Receipt; product?: ExpenseProduct }> {
+  const [receipt, categories, products] = await Promise.all([getReceipt(receiptId), listExpenseCategories(), listExpenseProducts()]);
+  if (!receipt) throw new Error('Nie znaleziono transakcji.');
+  if (!categories.some((category) => category.id === categoryId)) throw new Error('Wybierz istniejącą kategorię.');
+  const item = receipt.items.find((entry) => entry.id === itemId);
+  if (!item) throw new Error('Nie znaleziono pozycji transakcji.');
+  if (item.categoryId === categoryId) {
+    const product = products.find((entry) => entry.normalizedKey === normalizeExpenseProductKey(item.name));
+    return { receipt, ...(product ? { product } : {}) };
+  }
+
+  const timestamp = nowIso();
+  const updatedReceipt: Receipt = {
+    ...receipt,
+    items: receipt.items.map((entry) => entry.id === itemId ? { ...entry, categoryId } : entry),
+    updatedAt: timestamp,
+  };
+  const product = products.find((entry) => entry.normalizedKey === normalizeExpenseProductKey(item.name));
+  const updatedProduct = product ? { ...product, categoryId, updatedAt: timestamp } satisfies ExpenseProduct : undefined;
+
+  const db = await openDatabase();
+  const tx = db.transaction([STORE_RECEIPTS, STORE_EXPENSE_PRODUCTS], 'readwrite');
+  tx.objectStore(STORE_RECEIPTS).put(updatedReceipt);
+  if (updatedProduct) tx.objectStore(STORE_EXPENSE_PRODUCTS).put(updatedProduct);
+  await transactionDone(tx);
+  return { receipt: updatedReceipt, ...(updatedProduct ? { product: updatedProduct } : {}) };
 }
 
 function isValidReceiptDateKey(value: string): boolean {
@@ -1145,10 +1326,64 @@ function isValidReceiptDateKey(value: string): boolean {
   return date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day;
 }
 
-async function normalizeReceiptDraft(draft: ReceiptDraft, current?: Receipt): Promise<{ date: string; merchant: string; items: ReceiptItem[]; totalMinor: number }> {
+const RECEIPT_ITEM_UNITS: readonly ReceiptItemUnit[] = ['szt', 'kg', 'g', 'mg', 'l', 'ml', 'cl', 'dl', 'op'];
+
+function normalizeReceiptQuantity(value: number | undefined, itemName: string): number | undefined {
+  if (value === undefined) return undefined;
+  if (!Number.isFinite(value) || value <= 0 || value > 10000) throw new Error(`Wpisz prawidłową ilość dla pozycji: ${itemName}.`);
+  return Math.round(value * 1000) / 1000;
+}
+
+function normalizeReceiptUnit(value: ReceiptItemUnit | undefined, itemName: string): ReceiptItemUnit | undefined {
+  if (value === undefined) return undefined;
+  if (!RECEIPT_ITEM_UNITS.includes(value)) throw new Error(`Wybierz prawidłową jednostkę dla pozycji: ${itemName}.`);
+  return value;
+}
+
+function normalizeReceiptUnitPrice(value: number | undefined, itemName: string): number | undefined {
+  if (value === undefined) return undefined;
+  if (!Number.isSafeInteger(value) || value <= 0) throw new Error(`Wpisz prawidłową cenę jednostkową dla pozycji: ${itemName}.`);
+  return value;
+}
+
+interface NormalizedReceiptCurrencyMetadata {
+  originalCurrency?: FinanceCurrencyCode;
+  originalAmountMinor?: number;
+  exchangeRatePlnPerUnit?: number;
+  conversionSource?: FinanceConversionSource;
+}
+
+function normalizeReceiptCurrencyMetadata(draft: ReceiptDraft, current: Receipt | undefined, totalMinor: number): NormalizedReceiptCurrencyMetadata {
+  const requestedCurrency = draft.originalCurrency ?? current?.originalCurrency;
+  const requestedAmountMinor = draft.originalAmountMinor ?? current?.originalAmountMinor;
+  const requestedSource = draft.conversionSource ?? current?.conversionSource;
+  const requestedRate = draft.exchangeRatePlnPerUnit ?? current?.exchangeRatePlnPerUnit;
+  if (!requestedCurrency && requestedAmountMinor === undefined && requestedRate === undefined && !requestedSource) return {};
+  if (!isFinanceCurrencyCode(requestedCurrency) || requestedCurrency === 'PLN') throw new Error('Wybierz prawidłową walutę zagraniczną.');
+  if (requestedAmountMinor === undefined || !Number.isSafeInteger(requestedAmountMinor) || requestedAmountMinor <= 0) throw new Error('Wpisz prawidłową oryginalną kwotę wydatku.');
+  if (requestedSource !== 'rate' && requestedSource !== 'actual') throw new Error('Nieprawidłowy sposób przeliczenia waluty.');
+  let rate = requestedRate;
+  if (rate === undefined || !Number.isFinite(rate) || rate <= 0 || rate > 100000) rate = totalMinor / requestedAmountMinor;
+  if (!Number.isFinite(rate) || rate <= 0 || rate > 100000) throw new Error('Wpisz prawidłowy kurs do PLN.');
+  if (draft.originalCurrency && requestedSource === 'rate') {
+    const expectedTotal = Math.round(requestedAmountMinor * rate);
+    if (Math.abs(expectedTotal - totalMinor) > 1) throw new Error('Kwota PLN nie zgadza się z podanym kursem waluty.');
+  } else if (!draft.exchangeRatePlnPerUnit && current?.originalAmountMinor === requestedAmountMinor) {
+    rate = totalMinor / requestedAmountMinor;
+  }
+  return {
+    originalCurrency: requestedCurrency,
+    originalAmountMinor: requestedAmountMinor,
+    exchangeRatePlnPerUnit: Math.round(rate * 100000000) / 100000000,
+    conversionSource: requestedSource,
+  };
+}
+
+async function normalizeReceiptDraft(draft: ReceiptDraft, current?: Receipt): Promise<{ date: string; merchant: string; items: ReceiptItem[]; totalMinor: number; tripName?: string } & NormalizedReceiptCurrencyMetadata> {
   const date = draft.date.trim();
   if (!isValidReceiptDateKey(date)) throw new Error('Wybierz prawidłową datę paragonu.');
   const merchant = normalizeExpenseText(draft.merchant);
+  const tripName = normalizeExpenseText(draft.tripName ?? '');
   if (!merchant) throw new Error('Wpisz nazwę sklepu.');
   if (!draft.items.length) throw new Error('Dodaj co najmniej jedną pozycję paragonu.');
   const categories = await listExpenseCategories();
@@ -1159,12 +1394,133 @@ async function normalizeReceiptDraft(draft: ReceiptDraft, current?: Receipt): Pr
     if (!name) throw new Error('Każda pozycja paragonu musi mieć nazwę.');
     if (!categoryIds.has(item.categoryId)) throw new Error(`Wybierz istniejącą kategorię dla pozycji: ${name}.`);
     if (!Number.isSafeInteger(item.amountMinor) || item.amountMinor <= 0) throw new Error(`Wpisz prawidłową kwotę dla pozycji: ${name}.`);
+    const quantity = normalizeReceiptQuantity(item.quantity, name);
+    const unit = normalizeReceiptUnit(item.unit, name);
+    const unitPriceMinor = normalizeReceiptUnitPrice(item.unitPriceMinor, name);
+    if ((unit !== undefined || unitPriceMinor !== undefined) && quantity === undefined) {
+      throw new Error(`Ilość jest wymagana dla danych jednostkowych pozycji: ${name}.`);
+    }
     const id = item.id && currentIds.has(item.id) ? item.id : createId('receipt-item');
-    return { id, name, categoryId: item.categoryId, amountMinor: item.amountMinor };
+    return {
+      id,
+      name,
+      categoryId: item.categoryId,
+      amountMinor: item.amountMinor,
+      ...(quantity === undefined ? {} : { quantity }),
+      ...(unit === undefined ? {} : { unit }),
+      ...(unitPriceMinor === undefined ? {} : { unitPriceMinor }),
+    };
   });
   const totalMinor = items.reduce((sum, item) => sum + item.amountMinor, 0);
   if (!Number.isSafeInteger(totalMinor)) throw new Error('Suma paragonu jest zbyt duża.');
-  return { date, merchant, items, totalMinor };
+  const currencyMetadata = normalizeReceiptCurrencyMetadata(draft, current, totalMinor);
+  return { date, merchant, items, totalMinor, ...(tripName ? { tripName } : {}), ...currencyMetadata };
+}
+
+function financeTripIdentity(value: string): string {
+  return normalizeExpenseText(value).toLocaleLowerCase('pl-PL');
+}
+
+function parseFinanceTripsMeta(value: MetaRecord['value'] | undefined): FinanceTrip[] {
+  if (typeof value !== 'string' || !value.trim()) return [];
+  try {
+    const parsed = JSON.parse(value) as unknown;
+    if (!Array.isArray(parsed)) return [];
+    const seen = new Set<string>();
+    const trips: FinanceTrip[] = [];
+    for (const entry of parsed) {
+      if (!entry || typeof entry !== 'object') continue;
+      const candidate = entry as Partial<FinanceTrip>;
+      const id = typeof candidate.id === 'string' ? candidate.id.trim() : '';
+      const name = typeof candidate.name === 'string' ? normalizeExpenseText(candidate.name) : '';
+      const createdAt = typeof candidate.createdAt === 'string' ? candidate.createdAt : '';
+      const updatedAt = typeof candidate.updatedAt === 'string' ? candidate.updatedAt : createdAt;
+      const currency = isFinanceCurrencyCode(candidate.currency) ? candidate.currency : 'PLN';
+      const exchangeRatePlnPerUnit = currency !== 'PLN' && Number.isFinite(candidate.exchangeRatePlnPerUnit) && (candidate.exchangeRatePlnPerUnit ?? 0) > 0
+        ? Math.round((candidate.exchangeRatePlnPerUnit as number) * 100000000) / 100000000
+        : undefined;
+      const identity = financeTripIdentity(name);
+      if (!id || !identity || !createdAt || seen.has(identity)) continue;
+      seen.add(identity);
+      trips.push({ id, name, currency, ...(exchangeRatePlnPerUnit ? { exchangeRatePlnPerUnit } : {}), createdAt, updatedAt: updatedAt || createdAt });
+    }
+    return trips.sort((left, right) => right.updatedAt.localeCompare(left.updatedAt) || left.name.localeCompare(right.name, 'pl-PL'));
+  } catch {
+    return [];
+  }
+}
+
+async function writeFinanceTripsMeta(trips: FinanceTrip[]): Promise<void> {
+  const db = await openDatabase();
+  const tx = db.transaction(STORE_META, 'readwrite');
+  tx.objectStore(STORE_META).put({ key: FINANCE_TRIPS_META_KEY, value: JSON.stringify(trips) } satisfies MetaRecord);
+  await transactionDone(tx);
+}
+
+export async function listFinanceTrips(): Promise<FinanceTrip[]> {
+  const db = await openDatabase();
+  const tx = db.transaction(STORE_META, 'readonly');
+  const record = await requestToPromise(tx.objectStore(STORE_META).get(FINANCE_TRIPS_META_KEY) as IDBRequest<MetaRecord | undefined>);
+  await transactionDone(tx);
+  return parseFinanceTripsMeta(record?.value);
+}
+
+export async function createFinanceTrip(
+  value: string,
+  options: { currency?: FinanceCurrencyCode; exchangeRatePlnPerUnit?: number } = {},
+): Promise<FinanceTrip> {
+  const name = normalizeExpenseText(value);
+  if (!name) throw new Error('Wpisz nazwę wyjazdu.');
+  const currency = options.currency ?? 'PLN';
+  if (!isFinanceCurrencyCode(currency)) throw new Error('Wybierz prawidłową walutę wyjazdu.');
+  const exchangeRatePlnPerUnit = currency !== 'PLN' && Number.isFinite(options.exchangeRatePlnPerUnit) && (options.exchangeRatePlnPerUnit ?? 0) > 0
+    ? Math.round((options.exchangeRatePlnPerUnit as number) * 100000000) / 100000000
+    : undefined;
+  const identity = financeTripIdentity(name);
+  const trips = await listFinanceTrips();
+  const existing = trips.find((trip) => financeTripIdentity(trip.name) === identity);
+  if (existing) return existing;
+  const timestamp = nowIso();
+  const trip: FinanceTrip = {
+    id: createId('finance-trip'),
+    name,
+    currency,
+    ...(exchangeRatePlnPerUnit ? { exchangeRatePlnPerUnit } : {}),
+    createdAt: timestamp,
+    updatedAt: timestamp,
+  };
+  await writeFinanceTripsMeta([...trips, trip]);
+  return trip;
+}
+
+export async function updateFinanceTripCurrency(
+  id: string,
+  currency: FinanceCurrencyCode,
+  exchangeRatePlnPerUnit?: number,
+): Promise<FinanceTrip> {
+  if (!isFinanceCurrencyCode(currency)) throw new Error('Wybierz prawidłową walutę wyjazdu.');
+  const trips = await listFinanceTrips();
+  const current = trips.find((trip) => trip.id === id);
+  if (!current) throw new Error('Nie znaleziono wyjazdu.');
+  const normalizedRate = currency !== 'PLN' && Number.isFinite(exchangeRatePlnPerUnit) && (exchangeRatePlnPerUnit ?? 0) > 0
+    ? Math.round((exchangeRatePlnPerUnit as number) * 100000000) / 100000000
+    : undefined;
+  const updated: FinanceTrip = {
+    ...current,
+    currency,
+    ...(normalizedRate ? { exchangeRatePlnPerUnit: normalizedRate } : {}),
+    updatedAt: nowIso(),
+  };
+  if (!normalizedRate) delete updated.exchangeRatePlnPerUnit;
+  await writeFinanceTripsMeta(trips.map((trip) => trip.id === id ? updated : trip));
+  return updated;
+}
+
+export async function deleteFinanceTrip(id: string): Promise<void> {
+  const trips = await listFinanceTrips();
+  const next = trips.filter((trip) => trip.id !== id);
+  if (next.length === trips.length) return;
+  await writeFinanceTripsMeta(next);
 }
 
 export async function listReceipts(): Promise<Receipt[]> {
@@ -1189,6 +1545,7 @@ export async function createReceipt(draft: ReceiptDraft): Promise<Receipt> {
   const receipt: Receipt = {
     id: createId('receipt'),
     ...normalized,
+    ...(draft.source ? { source: draft.source } : {}),
     createdAt: timestamp,
     updatedAt: timestamp,
   };
@@ -1203,7 +1560,14 @@ export async function updateReceipt(id: string, draft: ReceiptDraft): Promise<Re
   const current = await getReceipt(id);
   if (!current) throw new Error('Nie znaleziono paragonu.');
   const normalized = await normalizeReceiptDraft(draft, current);
-  const updated: Receipt = { ...current, ...normalized, updatedAt: nowIso() };
+  const source = draft.source ?? current.source;
+  const updated: Receipt = {
+    ...current,
+    ...normalized,
+    ...(source ? { source } : {}),
+    updatedAt: nowIso(),
+  };
+  if (!normalized.tripName) delete updated.tripName;
   const db = await openDatabase();
   const tx = db.transaction(STORE_RECEIPTS, 'readwrite');
   tx.objectStore(STORE_RECEIPTS).put(updated);
@@ -3532,6 +3896,7 @@ function backupSummary(document: BackupDocument): BackupSummary {
     availabilityPlans: stores[STORE_AVAILABILITY_PLANS]?.length ?? 0,
     shoppingItems: stores[STORE_SHOPPING_ITEMS]?.length ?? 0,
     expenseCategories: stores[STORE_EXPENSE_CATEGORIES]?.length ?? 0,
+    expenseProducts: stores[STORE_EXPENSE_PRODUCTS]?.length ?? 0,
     receipts: stores[STORE_RECEIPTS]?.length ?? 0,
     cyclePeriods: stores[STORE_CYCLE_PERIODS]?.length ?? 0,
     cycleJournalEntries: stores[STORE_CYCLE_JOURNAL_ENTRIES]?.length ?? 0,
@@ -3654,15 +4019,15 @@ export async function inspectBackupText(text: string): Promise<BackupInspection>
   };
   const actual = await sha256Text(JSON.stringify(unsigned));
   if (actual !== document.checksum) throw new Error('Nie można przywrócić kopii. Plik jest uszkodzony lub został zmieniony.');
-  if (![DATABASE_SCHEMA_VERSION, 12, 11, 10, 9, 8, 7].includes(document.databaseSchemaVersion)) {
-    throw new Error(`Backup używa schematu ${document.databaseSchemaVersion}. Ta wersja obsługuje przywracanie schematu ${DATABASE_SCHEMA_VERSION}, 12, 11, 10, 9, 8 oraz 7.`);
+  if (![DATABASE_SCHEMA_VERSION, 13, 12, 11, 10, 9, 8, 7].includes(document.databaseSchemaVersion)) {
+    throw new Error(`Backup używa schematu ${document.databaseSchemaVersion}. Ta wersja obsługuje przywracanie schematu ${DATABASE_SCHEMA_VERSION}, 13, 12, 11, 10, 9, 8 oraz 7.`);
   }
   return { document, summary: backupSummary(document) };
 }
 
 function migrateBackupSnapshotToCurrent(snapshot: DatabaseSnapshot): DatabaseSnapshot {
   if (snapshot.databaseSchemaVersion === DATABASE_SCHEMA_VERSION) return snapshot;
-  if (![7, 8, 9, 10, 11, 12].includes(snapshot.databaseSchemaVersion)) throw new Error('Ten backup wymaga nieobsługiwanej migracji danych.');
+  if (![7, 8, 9, 10, 11, 12, 13].includes(snapshot.databaseSchemaVersion)) throw new Error('Ten backup wymaga nieobsługiwanej migracji danych.');
   return {
     ...snapshot,
     appVersion: APP_VERSION,
@@ -3672,6 +4037,7 @@ function migrateBackupSnapshotToCurrent(snapshot: DatabaseSnapshot): DatabaseSna
       ...(snapshot.databaseSchemaVersion === 7 ? { [STORE_AVAILABILITY_PLANS]: [] } : {}),
       [STORE_SHOPPING_ITEMS]: snapshot.stores[STORE_SHOPPING_ITEMS] ?? [],
       [STORE_EXPENSE_CATEGORIES]: snapshot.stores[STORE_EXPENSE_CATEGORIES] ?? [],
+      [STORE_EXPENSE_PRODUCTS]: snapshot.stores[STORE_EXPENSE_PRODUCTS] ?? [],
       [STORE_RECEIPTS]: snapshot.stores[STORE_RECEIPTS] ?? [],
       [STORE_CYCLE_PERIODS]: snapshot.stores[STORE_CYCLE_PERIODS] ?? [],
       [STORE_CYCLE_JOURNAL_ENTRIES]: snapshot.stores[STORE_CYCLE_JOURNAL_ENTRIES] ?? [],
@@ -3947,8 +4313,17 @@ export async function acknowledgeConsistencyIssue(issue: CalendarConsistencyIssu
 }
 
 export async function listCalendarConsistencyIssues(): Promise<CalendarConsistencyIssue[]> {
-  const [events, routines, acknowledgements] = await Promise.all([listEvents(), listDailyRoutineRules(), listConsistencyAcknowledgements()]);
-  return analyzeCalendarConsistency(events, routines, acknowledgements);
+  const [events, routines, acknowledgements, planningProfile, workProfile] = await Promise.all([
+    listEvents(),
+    listDailyRoutineRules(),
+    listConsistencyAcknowledgements(),
+    getDayPlanningProfile(),
+    getWorkProfile(),
+  ]);
+  return analyzeCalendarConsistency(events, routines, acknowledgements, {
+    commuteMinutes: planningProfile?.defaultBufferMinutes ?? 30,
+    ...(workProfile?.locationId ? { workLocationId: workProfile.locationId } : {}),
+  });
 }
 
 export async function getPlanningBlockingIssues(startDate: string, endDate: string): Promise<CalendarConsistencyIssue[]> {

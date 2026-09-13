@@ -20,27 +20,41 @@ interface EventCardProps {
   timeFormat: TimeFormat;
   seriesCount?: number | undefined;
   onEdit: (event: CalendarEvent) => void;
+  onDelete?: ((event: CalendarEvent) => void) | undefined;
   onStudyCorrect?: ((event: CalendarEvent) => void) | undefined;
   workCoworkers?: CoworkerOverlap[] | undefined;
   showAllWorkCoworkers?: boolean | undefined;
+  workCoworkerLimit?: number | undefined;
+  compactTimeRange?: boolean | undefined;
 }
 
-export function EventCard({ event, location, timeFormat, seriesCount, onEdit, onStudyCorrect, workCoworkers = [], showAllWorkCoworkers = false }: EventCardProps) {
+export function EventCard({ event, location, timeFormat, seriesCount, onEdit, onDelete, onStudyCorrect, workCoworkers = [], showAllWorkCoworkers = false, workCoworkerLimit = 4, compactTimeRange = false }: EventCardProps) {
   const hasStudyIssues = event.source === 'UNIVERSITY_XLSX' && Boolean(event.studyIssueCodes?.length);
   const multiDay = event.spanType === 'MULTI_DAY' || eventDayCount(event) > 1;
-  const directionsUrl = location ? buildGoogleMapsDirectionsUrl(location) : undefined;
-  const visibleWorkCoworkers = showAllWorkCoworkers ? workCoworkers : workCoworkers.slice(0, 4);
+  const directionsUrl = location
+    ? buildGoogleMapsDirectionsUrl(location)
+    : event.locationText?.trim()
+      ? buildGoogleMapsDirectionsUrl({ name: '', address: event.locationText.trim() })
+      : undefined;
+  const visibleWorkCoworkers = showAllWorkCoworkers ? workCoworkers : workCoworkers.slice(0, Math.max(0, workCoworkerLimit));
   const hiddenWorkCoworkerCount = Math.max(0, workCoworkers.length - visibleWorkCoworkers.length);
   const studyDisplay = studyEventDisplay(event);
   const locationText = location
-    ? location.name.trim().toLocaleLowerCase('pl-PL') === location.address.trim().toLocaleLowerCase('pl-PL')
-      ? location.address
-      : `${location.name} - ${location.address}`
-    : undefined;
+    ? (() => {
+        const name = location.name.trim();
+        const address = location.address.trim();
+        const normalizedName = name.toLocaleLowerCase('pl-PL').replace(/[,.]/g, '').replace(/\s+/g, ' ');
+        const normalizedAddress = address.toLocaleLowerCase('pl-PL').replace(/[,.]/g, '').replace(/\s+/g, ' ');
+        if (!name) return address || undefined;
+        if (!address) return name;
+        if (normalizedName === normalizedAddress || normalizedAddress.startsWith(`${normalizedName} `)) return address;
+        return `${name} - ${address}`;
+      })()
+    : event.locationText?.trim() || undefined;
   return (
-    <article className={`event-card category-${event.category.toLowerCase()}${multiDay ? ' multi-day-event-card' : ''}${event.allDay ? ' all-day-event-card' : ''}`}>
+    <article className={`event-card category-${event.category.toLowerCase()}${multiDay ? ' multi-day-event-card' : ''}${event.allDay ? ' all-day-event-card' : ''}${compactTimeRange && !event.allDay && !multiDay ? ' compact-time-range' : ''}`}>
       <div className="event-time">
-        {event.allDay ? <><strong>Cały dzień</strong>{multiDay ? <span>{formatEventDateRange(event)}</span> : <span>bez godzin</span>}</> : multiDay ? <><strong>Wiele dni</strong><span>{formatEventDateRange(event)}</span></> : <><strong>{formatTime(event.startDateTime, timeFormat)}</strong><span>{formatTime(event.endDateTime, timeFormat)}</span></>}
+        {event.allDay ? <><strong>Cały dzień</strong>{multiDay ? <span>{formatEventDateRange(event)}</span> : <span>bez godzin</span>}</> : multiDay ? <><strong>Wiele dni</strong><span>{formatEventDateRange(event)}</span></> : compactTimeRange ? <strong>{formatTime(event.startDateTime, timeFormat)}-{formatTime(event.endDateTime, timeFormat)}</strong> : <><strong>{formatTime(event.startDateTime, timeFormat)}</strong><span>{formatTime(event.endDateTime, timeFormat)}</span></>}
         {studyDisplay.groupLabel ? <span className="event-study-group">{studyDisplay.groupLabel}</span> : null}
       </div>
       <div className="event-content">
@@ -56,12 +70,13 @@ export function EventCard({ event, location, timeFormat, seriesCount, onEdit, on
         {locationText ? <p className="event-location">{locationText}</p> : null}
         {studyDisplay.description ? <p className="event-description">{studyDisplay.description}</p> : null}
         {hasStudyIssues ? <p className="event-review-note">Brakujące dane: {(event.studyIssueCodes ?? []).map(importIssueLabel).join(' · ')}</p> : null}
-        {event.source === 'WORK_PDF' && workCoworkers.length ? <div className="event-coworkers"><strong>Z Tobą na zmianie</strong><span>{visibleWorkCoworkers.map((person) => <span className="event-coworker-line" key={`${person.displayName}-${person.coworkerStartTime}`}><b>{person.displayName}</b><small>razem {person.overlapStartTime}-{person.overlapEndTime}</small></span>)}{hiddenWorkCoworkerCount ? <small>+{hiddenWorkCoworkerCount} więcej</small> : null}</span></div> : null}
+        {event.source === 'WORK_PDF' && workCoworkers.length ? <div className="event-coworkers"><strong>Z Tobą na zmianie</strong><span>{visibleWorkCoworkers.map((person) => <span className="event-coworker-line" key={`${person.displayName}-${person.coworkerStartTime}`}><b>{person.displayName}</b><small>razem {person.overlapStartTime}-{person.overlapEndTime}</small></span>)}{hiddenWorkCoworkerCount ? <small>+{hiddenWorkCoworkerCount} więcej</small> : null}{showAllWorkCoworkers && workCoworkers.length > 4 ? <small className="event-coworker-mobile-more">Pełna lista w Praca</small> : null}</span></div> : null}
       </div>
       <div className="event-actions-column">
-        {directionsUrl ? <a className="text-button" href={directionsUrl} target="_blank" rel="noopener noreferrer" aria-label={`Wyznacz trasę do ${location?.name || 'miejsca'} w Mapach Google`}>Trasa</a> : null}
+        {directionsUrl ? <a className="text-button" href={directionsUrl} target="_blank" rel="noopener noreferrer" aria-label={`Wyznacz trasę do ${location?.name || event.locationText || 'miejsca'} w Mapach Google`}>Trasa</a> : null}
         {hasStudyIssues && onStudyCorrect ? <button type="button" className="text-button warning-text" onClick={() => onStudyCorrect(event)}>Uzupełnij dane</button> : null}
         <button type="button" className="text-button" onClick={() => onEdit(event)}>Edytuj</button>
+        {onDelete ? <button type="button" className="text-button danger-text" onClick={() => onDelete(event)}>Usuń</button> : null}
       </div>
     </article>
   );

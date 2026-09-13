@@ -16,7 +16,7 @@ describe('DEV3-B026 offline and Service Worker data-safety regression', () => {
   it('keeps all OCR runtime assets local and mandatory in the B026 Service Worker', () => {
     const worker = source('../../public/service-worker.js');
     expect(worker).toContain("const CACHE_PREFIX = 'inteligentny-kalendarz-shell-'");
-    expect(worker).toContain("const CACHE_NAME = `${CACHE_PREFIX}v1.1.2`");
+    expect(worker).toContain("const CACHE_NAME = `${CACHE_PREFIX}v1.2.0`");
     for (const path of OCR_PATHS) {
       expect(worker).toContain(`'${path}'`);
       expect(existsSync(new URL(`../../public/${path}`, import.meta.url))).toBe(true);
@@ -37,10 +37,11 @@ describe('DEV3-B026 offline and Service Worker data-safety regression', () => {
     expect(engine.toLocaleLowerCase('en-US')).not.toContain('cdn');
   });
 
-  it('registers the Service Worker only in production and never caches private receipt files explicitly', () => {
+  it('routes Service Worker registration through the environment-aware helper and never caches private receipt files explicitly', () => {
     const main = source('../main.tsx');
     const worker = source('../../public/service-worker.js');
-    expect(main).toContain('if (import.meta.env.PROD) registerServiceWorker();');
+    expect(main).toContain('registerServiceWorker();');
+    expect(main).not.toContain('if (import.meta.env.PROD) registerServiceWorker();');
     expect(worker).toContain("const PRIVATE_FILE_EXTENSIONS = ['.pdf', '.xlsx', '.xls', '.json'];");
     expect(worker).toContain('url.origin !== self.location.origin');
   });

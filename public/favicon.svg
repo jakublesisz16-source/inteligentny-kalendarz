@@ -1,14 +1,21 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" data-brand-mark="calendar-today">
-  <rect width="512" height="512" rx="110" fill="#cf789b"/>
-  <rect x="99" y="109" width="314" height="295" rx="46" fill="#fff9fb"/>
-  <rect x="99" y="109" width="314" height="76" rx="46" fill="#fff9fb"/>
-  <rect x="99" y="150" width="314" height="35" fill="#fff9fb"/>
-  <rect x="158" y="75" width="37" height="90" rx="18.5" fill="#fff9fb"/>
-  <rect x="317" y="75" width="37" height="90" rx="18.5" fill="#fff9fb"/>
-  <rect x="139" y="219" width="64" height="55" rx="14" fill="#efd1dc"/>
-  <rect x="224" y="219" width="64" height="55" rx="14" fill="#efd1dc"/>
-  <rect x="309" y="219" width="64" height="55" rx="14" fill="#efd1dc"/>
-  <rect x="139" y="295" width="64" height="55" rx="14" fill="#efd1dc"/>
-  <rect x="224" y="295" width="64" height="55" rx="14" fill="#b84f78"/>
-  <rect x="309" y="295" width="64" height="55" rx="14" fill="#efd1dc"/>
+<svg data-brand-mark="calendar-bloom" width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="512" height="512" rx="112" fill="#FFF9FB"/>
+  <circle cx="419" cy="91" r="78" fill="#FBEAF1"/>
+  <circle cx="92" cy="426" r="96" fill="#FDF0F5"/>
+  <rect x="88" y="106" width="336" height="320" rx="88" fill="#FFFFFF" stroke="#B87892" stroke-width="22"/>
+  <path d="M105 214H407" stroke="#F0C8D7" stroke-width="26" stroke-linecap="round"/>
+  <rect x="164" y="70" width="34" height="106" rx="17" fill="#B87892"/>
+  <rect x="314" y="70" width="34" height="106" rx="17" fill="#B87892"/>
+  <circle cx="174" cy="286" r="12" fill="#D6C9CE"/>
+  <circle cx="256" cy="286" r="12" fill="#E6B0C4"/>
+  <circle cx="338" cy="286" r="12" fill="#D6C9CE"/>
+  <circle cx="174" cy="354" r="12" fill="#D6C9CE"/>
+  <circle cx="256" cy="354" r="12" fill="#D6C9CE"/>
+  <g transform="translate(338 354)" fill="#D98EAB">
+    <ellipse cx="0" cy="-12" rx="8" ry="12"/>
+    <ellipse cx="12" cy="0" rx="12" ry="8"/>
+    <ellipse cx="0" cy="12" rx="8" ry="12"/>
+    <ellipse cx="-12" cy="0" rx="12" ry="8"/>
+    <circle cx="0" cy="0" r="6" fill="#FFFFFF"/>
+  </g>
 </svg>

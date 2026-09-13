@@ -3,6 +3,7 @@ export type AppIconName =
   | 'calendar'
   | 'study'
   | 'work'
+  | 'finance'
   | 'shopping'
   | 'cycle'
   | 'locations'
@@ -20,6 +21,7 @@ export const APP_ICON_NAMES: AppIconName[] = [
   'calendar',
   'study',
   'work',
+  'finance',
   'shopping',
   'cycle',
   'locations',
@@ -56,6 +58,14 @@ function IconGlyph({ name }: { name: AppIconName }) {
         <>
           <rect x="3" y="7" width="18" height="12.5" rx="2.5" />
           <path d="M8.5 7V5.5c0-.8.7-1.5 1.5-1.5h4c.8 0 1.5.7 1.5 1.5V7M3 12.5c2.8 1.4 5.8 2.1 9 2.1s6.2-.7 9-2.1M10.5 14.4v1.2h3v-1.2" />
+        </>
+      );
+    case 'finance':
+      return (
+        <>
+          <rect x="3.5" y="5" width="17" height="14.5" rx="3" />
+          <path d="M3.5 9h17" />
+          <path d="M8 14.5h3.2M15.8 12.5v4M13.8 14.5h4" />
         </>
       );
     case 'shopping':

@@ -42,6 +42,7 @@ export const CANONICAL_STORE_SHEET_NAMES: Record<string, string> = {
   availabilityPlans: 'Dyspozycyjność',
   shoppingItems: 'Zakupy',
   expenseCategories: 'Kategorie wydatków',
+  expenseProducts: 'Produkty finansów',
   receipts: 'Paragony',
   cyclePeriods: 'Cykl',
   cycleJournalEntries: 'Dziennik cyklu',
@@ -78,6 +79,7 @@ const FIELD_LABELS: Record<string, string> = {
   room: 'Sala',
   clinic: 'Klinika',
   locationId: 'ID miejsca',
+  locationText: 'Miejsce wpisane ręcznie',
   label: 'Etykieta',
   type: 'Typ',
   status: 'Status',
@@ -304,14 +306,27 @@ function addReceiptSheets(workbook: ExcelJS.Workbook, receiptSheetName: string, 
 
   const itemSheetName = safeExcelSheetName('Pozycje paragonów', usedNames);
   const itemSheet = workbook.addWorksheet(itemSheetName);
-  itemSheet.addRow(['ID paragonu', 'Data', 'Sklep', 'ID pozycji', 'Produkt', 'Kategoria', 'Kwota', 'Dane dodatkowe']);
+  itemSheet.addRow(['ID paragonu', 'Data', 'Sklep', 'ID pozycji', 'Produkt', 'Kategoria', 'Kwota', 'Ilość', 'Jednostka', 'Cena jednostkowa', 'Dane dodatkowe']);
   for (const receipt of receipts) {
     for (const item of receipt.items) {
-      const row = itemSheet.addRow([receipt.id, '', receipt.merchant, item.id, item.name, categoryById.get(item.categoryId) ?? item.categoryId, item.amountMinor / 100, '']);
+      const row = itemSheet.addRow([
+        receipt.id,
+        '',
+        receipt.merchant,
+        item.id,
+        item.name,
+        categoryById.get(item.categoryId) ?? item.categoryId,
+        item.amountMinor / 100,
+        item.quantity ?? '',
+        item.unit ?? '',
+        item.unitPriceMinor === undefined ? '' : item.unitPriceMinor / 100,
+        '',
+      ]);
       setCellValue(row.getCell(2), 'date', receipt.date);
       row.getCell(7).numFmt = PLN_FORMAT;
-      const extras = extraFields(item as unknown as RecordLike, ['id', 'name', 'categoryId', 'amountMinor']);
-      if (Object.keys(extras).length) row.getCell(8).value = safeJson(extras, `Pozycja ${item.id} - dane dodatkowe`);
+      if (item.unitPriceMinor !== undefined) row.getCell(10).numFmt = PLN_FORMAT;
+      const extras = extraFields(item as unknown as RecordLike, ['id', 'name', 'categoryId', 'amountMinor', 'quantity', 'unit', 'unitPriceMinor']);
+      if (Object.keys(extras).length) row.getCell(11).value = safeJson(extras, `Pozycja ${item.id} - dane dodatkowe`);
     }
   }
   if (itemSheet.rowCount === 1) itemSheet.addRow(['Brak danych']);
@@ -355,6 +370,7 @@ function addSummarySheet(workbook: ExcelJS.Workbook, document: BackupDocument): 
     ['Liczba paragonów', receipts.length],
     ['Liczba pozycji paragonów', receipts.reduce((sum, receipt) => sum + receipt.items.length, 0)],
     ['Liczba kategorii wydatków', stores.expenseCategories?.length ?? 0],
+    ['Liczba produktów finansów', stores.expenseProducts?.length ?? 0],
     ['Wydatki łącznie', totalExpenses],
     ['Liczba wpisów cyklu', stores.cyclePeriods?.length ?? 0],
     ['Liczba wpisów dziennika cyklu', stores.cycleJournalEntries?.length ?? 0],

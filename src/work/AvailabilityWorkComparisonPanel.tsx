@@ -10,6 +10,7 @@ interface AvailabilityWorkComparisonPanelProps {
   workEvents: CalendarEvent[];
   workImports: WorkScheduleImport[];
   onImportClick: () => void;
+  onOpenAvailability: () => void;
   openDetailsRequest?: number | undefined;
 }
 
@@ -43,7 +44,7 @@ function belongsToWeek(event: CalendarEvent, plan: AvailabilityPlan): boolean {
   return startDate >= plan.weekStart && startDate <= plan.weekEnd;
 }
 
-export function AvailabilityWorkComparisonPanel({ plans, workEvents, workImports, onImportClick, openDetailsRequest }: AvailabilityWorkComparisonPanelProps) {
+export function AvailabilityWorkComparisonPanel({ plans, workEvents, workImports, onImportClick, onOpenAvailability, openDetailsRequest }: AvailabilityWorkComparisonPanelProps) {
   const sentPlans = useMemo(() => plans.filter((plan) => plan.sentSnapshots.length > 0).sort((a, b) => b.weekStart.localeCompare(a.weekStart)), [plans]);
   const activeImports = useMemo(() => workImports.filter((item) => item.lifecycleStatus === 'ACTIVE').sort((a, b) => b.importedAt.localeCompare(a.importedAt) || b.periodStart.localeCompare(a.periodStart)), [workImports]);
   const defaultWeek = useMemo(() => {
@@ -81,7 +82,7 @@ export function AvailabilityWorkComparisonPanel({ plans, workEvents, workImports
   const comparison = useMemo(() => snapshot ? compareAvailabilityWithWorkSchedule(snapshot, relevantWorkEvents.map((event) => ({ id: event.id, startDateTime: event.startDateTime, endDateTime: event.endDateTime }))) : undefined, [relevantWorkEvents, snapshot]);
 
   if (!sentPlans.length) {
-    return <section className="panel work-comparison-card"><div className="panel-heading compact-heading"><div><span className="section-kicker">Zgodność z dyspozycyjnością</span><h2>Brak wysłanej wersji</h2></div></div><p className="muted-copy">Najpierw oznacz zaakceptowaną dyspozycyjność jako wysłaną. Dopiero taką wersję można uczciwie porównać z grafikiem.</p></section>;
+    return <section className="panel work-comparison-card"><div className="panel-heading compact-heading"><div><span className="section-kicker">Zgodność z dyspozycyjnością</span><h2>Brak wysłanej wersji</h2></div></div><div className="work-comparison-empty-action"><p className="muted-copy">Najpierw oznacz zaakceptowaną dyspozycyjność jako wysłaną. Dopiero taką wersję można uczciwie porównać z grafikiem.</p><button type="button" className="button button-secondary button-small" onClick={onOpenAvailability}>Przejdź do Dyspozycyjności</button></div></section>;
   }
 
   if (!activeImport) {

@@ -10,7 +10,7 @@ describe('1.1.0-dev.3 receipt OCR review contract', () => {
     const review = source('../shopping/receipt-ocr/ReceiptScanReview.tsx');
     expect(expenses).toContain('Skanuj paragon');
     expect(expenses).toContain('+ Paragon');
-    expect(expenses).toContain('await createReceipt(draft)');
+    expect(expenses).toContain("await createReceipt({ ...draft, source: 'receipt' })");
     expect(review).toContain('Sprawdź paragon');
     expect(review).toContain('Zapisz paragon');
     expect(flow).not.toContain('createReceipt(');

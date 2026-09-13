@@ -69,7 +69,7 @@ describe('0.6.0 Cycle Journal storage', () => {
   it('migrates legacy schema 11 to current schema, preserves cycle periods and creates a unique date index', async () => {
     await openLegacySchema11();
     await initializeDatabase();
-    expect(DATABASE_SCHEMA_VERSION).toBe(13);
+    expect(DATABASE_SCHEMA_VERSION).toBe(14);
     expect((await listCyclePeriods()).map((item) => item.id)).toContain('legacy-period');
     expect(await listCycleJournalEntries()).toEqual([]);
 

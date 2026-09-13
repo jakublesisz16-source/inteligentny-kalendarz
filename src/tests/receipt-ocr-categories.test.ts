@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { ExpenseCategory, Receipt } from '../shopping/expenses.types';
+import type { ExpenseCategory, ExpenseProduct, Receipt } from '../shopping/expenses.types';
 import { normalizeReceiptProductName, suggestCategoryId } from '../shopping/receipt-ocr/category-suggestions';
 
 const categories: ExpenseCategory[] = [
@@ -46,6 +46,39 @@ describe('1.1.0-dev.3 local category suggestions', () => {
     expect(suggestCategoryId('ibuprofen', [], categories)).toBe('health');
     expect(suggestCategoryId('płyn do naczyń', [], categories)).toBe('home');
     expect(suggestCategoryId('nieznany przedmiot', [], categories)).toBe('other');
+  });
+
+
+  it.each([
+    ['FrytZigźag900g', 'food'],
+    ['NapEnerDziki0,5lPus', 'drinks'],
+    ['RożekMarlWiśnia150ml', 'food'],
+    ['SokMandarynRivPet1l', 'drinks'],
+    ['WodaNgPrimavera1l', 'drinks'],
+    ['PastaColgateWhite', 'hygiene'],
+    ['Ręcznik Milla X2', 'home'],
+    ['Banan luz', 'food'],
+    ['Arbuz luz', 'food'],
+  ])('handles compact OCR product name %s', (name, expected) => {
+    expect(suggestCategoryId(name, [], categories)).toBe(expected);
+  });
+
+  it('uses a corrected product category on the next scan without another click', () => {
+    const product: ExpenseProduct = {
+      id: 'p1',
+      name: 'Napój energetyczny Dziki',
+      originalName: 'NapEnerDziki0,5lPus',
+      normalizedKey: 'napenerdziki0 5lpus',
+      categoryId: 'drinks',
+      createdAt: '2026-08-01T00:00:00.000Z',
+      updatedAt: '2026-08-01T00:00:00.000Z',
+    };
+    expect(suggestCategoryId('NapEnerDziki0,5lPus', [], categories, [product])).toBe('drinks');
+  });
+
+  it('lets a built-in category repair old Inne history for an obvious product', () => {
+    const history = [receipt('r1', '2026-08-01', [['WodaNgPrimavera1l', 'other']])];
+    expect(suggestCategoryId('WodaNgPrimavera1l', history, categories)).toBe('drinks');
   });
 
   it('ignores a historical category that no longer exists', () => {
