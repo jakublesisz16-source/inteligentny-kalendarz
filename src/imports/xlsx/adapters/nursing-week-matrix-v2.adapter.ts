@@ -222,7 +222,7 @@ function entriesBroadToSpecific(entries: HeaderEntry[]): HeaderEntry[] {
 
 function mostSpecificWeekdays(entries: HeaderEntry[]): WeekdayLabel[] {
   const weekdayEntries = entriesMostSpecificFirst(entries)
-    .map((entry) => ({ entry, labels: weekdayLabelsFromText(entry.value) }))
+    .map((entry) => ({ entry, labels: weekdayLabelsFromText(entry.value), hasTime: Boolean(parseTimeRange(entry.value)) }))
     .filter((item) => item.labels.length > 0);
   const first = weekdayEntries[0];
   if (!first) return [];
@@ -231,10 +231,19 @@ function mostSpecificWeekdays(entries: HeaderEntry[]): WeekdayLabel[] {
   // "PON., WT. i CZW."), a niższy, węższy nagłówek mówi, do którego dnia
   // należy konkretna kolumna. Kolumna ma pierwszeństwo - inaczej jedna grupa
   // trafia do wszystkich dni wymienionych w opisie przedmiotu.
+  //
+  // Aktualizacje planu potrafią jednak dodać pod takim nagłówkiem wiersz
+  // lokalizacji, np. "pon. - sala 102", podczas gdy właściwy rozkład nad nim
+  // nadal brzmi "pon. - pt. 8.00 - 11.00". Przy tej samej szerokości kolumny
+  // wpis z pełnym zakresem godzin jest silniejszą wskazówką rozkładu niż
+  // sam skrót dnia osadzony w opisie sali.
   const bestWidth = headerEntryWidth(first.entry);
-  const bestRow = first.entry.row;
-  return [...new Set(weekdayEntries
-    .filter((item) => headerEntryWidth(item.entry) === bestWidth && item.entry.row === bestRow)
+  const sameWidth = weekdayEntries.filter((item) => headerEntryWidth(item.entry) === bestWidth);
+  const timed = sameWidth.filter((item) => item.hasTime);
+  const pool = timed.length ? timed : sameWidth;
+  const bestRow = Math.max(...pool.map((item) => item.entry.row));
+  return [...new Set(pool
+    .filter((item) => item.entry.row === bestRow)
     .flatMap((item) => item.labels))];
 }
 

@@ -27,6 +27,14 @@ type AssetManifest = {
   runtime: Array<{ path: string; sha256: string | null }>;
 };
 
+function runtimeHash(relative: (typeof REQUIRED_RUNTIME)[number]): string {
+  const raw = readFileSync(new URL(relative, import.meta.url));
+  const bytes = relative.endsWith('.js')
+    ? Buffer.from(raw.toString('utf8').replace(/\r\n?/g, '\n'), 'utf8')
+    : raw;
+  return createHash('sha256').update(bytes).digest('hex');
+}
+
 describe('1.1.0-dev.3 FIX1 local OCR architecture', () => {
   it('keeps OCR engine lazy, local-only and terminable', () => {
     const engine = source('../shopping/receipt-ocr/ocr-engine.ts');
@@ -94,8 +102,7 @@ describe('1.1.0-dev.3 FIX1 local OCR architecture', () => {
       const expected = byPath.get(path);
       expect(expected, `manifest ${path}`).toMatch(/^[a-f0-9]{64}$/u);
       if (!existsSync(new URL(relative, import.meta.url))) continue;
-      const actual = createHash('sha256').update(readFileSync(new URL(relative, import.meta.url))).digest('hex');
-      expect(actual, path).toBe(expected);
+      expect(runtimeHash(relative), path).toBe(expected);
     }
   });
 

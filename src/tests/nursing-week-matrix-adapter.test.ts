@@ -154,6 +154,19 @@ describe('nursing-week-matrix-v2 adapter', () => {
     expect(result.completeness?.safe).toBe(true);
   });
 
+  it('nie myli dnia z opisu sali z właściwym zakresem pon-pt w tej samej kolumnie', () => {
+    const workbook = wideWorkbook();
+    const plan = workbook.sheets[0]!;
+    plan.merges = plan.merges.filter((entry) => entry.ref !== 'B3:C3');
+    plan.cells.push(cell(5, 2, 'pon. - sala 102 w NZN'));
+
+    const result = analyzeScheduleWorkbook(workbook);
+    expect(result).not.toBeNull();
+    const sourceBlock = result?.sourceBlocks?.find((block) => block.groupTags.includes('G8:1A') && block.weekStart === '2025-10-06');
+    expect(sourceBlock?.weekdays).toEqual(['PONIEDZIAŁEK', 'WTOREK', 'ŚRODA', 'CZWARTEK', 'PIĄTEK']);
+    expect(sourceBlock?.candidateIds).toHaveLength(5);
+  });
+
   it('używa deklarowanych godzin jako bramki kompletności zamiast polegać wyłącznie na liczbie kandydatów', () => {
     const matching = wideWorkbook();
     matching.sheets[0]!.cells = matching.sheets[0]!.cells.map((entry) => entry.address === 'B2' ? { ...entry, value: 'CHIRURGIA zajęcia praktyczne 120 godz. grupy 8-osobowe' } : entry);

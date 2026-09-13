@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
-const calendar = readFileSync('src/calendar/CalendarView.tsx', 'utf8');
+const calendar = readFileSync('src/calendar/CalendarView.tsx', 'utf8').replace(/\r\n?/g, '\n');
 
 describe('1.2.0.65 mobile long-press handoff hardening', () => {
   it('handles an already activated drag locally while React installs the window listeners', () => {

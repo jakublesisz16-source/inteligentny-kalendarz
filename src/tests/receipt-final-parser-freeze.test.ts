@@ -14,10 +14,14 @@ const DEV4_B_FIX2_BLOCKER1_BASELINE = '30e6e18bd462deec9d751d33437ee3f52625a565c
 const DEV4_B_FIX2_GATE1_BLOCKER1_BASELINE = 'f477e6b53cc483f86cad8b8aada3cf69f6332146a7edaf2cf995e0ac5ba97ac2';
 const FINANCE_QUANTITY_1231_EXPECTED = '7d1fd2530f63fbf60ae3728899ac3c448aadabc143b018785535fd3ae503c226';
 
+function canonicalSourceBytes(path: string): Buffer {
+  const text = readFileSync(new URL(path, import.meta.url), 'utf8').replace(/\r\n?/g, '\n');
+  return Buffer.from(text, 'utf8');
+}
+
 describe('1.2.0.31 reviewed receipt parser checkpoint', () => {
   it('records intentional parser evolution from prior accepted baselines', () => {
-    const bytes = readFileSync(new URL('../shopping/receipt-ocr/receipt-parser.ts', import.meta.url));
-    const hash = createHash('sha256').update(bytes).digest('hex');
+    const hash = createHash('sha256').update(canonicalSourceBytes('../shopping/receipt-ocr/receipt-parser.ts')).digest('hex');
     expect(hash).not.toBe(B027_BASELINE);
     expect(hash).not.toBe(B028_BASELINE);
     expect(hash).not.toBe(B028_FIX1_BASELINE);
@@ -31,8 +35,7 @@ describe('1.2.0.31 reviewed receipt parser checkpoint', () => {
   });
 
   it('freezes the reviewed 1.2.0.31 quantity parser checkpoint', () => {
-    const bytes = readFileSync(new URL('../shopping/receipt-ocr/receipt-parser.ts', import.meta.url));
-    expect(createHash('sha256').update(bytes).digest('hex')).toBe(FINANCE_QUANTITY_1231_EXPECTED);
+    expect(createHash('sha256').update(canonicalSourceBytes('../shopping/receipt-ocr/receipt-parser.ts')).digest('hex')).toBe(FINANCE_QUANTITY_1231_EXPECTED);
   });
 
   it('keeps the reviewed receipt parser compatible with database schema 14 while app version may advance', () => {

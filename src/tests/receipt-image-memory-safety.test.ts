@@ -8,7 +8,7 @@ import {
 } from '../shopping/receipt-ocr/image-preprocess';
 
 function pixels(width: number, height: number): number { return width * height; }
-function source(path: string): string { return readFileSync(new URL(path, import.meta.url), 'utf8'); }
+function source(path: string): string { return readFileSync(new URL(path, import.meta.url), 'utf8').replace(/\r\n?/g, '\n'); }
 
 function expectAspectClose(sourceWidth: number, sourceHeight: number, targetWidth: number, targetHeight: number): void {
   const sourceAspect = sourceWidth / sourceHeight;

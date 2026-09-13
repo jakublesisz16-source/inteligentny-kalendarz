@@ -1,9 +1,11 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
-const responsive = readFileSync('src/styles/responsive.css', 'utf8');
-const indexHtml = readFileSync('index.html', 'utf8');
-const version = readFileSync('src/core/version.ts', 'utf8');
+function source(path: string): string { return readFileSync(path, 'utf8').replace(/\r\n?/g, '\n'); }
+
+const responsive = source('src/styles/responsive.css');
+const indexHtml = source('index.html');
+const version = source('src/core/version.ts');
 
 describe('1.2.0.98 mobile safe-area clearance', () => {
   it('uses one bottom-navigation clearance that includes the device safe area', () => {

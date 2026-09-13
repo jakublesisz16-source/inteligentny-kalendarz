@@ -1,10 +1,12 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
-const dashboard = readFileSync('src/finance/FinanceDashboardView.tsx', 'utf8');
-const css = readFileSync('src/styles/components.css', 'utf8');
-const responsive = readFileSync('src/styles/responsive.css', 'utf8');
-const version = readFileSync('src/core/version.ts', 'utf8');
+function source(path: string): string { return readFileSync(path, 'utf8').replace(/\r\n?/g, '\n'); }
+
+const dashboard = source('src/finance/FinanceDashboardView.tsx');
+const css = source('src/styles/components.css');
+const responsive = source('src/styles/responsive.css');
+const version = source('src/core/version.ts');
 
 describe('1.2.0.78 transaction-first monthly Finance view', () => {
   it('defaults monthly expenses to transaction rows and keeps item detail as a second level', () => {
