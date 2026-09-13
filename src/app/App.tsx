@@ -1,20 +1,15 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { AppView } from './app.types';
 import { Navigation } from '../ui/Navigation';
 import { Modal } from '../ui/Modal';
-import { AppBackgroundDecor } from '../ui/AppBackgroundDecor';
-import { FloralAccent } from '../ui/FloralAccent';
-import { AppIcon } from '../ui/AppIcon';
 import { AppSplash } from '../ui/AppSplash';
 import { GlobalSearch } from '../search/GlobalSearch';
 import { TodayView } from '../calendar/TodayView';
 import { CalendarView } from '../calendar/CalendarView';
-import { LocationsView } from '../locations/LocationsView';
 import { SettingsView } from '../settings/SettingsView';
 import { StudyView } from '../study/StudyView';
 import { WorkView } from '../work/WorkView';
-import { ShoppingView } from '../shopping/ShoppingView';
-import { CycleView } from '../cycle/CycleView';
+import { FinanceView } from '../finance/FinanceView';
 import type { CoworkerOverlap } from '../work/work.types';
 import { StudyEventCorrection } from '../study/StudyEventCorrection';
 import { EventForm } from '../events/EventForm';
@@ -63,6 +58,8 @@ interface EventEditorState {
   event?: CalendarEvent | undefined;
   workCoworkers?: CoworkerOverlap[] | undefined;
   initialDate?: Date | undefined;
+  initialTitle?: string | undefined;
+  initialEndDate?: Date | undefined;
   initialDates?: string[] | undefined;
 }
 
@@ -98,10 +95,19 @@ export function App() {
   const [availabilityEditor, setAvailabilityEditor] = useState<{ date: string; blockId?: string } | null>(null);
   const [searchOpen, setSearchOpen] = useState(false);
 
-  const locationById = useMemo(() => new Map(locations.map((location) => [location.id, location])), [locations]);
 
   useEffect(() => {
     void bootstrap();
+  }, []);
+
+  useEffect(() => {
+    function handleSearchShortcut(event: KeyboardEvent) {
+      if (!(event.ctrlKey || event.metaKey) || event.key.toLowerCase() !== 'k') return;
+      event.preventDefault();
+      setSearchOpen(true);
+    }
+    window.addEventListener('keydown', handleSearchShortcut);
+    return () => window.removeEventListener('keydown', handleSearchShortcut);
   }, []);
 
   useEffect(() => {
@@ -246,6 +252,26 @@ export function App() {
     setSettings(loadedSettings);
   }
 
+  async function quickEditEvent(event: CalendarEvent, draft: EventDraft) {
+    await updateEvent(event.id, draft);
+    await refreshEvents();
+    await showUndoToast(event.seriesId ? 'Zapisano zmianę tylko tego wystąpienia.' : 'Zapisano zmiany wydarzenia.');
+  }
+
+  async function quickMoveEvent(event: CalendarEvent, draft: EventDraft) {
+    if (event.source !== 'MANUAL' || event.allDay || event.spanType !== 'SINGLE_DAY' || event.seriesId) return;
+    await updateEvent(event.id, draft);
+    await refreshEvents();
+    await showUndoToast('Przeniesiono wydarzenie.');
+  }
+
+  async function quickDeleteEvent(event: CalendarEvent) {
+    if (event.source !== 'MANUAL' || event.seriesId) return;
+    await deleteEvent(event.id);
+    await refreshEvents();
+    await showUndoToast('Przeniesiono wydarzenie do Kosza.');
+  }
+
   async function saveEvent(draft: EventDraft, options?: EventSubmitOptions) {
     if (eventEditor?.event) {
       const current = eventEditor.event;
@@ -266,8 +292,10 @@ export function App() {
         endTime,
         allDay: draft.allDay ?? false,
         category: draft.category,
+        ...(draft.availabilityImpact ? { availabilityImpact: draft.availabilityImpact } : {}),
         ...(draft.description ? { description: draft.description } : {}),
         ...(draft.locationId ? { locationId: draft.locationId } : {}),
+        ...(draft.locationText ? { locationText: draft.locationText } : {}),
       };
       const created = await createManualEventSeries(seriesDraft);
       await showUndoToast(`Dodano serię obejmującą ${created.length} dni.`);
@@ -335,37 +363,23 @@ export function App() {
   }
 
   return (
-    <div className="app-shell" data-floral-mode={settings.decorativeBackgroundMode}>
-      <AppBackgroundDecor mode={settings.decorativeBackgroundMode} />
+    <div className="app-shell">
       <Navigation activeView={view} onChange={setView} />
       <main className="app-main">
-        <FloralAccent variant="flourish" className="view-floral-accent" />
-        <div className="global-search-utility">
-          <button type="button" className="global-search-trigger" onClick={() => setSearchOpen(true)}>
-            <AppIcon name="search" size={18} />
-            <span>Szukaj</span>
-          </button>
-        </div>
         {view === 'today' ? (
           <TodayView events={events} locations={locations} timeFormat={settings.timeFormat} consistencyIssues={consistencyIssues} onOpenConsistencyCenter={openConsistencyCenter} onAdd={(date) => setEventEditor(date ? { initialDate: date } : {})} onEdit={(event) => { void openEventEditor(event); }} onStudyCorrect={setStudyCorrectionEvent} availabilityPlans={availabilityPlans} coworkersByEvent={coworkersByEvent} />
         ) : null}
         {view === 'calendar' ? (
-          <CalendarView events={events} locations={locations} timeFormat={settings.timeFormat} dayConstraints={dayConstraints} dayAttributes={dayAttributes} consistencyIssues={consistencyIssues} activeStudyGroups={activeStudyGroups} incompleteStudyEntries={incompleteStudyEntries} onToggleWorkAvailabilityExclusion={toggleWorkAvailabilityExclusion} onToggleTradingSunday={toggleTradingSunday} onAcknowledgeConsistency={acknowledgeIssue} onStudySeriesCorrect={setStudySeriesTimingEvent} onAdd={(date) => setEventEditor(date ? { initialDate: date } : {})} onAddMany={(dates) => setEventEditor({ initialDates: dates })} onEdit={(event) => { void openEventEditor(event); }} onStudyCorrect={setStudyCorrectionEvent} availabilityPlans={availabilityPlans} coworkersByEvent={coworkersByEvent} onOpenAvailability={(date, blockId) => setAvailabilityEditor({ date, ...(blockId ? { blockId } : {}) })} />
+          <CalendarView events={events} locations={locations} timeFormat={settings.timeFormat} dayConstraints={dayConstraints} dayAttributes={dayAttributes} consistencyIssues={consistencyIssues} activeStudyGroups={activeStudyGroups} incompleteStudyEntries={incompleteStudyEntries} onToggleWorkAvailabilityExclusion={toggleWorkAvailabilityExclusion} onToggleTradingSunday={toggleTradingSunday} onAcknowledgeConsistency={acknowledgeIssue} onStudySeriesCorrect={setStudySeriesTimingEvent} onAdd={(date, initialTitle, initialEndDate) => setEventEditor(date ? { initialDate: date, ...(initialTitle ? { initialTitle } : {}), ...(initialEndDate ? { initialEndDate } : {}) } : {})} onQuickAdd={async (draft) => { await saveEvent(draft); }} onQuickEdit={quickEditEvent} onQuickMove={quickMoveEvent} onQuickDelete={quickDeleteEvent} onAddMany={(dates) => setEventEditor({ initialDates: dates })} onEdit={(event) => { void openEventEditor(event); }} onStudyCorrect={setStudyCorrectionEvent} availabilityPlans={availabilityPlans} coworkersByEvent={coworkersByEvent} onOpenAvailability={(date, blockId) => setAvailabilityEditor({ date, ...(blockId ? { blockId } : {}) })} />
+        ) : null}
+        {view === 'finance' ? (
+          <FinanceView />
         ) : null}
         {view === 'study' ? (
           <StudyView onDataChanged={refreshAllData} />
         ) : null}
         {view === 'work' ? (
           <WorkView locations={locations} onDataChanged={refreshAllData} />
-        ) : null}
-        {view === 'shopping' ? (
-          <ShoppingView />
-        ) : null}
-        {view === 'cycle' ? (
-          <CycleView onDataChanged={refreshAllData} onProtectData={() => { setView('settings'); window.setTimeout(() => document.getElementById('data-transfer-settings')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 80); }} />
-        ) : null}
-        {view === 'locations' ? (
-          <LocationsView locations={locations} homeLocationId={settings.homeLocationId} workLocationId={settings.workLocationId} onAdd={() => setLocationEditor({})} onEdit={(location) => setLocationEditor({ location })} />
         ) : null}
         {view === 'settings' ? (
           <SettingsView settings={settings} locations={locations} onChange={changeSettings} onDataChanged={refreshAllData} />
@@ -383,11 +397,18 @@ export function App() {
       ) : null}
 
       {eventEditor ? (
-        <Modal title={eventEditor.event ? 'Edytuj wydarzenie' : eventEditor.initialDates?.length ? 'Nowe wydarzenie w kilku dniach' : 'Nowe wydarzenie'} onClose={() => setEventEditor(null)} wide>
+        <Modal
+          title={eventEditor.event ? 'Edytuj wydarzenie' : eventEditor.initialDates?.length ? 'Nowe wydarzenie w kilku dniach' : 'Nowe wydarzenie'}
+          onClose={() => setEventEditor(null)}
+          wide
+          headerActions={!eventEditor.event && !(eventEditor.initialDates && eventEditor.initialDates.length > 1) ? <button type="submit" form="event-editor-form" className="button button-primary event-mobile-header-save">Zapisz</button> : undefined}
+        >
           <EventForm
             event={eventEditor.event}
             locations={locations}
             initialDate={eventEditor.initialDate}
+            initialTitle={eventEditor.initialTitle}
+            initialEndDate={eventEditor.initialEndDate}
             initialDates={eventEditor.initialDates}
             onSubmit={saveEvent}
             workCoworkers={eventEditor.workCoworkers}
@@ -437,11 +458,6 @@ export function App() {
 
       {toast ? <div className="toast toast-with-action" role="status"><span>{toast.message}</span>{toast.undoJournalId ? <button type="button" onClick={() => void undoToastChange(toast.undoJournalId!)}>Cofnij</button> : null}</div> : null}
 
-      <div className="floating-context" aria-hidden="true">
-        <span>{locationById.get(settings.homeLocationId ?? '')?.name ?? 'Brak obszaru startowego'}</span>
-        <i />
-        <span>{locationById.get(settings.workLocationId ?? '')?.name ?? 'Brak miejsca pracy'}</span>
-      </div>
     </div>
   );
 }

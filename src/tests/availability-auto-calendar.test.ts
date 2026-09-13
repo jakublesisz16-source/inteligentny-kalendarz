@@ -92,6 +92,17 @@ describe('0.3.3-hotfix.3 calendar-first availability', () => {
     expect(result.blocks.reduce((sum, block) => sum + block.minutes, 0)).toBe(6 * 60);
   });
 
+
+  it('prefers one continuous block over several fragments when both cover the same target', () => {
+    const monday = day('2026-08-17', 1, {
+      blockingIntervals: [{ startMinute: 12 * 60, endMinute: 14 * 60 + 30, kind: 'EVENT', category: 'STUDY', originalStartMinute: 12 * 60 + 30, originalEndMinute: 14 * 60, bufferMinutes: 30 }],
+    });
+    const result = optimizeAvailability(input(4 * 60, [monday]));
+    expect(result.coverageMinutes).toBe(4 * 60);
+    expect(result.blocks).toHaveLength(1);
+    expect(result.blocks[0]?.minutes).toBe(4 * 60);
+  });
+
   it('still accepts three short 2h windows when no minimum shift is set', () => {
     const short = (date: string, weekday: number, start: number) => day(date, weekday, {
       allowedStartMinute: start,

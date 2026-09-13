@@ -1,30 +1,30 @@
 :root {
-  --bg: #f5f3ef;
+  --bg: #fffafc;
   --surface: #ffffff;
-  --surface-soft: #f0eee8;
-  --surface-strong: #1f2a28;
-  --text: #1f2725;
-  --text-muted: #6e7774;
-  --line: #ddd9d1;
-  --line-strong: #c7c2b9;
-  --accent: #cf789b;
-  --accent-strong: #b65f82;
-  --accent-soft: #f8e4ed;
+  --surface-soft: #fff5f8;
+  --surface-strong: #453a3f;
+  --text: #302a2d;
+  --text-muted: #7b7176;
+  --line: #eadfe4;
+  --line-strong: #d9c8cf;
+  --accent: #d98eab;
+  --accent-strong: #b96888;
+  --accent-soft: #f9e7ee;
   --danger: #a9443a;
   --danger-soft: #f9e8e8;
   --success: #4f7b68;
   --success-soft: #e8f2ed;
-  --warning: #a36b2f;
+  --warning: #9b6a35;
   --warning-soft: #fbf0df;
   --accent-surface: #fff7fa;
   --study: #6e78a8;
   --work: #a06f42;
   --personal: #5f8a75;
   --other: #77736c;
-  --shadow-sm: 0 8px 24px rgba(36, 42, 39, 0.06);
-  --shadow-lg: 0 24px 60px rgba(28, 34, 32, 0.14);
-  --radius-sm: 10px;
-  --radius-md: 16px;
+  --shadow-sm: 0 10px 30px rgba(99, 72, 83, 0.06);
+  --shadow-lg: 0 24px 64px rgba(82, 58, 67, 0.14);
+  --radius-sm: 12px;
+  --radius-md: 18px;
   --radius-lg: 24px;
   --radius-xl: 30px;
   --space-1: 4px;
@@ -35,27 +35,27 @@
   --space-6: 24px;
   --space-7: 32px;
   --space-8: 40px;
-  --sidebar-width: 248px;
+  --sidebar-width: 236px;
   --content-max: 1420px;
 }
 
-/* 0.3.1 - semantyczne kolory kategorii */
+/* Semantyczne kolory kategorii - zachowane niezależnie od identyfikacji aplikacji. */
 :root {
-  --category-study: #c86f95;
-  --category-study-soft: #fae7ef;
-  --category-work: #3f8292;
-  --category-work-soft: #e4f1f4;
-  --category-personal: #7d6aa6;
+  --category-study: #b95d84;
+  --category-study-soft: #fae8ef;
+  --category-work: #2f7382;
+  --category-work-soft: #e5f1f4;
+  --category-personal: #695591;
   --category-personal-soft: #eee9f7;
-  --category-other: #77736c;
-  --category-other-soft: #efede9;
+  --category-other: #605b56;
+  --category-other-soft: #f1eeeb;
   --study: var(--category-study);
   --work: var(--category-work);
   --personal: var(--category-personal);
   --other: var(--category-other);
 }
 
-/* 0.4.0 - osobna, subtelna domena Cykl */
+/* Moduł Cykl pozostaje w kodzie, choć w 1.2.0.1 jest ukryty z głównego UI. */
 :root {
   --cycle: #b86f8f;
   --cycle-soft: #faedf3;

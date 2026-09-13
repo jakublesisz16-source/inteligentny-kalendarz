@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ChangeEvent, type MouseEvent as ReactMouseEvent } from 'react';
-import type { ExpenseCategory, Receipt, ReceiptDraft } from '../expenses.types';
+import type { ExpenseCategory, ExpenseProduct, Receipt, ReceiptDraft } from '../expenses.types';
 import type { OcrProgress, ProcessedReceiptImage, ReceiptOcrDiagnostics, ReceiptOcrGeometry, ReceiptOcrQuality, ReceiptOcrSourceType, ReceiptReviewDraft, ReceiptSourceQuality } from './receipt-ocr.types';
 import { ReceiptScanReview } from './ReceiptScanReview';
 import { createReceiptHeaderOcrChunk, createReceiptLocalNumericVerificationChunk, createReceiptValueColumnRecoveryChunk, preprocessReceiptImage } from './image-preprocess';
@@ -27,6 +27,7 @@ import {
 } from './receipt-value-column-recovery';
 import { diagnoseReceiptDateText, diagnoseReceiptStructuralText, parseReceiptText, resolveReceiptMerchant, type ReceiptMerchantResolution } from './receipt-parser';
 import { createReceiptReviewDraft } from './receipt-review.model';
+import { findLikelyDuplicateReceipt } from './receipt-duplicate';
 import { analyzeReceiptOcrQuality } from './receipt-ocr-quality';
 import { applyReceiptDegradedSafety } from './receipt-degraded-safety';
 import { applyReceiptPartialRecovery } from './receipt-partial-recovery';
@@ -44,10 +45,12 @@ import {
 
 interface ReceiptScanFlowProps {
   categories: ExpenseCategory[];
+  products?: ExpenseProduct[];
   receipts: Receipt[];
   onSave: (draft: ReceiptDraft) => Promise<void>;
   onClose: () => void;
   onManualAdd: () => void;
+  tripName?: string;
 }
 
 type ScanPhase = 'select' | 'processing' | 'review' | 'error';
@@ -80,7 +83,7 @@ function combineReceiptPrimaryGeometryForSnapshot(
   };
 }
 
-export function ReceiptScanFlow({ categories, receipts, onSave, onClose, onManualAdd }: ReceiptScanFlowProps) {
+export function ReceiptScanFlow({ categories, products = [], receipts, onSave, onClose, onManualAdd, tripName }: ReceiptScanFlowProps) {
   const [phase, setPhase] = useState<ScanPhase>('select');
   const [file, setFile] = useState<File | null>(null);
   const [imageUrl, setImageUrl] = useState('');
@@ -730,6 +733,7 @@ export function ReceiptScanFlow({ categories, receipts, onSave, onClose, onManua
         recovered,
         receipts,
         categories,
+        products,
       );
       const nextReview = createReceiptReviewDraft(parsed, categories);
       if (controller.signal.aborted) return;
@@ -795,6 +799,11 @@ export function ReceiptScanFlow({ categories, receipts, onSave, onClose, onManua
 
   async function saveDraft(draft: ReceiptDraft) {
     if (saveInFlightRef.current) return;
+    const duplicate = findLikelyDuplicateReceipt(draft, receipts);
+    if (duplicate && !window.confirm(`Ten paragon wygląda na już zapisany (${duplicate.merchant}, ${duplicate.date}). Zapisać go ponownie?`)) {
+      setError('Zapis anulowany - taki sam paragon jest już w historii.');
+      return;
+    }
     saveInFlightRef.current = true;
     setSaving(true);
     setError('');
@@ -835,6 +844,7 @@ export function ReceiptScanFlow({ categories, receipts, onSave, onClose, onManua
           <div>
             <p className="section-kicker">Wydatki</p>
             <h1 id="receipt-scan-title">Skanuj paragon</h1>
+            {tripName ? <span className="receipt-scan-trip-context">Wyjazd: <strong>{tripName}</strong></span> : null}
           </div>
           <button type="button" className="icon-button" onClick={closeFlow} aria-label="Zamknij skanowanie">×</button>
         </header>

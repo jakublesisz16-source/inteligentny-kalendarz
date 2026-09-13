@@ -1,19 +1,19 @@
-import { FloralAccent } from './FloralAccent';
+import { AppIcon, type AppIconName } from './AppIcon';
 
 interface EmptyStateProps {
   title: string;
   description: string;
   actionLabel?: string;
   onAction?: () => void;
+  icon?: AppIconName;
 }
 
-export function EmptyState({ title, description, actionLabel, onAction }: EmptyStateProps) {
+export function EmptyState({ title, description, actionLabel, onAction, icon }: EmptyStateProps) {
   return (
     <div className="empty-state">
-      <FloralAccent variant="blossom" className="empty-floral-accent" />
-      <div className="empty-orbit" aria-hidden="true"><span /></div>
+      {icon ? <div className="empty-state-icon" aria-hidden="true"><AppIcon name={icon} size={28} /></div> : <div className="empty-orbit" aria-hidden="true"><span /></div>}
       <h3>{title}</h3>
-      <p>{description}</p>
+      {description ? <p>{description}</p> : null}
       {actionLabel && onAction ? (
         <button type="button" className="button button-primary" onClick={onAction}>{actionLabel}</button>
       ) : null}

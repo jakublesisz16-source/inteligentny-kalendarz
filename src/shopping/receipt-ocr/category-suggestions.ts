@@ -1,4 +1,5 @@
-import type { ExpenseCategory, Receipt } from '../expenses.types';
+import type { ExpenseCategory, ExpenseProduct, Receipt } from '../expenses.types';
+import { normalizeExpenseProductKey } from '../expenses.utils';
 import type { ParsedReceiptDraft } from './receipt-ocr.types';
 
 export function normalizeReceiptProductName(value: string): string {
@@ -29,14 +30,17 @@ function builtInSuggestion(name: string, categories: ExpenseCategory[]): string 
   const match = rules.find((rule) => rule.pattern.test(normalized));
   if (match) return categoryByName(categories, match.categoryNames);
 
-  const compactSemantic = normalized.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '');
-  if (/(?:orzech|orze|czekolad|sliwk|pesto|piersi)/u.test(compactSemantic)) {
-    const food = categoryByName(categories, ['Jedzenie']);
-    if (food) return food;
-  }
-  if (/(?:napgaz|ngaz|niegazowan|gazowan)/u.test(compactSemantic)) {
-    const drinks = categoryByName(categories, ['Napoje']);
-    if (drinks) return drinks;
+  const compactSemantic = normalizeExpenseProductKey(name).replace(/\s+/g, '');
+  const compactRules: Array<{ pattern: RegExp; categoryNames: string[] }> = [
+    { pattern: /(?:fryt|pierog|banan|arbuz|orzech|orze|czekolad|sliwk|pesto|piersi|rozek|lody|jogurt|mleko|chleb|bulka|makaron|ryz)/u, categoryNames: ['Jedzenie'] },
+    { pattern: /(?:woda|sok|napener|energet|napgaz|ngaz|niegazowan|gazowan|cola|pepsi|lemoniad|kawa|herbat)/u, categoryNames: ['Napoje'] },
+    { pattern: /(?:colgate|pastadozeb|pasta.*zeb|szampon|dezodorant|mydlo|kosmet)/u, categoryNames: ['Higiena / Kosmetyki'] },
+    { pattern: /(?:recznik|plyndonaczyn|proszek.*pran|kapsulk.*pran|wybielacz|detergent|domestos|srodekczyszcz|papier)/u, categoryNames: ['Dom / Chemia'] },
+  ];
+  for (const rule of compactRules) {
+    if (!rule.pattern.test(compactSemantic)) continue;
+    const category = categoryByName(categories, rule.categoryNames);
+    if (category) return category;
   }
 
   const asciiTokens = normalized
@@ -80,11 +84,16 @@ export function suggestCategoryId(
   productName: string,
   receipts: Receipt[],
   categories: ExpenseCategory[],
+  products: ExpenseProduct[] = [],
 ): string {
   const normalizedName = normalizeReceiptProductName(productName);
+  const normalizedProductKey = normalizeExpenseProductKey(productName);
   const validCategoryIds = new Set(categories.map((category) => category.id));
-  const votes = new Map<string, HistoryVote>();
+  const otherCategoryId = categoryByName(categories, ['Inne']);
+  const learnedProduct = products.find((product) => product.normalizedKey === normalizedProductKey && validCategoryIds.has(product.categoryId));
+  if (learnedProduct && learnedProduct.categoryId !== otherCategoryId) return learnedProduct.categoryId;
 
+  const votes = new Map<string, HistoryVote>();
   for (const receipt of receipts) {
     const recencyKey = `${receipt.date}|${receipt.updatedAt}|${receipt.id}`;
     for (const item of receipt.items) {
@@ -99,23 +108,26 @@ export function suggestCategoryId(
 
   const ranked = [...votes.entries()].sort(([categoryA, voteA], [categoryB, voteB]) =>
     voteB.count - voteA.count || voteB.latestKey.localeCompare(voteA.latestKey) || categoryA.localeCompare(categoryB));
-  if (ranked.length) return ranked[0]![0];
+  if (ranked.length && ranked[0]![0] !== otherCategoryId) return ranked[0]![0];
 
   const builtIn = builtInSuggestion(productName, categories);
   if (builtIn) return builtIn;
-  return categoryByName(categories, ['Inne']) ?? categories[0]?.id ?? '';
+  if (ranked.length) return ranked[0]![0];
+  if (learnedProduct) return learnedProduct.categoryId;
+  return otherCategoryId ?? categories[0]?.id ?? '';
 }
 
 export function applyCategorySuggestions(
   parsed: ParsedReceiptDraft,
   receipts: Receipt[],
   categories: ExpenseCategory[],
+  products: ExpenseProduct[] = [],
 ): ParsedReceiptDraft {
   return {
     ...parsed,
     items: parsed.items.map((item) => ({
       ...item,
-      suggestedCategoryId: suggestCategoryId(item.name, receipts, categories),
+      suggestedCategoryId: suggestCategoryId(item.name, receipts, categories, products),
     })),
   };
 }

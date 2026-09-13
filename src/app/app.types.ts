@@ -1,1 +1,1 @@
-export type AppView = 'today' | 'calendar' | 'study' | 'work' | 'shopping' | 'cycle' | 'locations' | 'settings';
+export type AppView = 'today' | 'calendar' | 'finance' | 'study' | 'work' | 'settings';

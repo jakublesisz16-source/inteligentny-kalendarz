@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { addDaysToDateKey, localDateFromKey } from '../calendar/date.utils';
-import { getConfirmedWorkMinutes, getDayPlanningProfile } from '../storage/database';
+import { getConfirmedWorkMinutes, getDayPlanningProfile, listConfirmedWorkBlocks } from '../storage/database';
+import { Modal } from '../ui/Modal';
+import { DayAvailabilityEditor } from './DayAvailabilityEditor';
 import {
   acceptAvailabilityPlan,
   AvailabilityOverlapError,
@@ -11,11 +13,13 @@ import {
   updateAvailabilityBlock,
 } from './availability.service';
 import type { AvailabilityBlock, AvailabilityPlan } from './availability.types';
+import type { ConfirmedWorkBlock } from '../work/work.types';
 
 interface AvailabilityViewProps { onDataChanged: () => Promise<void>; onOpenSettings: () => void; }
 function minutesLabel(value: number): string { const h = Math.floor(value / 60); const m = value % 60; return m ? `${h ? `${h} h ` : ''}${m} min` : `${h} h`; }
 function weekLabel(start: string): string { const end = addDaysToDateKey(start, 6); const f = new Intl.DateTimeFormat('pl-PL', { day: 'numeric', month: 'short' }).format(localDateFromKey(start)); const l = new Intl.DateTimeFormat('pl-PL', { day: 'numeric', month: 'short', year: 'numeric' }).format(localDateFromKey(end)); return `${f} - ${l}`; }
 function dateLabel(date: string): string { return new Intl.DateTimeFormat('pl-PL', { weekday: 'short', day: 'numeric', month: 'short' }).format(localDateFromKey(date)); }
+function fullDateLabel(date: string): string { return new Intl.DateTimeFormat('pl-PL', { weekday: 'long', day: 'numeric', month: 'long' }).format(localDateFromKey(date)); }
 function activeBlocks(plan?: AvailabilityPlan): AvailabilityBlock[] { return (plan?.blocks ?? []).filter((block) => block.status !== 'REJECTED').sort((a, b) => a.date.localeCompare(b.date) || a.startTime.localeCompare(b.startTime)); }
 function acceptedBlocks(plan?: AvailabilityPlan): AvailabilityBlock[] { return activeBlocks(plan).filter((block) => (block.status === 'ACCEPTED' || block.status === 'EDITED') && block.validationState !== 'CONFLICT'); }
 
@@ -24,21 +28,41 @@ export function AvailabilityView({ onDataChanged, onOpenSettings }: Availability
   const [plan, setPlan] = useState<AvailabilityPlan | undefined>();
   const [targetMinutes, setTargetMinutes] = useState(0);
   const [confirmedMinutes, setConfirmedMinutes] = useState(0);
+  const [confirmedWorkBlocks, setConfirmedWorkBlocks] = useState<ConfirmedWorkBlock[]>([]);
   const [missingConfiguration, setMissingConfiguration] = useState<'target' | 'hours' | null>(null);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [editId, setEditId] = useState<string | null>(null);
   const [editDate, setEditDate] = useState(''); const [editStart, setEditStart] = useState(''); const [editEnd, setEditEnd] = useState('');
-  const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null); const [expandedWhy, setExpandedWhy] = useState<string | null>(null);
+  const [dayEditor, setDayEditor] = useState<{ date: string; blockId?: string; mode: 'manual' | 'automation' } | null>(null);
 
   useEffect(() => { void refresh(); }, [weekStart]);
+  useEffect(() => {
+    if (!message) return;
+    const timer = window.setTimeout(() => setMessage(''), 3500);
+    return () => window.clearTimeout(timer);
+  }, [message]);
   async function refresh() {
     setError('');
-    const weekEnd = addDaysToDateKey(weekStart, 6);
-    const [profile, currentPlan, confirmed] = await Promise.all([getDayPlanningProfile(), refreshAvailabilityPlanStatus(weekStart), getConfirmedWorkMinutes(weekStart, weekEnd)]);
-    setPlan(currentPlan); setTargetMinutes(profile?.targetWeeklyWorkMinutes ?? 0); setConfirmedMinutes(confirmed.totalConfirmedWorkMinutes);
-    setMissingConfiguration(!profile?.targetWeeklyWorkMinutes ? 'target' : !profile.allowedWorkStart || !profile.allowedWorkEnd ? 'hours' : null);
+    try {
+      const weekEnd = addDaysToDateKey(weekStart, 6);
+      const [profile, refreshedPlan, confirmed, workBlocks] = await Promise.all([getDayPlanningProfile(), refreshAvailabilityPlanStatus(weekStart), getConfirmedWorkMinutes(weekStart, weekEnd), listConfirmedWorkBlocks(weekStart, weekEnd)]);
+      const missing = !profile?.targetWeeklyWorkMinutes ? 'target' : !profile.allowedWorkStart || !profile.allowedWorkEnd ? 'hours' : null;
+      const target = profile?.targetWeeklyWorkMinutes ?? 0;
+      let currentPlan = refreshedPlan;
+      const required = Math.max(0, target - confirmed.totalConfirmedWorkMinutes);
+      const acceptedCoverage = currentPlan?.acceptedAvailabilityMinutes ?? 0;
+      const hasProposal = currentPlan?.blocks.some((block) => block.status === 'PROPOSED') ?? false;
+      const userRejectedAutomaticProposal = currentPlan?.blocks.some((block) => block.status === 'REJECTED' && (block.origin ?? 'OPTIMIZER') === 'OPTIMIZER') ?? false;
+      if (!missing && required > acceptedCoverage && (!currentPlan || currentPlan.status === 'STALE' || (!hasProposal && !userRejectedAutomaticProposal))) {
+        currentPlan = await generateAvailabilityPlan(weekStart);
+      }
+      setPlan(currentPlan); setTargetMinutes(target); setConfirmedMinutes(confirmed.totalConfirmedWorkMinutes); setConfirmedWorkBlocks(workBlocks);
+      setMissingConfiguration(missing);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'Nie udało się odczytać dyspozycyjności.');
+    }
   }
   async function generate() {
     setLoading(true); setError(''); setMessage('');
@@ -58,14 +82,14 @@ export function AvailabilityView({ onDataChanged, onOpenSettings }: Availability
     finally { setLoading(false); }
   }
   async function blockAction(block: AvailabilityBlock, action: 'ACCEPT' | 'REJECT') {
-    try { const next = await updateAvailabilityBlock(weekStart, block.id, action); setPlan(next); setSelectedBlockId(null); await onDataChanged(); setMessage(action === 'ACCEPT' ? 'Zaakceptowano propozycję.' : block.origin === 'MANUAL' ? 'Usunięto dyspozycyjność.' : 'Odrzucono propozycję.'); }
+    try { const next = await updateAvailabilityBlock(weekStart, block.id, action); setPlan(next); await onDataChanged(); setMessage(action === 'ACCEPT' ? 'Zaakceptowano propozycję.' : block.origin === 'MANUAL' ? 'Usunięto dyspozycyjność.' : 'Odrzucono propozycję.'); }
     catch (reason) { setError(reason instanceof Error ? reason.message : 'Nie udało się zapisać decyzji.'); }
   }
   async function acceptAll() { try { const next = await acceptAvailabilityPlan(weekStart); setPlan(next); await onDataChanged(); setMessage('Zaakceptowano propozycję uzupełnienia.'); } catch (reason) { setError(reason instanceof Error ? reason.message : 'Nie udało się zaakceptować propozycji.'); } }
   function beginEdit(block: AvailabilityBlock) { setEditId(block.id); setEditDate(block.date); setEditStart(block.startTime); setEditEnd(block.endTime); }
   async function saveEdit(mergeOverlaps = false) {
     if (!editId) return;
-    try { const next = await updateAvailabilityBlock(weekStart, editId, 'EDIT', { date: editDate, startTime: editStart, endTime: editEnd, mergeOverlaps }); setPlan(next); setEditId(null); setSelectedBlockId(null); await onDataChanged(); setMessage(next.remainingMinutes ? `Zmieniono dyspozycyjność. Brakuje jeszcze ${minutesLabel(next.remainingMinutes)}.` : 'Zmieniono dyspozycyjność. Cel jest pokryty.'); }
+    try { const next = await updateAvailabilityBlock(weekStart, editId, 'EDIT', { date: editDate, startTime: editStart, endTime: editEnd, mergeOverlaps }); setPlan(next); setEditId(null); await onDataChanged(); setMessage(next.remainingMinutes ? `Zmieniono dyspozycyjność. Brakuje jeszcze ${minutesLabel(next.remainingMinutes)}.` : 'Zmieniono dyspozycyjność.'); }
     catch (reason) {
       if (reason instanceof AvailabilityOverlapError && window.confirm(`${reason.message}\n\nScalić?`)) { await saveEdit(true); return; }
       setError(reason instanceof Error ? reason.message : 'Nie udało się zapisać zmian.');
@@ -73,47 +97,109 @@ export function AvailabilityView({ onDataChanged, onOpenSettings }: Availability
   }
   async function copySummary() { const blocks = acceptedBlocks(plan); if (!blocks.length) { setError('Najpierw zapisz lub zaakceptuj dyspozycyjność.'); return; } const text = [`Dyspozycyjność ${weekLabel(weekStart)}`, '', ...blocks.map((block) => `${dateLabel(block.date)}: ${block.startTime}-${block.endTime}`), '', `Łącznie: ${minutesLabel(blocks.reduce((sum, block) => sum + block.minutes, 0))}`].join('\n'); await navigator.clipboard.writeText(text); setMessage('Skopiowano dyspozycyjność.'); }
   async function markSent() { try { const next = await markAvailabilitySent(weekStart); setPlan(next); setMessage(`Zapisano wysłaną wersję ${next.sentSnapshots.length}.`); await onDataChanged(); } catch (reason) { setError(reason instanceof Error ? reason.message : 'Nie udało się zapisać wysłanej wersji.'); } }
+  async function savedFromDayEditor() { await onDataChanged(); await refresh(); }
 
   const blocks = useMemo(() => activeBlocks(plan), [plan]);
   const accepted = useMemo(() => acceptedBlocks(plan), [plan]);
-  const manual = blocks.filter((block) => (block.status === 'ACCEPTED' || block.status === 'EDITED') && block.validationState !== 'CONFLICT');
   const proposals = blocks.filter((block) => block.status === 'PROPOSED');
   const conflicts = blocks.filter((block) => block.validationState === 'CONFLICT');
   const requiredMinutes = Math.max(0, targetMinutes - confirmedMinutes);
-  const acceptedMinutes = plan?.acceptedAvailabilityMinutes ?? manual.reduce((sum, block) => sum + block.minutes, 0);
+  const acceptedMinutes = plan?.acceptedAvailabilityMinutes ?? accepted.reduce((sum, block) => sum + block.minutes, 0);
   const remainingMinutes = Math.max(0, requiredMinutes - acceptedMinutes);
   const overMinutes = Math.max(0, acceptedMinutes - requiredMinutes);
   const configured = missingConfiguration === null;
   const noSafeProposal = Boolean(configured && remainingMinutes > 0 && plan && proposals.length === 0 && plan.diagnostics?.reasons.length);
+  const weekDates = useMemo(() => Array.from({ length: 7 }, (_, offset) => addDaysToDateKey(weekStart, offset)), [weekStart]);
+  const acceptedByDate = useMemo(() => {
+    const map = new Map<string, AvailabilityBlock[]>();
+    for (const block of accepted) map.set(block.date, [...(map.get(block.date) ?? []), block]);
+    return map;
+  }, [accepted]);
+  const proposalsByDate = useMemo(() => {
+    const map = new Map<string, AvailabilityBlock[]>();
+    for (const block of proposals.filter((item) => item.validationState !== 'CONFLICT')) map.set(block.date, [...(map.get(block.date) ?? []), block]);
+    return map;
+  }, [proposals]);
+  const workByDate = useMemo(() => {
+    const map = new Map<string, ConfirmedWorkBlock[]>();
+    for (const block of confirmedWorkBlocks) map.set(block.date, [...(map.get(block.date) ?? []), block]);
+    return map;
+  }, [confirmedWorkBlocks]);
+  const rulesByDate = useMemo(() => new Map((plan?.dayRules ?? []).map((rule) => [rule.date, rule])), [plan]);
 
   function renderBlock(block: AvailabilityBlock) {
     const isProposal = block.status === 'PROPOSED';
     return <article key={block.id} className={`availability-block status-${block.status.toLowerCase()}${block.validationState === 'CONFLICT' ? ' has-conflict' : ''}`}>
       <div className="availability-block-main"><strong>{dateLabel(block.date)}</strong><span>{block.startTime}-{block.endTime}</span><small>{minutesLabel(block.minutes)} · {block.validationState === 'CONFLICT' ? 'Wymaga poprawy' : isProposal ? 'Propozycja aplikacji' : block.origin === 'MANUAL' ? 'Twoja dyspozycyjność' : block.status === 'EDITED' ? 'Zmieniona ręcznie' : 'Zaakceptowana'}</small></div>
-      {editId === block.id ? <div className="availability-inline-edit"><input aria-label="Data dyspozycyjności" type="date" min={weekStart} max={addDaysToDateKey(weekStart, 6)} value={editDate} onChange={(e) => setEditDate(e.target.value)} /><input aria-label="Początek dyspozycyjności" type="time" value={editStart} onChange={(e) => setEditStart(e.target.value)} /><input aria-label="Koniec dyspozycyjności" type="time" value={editEnd} onChange={(e) => setEditEnd(e.target.value)} /><button type="button" className="button button-primary button-small" onClick={() => void saveEdit()}>Zapisz</button><button type="button" className="text-button" onClick={() => setEditId(null)}>Anuluj</button></div> : <button type="button" className="text-button availability-details-toggle" aria-expanded={selectedBlockId === block.id} onClick={() => { setSelectedBlockId(selectedBlockId === block.id ? null : block.id); setExpandedWhy(null); }}>{selectedBlockId === block.id ? 'Ukryj' : 'Szczegóły'}</button>}
+      {editId === block.id ? <div className="availability-inline-edit"><input aria-label="Data dyspozycyjności" type="date" min={weekStart} max={addDaysToDateKey(weekStart, 6)} value={editDate} onChange={(e) => setEditDate(e.target.value)} /><input aria-label="Początek dyspozycyjności" type="time" value={editStart} onChange={(e) => setEditStart(e.target.value)} /><input aria-label="Koniec dyspozycyjności" type="time" value={editEnd} onChange={(e) => setEditEnd(e.target.value)} /><button type="button" className="button button-primary button-small" onClick={() => void saveEdit()}>Zapisz</button><button type="button" className="text-button" onClick={() => setEditId(null)}>Anuluj</button></div> : <div className="availability-block-actions">{isProposal ? <button type="button" className="text-button" onClick={() => void blockAction(block, 'ACCEPT')}>Akceptuj</button> : null}<button type="button" className="text-button" onClick={() => beginEdit(block)}>Edytuj</button><button type="button" className="text-button warning-text" onClick={() => void blockAction(block, 'REJECT')}>{block.origin === 'MANUAL' ? 'Usuń' : 'Odrzuć'}</button></div>}
       {block.validationState === 'CONFLICT' ? <div className="availability-conflict-note" role="alert">{block.validationMessage ?? 'Ta dyspozycyjność nie pasuje już do aktualnego kalendarza.'}</div> : null}
-      {selectedBlockId === block.id && editId !== block.id ? <div className="availability-block-actions">{isProposal ? <button type="button" className="text-button" onClick={() => void blockAction(block, 'ACCEPT')}>Akceptuj</button> : null}<button type="button" className="text-button" onClick={() => beginEdit(block)}>Edytuj</button><button type="button" className="text-button warning-text" onClick={() => void blockAction(block, 'REJECT')}>{block.origin === 'MANUAL' ? 'Usuń' : 'Odrzuć'}</button>{isProposal || block.origin !== 'MANUAL' ? <button type="button" className="text-button" aria-expanded={expandedWhy === block.id} onClick={() => setExpandedWhy(expandedWhy === block.id ? null : block.id)}>Dlaczego?</button> : null}</div> : null}
-      {expandedWhy === block.id ? <div className="availability-why">{block.explanationFacts.map((fact) => <p key={fact.code}>{fact.text}</p>)}</div> : null}
+      {(isProposal || block.origin !== 'MANUAL') && block.explanationFacts.length ? <div className="availability-why">{block.explanationFacts.map((fact) => <p key={fact.code}>{fact.text}</p>)}</div> : null}
     </article>;
   }
 
   return <section className="availability-view">
     <div className="availability-week-toolbar"><button type="button" className="icon-button soft" aria-label="Poprzedni tydzień" onClick={() => setWeekStart(addDaysToDateKey(weekStart, -7))}>‹</button><div><span className="section-kicker">Dyspozycyjność</span><h2>{weekLabel(weekStart)}</h2></div><button type="button" className="icon-button soft" aria-label="Następny tydzień" onClick={() => setWeekStart(addDaysToDateKey(weekStart, 7))}>›</button></div>
-    <div className="availability-settings-row"><button type="button" className="text-button" onClick={onOpenSettings}>⚙ Ustawienia</button><span className="muted-copy">Godziny z kalendarza liczą się automatycznie. W Kalendarzu ustawiasz tylko wyjątki.</span></div>
-    {error ? <div className="study-message error-message" role="alert">{error}</div> : null}{message ? <div className="study-message success-message" role="status">{message}</div> : null}
-    {plan?.status === 'STALE' ? <div className="availability-stale" role="alert"><strong>Kalendarz się zmienił.</strong><span>Twoje zapisane godziny zostają. Sprawdź konflikty i uzupełnij plan ponownie.</span><button className="button button-secondary button-small" type="button" onClick={() => void generate()}>Przelicz</button></div> : null}
-    {!configured ? <div className="availability-config-note"><div><strong>{missingConfiguration === 'target' ? 'Ustaw tygodniowy cel godzin pracy' : 'Ustaw standardowe ramy pracy'}</strong><span>{missingConfiguration === 'target' ? 'Cel jest potrzebny, aby policzyć, ile godzin dyspozycyjności jeszcze brakuje.' : 'Aplikacja używa tych ram tylko jako granic dla całkowicie wolnych części dnia.'}</span></div><button type="button" className="button button-secondary button-small" onClick={onOpenSettings}>{missingConfiguration === 'target' ? 'Ustaw cel' : 'Ustaw ramy'}</button></div> : null}
+    {error ? <div className="study-message error-message" role="alert">{error}</div> : null}{message ? <div className="study-message success-message availability-flash-message" role="status">{message}</div> : null}
 
-    <div className="availability-summary-grid minimal-summary hotfix-summary"><div><span>Cel pracy</span><strong>{minutesLabel(targetMinutes)}</strong></div><div><span>Masz już pracę</span><strong>{minutesLabel(confirmedMinutes)}</strong></div><div><span>Twoja dyspozycja</span><strong>{minutesLabel(acceptedMinutes)}</strong></div><div><span>{overMinutes ? 'Ponad potrzebę' : 'Pozostało'}</span><strong>{minutesLabel(overMinutes || remainingMinutes)}</strong></div></div>
+    <section className="panel availability-week-editor" aria-label="Dyspozycyjność na dni tygodnia">
+      <div className="panel-heading compact-heading"><div><span className="section-kicker">Plan tygodnia</span><h3>Automat dopasowuje godziny do kalendarza</h3><p className="muted-copy">Znana praca jest stała. Jeśli jej brakuje do celu, aplikacja sama proponuje wolne godziny. Ręczny wpis lub wyjątek ma zawsze pierwszeństwo.</p></div></div>
+      <div className="availability-week-days">
+        {weekDates.map((date) => {
+          const dayBlocks = acceptedByDate.get(date) ?? [];
+          const dayProposals = proposalsByDate.get(date) ?? [];
+          const dayWork = workByDate.get(date) ?? [];
+          const rule = rulesByDate.get(date);
+          const hasAny = dayBlocks.length > 0 || dayProposals.length > 0 || dayWork.length > 0;
+          const totalShown = dayBlocks.reduce((sum, block) => sum + block.minutes, 0) + dayWork.reduce((sum, block) => sum + block.minutes, 0);
+          return <article key={date} className={`availability-week-day${hasAny ? ' has-hours' : ''}`}>
+            <div className="availability-week-day-date"><strong>{dateLabel(date)}</strong>{totalShown ? <span>{minutesLabel(totalShown)} stałe</span> : rule?.excluded ? <span>Automat: wyłączony</span> : null}</div>
+            <div className="availability-week-day-times">
+              {dayWork.map((block) => <span key={block.eventId} className="availability-fixed-work-chip">Praca {block.startDateTime.slice(11, 16)}-{block.endDateTime.slice(11, 16)}</span>)}
+              {dayBlocks.map((block) => <button key={block.id} type="button" className="availability-time-chip" onClick={() => setDayEditor({ date, blockId: block.id, mode: 'manual' })}>{block.startTime}-{block.endTime}</button>)}
+              {dayProposals.map((block) => <button key={block.id} type="button" className="availability-proposal-chip" aria-label={`Akceptuj propozycję ${block.startTime}-${block.endTime}`} onClick={() => void blockAction(block, 'ACCEPT')}>Propozycja {block.startTime}-{block.endTime}</button>)}
+              {!hasAny ? <span className="availability-empty-hours">Wolne - automat analizuje kalendarz</span> : null}
+            </div>
+            <button type="button" className="button button-secondary button-small" onClick={() => setDayEditor({ date, mode: 'manual' })}>{dayBlocks.length ? '+ Dodaj zakres' : 'Ustaw ręcznie'}</button>
+          </article>;
+        })}
+      </div>
+    </section>
 
-    <div className="availability-generate-row"><button type="button" className="button button-primary" disabled={loading || !configured || remainingMinutes === 0} onClick={() => void generate()}>{loading ? 'Szukam...' : acceptedMinutes ? `Znajdź najlepszy czas na ${minutesLabel(remainingMinutes)}` : 'Ułóż dyspozycyjność'}</button>{overMinutes ? <span>Masz {minutesLabel(overMinutes)} więcej dyspozycyjności niż potrzeba. Niczego nie usuwam automatycznie.</span> : requiredMinutes === 0 && targetMinutes > 0 ? <span>Potwierdzona praca już pokrywa tygodniowy cel.</span> : null}</div>
+    {conflicts.length ? <section className="panel availability-plan-panel availability-conflict-panel"><div className="panel-heading compact-heading"><div><span className="section-kicker">Do poprawy</span><h3>Te godziny kolidują z kalendarzem</h3></div></div><div className="availability-block-list">{conflicts.map(renderBlock)}</div></section> : null}
 
-    {noSafeProposal ? <section className="availability-no-safe" aria-label="Brak bezpiecznych godzin"><div><strong>Nie znaleziono bezpiecznych godzin do uzupełnienia.</strong><span>Plan zajęć, praca, wydarzenia i Twoje wyjątki pozostają nadrzędne. Nie łamię tych ograniczeń, aby osiągnąć cel.</span></div><details><summary>Zobacz ograniczenia</summary><div>{plan?.diagnostics?.reasons.slice(0, 6).map((reason) => <span key={reason}>{reason}</span>)}</div></details></section> : null}
+    <section className="panel availability-automation-panel" aria-label="Automatyczne propozycje dyspozycyjności">
+      <div className="availability-automation-heading">
+        <div><span className="section-kicker">Automat</span><h3>Jak wyliczono tydzień</h3><p className="muted-copy">Propozycje powstają automatycznie z bieżącego kalendarza. Zajęcia i wydarzenia blokują czas, a ręczne wpisy pozostają nadrzędne.</p></div>
+        <button type="button" className="button button-secondary button-small" onClick={onOpenSettings}>Ustawienia automatu</button>
+      </div>
 
-    {manual.length ? <section className="panel availability-plan-panel"><div className="panel-heading compact-heading"><div><span className="section-kicker">Twoja dyspozycyjność</span><h3>Zapisane godziny</h3></div></div><div className="availability-block-list">{manual.map(renderBlock)}</div></section> : null}
-    {conflicts.length ? <section className="panel availability-plan-panel availability-conflict-panel"><div className="panel-heading compact-heading"><div><span className="section-kicker">Do poprawy</span><h3>Te godziny nie są już bezpieczne</h3></div></div><div className="availability-block-list">{conflicts.map(renderBlock)}</div></section> : null}
-    {proposals.length ? <section className="panel availability-plan-panel"><div className="panel-heading compact-heading"><div><span className="section-kicker">Propozycja</span><h3>Uzupełnienie brakujących godzin</h3></div><button type="button" className="button button-primary button-small" onClick={() => void acceptAll()}>Akceptuj propozycję</button></div><div className="availability-block-list">{proposals.map(renderBlock)}</div>{plan?.diagnostics?.reasons.length ? <details className="availability-limit-reasons"><summary>Co ogranicza ten tydzień</summary><div>{plan.diagnostics.reasons.slice(0,4).map((reason) => <span key={reason}>{reason}</span>)}</div></details> : null}</section> : null}
+      {!configured ? <div className="availability-config-note availability-config-note-inline"><div><strong>Automat nie jest jeszcze skonfigurowany</strong><span>{missingConfiguration === 'target' ? 'Ustaw tygodniowy cel pracy, jeśli chcesz otrzymywać propozycje brakujących godzin.' : 'Ustaw standardowe ramy pracy, jeśli chcesz otrzymywać automatyczne propozycje.'}</span></div><button type="button" className="button button-secondary button-small" onClick={onOpenSettings}>{missingConfiguration === 'target' ? 'Ustaw cel' : 'Ustaw ramy'}</button></div> : <>
+        <div className="availability-summary-grid minimal-summary automation-summary-grid"><div><span>Cel tygodnia</span><strong>{minutesLabel(targetMinutes)}</strong></div><div><span>Zaplanowana praca</span><strong>{minutesLabel(confirmedMinutes)}</strong></div><div><span>Twoja dyspozycyjność</span><strong>{minutesLabel(acceptedMinutes)}</strong></div><div><span>{overMinutes ? 'Ponad potrzebę' : 'Do uzupełnienia'}</span><strong>{minutesLabel(overMinutes || remainingMinutes)}</strong></div></div>
 
-    {accepted.length ? <div className="availability-copy-row"><button type="button" className="button button-secondary" onClick={() => void copySummary()}>Kopiuj</button><button type="button" className="button button-secondary" onClick={() => void markSent()}>Oznacz jako wysłane</button>{plan?.sentSnapshots.length ? <span>Wysłane wersje: {plan.sentSnapshots.length}</span> : null}</div> : null}
+        <div className="availability-day-rules">
+          <div className="availability-day-rules-heading"><strong>Wyjątki dla poszczególnych dni</strong><span>Opcjonalne ograniczenia używane tylko przez automat.</span></div>
+          <div className="availability-day-rule-grid">
+            {weekDates.map((date) => {
+              const rule = rulesByDate.get(date);
+              const hasRule = Boolean(rule && (rule.excluded || rule.earliestTime || rule.latestTime || rule.blockedIntervals.length));
+              const summary = rule?.excluded ? 'Wyłączony' : hasRule ? [rule?.earliestTime && `od ${rule.earliestTime}`, rule?.latestTime && `do ${rule.latestTime}`, rule?.blockedIntervals.length ? `${rule.blockedIntervals.length} blok.` : ''].filter(Boolean).join(' · ') : 'Bez wyjątków';
+              return <button key={date} type="button" className={`availability-day-rule-button${hasRule ? ' has-rule' : ''}`} onClick={() => setDayEditor({ date, mode: 'automation' })}><strong>{dateLabel(date)}</strong><span>{summary}</span></button>;
+            })}
+          </div>
+        </div>
+
+        {plan?.status === 'STALE' ? <div className="availability-stale availability-stale-inline" role="alert"><strong>Kalendarz się zmienił.</strong><span>Ręczne godziny zostają, a propozycje zostaną przeliczone z aktualnego planu.</span>{remainingMinutes > 0 ? <button className="button button-secondary button-small" type="button" onClick={() => void generate()}>Przelicz teraz</button> : null}</div> : null}
+
+        {remainingMinutes > 0 ? <div className="availability-generate-row availability-auto-status"><span>{loading ? 'Przeliczam kalendarz...' : proposals.length ? 'Propozycje są już pokazane przy odpowiednich dniach powyżej.' : 'Automat nie znalazł jeszcze bezpiecznego uzupełnienia.'}</span><button type="button" className="button button-secondary button-small" disabled={loading} onClick={() => void generate()}>{loading ? 'Przeliczam...' : 'Przelicz'}</button></div> : <div className="availability-automation-complete"><strong>Godziny na ten tydzień są już ustalone.</strong><span>{targetMinutes > 0 && confirmedMinutes >= targetMinutes ? 'Znana praca z kalendarza pokrywa cel, więc automat jej nie zastępuje. Jeśli chcesz inne godziny, wpisz je ręcznie albo zmień cel.' : 'Cel tygodnia jest już pokryty przez pracę i zapisaną dyspozycyjność.'}</span></div>}
+
+        {noSafeProposal ? <section className="availability-no-safe" aria-label="Brak bezpiecznych godzin"><div><strong>Nie znaleziono bezpiecznych godzin do uzupełnienia.</strong><span>Plan zajęć, praca, wydarzenia i Twoje wyjątki pozostają nadrzędne.</span></div><div className="availability-limit-reasons"><strong>Co ogranicza ten tydzień</strong><div>{plan?.diagnostics?.reasons.slice(0, 6).map((reason) => <span key={reason}>{reason}</span>)}</div></div></section> : null}
+
+        {proposals.length ? <section className="availability-plan-panel availability-proposal-inline availability-proposal-summary"><div><span className="section-kicker">Gotowa propozycja</span><h3>{minutesLabel(proposals.reduce((sum, block) => sum + block.minutes, 0))} dopasowane do kalendarza</h3><p className="muted-copy">Godziny są pokazane przy dniach tygodnia. Możesz zaakceptować je pojedynczo albo wszystkie naraz.</p></div><button type="button" className="button button-primary button-small" onClick={() => void acceptAll()}>Akceptuj wszystko</button></section> : null}
+      </>}
+    </section>
+
+    {accepted.length ? <div className="availability-copy-row"><button type="button" className="button button-secondary" onClick={() => void copySummary()}>Kopiuj dyspozycyjność</button><button type="button" className="button button-secondary" onClick={() => void markSent()}>Oznacz jako wysłane</button>{plan?.sentSnapshots.length ? <span>Wysłane wersje: {plan.sentSnapshots.length}</span> : null}</div> : null}
+
+    {dayEditor ? <Modal title={dayEditor.mode === 'automation' ? `Automat - ${fullDateLabel(dayEditor.date)}` : `Dyspozycyjność - ${fullDateLabel(dayEditor.date)}`} onClose={() => setDayEditor(null)}><DayAvailabilityEditor date={dayEditor.date} mode={dayEditor.mode} {...(dayEditor.blockId ? { blockId: dayEditor.blockId } : {})} onSaved={savedFromDayEditor} onClose={() => setDayEditor(null)} /></Modal> : null}
   </section>;
 }

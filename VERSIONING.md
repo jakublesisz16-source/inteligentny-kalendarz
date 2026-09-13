@@ -1,13 +1,22 @@
-# Wersjonowanie Inteligentnego Kalendarza
+# Wersjonowanie
 
-Aplikacja używa wyłącznie prostego numerowania SemVer.
+Publiczne wydania używają semver: `MAJOR.MINOR.PATCH`.
 
-- Kandydat do wydania: `X.Y.Z-rc.N`, np. `1.1.0-rc.11`.
-- Wydanie stabilne: `X.Y.Z`, np. `1.1.0`.
-- Mała poprawka bez nowych funkcji: zwiększ `Z`, np. `1.1.1`.
-- Nowe funkcje zgodne wstecz: zwiększ `Y` i wyzeruj `Z`, np. `1.2.0`.
-- Duża niezgodna zmiana produktu lub danych: zwiększ `X`.
+## 1.2.0
 
-Oznaczenia developerskie typu `DEV`, `FIX`, `GATE`, `BLOCKER` mogą występować wyłącznie w prywatnych raportach technicznych. Nie są częścią numeru aplikacji, nazwy publicznej paczki ani interfejsu użytkownika.
+Pierwsze publiczne wydanie gałęzi 1.2 z przebudowanym Kalendarzem, Finansami/Wyjazdami, usprawnionymi Studiami i Pracą oraz mobilnymi poprawkami formularzy.
 
-W Ustawieniach użytkownik widzi tylko numer wersji, numer schematu bazy i informację o trybie lokalnym.
+Schema IndexedDB: `14`.
+
+Wewnętrzne checkpointy developerskie mogą mieć dodatkowe numery robocze, ale nie są częścią publicznego numeru wersji ani publicznego repozytorium.
+
+## Zasada wydania
+
+Każdy publiczny release powinien przejść:
+
+```bash
+npm ci
+npm run check
+```
+
+oraz smoke test PWA na desktopie i telefonie.

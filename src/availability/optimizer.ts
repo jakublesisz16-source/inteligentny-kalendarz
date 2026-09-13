@@ -62,10 +62,16 @@ export function freeIntervalsForAvailabilityDay(day: AvailabilityDayInput): Arra
   return result;
 }
 
-/** Manual preview uses the same hard time blocks but may allow a Saturday disabled only for automatic optimization. */
+/** Manual preview ignores automatic-only hour bounds and day-rule blocks, but still respects real calendar conflicts. */
 export function freeIntervalsForManualAvailabilityDay(day: AvailabilityDayInput): Array<{ start: number; end: number; minutes: number }> {
-  if (!day.manualEligible || day.allowedEndMinute <= day.allowedStartMinute) return [];
-  return freeIntervalsForAvailabilityDay({ ...day, eligible: true });
+  if (!day.manualEligible) return [];
+  return freeIntervalsForAvailabilityDay({
+    ...day,
+    eligible: true,
+    allowedStartMinute: 0,
+    allowedEndMinute: 1440,
+    blockingIntervals: day.blockingIntervals.filter((item) => item.kind !== 'DAY_RULE'),
+  });
 }
 
 function preferredPenalty(day: AvailabilityDayInput, start: number, end: number): number {
@@ -147,10 +153,17 @@ function explanationForCandidate(day: AvailabilityDayInput, interval: { start: n
     else if (previous.kind === 'ROUTINE') facts.push(`${previous.label ?? 'Stałe ograniczenie'} blokuje czas do ${formatAvailabilityMinute(originalEnd)}.`);
     else if (previous.kind === 'DAY_RULE') facts.push(`Ręczne ograniczenie blokuje czas do ${formatAvailabilityMinute(previous.endMinute)}.`);
     else facts.push(`Kalendarz blokuje czas do ${formatAvailabilityMinute(originalEnd)}.`);
-    if ((previous.bufferMinutes ?? 0) > 0) facts.push(`Uwzględniono ${previous.bufferMinutes} min buforu bezpieczeństwa.`);
+    if ((previous.bufferMinutes ?? 0) > 0) facts.push(`Uwzględniono ${previous.bufferMinutes} min na dojazd po tym wydarzeniu.`);
     facts.push(`Najwcześniejszy bezpieczny początek to ${formatAvailabilityMinute(interval.start)}.`);
   } else {
     facts.push(`Bezpieczne okno: ${formatAvailabilityMinute(interval.start)}-${formatAvailabilityMinute(interval.end)}.`);
+  }
+  const next = day.blockingIntervals
+    .filter((item) => item.startMinute === interval.end && item.endMinute > item.startMinute)
+    .sort((a, b) => (a.originalStartMinute ?? a.startMinute) - (b.originalStartMinute ?? b.startMinute))[0];
+  if (next && (next.bufferMinutes ?? 0) > 0) {
+    const originalStart = next.originalStartMinute ?? next.startMinute;
+    facts.push(`Zostawiono ${next.bufferMinutes} min na dojazd przed wydarzeniem o ${formatAvailabilityMinute(originalStart)}.`);
   }
   if (remainingBefore > 0) facts.push(`Przed tym uzupełnieniem brakuje ${minutesText(remainingBefore)} dyspozycyjności.`);
   facts.push(`Ten blok dodaje ${minutesText(length)}.`);
@@ -217,6 +230,10 @@ function rankState(a: SearchState, b: SearchState, target: number): number {
   const aOver = Math.max(0, a.coverage - target);
   const bOver = Math.max(0, b.coverage - target);
   if (aOver !== bOver) return aOver - bOver;
+  // When two plans cover the target equally well, prefer fewer continuous work blocks.
+  // This avoids impractical schedules such as 1 h before classes + 3 h after classes
+  // when a single safe 4 h block is available.
+  if (a.chosen.length !== b.chosen.length) return a.chosen.length - b.chosen.length;
   if (a.preferredPenalty !== b.preferredPenalty) return a.preferredPenalty - b.preferredPenalty;
   if (a.naturalPenalty !== b.naturalPenalty) return a.naturalPenalty - b.naturalPenalty;
   const aText = a.chosen.map((item) => item.key).sort().join(';');

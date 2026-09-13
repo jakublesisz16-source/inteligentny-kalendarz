@@ -65,6 +65,7 @@ export function buildGlobalSearchItems(events: CalendarEvent[], locations: Locat
       KIND_LABELS[kind],
       eventLocation?.name ?? '',
       eventLocation?.address ?? '',
+      event.locationText ?? '',
     ].join(' '));
 
     return {

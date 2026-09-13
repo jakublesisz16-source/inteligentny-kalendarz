@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
 import type { ExpenseCategory, ReceiptDraft } from '../expenses.types';
-import { formatMoneyMinor } from '../expenses.utils';
+import { expenseCategoryPath, formatMoneyMinor } from '../expenses.utils';
 import type { ReceiptOcrDiagnostics, ReceiptOcrQuality, ReceiptReviewDraft, ReceiptReviewItem } from './receipt-ocr.types';
 import {
   isSignificantReceiptMismatch,
@@ -10,6 +10,18 @@ import {
   receiptReviewToDraft,
   validateReceiptReviewForSave,
 } from './receipt-review.model';
+
+function reviewUnitLabel(unit: ReceiptReviewItem['unit']): string {
+  if (!unit) return '';
+  return unit === 'op' ? 'op.' : unit;
+}
+
+function reviewQuantitySummary(item: ReceiptReviewItem): string {
+  const quantity = item.quantityText?.trim() || '?';
+  const unit = reviewUnitLabel(item.unit);
+  const unitPrice = item.unitPriceText?.trim() || '?';
+  return `${quantity}${unit ? ` ${unit}` : ''} × ${unitPrice} zł`;
+}
 
 interface ReceiptScanReviewProps {
   review: ReceiptReviewDraft;
@@ -61,6 +73,9 @@ export function ReceiptScanReview({
   const [confirmMismatch, setConfirmMismatch] = useState(false);
   const [diagnosticCopyStatus, setDiagnosticCopyStatus] = useState('');
   const [showDiagnosticFallback, setShowDiagnosticFallback] = useState(false);
+  const [expandedItemIds, setExpandedItemIds] = useState<Set<string>>(() => new Set(
+    review.items.filter((item) => item.confidence !== 'high' || item.warnings.length > 0).map((item) => item.localId),
+  ));
   const titleRef = useRef<HTMLHeadingElement>(null);
   const finalItemsTotalMinor = useMemo(() => receiptReviewItemsTotalMinor(review), [review]);
   const savingsMinor = useMemo(() => receiptReviewSavingsMinor(review), [review]);
@@ -68,8 +83,30 @@ export function ReceiptScanReview({
   const mismatch = differenceMinor !== undefined && Math.abs(differenceMinor) > 1;
   const validCategoryIds = useMemo(() => new Set(categories.map((category) => category.id)), [categories]);
   const saveValidation = useMemo(() => validateReceiptReviewForSave(review, validCategoryIds), [review, validCategoryIds]);
+  const expansionKey = review.items
+    .map((item) => `${item.localId}:${item.confidence}:${item.warnings.length}`)
+    .join('|');
 
   useEffect(() => { titleRef.current?.focus(); }, []);
+  useEffect(() => {
+    const currentIds = new Set(review.items.map((item) => item.localId));
+    setExpandedItemIds((current) => {
+      const next = new Set([...current].filter((id) => currentIds.has(id)));
+      for (const item of review.items) {
+        if (item.confidence !== 'high' || item.warnings.length > 0) next.add(item.localId);
+      }
+      return next;
+    });
+  }, [expansionKey]);
+
+  function setItemExpanded(localId: string, expanded: boolean) {
+    setExpandedItemIds((current) => {
+      const next = new Set(current);
+      if (expanded) next.add(localId);
+      else next.delete(localId);
+      return next;
+    });
+  }
 
   function patch(patchValue: Partial<ReceiptReviewDraft>) {
     setLocalError('');
@@ -81,11 +118,29 @@ export function ReceiptScanReview({
     patch({ items: review.items.map((item, itemIndex) => itemIndex === index ? { ...item, ...patchValue } : item) });
   }
 
+  function patchItemUnit(index: number, value: string) {
+    patch({
+      items: review.items.map((item, itemIndex) => {
+        if (itemIndex !== index) return item;
+        if (value) return { ...item, unit: value as NonNullable<ReceiptReviewItem['unit']> };
+        const { unit: _unit, ...rest } = item;
+        return rest;
+      }),
+    });
+  }
+
   function patchItemAmount(index: number, amountText: string) {
     patch({
       items: review.items.map((item, itemIndex) => {
         if (itemIndex !== index) return item;
-        const { baseAmountMinor: _baseAmountMinor, discountMinor: _discountMinor, ...rest } = item;
+        const {
+          baseAmountMinor: _baseAmountMinor,
+          discountMinor: _discountMinor,
+          quantityText: _quantityText,
+          unit: _unit,
+          unitPriceText: _unitPriceText,
+          ...rest
+        } = item;
         return { ...rest, amountText, confidence: 'high' };
       }),
     });
@@ -239,32 +294,79 @@ export function ReceiptScanReview({
           </div>
 
           <div className="receipt-review-items">
-            {review.items.map((item, index) => (
-              <article className={`receipt-review-item${item.confidence === 'high' ? '' : ' needs-review'}`} key={item.localId}>
-                <div className="receipt-review-item-topline">
-                  <span>#{index + 1}</span>
-                  {item.confidence !== 'high' ? <small>{confidenceLabel(item.confidence)}</small> : null}
-                  <button type="button" className="text-button danger-text" onClick={() => removeItem(index)}>Usuń</button>
-                </div>
-                <label className="field receipt-review-item-name">
-                  <span>Nazwa</span>
-                  <input value={item.name} onChange={(event: ChangeEvent<HTMLInputElement>) => patchItem(index, { name: event.target.value, confidence: 'high' })} placeholder="Produkt lub usługa" />
-                </label>
-                <div className="receipt-review-item-bottom">
-                  <label className="field receipt-review-item-category">
-                    <span>Kategoria</span>
-                    <select value={item.categoryId} onChange={(event: ChangeEvent<HTMLSelectElement>) => patchItem(index, { categoryId: event.target.value })}>
-                      {categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
-                    </select>
+            {review.items.map((item, index) => {
+              const expanded = expandedItemIds.has(item.localId);
+              if (!expanded) {
+                return (
+                  <article className="receipt-review-item receipt-review-item-compact" key={item.localId}>
+                    <span className="receipt-review-item-number">#{index + 1}</span>
+                    <button type="button" className="receipt-review-item-compact-main" onClick={() => setItemExpanded(item.localId, true)}>
+                      <span><strong>{item.name || 'Bez nazwy'}</strong><small>{expenseCategoryPath(categories, item.categoryId)}</small></span>
+                      {(item.quantityText !== undefined || item.unitPriceText !== undefined) ? <small>{reviewQuantitySummary(item)}</small> : null}
+                    </button>
+                    <strong className="receipt-review-item-compact-amount">{item.amountText ? `${item.amountText} zł` : 'Brak kwoty'}</strong>
+                    <button type="button" className="text-button" onClick={() => setItemExpanded(item.localId, true)}>Edytuj</button>
+                  </article>
+                );
+              }
+              return (
+                <article className={`receipt-review-item${item.confidence === 'high' ? '' : ' needs-review'}`} key={item.localId}>
+                  <div className="receipt-review-item-topline">
+                    <span>#{index + 1}</span>
+                    {item.confidence !== 'high' ? <small>{confidenceLabel(item.confidence)}</small> : null}
+                    <button type="button" className="text-button" onClick={() => setItemExpanded(item.localId, false)}>Zwiń</button>
+                    <button type="button" className="text-button danger-text" onClick={() => removeItem(index)}>Usuń</button>
+                  </div>
+                  <label className="field receipt-review-item-name">
+                    <span>Nazwa</span>
+                    <input value={item.name} onChange={(event: ChangeEvent<HTMLInputElement>) => patchItem(index, { name: event.target.value, confidence: 'high' })} placeholder="Produkt lub usługa" />
                   </label>
-                  <label className="field receipt-review-item-amount">
-                    <span>Kwota</span>
-                    <input inputMode="decimal" value={item.amountText} onChange={(event: ChangeEvent<HTMLInputElement>) => patchItemAmount(index, event.target.value)} placeholder="0,00" aria-label={`Kwota pozycji ${index + 1}`} />
-                  </label>
-                </div>
-                {item.warnings.length ? <p className="receipt-review-inline-warning">{item.warnings.join(' ')}</p> : null}
-              </article>
-            ))}
+                  <div className="receipt-review-item-bottom">
+                    <label className="field receipt-review-item-category">
+                      <span>Kategoria</span>
+                      <select value={item.categoryId} onChange={(event: ChangeEvent<HTMLSelectElement>) => patchItem(index, { categoryId: event.target.value })}>
+                        {categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
+                      </select>
+                    </label>
+                    <label className="field receipt-review-item-amount">
+                      <span>Kwota</span>
+                      <input inputMode="decimal" value={item.amountText} onChange={(event: ChangeEvent<HTMLInputElement>) => patchItemAmount(index, event.target.value)} placeholder="0,00" aria-label={`Kwota pozycji ${index + 1}`} />
+                    </label>
+                  </div>
+                  {(item.quantityText !== undefined || item.unitPriceText !== undefined) ? (
+                    <details className="receipt-review-unit-details">
+                      <summary>Ilość i cena: <strong>{reviewQuantitySummary(item)}</strong></summary>
+                      <div className="receipt-review-unit-fields">
+                        <label className="field">
+                          <span>Ilość</span>
+                          <input inputMode="decimal" value={item.quantityText ?? ''} onChange={(event: ChangeEvent<HTMLInputElement>) => patchItem(index, { quantityText: event.target.value })} placeholder="1" />
+                        </label>
+                        <label className="field">
+                          <span>Jednostka</span>
+                          <select value={item.unit ?? ''} onChange={(event: ChangeEvent<HTMLSelectElement>) => patchItemUnit(index, event.target.value)}>
+                            <option value="">-</option>
+                            <option value="szt">szt.</option>
+                            <option value="kg">kg</option>
+                            <option value="g">g</option>
+                            <option value="mg">mg</option>
+                            <option value="l">l</option>
+                            <option value="ml">ml</option>
+                            <option value="cl">cl</option>
+                            <option value="dl">dl</option>
+                            <option value="op">op.</option>
+                          </select>
+                        </label>
+                        <label className="field">
+                          <span>Cena jednostkowa</span>
+                          <input inputMode="decimal" value={item.unitPriceText ?? ''} onChange={(event: ChangeEvent<HTMLInputElement>) => patchItem(index, { unitPriceText: event.target.value })} placeholder="0,00" />
+                        </label>
+                      </div>
+                    </details>
+                  ) : null}
+                  {item.warnings.length ? <p className="receipt-review-inline-warning">{item.warnings.join(' ')}</p> : null}
+                </article>
+              );
+            })}
           </div>
 
           {review.parserWarnings.some((warning) => warning.code === 'partial-recovery') ? (

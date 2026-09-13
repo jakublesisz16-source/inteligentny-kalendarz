@@ -2,11 +2,11 @@ import { groupSetsIntersect, parseStudyGroupKey, studyGroupDisplayLabel } from '
 import { isValidStudyDate, isValidStudyTime } from '../imports/xlsx/import-validation';
 import type { CalendarEvent, UserModifiedEventField } from '../events/event.types';
 import type { ScheduleAnalysis, ScheduleDiffItem, StudyScheduleCandidate, StudyScheduleConflict } from './study.types';
+import { sha256Hex } from '../core/sha256';
 
 export async function hashFile(file: File): Promise<string> {
   const data = await file.arrayBuffer();
-  const digest = await crypto.subtle.digest('SHA-256', data);
-  return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, '0')).join('');
+  return sha256Hex(data);
 }
 
 export function candidatesForSelectedGroups(analysis: ScheduleAnalysis, selectedGroups: string[]): StudyScheduleCandidate[] {

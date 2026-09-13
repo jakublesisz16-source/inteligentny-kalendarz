@@ -16,4 +16,4 @@ createRoot(root).render(
   </StrictMode>,
 );
 
-if (import.meta.env.PROD) registerServiceWorker();
+registerServiceWorker();

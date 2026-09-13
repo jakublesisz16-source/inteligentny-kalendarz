@@ -18,7 +18,7 @@ function documentWithData(): BackupDocument {
   stores.expenseCategories = [{ id: 'expense-category-food', name: 'Jedzenie', sortOrder: 0, createdAt: '2026-08-01T10:00:00.000Z', updatedAt: '2026-08-01T10:00:00.000Z' }];
   stores.receipts = [{
     id: 'receipt-1', date: '2026-08-16', merchant: 'Biedronka', totalMinor: 1234,
-    items: [{ id: 'item-1', name: 'Mleko Łaciate', categoryId: 'expense-category-food', amountMinor: 1234 }],
+    items: [{ id: 'item-1', name: 'Mleko Łaciate', categoryId: 'expense-category-food', amountMinor: 1234, quantity: 2, unit: 'szt', unitPriceMinor: 617 }],
     createdAt: '2026-08-16T10:00:00.000Z', updatedAt: '2026-08-16T10:00:00.000Z',
   }];
   stores.cycleJournalEntries = [{ id: 'cycle-journal-1', date: '2026-08-16', note: 'Zażółć gęślą jaźń' }];
@@ -64,6 +64,10 @@ describe('1.1.0-dev.2 FIX4 Excel export', () => {
     expect(receipts!.getCell('D2').numFmt).toContain('zł');
     expect(items!.getCell('E2').value).toBe('Mleko Łaciate');
     expect(items!.getCell('G2').value).toBe(12.34);
+    expect(items!.getCell('H2').value).toBe(2);
+    expect(items!.getCell('I2').value).toBe('szt');
+    expect(items!.getCell('J2').value).toBe(6.17);
+    expect(items!.getCell('J2').numFmt).toContain('zł');
     expect(workbook.getWorksheet(file.storeSheetNames.events!)!.getCell('B2').text).toContain('Wizyta Łódź');
   });
 

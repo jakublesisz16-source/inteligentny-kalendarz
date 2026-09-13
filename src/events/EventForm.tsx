@@ -23,6 +23,8 @@ interface EventFormProps {
   event?: CalendarEvent | undefined;
   locations: Location[];
   initialDate?: Date | undefined;
+  initialTitle?: string | undefined;
+  initialEndDate?: Date | undefined;
   initialDates?: string[] | undefined;
   onSubmit: (draft: EventDraft, options?: EventSubmitOptions) => Promise<void>;
   workCoworkers?: CoworkerOverlap[] | undefined;
@@ -44,16 +46,22 @@ function formatSelectedDate(value: string): string {
   return `${day}.${month}.${year}`;
 }
 
-export function EventForm({ event, locations, initialDate, initialDates = [], onSubmit, workCoworkers = [], onDelete, onCancel }: EventFormProps) {
+function normalizeLocationText(value: string): string {
+  return value.trim().toLocaleLowerCase('pl-PL').replace(/\s+/g, ' ');
+}
+
+export function EventForm({ event, locations, initialDate, initialTitle = '', initialEndDate, initialDates = [], onSubmit, workCoworkers = [], onDelete, onCancel }: EventFormProps) {
   const normalizedInitialDates = useMemo(() => uniqueSortedDateKeys(initialDates), [initialDates]);
   const hasMultiSelection = !event && normalizedInitialDates.length > 1;
   const contiguousSelection = areDateKeysContiguous(normalizedInitialDates);
   const initialCreationMode: CreationMode = hasMultiSelection ? (contiguousSelection ? 'MULTI_DAY' : 'MULTI_DATE') : 'STANDARD';
+  const locationById = useMemo(() => new Map(locations.map((location) => [location.id, location])), [locations]);
 
   const defaults = useMemo(() => {
     if (event) {
       const start = splitLocalDateTime(event.startDateTime);
       const end = splitLocalDateTime(event.endDateTime);
+      const savedLocation = event.locationId ? locationById.get(event.locationId) : undefined;
       return {
         title: event.title,
         startDate: start.date,
@@ -63,6 +71,7 @@ export function EventForm({ event, locations, initialDate, initialDates = [], on
         allDay: event.allDay,
         category: event.category,
         locationId: event.locationId ?? '',
+        locationText: event.locationText ?? savedLocation?.name ?? '',
         description: event.description ?? '',
         availabilityImpact: event.availabilityImpact ?? (event.allDay ? 'NON_BLOCKING' : 'BLOCKING'),
       };
@@ -70,19 +79,26 @@ export function EventForm({ event, locations, initialDate, initialDates = [], on
     const fallbackDate = initialDate ? toLocalDateKey(initialDate) : toLocalDateKey(new Date());
     const firstDate = normalizedInitialDates[0] ?? fallbackDate;
     const lastDate = normalizedInitialDates[normalizedInitialDates.length - 1] ?? firstDate;
+    const initialHasTime = Boolean(initialDate && (initialDate.getHours() !== 0 || initialDate.getMinutes() !== 0));
+    const initialHour = initialDate?.getHours() ?? 9;
+    const initialMinute = initialDate?.getMinutes() ?? 0;
+    const startTime = initialHasTime ? `${String(initialHour).padStart(2, '0')}:${String(initialMinute).padStart(2, '0')}` : '09:00';
+    const endDateTime = initialHasTime && initialDate ? (initialEndDate ?? new Date(initialDate.getTime() + 60 * 60 * 1000)) : null;
+    const endTime = endDateTime ? `${String(endDateTime.getHours()).padStart(2, '0')}:${String(endDateTime.getMinutes()).padStart(2, '0')}` : '10:00';
     return {
-      title: '',
+      title: initialTitle,
       startDate: firstDate,
-      endDate: lastDate,
-      startTime: '09:00',
-      endTime: '10:00',
+      endDate: endDateTime && toLocalDateKey(endDateTime) !== firstDate ? toLocalDateKey(endDateTime) : lastDate,
+      startTime,
+      endTime,
       allDay: hasMultiSelection && contiguousSelection,
       category: 'PERSONAL' as EventCategory,
       locationId: '',
+      locationText: '',
       description: '',
       availabilityImpact: 'BLOCKING' as const,
     };
-  }, [event, initialDate, normalizedInitialDates, hasMultiSelection, contiguousSelection]);
+  }, [event, initialDate, initialTitle, initialEndDate, normalizedInitialDates, hasMultiSelection, contiguousSelection, locationById]);
 
   const [creationMode, setCreationMode] = useState<CreationMode>(initialCreationMode);
   const [editScope, setEditScope] = useState<EventEditScope>('SINGLE');
@@ -94,26 +110,49 @@ export function EventForm({ event, locations, initialDate, initialDates = [], on
   const [allDay, setAllDay] = useState(defaults.allDay);
   const [category, setCategory] = useState<EventCategory>(defaults.category);
   const [locationId, setLocationId] = useState(defaults.locationId);
+  const [locationText, setLocationText] = useState(defaults.locationText);
   const [description, setDescription] = useState(defaults.description);
   const [availabilityImpact, setAvailabilityImpact] = useState<'BLOCKING' | 'NON_BLOCKING'>(defaults.availabilityImpact);
+  const [showDetails, setShowDetails] = useState(Boolean(event?.allDay || event?.description || (event && event.category !== 'PERSONAL') || (event && event.source !== 'MANUAL') || hasMultiSelection));
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
   const isManualSeries = event?.source === 'MANUAL' && event.seriesType === 'MANUAL_MULTI_DATE' && Boolean(event.seriesId);
   const canUseAllDay = !event || event.source === 'MANUAL';
+  const isManualLocation = !event || event.source === 'MANUAL';
   const isMultiDateCreation = creationMode === 'MULTI_DATE' && normalizedInitialDates.length > 1;
   const isMultiDayCreation = creationMode === 'MULTI_DAY';
   const dateEditingDisabled = Boolean(isManualSeries && editScope === 'SERIES');
 
   function switchCreationMode(next: CreationMode) {
     setCreationMode(next);
-    if (next === 'MULTI_DAY') setAllDay(true);
+    if (next === 'MULTI_DAY') {
+      setAllDay(true);
+      setShowDetails(true);
+    }
+  }
+
+  function manualLocationFields(): Pick<EventDraft, 'locationId' | 'locationText'> {
+    const value = locationText.trim();
+    if (!value) return {};
+    const normalized = normalizeLocationText(value);
+    const currentSavedLocation = event?.source === 'MANUAL' && event.locationId ? locationById.get(event.locationId) : undefined;
+    if (currentSavedLocation && normalizeLocationText(currentSavedLocation.name) === normalized) return { locationId: currentSavedLocation.id };
+    const existing = locations.find((location) => normalizeLocationText(location.name) === normalized || normalizeLocationText(location.address) === normalized);
+    if (existing) return { locationId: existing.id };
+    return { locationText: value };
+  }
+
+  function currentLocationFields(): Pick<EventDraft, 'locationId' | 'locationText'> {
+    if (isManualLocation) return manualLocationFields();
+    return locationId ? { locationId } : {};
   }
 
   async function handleSubmit(eventObject: React.FormEvent<HTMLFormElement>) {
     eventObject.preventDefault();
     setErrors({});
+    const locationFields = currentLocationFields();
 
     if (isMultiDateCreation) {
       const multiDraft: ManualMultiDateDraft = {
@@ -124,7 +163,7 @@ export function EventForm({ event, locations, initialDate, initialDates = [], on
         allDay,
         category,
         availabilityImpact,
-        ...(locationId ? { locationId } : {}),
+        ...locationFields,
         ...(description.trim() ? { description } : {}),
       };
       const validation = validateManualMultiDateDraft(multiDraft);
@@ -141,7 +180,7 @@ export function EventForm({ event, locations, initialDate, initialDates = [], on
         spanType: 'SINGLE_DAY',
         category,
         availabilityImpact,
-        ...(locationId ? { locationId } : {}),
+        ...locationFields,
         ...(description.trim() ? { description } : {}),
       };
       setSaving(true);
@@ -162,7 +201,7 @@ export function EventForm({ event, locations, initialDate, initialDates = [], on
       spanType: inferSpanType(`${startDate}T00:00`, `${effectiveEndDate}T23:59`),
       category,
       availabilityImpact,
-      ...(locationId ? { locationId } : {}),
+      ...locationFields,
       ...(description.trim() ? { description } : {}),
     };
     const validation = validateEventDraft(draft);
@@ -192,7 +231,7 @@ export function EventForm({ event, locations, initialDate, initialDates = [], on
   }
 
   return (
-    <form className="form-stack" onSubmit={handleSubmit} noValidate>
+    <form id="event-editor-form" className={`form-stack event-form-minimal${event ? ' event-form-edit' : ' event-form-create'}${hasMultiSelection ? ' event-form-multi-create' : ''}`} onSubmit={handleSubmit} noValidate>
       {event?.source === 'UNIVERSITY_XLSX' ? (
         <div className="source-edit-note">Źródło: plan studiów. Ręczna edycja zostanie zapamiętana jako Twoja zmiana.</div>
       ) : null}
@@ -247,12 +286,12 @@ export function EventForm({ event, locations, initialDate, initialDates = [], on
 
       <label className="field full-field">
         <span>Tytuł</span>
-        <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Np. wyjazd, nauka, spotkanie" autoFocus />
+        <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Np. obiad, muzeum, spotkanie" autoFocus />
         {errors.title ? <small className="field-error">{errors.title}</small> : null}
       </label>
 
       {!isMultiDateCreation ? (
-        <div className="form-grid two-columns">
+        <div className="form-grid two-columns event-date-grid">
           <label className="field">
             <span>{isMultiDayCreation || event?.spanType === 'MULTI_DAY' ? 'Data początku' : 'Data'}</span>
             <input type="date" value={startDate} disabled={dateEditingDisabled} onChange={(e) => { setStartDate(e.target.value); if (!isMultiDayCreation && event?.spanType !== 'MULTI_DAY') setEndDate(e.target.value); }} />
@@ -266,22 +305,8 @@ export function EventForm({ event, locations, initialDate, initialDates = [], on
         </div>
       ) : null}
 
-      {canUseAllDay ? (
-        <label className="all-day-toggle">
-          <input type="checkbox" checked={allDay} onChange={(e) => { const checked = e.target.checked; setAllDay(checked); setAvailabilityImpact(checked ? 'NON_BLOCKING' : 'BLOCKING'); }} />
-          <span><strong>Cały dzień</strong><small>Godziny nie będą wyświetlane w kalendarzu.</small></span>
-        </label>
-      ) : null}
-
-      {event?.source === 'MANUAL' || !event ? (
-        <label className={availabilityImpact === 'BLOCKING' ? 'all-day-toggle planning-impact-toggle active' : 'all-day-toggle planning-impact-toggle'}>
-          <input type="checkbox" checked={availabilityImpact === 'BLOCKING'} onChange={(e) => setAvailabilityImpact(e.target.checked ? 'BLOCKING' : 'NON_BLOCKING')} />
-          <span><strong>Blokuje czas przy planowaniu</strong><small>{allDay ? 'Włącz, jeśli całodniowe wydarzenie ma wykluczyć ten dzień z wolnych okien.' : 'Wyłącz tylko, jeśli to wydarzenie ma być informacyjne i nie powinno blokować dyspozycyjności.'}</small></span>
-        </label>
-      ) : null}
-
       {!allDay ? (
-        <div className="form-grid two-columns">
+        <div className="form-grid two-columns event-time-grid">
           <label className="field"><span>Od</span><input type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} /></label>
           <label className="field"><span>Do</span><input type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} /></label>
         </div>
@@ -290,26 +315,58 @@ export function EventForm({ event, locations, initialDate, initialDates = [], on
         <small className="field-error block-error">{errors.startDateTime ?? errors.endDateTime ?? errors.timeRange ?? errors.dates}</small>
       ) : null}
 
-      <div className="form-grid two-columns">
-        <label className="field">
-          <span>Kategoria</span>
-          <select value={category} onChange={(e) => setCategory(e.target.value as EventCategory)}>
-            {categoryOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
-          </select>
+      {isManualLocation ? (
+        <label className="field full-field event-location-input">
+          <span>Miejsce <em>opcjonalnie</em></span>
+          <input list="event-location-suggestions" value={locationText} onChange={(e) => setLocationText(e.target.value)} placeholder="Wpisz dowolne miejsce, np. Louvre albo Hotel Central" autoComplete="off" />
+          <datalist id="event-location-suggestions">
+            {locations.map((location) => <option key={location.id} value={location.name}>{location.address}</option>)}
+          </datalist>
+          <small>Możesz wpisać własne miejsce albo wybrać zapisane z podpowiedzi.</small>
         </label>
-        <label className="field">
+      ) : (
+        <label className="field full-field">
           <span>Miejsce</span>
           <select value={locationId} onChange={(e) => setLocationId(e.target.value)}>
             <option value="">Bez lokalizacji</option>
             {locations.map((location) => <option key={location.id} value={location.id}>{location.name}</option>)}
           </select>
         </label>
-      </div>
+      )}
 
-      <label className="field full-field">
-        <span>Opis <em>opcjonalnie</em></span>
-        <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={4} placeholder="Np. miejsca do zobaczenia, plan wyjazdu albo krótka notatka" />
-      </label>
+      <button type="button" className="event-details-toggle" aria-expanded={showDetails} onClick={() => setShowDetails((current) => !current)}>
+        <span>{showDetails ? 'Mniej opcji' : 'Więcej opcji'}</span><i aria-hidden="true">{showDetails ? '−' : '+'}</i>
+      </button>
+
+      {showDetails ? (
+        <div className="event-advanced-options">
+          {canUseAllDay ? (
+            <label className="all-day-toggle">
+              <input type="checkbox" checked={allDay} onChange={(e) => { const checked = e.target.checked; setAllDay(checked); setAvailabilityImpact(checked ? 'NON_BLOCKING' : 'BLOCKING'); }} />
+              <span><strong>Cały dzień</strong><small>Godziny nie będą wyświetlane w kalendarzu.</small></span>
+            </label>
+          ) : null}
+
+          {event?.source === 'MANUAL' || !event ? (
+            <label className={availabilityImpact === 'BLOCKING' ? 'all-day-toggle planning-impact-toggle active' : 'all-day-toggle planning-impact-toggle'}>
+              <input type="checkbox" checked={availabilityImpact === 'BLOCKING'} onChange={(e) => setAvailabilityImpact(e.target.checked ? 'BLOCKING' : 'NON_BLOCKING')} />
+              <span><strong>Blokuje czas przy planowaniu</strong><small>{allDay ? 'Włącz, jeśli całodniowe wydarzenie ma wykluczyć ten dzień z wolnych okien.' : 'Wyłącz tylko, jeśli wydarzenie ma być informacyjne.'}</small></span>
+            </label>
+          ) : null}
+
+          <label className="field full-field">
+            <span>Kategoria</span>
+            <select value={category} onChange={(e) => setCategory(e.target.value as EventCategory)}>
+              {categoryOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+            </select>
+          </label>
+
+          <label className="field full-field">
+            <span>Notatka <em>opcjonalnie</em></span>
+            <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} placeholder="Dodatkowe informacje tylko jeśli są potrzebne" />
+          </label>
+        </div>
+      ) : null}
 
       <footer className="modal-actions split-actions">
         <div>{onDelete ? <button type="button" className="button button-danger-ghost" onClick={() => void handleDelete()} disabled={deleting || saving}>{deleting ? 'Usuwanie...' : isManualSeries && editScope === 'SERIES' ? 'Usuń całą serię' : 'Usuń'}</button> : null}</div>

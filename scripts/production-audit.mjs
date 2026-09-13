@@ -4,7 +4,7 @@ import { join, relative } from 'node:path';
 
 const root = process.cwd();
 const dist = join(root, 'dist');
-const expectedParserHash = 'f477e6b53cc483f86cad8b8aada3cf69f6332146a7edaf2cf995e0ac5ba97ac2';
+const expectedParserHash = '7d1fd2530f63fbf60ae3728899ac3c448aadabc143b018785535fd3ae503c226';
 const parserPath = join(root, 'src/shopping/receipt-ocr/receipt-parser.ts');
 
 function fail(message) {
@@ -46,7 +46,7 @@ if (!existsSync(swPath)) fail('service-worker.js missing from production dist.')
 else {
   const sw = readFileSync(swPath, 'utf8');
   if (!sw.includes("const CACHE_PREFIX = 'inteligentny-kalendarz-shell-'")) fail('Release Service Worker cache prefix missing.');
-  if (!sw.includes("const CACHE_NAME = `${CACHE_PREFIX}v1.1.2`")) fail('Release Service Worker revision missing.');
+  if (!sw.includes("const CACHE_NAME = `${CACHE_PREFIX}v1.2.0`")) fail('Release Service Worker revision missing.');
   if (!sw.includes('await caches.delete(CACHE_NAME)')) fail('Release Service Worker must clear a partial current-version cache before/after failed install.');
   if (/\bcaches\.match\s*\(/u.test(sw)) fail('Service Worker must not read arbitrary caches from the origin.');
   if (!sw.includes('key.startsWith(CACHE_PREFIX)')) fail('Service Worker must scope old-cache cleanup to Inteligentny Kalendarz caches.');
@@ -58,9 +58,9 @@ else {
 const mandatory = [
   'manifest.webmanifest',
   'favicon.svg',
-  'icon-192-v111.png',
-  'icon-512-v111.png',
-  'apple-touch-icon-v111.png',
+  'icon-192-v1203.png',
+  'icon-512-v1203.png',
+  'apple-touch-icon-v1203.png',
   'ocr/tesseract/tesseract.min.js',
   'ocr/tesseract/worker.min.js',
   'ocr/tesseract/core/tesseract-core-lstm.wasm.js',

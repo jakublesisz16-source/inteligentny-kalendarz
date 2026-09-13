@@ -21,9 +21,9 @@ function openLegacySchema12(): Promise<void> {
   });
 }
 
-describe('schema 13 migration', () => {
+describe('legacy schema 12 migration into current schema', () => {
   it('upgrades schema 12 additively and preserves existing stores/data', async () => {
-    expect(DATABASE_SCHEMA_VERSION).toBe(13);
+    expect(DATABASE_SCHEMA_VERSION).toBe(14);
     await openLegacySchema12();
     await initializeDatabase();
 
@@ -35,9 +35,10 @@ describe('schema 13 migration', () => {
       open.onsuccess = () => resolve(open.result);
       open.onerror = () => reject(open.error);
     });
-    expect(db.version).toBe(13);
+    expect(db.version).toBe(14);
     expect([...db.objectStoreNames]).toContain('expenseCategories');
     expect([...db.objectStoreNames]).toContain('receipts');
+    expect([...db.objectStoreNames]).toContain('expenseProducts');
     const tx = db.transaction('workScheduleEntries', 'readonly');
     const work = await new Promise<unknown>((resolve, reject) => {
       const request = tx.objectStore('workScheduleEntries').get('legacy-work');

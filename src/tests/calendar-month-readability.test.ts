@@ -46,6 +46,10 @@ describe('1.1.0 compact month grid', () => {
       onToggleTradingSunday: async () => undefined,
       onAcknowledgeConsistency: async () => undefined,
       onAdd: () => undefined,
+      onQuickAdd: async () => undefined,
+      onQuickEdit: async () => undefined,
+      onQuickMove: async () => undefined,
+      onQuickDelete: async () => undefined,
       onAddMany: () => undefined,
       onEdit: () => undefined,
       onStudyCorrect: () => undefined,
@@ -58,9 +62,9 @@ describe('1.1.0 compact month grid', () => {
     expect(markup).not.toContain('class="calendar-day-events"');
     expect(markup).toContain('class="category-count-row calendar-day-counts"');
     expect(markup).toMatch(/title="08:00-14:00 PEDIATRIA - zajęcia praktyczne\s+15:00-17:15 PEDIATRIA - wykład"/u);
-    expect(markup).toContain('12 · główna');
-    expect(markup).toContain('12A · 12-os.');
-    expect(markup).toContain('12B · 8-os.');
-    expect(markup).toContain('12B1 · 4-os.');
+    expect(markup).toContain('12 - grupa główna');
+    expect(markup).toContain('12A - grupa 12-os.');
+    expect(markup).toContain('12B - grupa 8-os.');
+    expect(markup).toContain('12B1 - grupa 4-os.');
   });
 });

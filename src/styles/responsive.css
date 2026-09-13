@@ -738,8 +738,7 @@
 
 /* 1.1.0-rc.8 - Study group context on narrow screens */
 @media (max-width: 620px) {
-  .calendar-study-context { align-items: flex-start; flex-direction: column; }
-  .calendar-study-group-chips { width: 100%; }
+  .calendar-study-context { max-width: 100%; flex-wrap: wrap; }
   .import-history-card dl { grid-template-columns: 1fr; }
 }
 
@@ -752,4 +751,1582 @@
 @media (max-width: 720px) {
   .study-completeness-stats { grid-template-columns: repeat(2,minmax(0,1fr)); }
   .study-completeness-heading { align-items: flex-start; }
+}
+
+/* 1.2.0.1 - sześć stałych sekcji bez przewijanej karuzeli */
+@media (max-width: 820px) {
+  .bottom-nav {
+    left: max(8px, env(safe-area-inset-left));
+    right: max(8px, env(safe-area-inset-right));
+    bottom: max(8px, env(safe-area-inset-bottom));
+    height: 70px;
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 2px;
+    padding: 6px;
+    overflow: visible;
+    background: rgba(255,255,255,.96);
+    border: 1px solid var(--line);
+    border-radius: 22px;
+    box-shadow: 0 16px 42px rgba(82,58,67,.14);
+    backdrop-filter: blur(18px);
+  }
+  .bottom-nav-item {
+    min-width: 0;
+    width: 100%;
+    padding: 2px 1px;
+    color: #8a7e83;
+    border-radius: 15px;
+    gap: 3px;
+    font-size: clamp(.48rem, 2.3vw, .62rem);
+    line-height: 1;
+    font-weight: 720;
+  }
+  .bottom-nav-item.active {
+    color: var(--accent-strong);
+    background: var(--accent-surface);
+  }
+  .bottom-nav-icon-shell {
+    width: 29px;
+    height: 29px;
+    display: grid;
+    place-items: center;
+    border-radius: 10px;
+  }
+  .bottom-nav-item.active .bottom-nav-icon-shell {
+    background: var(--accent-soft);
+  }
+  .bottom-nav-icon { width: 18px; height: 18px; opacity: .82; }
+  .bottom-nav-item.active .bottom-nav-icon { opacity: 1; }
+}
+
+@media (max-width: 390px) {
+  .bottom-nav { left: 5px; right: 5px; padding-left: 4px; padding-right: 4px; }
+  .bottom-nav-item { font-size: .49rem; }
+  .bottom-nav-icon-shell { width: 27px; height: 27px; }
+}
+
+/* 1.2.0.4 - prostszy import Studiów */
+@media (max-width: 900px) {
+  .study-import-summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .study-import-summary-grid > div:nth-child(3) { grid-column: span 2; }
+}
+@media (max-width: 620px) {
+  .study-upload-simple { min-height: 250px; padding: 30px 20px; }
+  .study-import-summary { padding: 20px 16px; }
+  .study-import-summary-heading { display: grid; }
+  .study-summary-state { justify-self: start; }
+  .study-import-summary-grid { grid-template-columns: 1fr 1fr; }
+  .study-import-summary-grid > div:nth-child(3) { grid-column: 1 / -1; }
+  .study-import-summary-actions { display: grid; grid-template-columns: 1fr; }
+  .study-review-details > summary, .study-secondary-tools > summary, .study-history-details > summary { align-items: flex-start; }
+  .study-review-count { display: none; }
+  .study-review-details-body { padding: 16px 12px; }
+  .study-review-details-body .preview-selection { gap: 12px; }
+}
+@media (max-width: 380px) {
+  .study-import-summary-grid { grid-template-columns: 1fr; }
+  .study-import-summary-grid > div:nth-child(3) { grid-column: auto; }
+}
+
+/* 1.2.0.5 - stale widoczne sekcje Studiów */
+@media (max-width: 720px) {
+  .study-static-section-heading {
+    align-items: flex-start;
+    padding: 15px 14px;
+  }
+}
+
+/* 1.2.0.6 - tygodniowa dyspozycyjność */
+@media (max-width: 760px) {
+  .availability-week-day { grid-template-columns: 1fr auto; gap: 9px 12px; }
+  .availability-week-day-times { grid-column: 1 / -1; grid-row: 2; }
+  .availability-week-day > .button { grid-column: 2; grid-row: 1; }
+}
+@media (max-width: 480px) {
+  .availability-week-editor { padding: 15px; }
+  .availability-week-day { grid-template-columns: 1fr; }
+  .availability-week-day-times, .availability-week-day > .button { grid-column: 1; grid-row: auto; }
+  .availability-week-day > .button { justify-self: stretch; }
+}
+
+
+/* 1.2.0.7 - manual-first dyspozycyjność */
+@media (max-width: 760px) {
+  .availability-automation-heading { flex-direction: column; }
+  .availability-automation-heading .button { width: 100%; }
+  .availability-summary-grid.automation-summary-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .automation-day-actions { align-items: stretch; flex-direction: column; }
+  .automation-day-actions .button { width: 100%; }
+}
+@media (max-width: 460px) {
+  .availability-summary-grid.automation-summary-grid { grid-template-columns: 1fr 1fr; }
+  .availability-calendar-hint { align-items: flex-start; flex-direction: column; }
+}
+
+/* 1.2.0.8 - compact manual availability */
+@media (max-width: 980px) {
+  .availability-day-rule-grid { grid-template-columns: repeat(4,minmax(0,1fr)); }
+}
+@media (max-width: 760px) {
+  .availability-day-rules-heading { align-items: flex-start; flex-direction: column; gap: 3px; }
+  .availability-day-rule-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
+}
+@media (max-width: 460px) {
+  .availability-day-rule-grid { grid-template-columns: 1fr; }
+}
+
+/* 1.2.0.9 - Work settings always visible */
+@media (max-width: 720px) {
+  .work-comparison-empty-action { align-items: stretch; flex-direction: column; }
+  .work-comparison-empty-action .button { width: 100%; }
+  .routine-priority-grid { grid-template-columns: 1fr; }
+}
+
+/* 1.2.0.10 - simplified Work settings */
+@media (max-width: 620px) {
+  .work-extra-rules-note { align-items: flex-start; flex-direction: column; }
+  .work-simple-weekends { display: grid; grid-template-columns: 1fr; }
+}
+
+
+@media (max-width: 720px) {
+  .work-simple-options { display: grid; grid-template-columns: 1fr; align-items: stretch; }
+  .work-commute-field { width: 100%; }
+  .availability-proposal-summary { align-items: stretch; flex-direction: column; }
+  .availability-proposal-summary .button { width: 100%; }
+}
+
+/* 1.2.0.12 calendar */
+@media (max-width: 820px) {
+  .calendar-primary-controls { align-items: stretch; }
+  .calendar-view-switch { flex: 1; }
+  .calendar-view-switch button { flex: 1; }
+  .calendar-filter-row { width: 100%; overflow-x: auto; flex-wrap: nowrap; padding-bottom: 2px; }
+  .calendar-filter-chip { flex: 0 0 auto; }
+  .calendar-week-shell { overflow-x: auto; }
+  .calendar-week-scroll { overflow: visible; }
+}
+
+@media (max-width: 620px) {
+  .calendar-toolbar-modern { grid-template-columns: 38px minmax(0,1fr) 38px; }
+  .calendar-toolbar-modern .calendar-today-button { grid-column: 1 / 3; width: 100%; }
+  .calendar-toolbar-modern .calendar-multi-day-trigger { grid-column: 3; justify-self: end; }
+  .calendar-primary-controls { margin-top: -4px; }
+}
+
+
+/* 1.2.0.14 calendar mobile polish */
+@media (max-width: 620px) {
+  .calendar-primary-controls { gap: 8px; margin-top: -6px; }
+  .event-card.compact-time-range { grid-template-columns: 82px minmax(0, 1fr); }
+  .selected-day-panel { border-radius: 22px 22px 14px 14px; }
+}
+
+/* 1.2.0.21 - Finanse */
+@media (max-width: 940px) {
+  .finance-summary-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .finance-main-grid { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 620px) {
+  .finance-dashboard-controls { display: grid; }
+  .finance-month-switch { width: 100%; min-width: 0; }
+  .finance-add-expense { width: 100%; }
+  .finance-simple-chart { gap: 5px; padding-inline: 12px; }
+  .finance-simple-chart-value { font-size: .52rem; }
+  .finance-transaction-row { grid-template-columns: minmax(0,1fr) auto; gap: 4px 10px; padding: 12px 16px; }
+  .finance-transaction-date { grid-column: 1 / -1; }
+  .finance-quick-expense-form { grid-template-columns: 1fr; }
+  .finance-quick-expense-amount,.finance-quick-expense-form .modal-actions { grid-column: auto; }
+}
+
+@media (max-width: 430px) {
+  .finance-summary-grid { grid-template-columns: 1fr; }
+  .finance-summary-card { padding: 15px 16px; }
+  .finance-simple-chart { min-height: 190px; }
+  .finance-simple-chart-column { height: 154px; }
+  .finance-simple-chart-track { height: 100px; }
+  .finance-category-row { padding-inline: 16px; }
+}
+
+/* 1.2.0.22 - Finanse */
+@media (max-width: 760px) {
+  .finance-history-tools { grid-template-columns: 1fr; }
+  .finance-receipt-edit-head { grid-template-columns: 1fr; }
+  .finance-receipt-edit-item { grid-template-columns: minmax(0,1fr) 110px 40px; }
+  .finance-receipt-edit-name { grid-column: 1 / -1; }
+  .finance-category-add-form { grid-template-columns: 1fr; }
+  .finance-category-manager-row { grid-template-columns: 1fr auto; }
+  .finance-category-manager-parent { grid-column: 1 / -1; grid-row: 2; }
+  .finance-category-manager-actions { grid-column: 2; grid-row: 1; }
+}
+
+@media (max-width: 520px) {
+  .finance-subcategory-list { padding-left: 38px; padding-right: 12px; }
+  .finance-history-tools,.finance-active-filters { padding-inline: 14px; }
+  .finance-detail-actions { align-items: stretch; flex-direction: column; }
+  .finance-detail-actions > div { display: grid; grid-template-columns: 1fr 1fr; }
+  .finance-detail-actions > .button { width: 100%; }
+  .finance-receipt-edit-item { grid-template-columns: minmax(0,1fr) 40px; }
+  .finance-receipt-edit-item .field { grid-column: 1; }
+  .finance-receipt-item-remove { grid-column: 2; grid-row: 1 / span 3; align-self: center; }
+  .finance-category-manager-row { grid-template-columns: 1fr; }
+  .finance-category-manager-row.is-child { margin-left: 12px; }
+  .finance-category-manager-parent,.finance-category-manager-actions { grid-column: 1; grid-row: auto; }
+  .finance-category-manager-actions { justify-content: space-between; }
+}
+
+/* 1.2.0.23 - calendar viewport-first */
+@media (max-width: 1100px) {
+  .app-main > .global-search-utility + .calendar-view-shell,
+  .app-main > .global-search-utility + .view-floral-accent + .calendar-view-shell { padding-top: 10px; }
+  .calendar-view-header .calendar-primary-controls { justify-content: flex-start; }
+}
+
+@media (max-width: 820px) {
+  .calendar-view-shell { padding-top: 10px; }
+  .calendar-view-header { display: grid; gap: 8px; margin-bottom: 8px; }
+  .calendar-view-header h1 { font-size: 1.25rem; }
+  .calendar-view-header .calendar-primary-controls { width: 100%; justify-content: flex-start; }
+  .calendar-view-shell .calendar-study-context-wrap { align-items: flex-start; flex-wrap: wrap; margin-bottom: 8px; }
+}
+
+@media (max-width: 620px) {
+  .calendar-view-shell .calendar-primary-controls { gap: 6px; }
+  .calendar-view-shell .calendar-filter-row { margin-left: 0; }
+  .calendar-view-shell .calendar-panel { padding: 12px; }
+  .calendar-view-shell .calendar-toolbar-modern { grid-template-columns: 34px minmax(120px, 1fr) 34px auto; }
+  .calendar-view-shell .calendar-toolbar-modern .calendar-multi-day-trigger { grid-column: 1 / -1; justify-self: end; margin-top: -2px; }
+}
+
+/* 1.2.0.24 - Today compact */
+@media (max-width: 820px) {
+  .today-header { align-items: flex-start; }
+  .today-plan-panel .event-card { grid-template-columns: 60px minmax(0, 1fr); }
+  .today-plan-panel .event-actions-column { grid-column: 2; justify-content: flex-start; }
+}
+
+@media (max-width: 620px) {
+  .today-header { gap: 12px; margin-bottom: 12px; }
+  .today-header h1 { font-size: 1.65rem; }
+  .today-header > .button { min-height: 42px; }
+  .today-plan-panel .today-plan-heading { padding: 14px 14px 0; }
+  .today-plan-panel .event-list { padding: 12px 14px 15px; }
+  .today-plan-panel .event-card { grid-template-columns: 56px minmax(0, 1fr); gap: 10px; padding: 12px 12px 12px 16px; }
+  .today-plan-panel .event-coworker-line { grid-template-columns: minmax(0, 1fr) auto; width: 100%; }
+  .today-plan-panel .event-coworker-line b { min-width: 0; }
+  .today-plan-panel .today-availability-list { margin: 0 14px 15px; }
+}
+
+/* 1.2.0.25 - Today balance */
+@media (max-width: 980px) {
+  .today-plan-panel .event-coworkers > span { width: min(100%, 500px); }
+  .today-plan-panel .event-coworker-line { grid-template-columns: minmax(190px, 1fr) auto; }
+}
+
+@media (max-width: 820px) {
+  .today-plan-panel .event-card { grid-template-columns: 64px minmax(0, 1fr); gap: 12px; padding: 14px 14px 15px 18px; }
+  .today-plan-panel .event-actions-column { grid-column: 2; }
+  .today-plan-panel .event-coworkers > span { width: min(100%, 520px); }
+}
+
+@media (max-width: 620px) {
+  .today-plan-panel .event-card { grid-template-columns: 58px minmax(0, 1fr); gap: 10px; padding: 13px 12px 14px 16px; }
+  .today-plan-panel .event-time strong { font-size: .88rem; }
+  .today-plan-panel .event-time span { font-size: .72rem; }
+  .today-plan-panel .event-heading-row h3 { font-size: .96rem; }
+  .today-plan-panel .event-location,
+  .today-plan-panel .event-description { font-size: .79rem; }
+  .today-plan-panel .event-coworkers > span { width: 100%; }
+  .today-plan-panel .event-coworker-line { grid-template-columns: minmax(0, 1fr) auto; gap-inline: 10px; }
+  .today-plan-panel .event-coworker-line b { font-size: .72rem; }
+  .today-plan-panel .event-coworker-line small { font-size: .66rem; }
+  .today-plan-panel .event-actions-column .text-button { font-size: .8rem; }
+}
+
+/* 1.2.0.26 - Finance products foundation */
+@media (max-width: 760px) {
+  .finance-product-tools { grid-template-columns: 1fr; align-items: stretch; }
+  .finance-product-row { grid-template-columns: minmax(0,1fr) auto; }
+  .finance-product-last { grid-column: 1 / -1; grid-row: 2; }
+  .finance-product-editor-fields { grid-template-columns: 1fr; }
+  .finance-product-stats { grid-template-columns: repeat(2,minmax(0,1fr)); }
+}
+
+@media (max-width: 620px) {
+  .finance-dashboard-actions { display: grid; grid-template-columns: 1fr 1fr; width: 100%; }
+  .finance-dashboard-actions .button { width: 100%; }
+  .finance-add-expense { width: auto; }
+  .finance-product-tools { padding-inline: 14px; }
+  .finance-product-row { padding-inline: 14px; }
+  .finance-product-history-row { grid-template-columns: minmax(0,1fr) auto; }
+  .finance-product-history-row > span { grid-column: 1 / -1; }
+}
+
+@media (max-width: 430px) {
+  .finance-product-stats { grid-template-columns: 1fr; }
+  .finance-dashboard-actions { grid-template-columns: 1fr; }
+}
+
+/* 1.2.0.27 - Finance simplicity polish */
+@media (max-width: 620px) {
+  .finance-first-expense-empty { min-height: 180px; padding: 26px 18px; }
+  .finance-category-add-form-simple,
+  .finance-subcategory-add-form { grid-template-columns: 1fr; }
+  .finance-category-add-form-simple .button,
+  .finance-subcategory-add-form .button { width: 100%; }
+  .finance-category-simple-row,
+  .finance-subcategory-manager-row { grid-template-columns: 1fr; align-items: stretch; }
+  .finance-category-simple-actions { justify-content: flex-start; }
+}
+
+/* 1.2.0.29 - Finance core flow */
+@media (max-width: 760px) {
+  .finance-month-overview { grid-template-columns: 1fr; }
+  .finance-month-overview-change { border-left: 0; border-top: 1px solid var(--line); }
+}
+
+@media (max-width: 620px) {
+  .finance-core-controls { gap: 10px; }
+  .finance-core-actions { width: 100%; display: grid; grid-template-columns: auto minmax(0,1fr) minmax(0,1.2fr); align-items: center; }
+  .finance-core-actions .text-button { justify-self: start; }
+  .finance-core-actions .button { width: 100%; }
+  .finance-purchase-tools { padding-inline: 14px; }
+  .finance-purchase-filter-panel { align-items: stretch; padding-inline: 14px; }
+  .finance-inline-filter { padding-inline: 14px; }
+  .finance-purchase-table { min-width: 620px; }
+}
+
+@media (max-width: 430px) {
+  .finance-core-actions { grid-template-columns: 1fr 1.25fr; }
+  .finance-core-actions .text-button { grid-column: 1 / -1; padding-left: 2px; }
+  .finance-month-overview > div { padding: 14px 16px; }
+  .finance-purchase-tools { grid-template-columns: 1fr auto; }
+  .finance-purchase-filter-panel { flex-direction: column; }
+  .finance-purchase-filter-panel .field { width: 100%; min-width: 0; }
+  .finance-purchase-table { min-width: 540px; }
+  .finance-purchase-date-column { display: none; }
+}
+
+/* 1.2.0.30 - Finance necessity classification */
+@media (max-width: 760px) {
+  .finance-necessity-overview { grid-template-columns: 1fr 1fr; }
+  .finance-necessity-overview > .finance-overview-filter { border-left: 1px solid var(--line); border-top: 1px solid var(--line); }
+  .finance-necessity-overview > .finance-month-overview-total { grid-column: 1 / -1; border-left: 0; border-top: 0; }
+  .finance-necessity-overview > .finance-month-overview-necessity:nth-child(2) { border-left: 0; }
+  .finance-purchase-table { min-width: 720px; }
+}
+
+@media (max-width: 620px) {
+  .finance-necessity-overview > .finance-overview-filter { padding: 14px 16px; }
+  .finance-necessity-unknown-note { margin-inline: 2px; text-align: left; }
+  .finance-purchase-filter-panel .field { width: min(100%,260px); min-width: 0; }
+  .finance-purchase-table { min-width: 660px; }
+}
+
+@media (max-width: 430px) {
+  .finance-necessity-overview { grid-template-columns: 1fr 1fr; }
+  .finance-necessity-overview .finance-overview-filter small { font-size: .62rem; }
+  .finance-necessity-select { max-width: 118px; }
+  .finance-purchase-table { min-width: 600px; }
+}
+
+/* 1.2.0.32 - Finance fast receipt review */
+@media (max-width: 620px) {
+  .finance-nonessential-breakdown { align-items: flex-start; flex-direction: column; gap: 6px; padding: 10px 12px; }
+  .finance-nonessential-breakdown > div { width: 100%; justify-content: flex-start; }
+  .receipt-review-item-compact { grid-template-columns: auto minmax(0,1fr) auto; }
+  .receipt-review-item-compact > .text-button { grid-column: 2 / -1; justify-self: start; margin-top: -2px; }
+}
+
+@media (max-width: 430px) {
+  .receipt-review-item-compact { grid-template-columns: auto minmax(0,1fr); }
+  .receipt-review-item-compact-amount { grid-column: 2; justify-self: start; }
+  .receipt-review-item-compact > .text-button { grid-column: 2; }
+}
+
+/* 1.2.0.34 - Finance category quick review */
+@media (max-width: 620px) {
+  .finance-category-overview-intro { grid-template-columns: 1fr; gap: 5px; }
+  .finance-category-overview-intro p { text-align: left; }
+  .finance-category-edit-heading { align-items: flex-start; flex-direction: column; gap: 4px; }
+  .finance-category-edit-heading > span { text-align: left; }
+  .finance-category-overview-list { max-height: 48vh; }
+}
+
+@media (max-width: 430px) {
+  .finance-category-overview-row { grid-template-columns: minmax(0,1fr) auto 18px; gap: 7px; padding-inline: 9px 6px; }
+  .finance-category-overview-name { gap: 7px; }
+  .finance-category-select { min-width: 128px; }
+}
+
+/* 1.2.0.35 - Finance compact workflow and review queue */
+@media (max-width: 900px) {
+  .finance-fast-overview { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .finance-fast-overview > .finance-overview-filter { border-top: 1px solid var(--line); }
+  .finance-fast-overview > .finance-overview-filter:nth-child(1),
+  .finance-fast-overview > .finance-overview-filter:nth-child(2) { border-top: 0; }
+  .finance-fast-overview > .finance-overview-filter:nth-child(odd) { border-left: 0; }
+}
+
+@media (max-width: 760px) {
+  .finance-bulk-review-bar { grid-template-columns: 1fr auto; }
+  .finance-bulk-review-bar > span { text-align: right; }
+  .finance-bulk-review-bar select { grid-column: 1; }
+  .finance-bulk-review-bar .button { grid-column: 2; }
+}
+
+@media (max-width: 620px) {
+  .finance-view-header { margin-bottom: 8px; }
+  .finance-view-header h1 { font-size: 1.75rem; }
+  .finance-feedback-toast { right: 12px; bottom: 12px; width: calc(100vw - 24px); }
+  .finance-fast-overview > .finance-overview-filter { min-height: 68px; padding: 9px 11px; }
+  .finance-fast-overview .finance-overview-filter small { font-size: .58rem; }
+  .finance-quick-filters { padding-inline: 9px; }
+  .finance-purchase-tools-compact { padding-inline: 9px; }
+  .finance-bulk-review-bar { padding-inline: 9px; }
+}
+
+@media (max-width: 430px) {
+  .finance-fast-overview { grid-template-columns: 1fr 1fr; }
+  .finance-fast-overview > .finance-overview-filter { border-left: 1px solid var(--line); }
+  .finance-fast-overview > .finance-overview-filter:nth-child(odd) { border-left: 0; }
+  .finance-bulk-review-bar { grid-template-columns: 1fr; }
+  .finance-bulk-review-bar > span { text-align: left; }
+  .finance-bulk-review-bar select,
+  .finance-bulk-review-bar .button { grid-column: 1; }
+}
+
+@media (max-width: 900px) {
+  .finance-fast-overview > .finance-month-overview-total { grid-column: auto; }
+}
+
+@media (max-width: 900px) {
+  .finance-fast-overview > .finance-overview-filter { border-left: 1px solid var(--line); }
+  .finance-fast-overview > .finance-overview-filter:nth-child(odd) { border-left: 0; }
+}
+
+/* 1.2.0.36 - Finance composition polish */
+@media (max-width: 900px) {
+  .finance-fast-overview { grid-template-columns: repeat(2,minmax(0,1fr)); grid-auto-flow: row; }
+  .finance-fast-overview > .finance-overview-filter { border-top: 1px solid var(--line); }
+  .finance-fast-overview > .finance-overview-filter:nth-child(-n+2) { border-top: 0; }
+  .finance-fast-overview > .finance-overview-filter:nth-child(odd) { border-left: 0; }
+}
+
+@media (max-width: 620px) {
+  .finance-fast-overview > .finance-overview-filter { min-height: 60px; padding: 8px 10px; }
+  .finance-review-strip { align-items: flex-start; }
+  .finance-review-strip > div { display: grid; gap: 2px; }
+  .finance-review-strip span { white-space: normal; }
+}
+
+@media (max-width: 430px) {
+  .finance-review-strip { gap: 8px; }
+  .finance-fast-overview .finance-overview-filter small { display: none; }
+}
+
+
+/* 1.2.0.37 - Finance category bars */
+@media (max-width: 620px) {
+  .finance-category-overview-compact .finance-category-bars { padding-inline: 9px; }
+  .finance-category-bar-main { gap: 8px; }
+  .finance-category-bar-values { gap: 6px; }
+  .finance-category-bar-values > span { min-width: 38px; }
+  .finance-category-bar-values > strong { min-width: 66px; }
+}
+
+@media (max-width: 430px) {
+  .finance-category-summary-name strong { font-size: .66rem; }
+  .finance-category-bar-values > span { font-size: .56rem; }
+  .finance-category-bar-values > strong { min-width: 62px; font-size: .66rem; }
+}
+
+
+/* 1.2.0.39 - preserve counter contrast on compact month grids */
+@media (max-width: 620px) {
+  .calendar-day .category-count { min-width: 20px; height: 18px; padding: 0 5px; gap: 3px; font-size: .59rem; }
+  .calendar-day .category-count i { width: 5px; height: 5px; flex-basis: 5px; }
+}
+
+/* 1.2.0.45 - mobile-first weekly planner
+   Phones keep the seven-day selector visible, but the timeline renders only the selected day.
+   This avoids a wide horizontal calendar that is hard to plan on with touch. */
+@media (max-width: 620px) {
+  .calendar-week-shell {
+    overflow: hidden;
+    border-radius: 14px;
+  }
+
+  .calendar-week-day-headings {
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    min-width: 0;
+  }
+  .calendar-week-axis-spacer { display: none; }
+  .calendar-week-day-heading {
+    min-width: 0;
+    min-height: 52px;
+    padding: 4px 1px;
+    border-right: 1px solid var(--line);
+    touch-action: manipulation;
+  }
+  .calendar-week-day-heading span { font-size: .57rem; }
+  .calendar-week-day-heading strong {
+    width: 26px;
+    height: 26px;
+    font-size: .78rem;
+  }
+
+  .calendar-week-all-day-strip {
+    grid-template-columns: 50px minmax(0, 1fr);
+    min-width: 0;
+  }
+  .calendar-week-all-day-label {
+    min-width: 0;
+    padding-inline: 3px;
+    font-size: .52rem;
+  }
+  .calendar-week-all-day-cell { display: none; }
+  .calendar-week-all-day-cell.selected {
+    display: flex;
+    min-width: 0;
+  }
+  .calendar-week-all-day-strip:has(.calendar-week-all-day-cell.selected:empty) { display: none; }
+
+  .calendar-week-scroll {
+    grid-template-columns: 50px minmax(0, 1fr);
+    min-width: 0;
+    width: 100%;
+    height: min(68dvh, 650px);
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
+    -webkit-overflow-scrolling: touch;
+  }
+  .calendar-week-time-axis {
+    min-height: 816px;
+  }
+  .calendar-week-time-axis span {
+    left: 5px;
+    font-size: .57rem;
+  }
+  .calendar-week-columns {
+    display: block;
+    position: relative;
+    min-width: 0;
+    height: 816px;
+  }
+  .calendar-week-column { display: none; }
+  .calendar-week-column.selected {
+    display: block;
+    width: 100%;
+    height: 816px;
+  }
+  .calendar-week-slot { touch-action: manipulation; }
+
+  .calendar-week-event {
+    padding: 6px 8px;
+    border-radius: 9px;
+    touch-action: manipulation;
+  }
+  .calendar-week-event span { font-size: .61rem; }
+  .calendar-week-event strong { font-size: .7rem; line-height: 1.2; }
+  .calendar-week-event.overlapping strong { font-size: .65rem; }
+
+  .calendar-week-quick-add,
+  .calendar-week-quick-add.align-end {
+    left: 4px;
+    right: auto;
+    width: min(286px, calc(100% - 8px));
+  }
+  .calendar-week-quick-add > input {
+    min-height: 42px;
+    font-size: .78rem;
+  }
+  .calendar-week-quick-add-actions .button { min-height: 38px; }
+  .calendar-week-quick-add-actions .text-button { min-height: 38px; }
+
+  .selected-day-quick-editor-times { grid-template-columns: 1fr 1fr; }
+  .selected-day-quick-editor input { min-height: 42px; }
+  .selected-day-quick-editor-actions .button,
+  .selected-day-quick-editor-actions .text-button { min-height: 40px; }
+}
+
+@media (max-width: 370px) {
+  .calendar-week-scroll { grid-template-columns: 44px minmax(0, 1fr); }
+  .calendar-week-all-day-strip { grid-template-columns: 44px minmax(0, 1fr); }
+  .calendar-week-day-heading span { font-size: .53rem; }
+  .calendar-week-day-heading strong { width: 24px; height: 24px; font-size: .73rem; }
+  .calendar-week-time-axis span { left: 3px; font-size: .53rem; }
+}
+
+/* 1.2.0.48 - touch-friendly editable quick-add time range */
+@media (max-width: 620px) {
+  .calendar-week-quick-add,
+  .calendar-week-quick-add.align-end {
+    width: min(300px, calc(100% - 8px));
+  }
+  .calendar-week-quick-add-times { gap: 8px; }
+  .calendar-week-quick-add-times label > span { font-size: .58rem; }
+  .calendar-week-quick-add-times input { min-height: 40px; font-size: .76rem; }
+  .calendar-week-quick-add-head > button { width: 36px; height: 40px; }
+}
+
+/* 1.2.0.48 - month quick add stays usable on mobile */
+@media (max-width: 820px) {
+  .calendar-month-quick-add,
+  .calendar-month-quick-add.align-end {
+    position: fixed;
+    left: 12px;
+    right: 12px;
+    top: auto;
+    bottom: max(88px, env(safe-area-inset-bottom));
+    width: auto;
+    max-width: none;
+    z-index: 120;
+  }
+}
+
+@media (max-width: 620px) {
+  .calendar-day-quick-add-trigger { width: 26px; height: 26px; right: 5px; bottom: 5px; }
+}
+
+/* 1.2.0.50 - compact side Study context */
+@media (max-width: 1100px) {
+  .calendar-side-column { position: static; top: auto; }
+}
+
+@media (max-width: 820px) {
+  .calendar-view-shell .calendar-side-study-context {
+    padding: 0 2px;
+    gap: 5px;
+  }
+  .calendar-view-shell .calendar-side-study-context .calendar-study-groups-preview {
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    padding-bottom: 2px;
+    scrollbar-width: thin;
+  }
+  .calendar-view-shell .calendar-side-study-context .calendar-study-groups-preview span {
+    flex: 0 0 auto;
+    white-space: nowrap;
+  }
+}
+
+
+/* 1.2.0.53 - mobile density, integrated search and viewport-first core screens */
+@media (max-width: 820px) {
+  .global-search-utility { display: none; }
+  .app-main > .global-search-utility + .view-shell,
+  .app-main > .global-search-utility + .view-floral-accent + .view-shell,
+  .app-main > .global-search-utility + .calendar-view-shell,
+  .app-main > .global-search-utility + .view-floral-accent + .calendar-view-shell,
+  .app-main > .global-search-utility + .finance-view,
+  .app-main > .global-search-utility + .view-floral-accent + .finance-view { padding-top: 14px; }
+
+  .bottom-nav {
+    grid-template-columns: repeat(6, minmax(0, 1fr)) 42px;
+    gap: 1px;
+  }
+  .bottom-nav-search {
+    width: 38px;
+    height: 38px;
+    align-self: center;
+    justify-self: center;
+    display: grid;
+    place-items: center;
+    border: 1px solid var(--line);
+    border-radius: 13px;
+    background: var(--surface-soft);
+    color: var(--accent-strong);
+    padding: 0;
+  }
+  .bottom-nav-search:focus-visible { outline: 3px solid var(--accent-soft); outline-offset: 1px; }
+
+  .view-shell { padding-top: 14px; }
+  .settings-minimal-view .view-subtitle,
+  .work-view .view-subtitle { display: none; }
+
+  .work-settings-save-footer {
+    position: sticky;
+    bottom: -1px;
+    z-index: 5;
+    margin: 0 -16px -18px;
+    padding: 12px 16px max(14px, env(safe-area-inset-bottom));
+    background: color-mix(in srgb, var(--surface) 96%, transparent);
+    box-shadow: 0 -10px 24px rgba(66, 47, 54, .08);
+    backdrop-filter: blur(12px);
+  }
+  .work-settings-save-footer span { display: none; }
+}
+
+@media (max-width: 620px) {
+  .view-shell { padding: 8px 12px 92px; }
+  .view-header { gap: 8px; margin-bottom: 10px; }
+  .view-header h1 { line-height: 1.06; }
+
+  /* Today: one clear message and one compact action. */
+  .today-view.is-empty .today-header { margin-bottom: 8px; }
+  .today-view.is-empty .today-header h1 { font-size: 1.48rem; margin-bottom: 0; }
+  .today-view.is-empty .today-empty-panel { min-height: 0; }
+  .today-view.is-empty .today-empty-panel .empty-state { min-height: 220px; padding: 24px 18px; }
+  .today-view.is-empty .today-empty-panel .empty-state-icon { width: 58px; height: 58px; margin-bottom: 12px; }
+  .today-view.is-empty .today-empty-panel .empty-state h3 { margin-bottom: 12px; font-size: 1.02rem; }
+  .today-view.is-empty .today-empty-panel .empty-state .button { width: auto; min-width: 132px; min-height: 40px; padding-inline: 18px; }
+
+  /* Calendar: keep the month controls and six rows inside the first viewport. */
+  .calendar-view-shell { padding-top: 6px; }
+  .calendar-view-header { gap: 6px; margin-bottom: 6px; }
+  .calendar-view-header h1 { font-size: 1.15rem; }
+  .calendar-view-shell .calendar-primary-controls { gap: 5px; }
+  .calendar-view-shell .calendar-view-switch { padding: 2px; border-radius: 11px; }
+  .calendar-view-shell .calendar-view-switch button { min-height: 34px; padding-inline: 8px; font-size: .7rem; }
+  .calendar-filter-row { gap: 5px; padding-bottom: 0; }
+  .calendar-filter-chip { min-height: 31px; padding-inline: 10px; font-size: .67rem; }
+  .calendar-view-shell .calendar-panel { padding: 9px; }
+  .calendar-view-shell .calendar-toolbar-modern {
+    grid-template-columns: 32px minmax(0, 1fr) 32px auto auto;
+    gap: 5px;
+    margin-bottom: 5px;
+  }
+  .calendar-view-shell .calendar-toolbar-modern .icon-button { width: 32px; height: 32px; }
+  .calendar-view-shell .calendar-toolbar-modern h2 { font-size: .92rem; }
+  .calendar-toolbar-modern .calendar-today-button {
+    grid-column: auto;
+    width: auto;
+    min-height: 32px;
+    padding-inline: 9px;
+    font-size: .66rem;
+  }
+  .calendar-view-shell .calendar-toolbar-modern .calendar-multi-day-trigger {
+    grid-column: auto;
+    justify-self: end;
+    margin-top: 0;
+    padding-inline: 3px;
+    font-size: .62rem;
+  }
+  .calendar-weekdays { gap: 2px; margin-bottom: 3px; }
+  .calendar-weekdays span { padding: 2px 0; font-size: .58rem; }
+  .calendar-grid { gap: 3px; }
+  .calendar-day { min-height: 47px; padding: 4px; border-radius: 9px; }
+  .calendar-day .day-number { width: 22px; height: 22px; font-size: .68rem; }
+  .calendar-day .category-count { min-width: 18px; height: 16px; padding: 0 4px; font-size: .54rem; }
+  .calendar-day-quick-add-trigger { width: 22px; height: 22px; right: 3px; bottom: 3px; font-size: .78rem; }
+  .calendar-side-study-context { display: none !important; }
+  .calendar-side-column.is-empty { display: none; }
+
+  /* Week remains readable: page itself stays compact, timeline owns the scrolling. */
+  .calendar-week-scroll {
+    height: clamp(360px, calc(100dvh - 332px), 610px);
+    max-height: none;
+  }
+
+  /* Work: fewer rows before the actual schedule and a save action that never disappears. */
+  .work-minimal-header { gap: 8px; margin-bottom: 9px; }
+  .work-minimal-header .eyebrow { margin-bottom: 4px; }
+  .work-minimal-header h1 { font-size: 1.55rem; margin-bottom: 0; }
+  .work-header-actions { width: 100%; display: grid; grid-template-columns: 44px minmax(0, 1fr); gap: 8px; }
+  .work-header-actions .button { width: 100%; min-height: 42px; }
+  .work-settings-button { width: 44px !important; padding: 0 !important; }
+  .work-settings-button-label { display: none; }
+  .work-section-tabs { margin-bottom: 10px; }
+  .work-section-tabs button { min-height: 40px; padding-inline: 7px; font-size: .7rem; }
+  .work-quick-summary { grid-template-columns: repeat(3, minmax(0, 1fr)); margin-bottom: 10px; }
+  .work-quick-summary > div { padding: 10px 8px; }
+  .work-quick-summary > div:last-child { grid-column: auto; }
+  .work-quick-summary span { font-size: .58rem; margin-bottom: 3px; }
+  .work-quick-summary strong { font-size: .8rem; line-height: 1.2; }
+  .work-next-card { padding: 16px; }
+  .work-settings-modal { gap: 14px; }
+  .work-settings-divider { padding-top: 13px; }
+  .work-automation-simple-heading .muted-copy,
+  .work-commute-note { display: none; }
+  .work-settings-basics { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 8px; }
+  .work-settings-basics .field:first-child { grid-column: 1 / -1; }
+  .work-simple-options { display: grid; grid-template-columns: 92px minmax(0, 1fr); gap: 8px; align-items: end; }
+  .work-commute-field { width: auto; }
+  .work-simple-weekends { display: grid; grid-template-columns: 1fr; gap: 6px; }
+  .work-simple-weekends label { min-height: 36px; padding: 7px 9px; }
+  .work-settings-save-footer .button { min-height: 44px; }
+
+  /* Finance: actions stay on one concise row when there is room. */
+  .finance-view-header { margin-bottom: 8px; }
+  .finance-view-header h1 { font-size: 1.55rem; }
+  .finance-dashboard-controls { gap: 8px; }
+  .finance-month-switch { min-height: 42px; }
+  .finance-dashboard-actions { display: grid; grid-template-columns: auto minmax(0, .8fr) minmax(0, 1fr); gap: 6px; width: 100%; }
+  .finance-dashboard-actions .text-button { min-height: 40px; padding-inline: 5px; font-size: .68rem; }
+  .finance-dashboard-actions .button { min-height: 40px; padding-inline: 8px; font-size: .7rem; }
+  .finance-first-expense-empty { min-height: 150px; padding: 20px 16px; }
+  .finance-first-expense-copy p:last-child { display: none; }
+  .finance-first-expense-copy h2 { font-size: 1rem; margin-bottom: 0; }
+
+  /* Settings: drop marketing copy and keep the first controls close to the top. */
+  .settings-minimal-view .view-header { margin-bottom: 8px; }
+  .settings-minimal-view .view-header h1 { font-size: 1.55rem; margin: 0; }
+  .settings-grid-minimal { gap: 10px; }
+  .settings-grid-minimal .settings-card { padding: 16px; }
+  .settings-grid-minimal .compact-heading { padding-bottom: 10px; }
+}
+
+@media (max-width: 390px) {
+  .bottom-nav { grid-template-columns: repeat(6, minmax(0, 1fr)) 38px; }
+  .bottom-nav-search { width: 34px; height: 34px; border-radius: 11px; }
+  .bottom-nav-item { font-size: .47rem; }
+  .calendar-day { min-height: 44px; }
+  .calendar-view-shell .calendar-toolbar-modern { grid-template-columns: 30px minmax(0, 1fr) 30px auto; }
+  .calendar-view-shell .calendar-toolbar-modern .calendar-multi-day-trigger { display: none; }
+  .calendar-toolbar-modern .calendar-today-button { padding-inline: 7px; }
+  .finance-dashboard-actions { grid-template-columns: auto 1fr 1fr; }
+}
+
+/* 1.2.0.53 - final mobile touch refinements after real-device screenshots */
+@media (max-width: 820px) {
+  .bottom-nav { height: 64px; padding: 5px; }
+  .bottom-nav-icon-shell { width: 27px; height: 27px; }
+  .app-main { padding-bottom: 78px; }
+}
+
+/* 1.2.0.67 - mobile month day tap only opens details; add action moves to the day sheet */
+@media (max-width: 820px) {
+  .calendar-day-quick-add-trigger { display: none; }
+}
+@media (max-width: 620px) {
+  .calendar-week-scroll { scrollbar-width: none; }
+  .calendar-week-scroll::-webkit-scrollbar { display: none; }
+  .calendar-view-shell .selected-day-panel .selected-day-quick-actions .button,
+  .calendar-view-shell .selected-day-panel .empty-state .button { min-height: 40px; }
+}
+
+/* 1.2.0.53 - keep Work import commit visible immediately on mobile */
+@media (max-width: 620px) {
+  .work-analysis-card { padding: 14px; }
+  .work-analysis-card > .panel-heading { margin-bottom: 8px; }
+  .work-analysis-card > .panel-heading h2 { font-size: 1.05rem; }
+  .work-analysis-primary-action {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 5px;
+    margin-bottom: 10px;
+    padding: 10px;
+  }
+  .work-analysis-primary-action .button { width: 100%; min-width: 0; min-height: 44px; }
+  .work-analysis-primary-action > span { text-align: left; font-size: .62rem; }
+  .work-analysis-metrics-essential { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; margin-bottom: 8px; }
+  .work-analysis-metrics-essential > div { padding: 8px; }
+  .work-analysis-metrics-essential span { font-size: .56rem; }
+  .work-analysis-metrics-essential strong { font-size: .78rem; line-height: 1.15; }
+  .work-analysis-details { margin-top: 8px; padding-top: 8px; }
+  .work-analysis-details > summary { font-size: .68rem; }
+  .work-shift-preview { max-height: 260px; }
+}
+
+/* 1.2.0.53 - keep the primary work-settings action visible without scrolling */
+@media (max-width: 820px) {
+  .modal-header {
+    position: sticky;
+    top: -18px;
+    z-index: 12;
+    margin: -18px -16px 12px;
+    padding: 12px 16px 10px;
+    background: color-mix(in srgb, var(--surface) 97%, transparent);
+    border-bottom: 1px solid color-mix(in srgb, var(--line) 72%, transparent);
+    backdrop-filter: blur(12px);
+  }
+  .work-settings-header-save { display: inline-flex; min-height: 36px; padding-inline: 14px; }
+  .work-settings-modal .work-settings-save-footer { display: none; }
+}
+
+/* 1.2.0.54 - real-device mobile clarity pass */
+@media (max-width: 820px) {
+  .app-main > .view-shell { padding-top: 8px; }
+}
+
+@media (max-width: 620px) {
+  .today-header {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: end;
+    gap: 8px 10px;
+    margin-bottom: 8px;
+  }
+  .today-header > div { min-width: 0; }
+  .today-header .eyebrow { margin-bottom: 3px; }
+  .today-header h1 { font-size: 1.38rem; margin: 0; }
+  .today-header .view-subtitle { margin-top: 4px; font-size: .68rem; }
+  .today-add-button { width: auto !important; min-height: 36px !important; padding-inline: 12px; font-size: .68rem; }
+  .today-plan-panel .today-event-list { padding: 8px 10px 10px; }
+  .today-plan-panel .event-card { grid-template-columns: 62px minmax(0, 1fr); gap: 8px; padding: 10px 10px 10px 13px; }
+  .today-plan-panel .event-actions-column { grid-column: 2; justify-content: flex-start; gap: 12px; padding-top: 2px; }
+  .today-view.is-empty .today-empty-panel .empty-state { min-height: 155px; padding: 20px 14px; }
+  .today-view.is-empty .today-empty-panel .empty-state-icon { width: 46px; height: 46px; margin-bottom: 9px; }
+  .today-view.is-empty .today-empty-panel .empty-state h3 { font-size: .92rem; margin-bottom: 8px; }
+
+  .calendar-view-shell .selected-day-panel { padding: 12px; margin-top: 8px; }
+  .calendar-view-shell .selected-day-panel .panel-heading { margin-bottom: 8px; }
+  .calendar-view-shell .selected-day-panel .selected-day-quick-actions { margin-bottom: 8px; }
+  .calendar-view-shell .selected-day-panel .selected-day-quick-actions .button { min-height: 38px; }
+  .calendar-view-shell .selected-day-panel .event-card { padding: 10px 9px 10px 12px; }
+  .calendar-view-shell .selected-day-panel .event-coworker-line:nth-child(n+5) { display: none !important; }
+  .calendar-view-shell .selected-day-panel .event-coworker-mobile-more { display: block; margin-top: 4px; color: var(--text-muted); font-size: .62rem; }
+
+  .work-next-card { padding: 13px; }
+  .work-next-card .panel-heading h2 { font-size: .94rem; }
+  .work-next-card .coworker-inline > span { padding: 4px 7px; font-size: .62rem; }
+  .work-next-card .coworker-inline small { margin-bottom: 1px; }
+
+  .finance-dashboard-actions { grid-template-columns: auto minmax(0, .7fr) minmax(0, 1fr); }
+  .finance-first-expense-empty { min-height: 120px; padding: 16px 14px; }
+  .finance-first-expense-copy h2 { font-size: .92rem; }
+  .finance-first-expense-copy p { font-size: .68rem; line-height: 1.4; }
+
+  .settings-compact-header { margin-bottom: 6px; }
+  .settings-essential-card { padding: 14px; }
+  .settings-essential-card .compact-heading { padding-bottom: 9px; }
+  .settings-essential-grid { grid-template-columns: 1fr; gap: 9px; }
+  .settings-essential-grid .field { gap: 4px; }
+  .settings-essential-grid .field > span { font-size: .68rem; }
+  .settings-essential-grid select { min-height: 42px; }
+  .settings-build-line { margin-top: 11px; padding-top: 9px; font-size: .61rem; gap: 5px; }
+  .settings-section-card { margin-top: 9px; padding: 14px; }
+  .settings-section-card .compact-heading { padding-bottom: 9px; }
+}
+
+/* 1.2.0.56 - search stays inside the main view header on every device */
+@media (max-width: 820px) {
+  .header-search-trigger { width: 42px; min-width: 42px; min-height: 42px; padding: 0; border-radius: 13px; }
+  .header-search-trigger span { display: none; }
+  .today-header-actions { width: auto; }
+  .calendar-header-title-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%; }
+  .bottom-nav { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+}
+@media (max-width: 620px) {
+  .finance-view-header,
+  .settings-compact-header,
+  .study-hero-simple { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+  .study-hero-simple > div:first-child { min-width: 0; }
+  .study-hero-simple .view-header-actions { flex: 0 0 auto; }
+}
+@media (max-width: 620px) {
+  .work-header-actions { grid-template-columns: 42px 44px minmax(0, 1fr); }
+}
+
+/* 1.2.0.56 - viewport-first mobile Calendar and lighter Today agenda */
+@media (max-width: 620px) {
+  .calendar-side-column.is-empty.mobile-open { display: block; }
+  .calendar-view-shell .calendar-side-column .selected-day-panel {
+    display: none;
+  }
+  .calendar-view-shell .calendar-side-column .selected-day-panel.mobile-open {
+    display: block;
+    position: fixed;
+    left: 10px;
+    right: 10px;
+    bottom: max(82px, calc(env(safe-area-inset-bottom) + 76px));
+    z-index: 116;
+    max-height: min(58dvh, 500px);
+    margin: 0;
+    padding: 14px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    border-radius: 22px;
+    box-shadow: 0 20px 48px rgba(58, 39, 47, .19);
+    scrollbar-width: none;
+  }
+  .calendar-view-shell .calendar-side-column .selected-day-panel.mobile-open::-webkit-scrollbar { display: none; }
+  .calendar-mobile-day-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 115;
+    border: 0;
+    background: rgba(41, 31, 35, .16);
+    backdrop-filter: blur(2px);
+  }
+  .calendar-mobile-day-close {
+    display: grid;
+    place-items: center;
+    width: 34px;
+    height: 34px;
+    flex: 0 0 34px;
+    border: 0;
+    border-radius: 999px;
+    background: var(--surface-soft);
+    color: var(--text-muted);
+    font: inherit;
+    font-size: 1.15rem;
+    cursor: pointer;
+  }
+  .calendar-view-shell .selected-day-panel.mobile-open .panel-heading {
+    position: sticky;
+    top: -14px;
+    z-index: 2;
+    margin: -14px -14px 9px;
+    padding: 13px 14px 9px;
+    background: color-mix(in srgb, var(--surface) 97%, transparent);
+    border-bottom: 1px solid color-mix(in srgb, var(--line) 72%, transparent);
+    backdrop-filter: blur(10px);
+  }
+  .calendar-view-shell .selected-day-panel.mobile-open .empty-state {
+    min-height: 130px;
+    padding: 18px 12px 12px;
+  }
+  .calendar-view-shell .selected-day-panel.mobile-open .empty-state-icon { display: none; }
+  .calendar-view-shell .selected-day-panel.mobile-open .empty-state h3 { font-size: .92rem; margin-bottom: 6px; }
+  .calendar-view-shell .selected-day-panel.mobile-open .empty-state .button { width: auto; min-height: 38px; padding-inline: 15px; }
+  .calendar-view-shell .selected-day-panel.mobile-open .selected-day-quick-actions { display: none; }
+
+  /* 1.2.0.80 - tapping a month date only selects it; event rows are the explicit detail action. */
+  .calendar-mobile-day-preview {
+    display: grid;
+    gap: 7px;
+    margin: 8px 1px 0;
+    padding: 10px 1px 0;
+    border-top: 1px solid color-mix(in srgb, var(--line) 82%, transparent);
+  }
+  .calendar-mobile-day-preview-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-width: 0; }
+  .calendar-mobile-day-preview-head > div { min-width: 0; display: flex; align-items: baseline; gap: 7px; }
+  .calendar-mobile-day-preview-head strong { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .76rem; }
+  .calendar-mobile-day-preview-head span { flex: 0 0 auto; color: var(--text-muted); font-size: .61rem; }
+  .calendar-mobile-day-preview-head .text-button { flex: 0 0 auto; padding: 2px 0; font-size: .61rem; }
+  .calendar-mobile-day-preview-list { display: grid; }
+  .calendar-mobile-day-preview-event,
+  .calendar-mobile-day-preview-incomplete {
+    width: 100%;
+    min-width: 0;
+    min-height: 38px;
+    border: 0;
+    border-top: 1px solid color-mix(in srgb, var(--line) 66%, transparent);
+    background: transparent;
+    display: grid;
+    grid-template-columns: 72px minmax(0, 1fr) 12px;
+    gap: 8px;
+    align-items: center;
+    padding: 7px 2px;
+    color: inherit;
+    text-align: left;
+    font: inherit;
+    cursor: pointer;
+  }
+  .calendar-mobile-day-preview-event:first-child { border-top: 0; }
+  .calendar-mobile-day-preview-event > span,
+  .calendar-mobile-day-preview-incomplete > span { color: var(--text-muted); font-size: .64rem; white-space: nowrap; }
+  .calendar-mobile-day-preview-event > strong,
+  .calendar-mobile-day-preview-incomplete > strong { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .72rem; }
+  .calendar-mobile-day-preview-event > i,
+  .calendar-mobile-day-preview-incomplete > i { color: var(--text-muted); font-size: .84rem; font-style: normal; text-align: right; }
+  .calendar-mobile-day-preview-incomplete { grid-template-columns: 20px minmax(0, 1fr) 12px; }
+  .calendar-mobile-day-preview-event:focus-visible,
+  .calendar-mobile-day-preview-incomplete:focus-visible { outline: 3px solid var(--accent-soft); outline-offset: -2px; border-radius: 8px; }
+
+  .today-view.has-plan .today-plan-panel {
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+  .today-view.has-plan .today-plan-panel .today-event-list { padding: 0; }
+  .today-view.has-plan .today-plan-panel .event-card {
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    box-shadow: 0 6px 18px rgba(62, 46, 53, .045);
+  }
+}
+
+
+/* 1.2.0.58 - keep the single-surface Today hierarchy on phones too */
+@media (max-width: 620px) {
+  .today-view.has-plan .today-plan-panel.today-single-surface {
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    background: rgba(255,255,255,.96);
+    box-shadow: var(--shadow-sm);
+    overflow: hidden;
+  }
+  .today-view.has-plan .today-plan-panel.today-single-surface .today-event-list { padding: 0; }
+  .today-view.has-plan .today-plan-panel.today-single-surface .event-card {
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+    padding: 12px 11px 13px 15px;
+  }
+  .today-view.has-plan .today-plan-panel.today-single-surface .event-card::before {
+    top: 9px;
+    bottom: 9px;
+  }
+}
+
+/* 1.2.0.58 - trip finances on mobile */
+@media (max-width: 820px) {
+  .finance-dashboard-controls-v1258 { display: grid; grid-template-columns: 1fr; gap: 8px; }
+  .finance-scope-switch { width: 100%; display: grid; grid-template-columns: 1fr 1fr; border-radius: 14px; }
+  .finance-scope-switch button { min-height: 38px; border-radius: 11px; }
+  .finance-dashboard-controls-v1258 .finance-month-switch,
+  .finance-dashboard-controls-v1258 .finance-trip-current,
+  .finance-dashboard-controls-v1258 .finance-trip-list-title { width: 100%; }
+  .finance-dashboard-controls-v1258 .finance-core-actions { display: grid; grid-template-columns: 1fr 1.25fr; gap: 7px; }
+  .finance-dashboard-controls-v1258 .finance-core-actions .text-button { grid-column: 1 / -1; justify-self: start; }
+  .finance-dashboard-controls-v1258 .finance-core-actions .button { width: 100%; }
+  .finance-trip-summary { padding: 14px; gap: 11px; }
+  .finance-trip-summary-main h2 { font-size: 1.08rem; }
+  .finance-trip-summary-main > strong { font-size: 1.45rem; }
+  .finance-trip-summary-stats { grid-template-columns: 1fr 1fr; }
+  .finance-trip-summary-stats > div:nth-child(2) { border-right: 0; }
+  .finance-trip-summary-stats > div:last-child { grid-column: 1 / -1; border-top: 1px solid var(--line); }
+  .finance-trip-expense-row { grid-template-columns: 66px minmax(0,1fr) auto 12px; gap: 8px; padding: 11px 10px; }
+  .finance-trip-expense-copy small { max-width: 44vw; }
+  .finance-trip-categories { overflow-x: auto; flex-wrap: nowrap; scrollbar-width: none; }
+  .finance-trip-categories::-webkit-scrollbar { display: none; }
+  .finance-trip-categories > span { flex: 0 0 auto; }
+  .finance-new-trip-form { grid-template-columns: 1fr; }
+  .finance-new-trip-form > div { justify-content: flex-end; }
+  .finance-trips-overview { padding: 10px; }
+  .finance-trip-card { padding: 11px; }
+}
+
+/* 1.2.0.60 - mobile headers without a dedicated search control */
+@media (max-width: 820px) {
+  .calendar-header-title-row { display: block; width: auto; }
+  .today-header-actions { width: auto; }
+  .work-header-actions { grid-template-columns: 44px minmax(0, 1fr); }
+  .work-header-actions .work-settings-button { grid-column: 1; }
+  .work-header-actions .button-primary { grid-column: 2; }
+}
+
+/* 1.2.0.61 - shared mobile event bottom sheet */
+@media (max-width: 620px) {
+  .event-mobile-header-save {
+    display: inline-flex;
+    width: auto !important;
+    min-height: 36px;
+    padding: 7px 14px;
+    font-size: .72rem;
+  }
+  .event-form-create:not(.event-form-multi-create) { gap: 10px; }
+  .event-form-create:not(.event-form-multi-create) .modal-actions { display: none; }
+  .event-form-create .event-location-input > small { display: none; }
+  .event-form-create .event-details-toggle { min-height: 36px; }
+  .event-form-create .event-date-grid,
+  .event-form-create .event-time-grid { gap: 8px; }
+  .event-form-create .field > span { margin-bottom: 4px; }
+}
+
+/* 1.2.0.62 - horizontal period swipe while preserving vertical scroll */
+@media (max-width: 820px) {
+  .calendar-period-swipe-surface {
+    touch-action: pan-y;
+    overscroll-behavior-x: contain;
+  }
+}
+
+/* 1.2.0.64 - long-press drag and drop for safe manual week events on mobile */
+@media (max-width: 820px) {
+  .calendar-week-shell { position: relative; }
+  .calendar-week-event.draggable { cursor: pointer; }
+  .calendar-week-event.touch-draggable {
+    -webkit-touch-callout: none;
+    user-select: none;
+  }
+  .calendar-week-event.touch-draggable.dragging {
+    opacity: .28;
+    transform: scale(.985);
+  }
+  .calendar-week-drag-preview {
+    display: block;
+    z-index: 6;
+    border-width: 2px;
+  }
+  .calendar-mobile-drag-status {
+    position: absolute;
+    left: 50%;
+    bottom: 12px;
+    z-index: 30;
+    min-height: 38px;
+    max-width: calc(100% - 24px);
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 7px 11px;
+    border: 1px solid color-mix(in srgb, var(--accent) 32%, var(--line));
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--surface) 94%, transparent);
+    box-shadow: var(--shadow-md);
+    backdrop-filter: blur(10px);
+    color: var(--text);
+    white-space: nowrap;
+    pointer-events: none;
+  }
+  .calendar-mobile-drag-status strong { font-size: .68rem; text-transform: capitalize; }
+  .calendar-mobile-drag-status span { color: var(--accent-strong); font-size: .7rem; font-weight: 850; }
+  .calendar-mobile-drag-status small { color: var(--text-muted); font-size: .58rem; }
+}
+
+@media (max-width: 390px) {
+  .calendar-mobile-drag-status small { display: none; }
+}
+
+/* 1.2.0.76 - keep the mobile resize hit area inside its own event */
+/* 1.2.0.74 - explicit mobile duration resize without stealing long-press drag */
+@media (max-width: 820px) {
+  .calendar-week-event.resizable { overflow: visible; }
+  .calendar-week-resize-handle.touch-resize-handle {
+    position: absolute;
+    left: 10px;
+    right: 8px;
+    bottom: 0;
+    z-index: 8;
+    height: min(20px, 100%);
+    touch-action: none;
+    cursor: ns-resize;
+  }
+  .calendar-week-resize-handle.touch-resize-handle::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    bottom: 3px;
+    width: 30px;
+    height: 3px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--accent-strong) 38%, var(--text-muted));
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--surface) 84%, transparent);
+    transform: translateX(-50%);
+    opacity: .72;
+  }
+  .calendar-week-event.resizing .calendar-week-resize-handle.touch-resize-handle::after {
+    width: 38px;
+    opacity: 1;
+    background: var(--accent-strong);
+  }
+  .calendar-week-event.resizing {
+    z-index: 8;
+    box-shadow: 0 5px 16px rgba(56,39,47,.12), inset 0 0 0 1px color-mix(in srgb, var(--accent) 35%, transparent);
+  }
+  .calendar-mobile-resize-status strong { text-transform: none; }
+}
+
+/* 1.2.0.71 - mobile Today work-card readability */
+@media (max-width: 620px) {
+  .today-view.has-plan .today-plan-panel.today-single-surface .event-card.compact-time-range {
+    grid-template-columns: 72px minmax(0, 1fr);
+    column-gap: 12px;
+    row-gap: 7px;
+  }
+  .today-view.has-plan .today-plan-panel.today-single-surface .event-card.compact-time-range .event-time strong {
+    font-size: .82rem;
+    line-height: 1.25;
+    letter-spacing: -.015em;
+    color: color-mix(in srgb, var(--text) 84%, var(--text-muted));
+  }
+  .today-view.has-plan .today-plan-panel.today-single-surface .event-heading-row {
+    gap: 6px 8px;
+  }
+  .today-view.has-plan .today-plan-panel.today-single-surface .event-heading-row h3 {
+    font-size: .98rem;
+    line-height: 1.25;
+    font-weight: 800;
+  }
+  .today-view.has-plan .today-plan-panel.today-single-surface .event-coworkers {
+    margin-top: 10px;
+    padding-top: 9px;
+    gap: 4px;
+  }
+  .today-view.has-plan .today-plan-panel.today-single-surface .event-coworkers > strong {
+    font-size: .68rem;
+    line-height: 1.3;
+  }
+  .today-view.has-plan .today-plan-panel.today-single-surface .event-coworkers > span {
+    gap: 0;
+  }
+  .today-view.has-plan .today-plan-panel.today-single-surface .event-coworker-line {
+    grid-template-columns: minmax(0, 1fr) max-content;
+    gap: 8px;
+    align-items: start;
+    padding: 6px 0 5px;
+  }
+  .today-view.has-plan .today-plan-panel.today-single-surface .event-coworker-line + .event-coworker-line {
+    border-top-color: rgba(63,130,146,.07);
+    padding-top: 6px;
+  }
+  .today-view.has-plan .today-plan-panel.today-single-surface .event-coworker-line b {
+    font-size: .72rem;
+    line-height: 1.3;
+    font-weight: 700;
+  }
+  .today-view.has-plan .today-plan-panel.today-single-surface .event-coworker-line small {
+    font-size: .64rem;
+    line-height: 1.3;
+    padding-top: 1px;
+  }
+}
+
+
+/* 1.2.0.73 - compact explicit add action in the mobile Calendar header */
+@media (max-width: 620px) {
+  .calendar-header-title-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    width: 100%;
+  }
+  .calendar-header-title-row h1 { min-width: 0; }
+  .calendar-mobile-explicit-add {
+    display: inline-flex;
+    width: auto !important;
+    flex: 0 0 auto;
+    margin-left: auto;
+    min-height: 36px;
+    padding-inline: 12px;
+    font-size: .68rem;
+    white-space: nowrap;
+  }
+}
+
+/* 1.2.0.77 - foreign trip currency controls stay light on mobile */
+@media (max-width: 620px) {
+  .finance-auto-rate-status { min-height: 32px; padding: 7px 10px; font-size: .67rem; }
+  .finance-quick-expense-date { max-width: none; }
+  .finance-dashboard-controls-v1258 .finance-core-actions .finance-manual-expense:only-child { grid-column: 1 / -1; }
+  .finance-trip-summary-main { gap: 10px; }
+  .finance-trip-title-row { align-items: baseline; flex-wrap: wrap; gap: 5px 7px; }
+  .finance-trip-summary-total > strong { font-size: 1.35rem; }
+  .finance-trip-summary-total > small { font-size: .64rem; }
+  .finance-trip-expense-row { grid-template-columns: 62px minmax(0,1fr) auto 10px; }
+  .finance-trip-expense-total strong { font-size: .76rem; }
+  .finance-trip-expense-total small { font-size: .61rem; }
+  .finance-currency-detail { align-items: flex-start; }
+  .finance-currency-detail strong { max-width: 58%; }
+}
+
+/* 1.2.0.78 - transaction-first Finance remains readable on mobile */
+@media (max-width: 820px) {
+  .finance-expense-section-heading { min-height: 42px !important; }
+  .finance-expense-heading-tools { gap: 6px; }
+  .finance-expense-heading-tools > span { display: none; }
+  .finance-expense-mode-switch button { min-height: 30px; padding-inline: 9px; font-size: .62rem; }
+  .finance-month-transaction-row { grid-template-columns: 62px minmax(0,1fr) auto 10px; gap: 8px; padding: 11px 10px; }
+  .finance-month-transaction-date { font-size: .64rem; }
+  .finance-month-transaction-copy strong { font-size: .78rem; }
+  .finance-month-transaction-copy small { max-width: 42vw; font-size: .63rem; }
+  .finance-month-transaction-total strong { font-size: .76rem; }
+  .finance-month-transaction-total small { font-size: .59rem; }
+}
+
+@media (max-width: 420px) {
+  .finance-expense-mode-switch button { padding-inline: 8px; }
+  .finance-month-transaction-row { grid-template-columns: 56px minmax(0,1fr) auto 8px; gap: 6px; }
+  .finance-month-transaction-copy small { max-width: 38vw; }
+}
+
+/* 1.2.0.79 - simple Finance hierarchy on phones */
+@media (max-width: 820px) {
+  .finance-dashboard-controls-v1258 .finance-core-actions .button:not(.finance-manual-expense):only-child {
+    width: auto;
+    justify-self: end;
+  }
+  .finance-trip-summary-simple { padding: 13px 14px; }
+  .finance-trip-summary-simple .finance-trip-summary-main { align-items: flex-start; }
+  .finance-trip-summary-copy h2 { font-size: 1.08rem; }
+  .finance-trip-summary-meta { gap: 4px 8px; font-size: .64rem; }
+  .finance-trips-overview { padding: 0; }
+  .finance-trips-heading { min-height: 40px; padding: 8px 11px; }
+  .finance-trip-card { padding: 11px; }
+  .finance-trip-card small { line-height: 1.35; }
+  .finance-category-overview-light .finance-category-bars { padding-inline: 8px; }
+}
+
+@media (max-width: 620px) {
+  .finance-core-actions .finance-manual-expense,
+  .finance-core-actions .finance-scan-receipt { min-width: 0; }
+  .finance-trip-summary-main { gap: 12px; }
+  .finance-trip-summary-total { flex: 0 0 auto; }
+  .finance-trip-summary-meta > span { white-space: normal; }
+  .finance-trip-expense-copy strong { font-size: .79rem; }
+  .finance-trip-expense-copy small { font-size: .63rem; }
+}
+
+/* 1.2.0.86 - compact Finance stays thumb-friendly on phones */
+@media (max-width: 820px) {
+  .finance-dashboard-controls-v1258 {
+    display: grid;
+    grid-template-columns: minmax(0,1fr) auto;
+    gap: 7px;
+  }
+  .finance-dashboard-controls-v1258 .finance-scope-switch { justify-self: start; }
+  .finance-dashboard-controls-v1258 .finance-month-switch,
+  .finance-dashboard-controls-v1258 .finance-trip-current { grid-column: 1 / -1; grid-row: 2; width: 100%; }
+  .finance-dashboard-controls-v1258 .finance-core-actions {
+    grid-column: 2;
+    grid-row: 1;
+    display: flex;
+    justify-self: end;
+    gap: 6px;
+  }
+  .finance-dashboard-controls-v1258 .finance-core-actions .button { width: auto; min-height: 34px; padding-inline: 10px; font-size: .67rem; }
+  .finance-dashboard-controls-v1258 .finance-core-actions .finance-scan-receipt { display: none; }
+  .finance-fast-overview { grid-template-columns: repeat(4, minmax(0,1fr)); }
+  .finance-fast-overview > .finance-overview-filter { min-height: 54px; border-top: 0; border-left: 1px solid var(--line); padding: 7px 8px; }
+  .finance-fast-overview > .finance-overview-filter:first-child { border-left: 0; }
+  .finance-fast-overview .finance-overview-filter small { display: none; }
+  .finance-fast-overview .finance-month-overview-total > strong { font-size: 1.08rem; }
+  .finance-fast-overview .finance-month-overview-necessity > strong,
+  .finance-fast-overview .finance-overview-review > strong { font-size: .86rem; }
+  .finance-category-strip { grid-template-columns: auto minmax(0,1fr); }
+  .finance-category-strip-label { min-width: 84px; padding-inline: 9px; }
+  .finance-category-strip-items { overflow-x: auto; scrollbar-width: none; }
+  .finance-category-strip-items::-webkit-scrollbar { display: none; }
+  .finance-category-strip-item { flex: 0 0 auto; min-width: 150px; padding-inline: 9px; }
+  .finance-expense-section-heading { min-height: 36px !important; }
+  .finance-expense-heading-tools > span { display: none; }
+  .finance-month-transaction-row { grid-template-columns: 52px minmax(0,1fr) auto 8px; gap: 7px; padding: 8px 9px; }
+  .finance-month-transaction-copy small { max-width: 40vw; }
+}
+
+@media (max-width: 520px) {
+  .finance-dashboard-controls-v1258 .finance-core-actions .finance-scan-receipt { display: none; }
+  .finance-fast-overview { grid-template-columns: repeat(2, minmax(0,1fr)); }
+  .finance-fast-overview > .finance-overview-filter { border-top: 1px solid var(--line); }
+  .finance-fast-overview > .finance-overview-filter:nth-child(-n+2) { border-top: 0; }
+  .finance-fast-overview > .finance-overview-filter:nth-child(odd) { border-left: 0; }
+  .finance-category-strip { grid-template-columns: 1fr; }
+  .finance-category-strip-label {
+    min-height: 32px;
+    grid-template-columns: auto auto;
+    justify-content: space-between;
+    align-items: center;
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+  }
+  .finance-category-strip-items { min-height: 40px; }
+  .finance-category-strip-item { min-width: 142px; }
+  .finance-month-transaction-row { grid-template-columns: 48px minmax(0,1fr) auto 8px; gap: 6px; }
+  .finance-month-transaction-copy small { max-width: 34vw; }
+}
+
+/* 1.2.0.87 - compact month summary remains readable on phones */
+@media (max-width: 820px) {
+  .finance-month-summary-main { min-height: 66px; gap: 10px; padding: 10px 11px 9px; }
+  .finance-month-summary-copy { gap: 5px; }
+  .finance-month-summary-meta { gap: 5px; }
+  .finance-month-summary-meta button { min-height: 25px; padding: 3px 7px; font-size: .59rem; }
+  .finance-month-summary-meta button strong { font-size: .61rem; }
+  .finance-month-summary-total { padding-left: 6px; }
+  .finance-month-summary-total strong { font-size: 1.2rem; }
+  .finance-month-summary-total small { display: none; }
+  .finance-month-category-chips { min-height: 38px; }
+  .finance-month-category-all { padding-inline: 9px; }
+  .finance-month-category-chip { min-width: 146px; min-height: 37px; grid-template-columns: auto minmax(0,1fr) auto; padding-inline: 8px; }
+  .finance-month-category-chip > small { display: none; }
+  .finance-month-category-chip .expense-category-icon { width: 22px; height: 22px; }
+  .finance-month-category-chip > strong { font-size: .62rem; }
+}
+
+@media (max-width: 520px) {
+  .finance-month-summary-main { align-items: flex-start; }
+  .finance-month-summary-meta { max-width: 68vw; }
+  .finance-month-summary-meta button { min-height: 24px; }
+  .finance-month-summary-total strong { font-size: 1.08rem; }
+  .finance-month-category-chip { min-width: 132px; }
+  .finance-month-summary-compact + .finance-purchases-section .finance-month-transaction-row { padding-block: 8px; }
+}
+
+/* 1.2.0.88 - trip-list header action stays compact on phones */
+@media (max-width: 820px) {
+  .finance-trips-heading { gap: 8px; }
+  .finance-trips-heading-actions { gap: 6px; }
+  .finance-trips-heading-actions > span { display: none; }
+  .finance-new-trip-header-button { min-height: 32px; padding-inline: 9px; font-size: .66rem; }
+}
+
+/* 1.2.0.89 - fast trip spending on phones */
+@media (max-width: 620px) {
+  .finance-trip-category-strip { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin-top: 8px; padding-top: 8px; }
+  .finance-trip-category-strip::-webkit-scrollbar { display: none; }
+  .finance-trip-category-chip { flex: 0 0 auto; }
+  .finance-trip-expense-row { grid-template-columns: 48px 26px minmax(0,1fr) auto 9px; gap: 7px; padding-inline: 9px; }
+  .finance-trip-expense-date { font-size: .62rem; }
+  .finance-trip-expense-icon .expense-category-icon { width: 24px; height: 24px; flex-basis: 24px; }
+  .finance-quick-expense-form .modal-actions.split-actions { display: grid; grid-template-columns: minmax(0,.7fr) minmax(0,1.3fr); gap: 9px; }
+  .finance-quick-expense-form .modal-actions .button { width: 100%; min-height: 46px; }
+  .finance-quick-expense-form .modal-actions .button-primary { font-weight: 850; }
+}
+
+/* 1.2.0.90 - Month and Trip keep the same Finance hierarchy on phones. */
+@media (max-width: 820px) {
+  .finance-overview-summary-main {
+    min-height: 66px;
+    gap: 10px;
+    padding: 10px 11px 9px;
+  }
+  .finance-overview-summary-copy h2 { font-size: 1.05rem; }
+  .finance-overview-summary-meta { gap: 4px 6px; font-size: .61rem; }
+  .finance-overview-summary-total > strong { font-size: 1.2rem; }
+  .finance-overview-summary-total > small { font-size: .56rem; }
+  .finance-overview-category-manage { min-height: 37px; padding-inline: 9px; }
+  .finance-overview-category-chip { min-width: 136px; min-height: 37px; padding-inline: 8px; }
+  .finance-overview-category-chip .expense-category-icon { width: 22px; height: 22px; flex-basis: 22px; }
+  .finance-expense-row {
+    grid-template-columns: 48px 24px minmax(0,1fr) auto 8px;
+    gap: 7px;
+    padding: 8px 9px;
+  }
+  .finance-expense-copy small { max-width: 40vw; }
+  .finance-expense-list-heading { min-height: 36px !important; }
+}
+
+@media (max-width: 520px) {
+  .finance-overview-summary-main { align-items: flex-start; }
+  .finance-overview-summary-meta { max-width: 68vw; }
+  .finance-overview-summary-total > strong { font-size: 1.08rem; }
+  .finance-overview-category-chip { min-width: 126px; }
+  .finance-expense-row { grid-template-columns: 44px 24px minmax(0,1fr) auto 7px; gap: 6px; }
+  .finance-expense-copy small { max-width: 34vw; }
+}
+
+/* 1.2.0.91 - travel-ready Work header keeps settings + import predictable on phones. */
+@media (max-width: 820px) {
+  .work-header-actions {
+    grid-template-columns: 44px minmax(0, 1fr);
+  }
+  .work-header-actions .work-settings-button { grid-column: 1; }
+  .work-header-actions .work-import-button,
+  .work-header-actions > .button-primary:not(.work-settings-button) { grid-column: 2; }
+}
+
+/* 1.2.0 - viewport-safe mobile modals and always-reachable primary actions. */
+@media (max-width: 620px) {
+  body.modal-open { overflow: hidden; }
+  body.modal-open .bottom-nav {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transform: translateY(110%);
+  }
+  .modal-backdrop {
+    z-index: 200;
+    align-items: end;
+    padding: max(8px, env(safe-area-inset-top)) 0 0;
+  }
+  .modal-card,
+  .modal-wide {
+    max-height: calc(100dvh - max(8px, env(safe-area-inset-top)));
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scroll-padding-bottom: max(18px, env(safe-area-inset-bottom));
+    -webkit-overflow-scrolling: touch;
+  }
+  .modal-mobile-header-save {
+    display: inline-flex;
+    width: auto !important;
+    min-height: 36px;
+    padding: 7px 12px;
+    font-size: .72rem;
+    white-space: nowrap;
+  }
+  .finance-quick-expense-form .modal-actions {
+    display: none !important;
+  }
 }

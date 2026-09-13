@@ -1,3 +1,4 @@
+import type { ReceiptItemUnit } from '../expenses.types';
 import type { ParsedReceiptDraft, ParsedReceiptItem, ReceiptAdjustmentDraft, ReceiptMerchantDecision, ReceiptMerchantEvidenceKind, ReceiptMerchantRejectReason, ReceiptParseWarning, ReceiptOcrConfidence } from './receipt-ocr.types';
 import { reconcileReceiptFinancials } from './receipt-financial-reconciliation';
 import { reconstructColumnarReceiptText } from './receipt-columnar-reconstruction';
@@ -986,6 +987,36 @@ function isUnitOnlyLine(line: string): boolean {
   return UNIT_ONLY_LINE.test(collapse(line));
 }
 
+function receiptItemUnitFromToken(value: string): ReceiptItemUnit | undefined {
+  const normalized = collapse(value).toLocaleLowerCase('pl-PL').replace(/\.$/u, '');
+  if (normalized === 'szt') return 'szt';
+  if (normalized === 'kg') return 'kg';
+  if (normalized === 'g') return 'g';
+  if (normalized === 'mg') return 'mg';
+  if (normalized === 'l') return 'l';
+  if (normalized === 'ml') return 'ml';
+  if (normalized === 'cl') return 'cl';
+  if (normalized === 'dl') return 'dl';
+  if (normalized === 'op' || normalized === 'opak' || normalized === 'opakowanie') return 'op';
+  return undefined;
+}
+
+function explicitReceiptQuantityUnit(value: string): ReceiptItemUnit | undefined {
+  const normalized = collapse(value).replace(/×/gu, 'x');
+  const unitPattern = '(kg|mg|g|ml|cl|dl|l|szt\\.?|opak(?:owanie)?|op\\.?)';
+  const afterQuantity = new RegExp(`\\d+(?:[,.]\\d+)?\\s*${unitPattern}\\s*[xX*]`, 'iu').exec(normalized);
+  if (afterQuantity?.[1]) return receiptItemUnitFromToken(afterQuantity[1]);
+  const beforeQuantity = new RegExp(`(?:^|\\s)${unitPattern}(?:\\s+[A-GĆ])?\\s+\\d+(?:[,.]\\d+)?\\s*[xX*]`, 'iu').exec(normalized);
+  if (beforeQuantity?.[1]) return receiptItemUnitFromToken(beforeQuantity[1]);
+  return undefined;
+}
+
+function receiptUnitOnlyLineValue(line: string): ReceiptItemUnit | undefined {
+  const normalized = collapse(line);
+  const match = /^(?:\d+(?:[,.]\d+)?\s*)?(kg|mg|g|ml|cl|dl|l|szt\.?|opak(?:owanie)?|op\.?)$/iu.exec(normalized);
+  return match?.[1] ? receiptItemUnitFromToken(match[1]) : undefined;
+}
+
 interface QuantityStructure {
   namePart: string;
   amountMinor: number;
@@ -1019,7 +1050,7 @@ function quantityTimesUnitMinor(quantity: number, unitPriceMinor: number): numbe
 }
 
 function parsedQuantityPrefix(prefix: string): ParsedQuantityPrefix | undefined {
-  const strict = /^(.*?)(?:\s+([A-GĆ]))?\s+([0-9OIl]+(?:[,.][0-9OIl]+)?)\s*(?:(?:SZT\.?|OP\.?|OPAK(?:OWANIE)?)\s*)?[xX×*]\s*$/iu.exec(prefix);
+  const strict = /^(.*?)(?:\s+([A-GĆ]))?\s+([0-9OIl]+(?:[,.][0-9OIl]+)?)\s*(?:(?:kg|mg|g|ml|cl|dl|l|SZT\.?|OP\.?|OPAK(?:OWANIE)?)\s*)?[xX×*]\s*$/iu.exec(prefix);
   if (strict) {
     const name = cleanItemName(strict[1] ?? '');
     const quantityText = (strict[3] ?? '').replace(/[Oo]/gu, '0').replace(/[Il]/gu, '1').replace(',', '.');
@@ -1087,7 +1118,7 @@ interface QuantityPrefix {
 }
 
 function quantityPrefix(prefix: string): QuantityPrefix | undefined {
-  const match = /^(.*?)(?:\s+([A-GĆ]))?\s+(\d+(?:[,.]\d+)?)\s*[xX×*]\s*$/iu.exec(prefix);
+  const match = /^(.*?)(?:\s+([A-GĆ]))?\s+(\d+(?:[,.]\d+)?)\s*(?:(?:kg|mg|g|ml|cl|dl|l|SZT\.?|OP\.?|OPAK(?:OWANIE)?)\s*)?[xX×*]\s*$/iu.exec(prefix);
   if (!match) return undefined;
   const namePart = cleanItemName(match[1] ?? '');
   const quantity = Number((match[3] ?? '').replace(',', '.'));
@@ -1213,7 +1244,7 @@ function damagedUnitPriceStructure(line: string): QuantityStructure | undefined 
   };
 }
 
-function quantityOnlyLine(line: string): { amountMinor: number; finalTaxMarker?: string; quantityAnomaly?: boolean; financialResolution: NonNullable<ParsedReceiptItem['financialResolution']> } | undefined {
+function quantityOnlyLine(line: string): { amountMinor: number; finalTaxMarker?: string; quantity?: number; unit?: ReceiptItemUnit; unitPriceMinor?: number; quantityAnomaly?: boolean; financialResolution: NonNullable<ParsedReceiptItem['financialResolution']> } | undefined {
   const normalized = line.replace(/×/g, 'x').trim();
   const prefix = /^(\d+(?:[,.]\d+)?)\s*(?:(?:kg|g|mg|l|ml|cl|dl)\s*)?(?:(?:SZT\.?|OP\.?|OPAK(?:OWANIE)?)\s*)?[xX*="”]\s*/iu.exec(normalized);
   const damagedPiecePrefix = /^[^\s]{1,8}\s+(?:T?SZT|TSZT|SZT)\s*[*xX]\s*/iu.test(normalized);
@@ -1227,9 +1258,16 @@ function quantityOnlyLine(line: string): { amountMinor: number; finalTaxMarker?:
   const quantityAnomaly = unitPrice && Number.isFinite(quantity) && quantity > 0
     ? Math.abs(quantityTimesUnitMinor(quantity, unitPrice.amountMinor) - finalPrice.amountMinor) > 1
     : false;
+  const trustedQuantity = Boolean(unitPrice && Number.isFinite(quantity) && quantity > 0 && !quantityAnomaly);
+  const explicitUnit = trustedQuantity ? explicitReceiptQuantityUnit(normalized) : undefined;
   return {
     amountMinor: finalPrice.amountMinor,
     ...(finalPrice.taxMarker ? { finalTaxMarker: finalPrice.taxMarker } : {}),
+    ...(trustedQuantity ? {
+      quantity,
+      unitPriceMinor: unitPrice!.amountMinor,
+      ...(explicitUnit ? { unit: explicitUnit } : {}),
+    } : {}),
     ...(quantityAnomaly ? { quantityAnomaly: true } : {}),
     financialResolution: quantityAnomaly ? 'explicit-line-total' : prices.length >= 2 ? 'quantity-unit-total-consensus' : 'fallback',
   };
@@ -1281,6 +1319,11 @@ function inlineItem(line: string): ParsedReceiptItem | undefined {
   const warnings: string[] = [];
   if (structured?.recoveredAmount || recoveredQuantity) warnings.push('Kwota pozycji została potwierdzona na podstawie ilości i ceny jednostkowej oraz struktury paragonu. Sprawdź.');
   if (structured?.quantityAnomaly) warnings.push('Niepewna ilość: OCR nie zgadza się z ceną jednostkową i wartością pozycji. Kwota pozycji została zachowana.');
+  const trustedQuantity = structured?.quantity !== undefined
+    && structured.unitPriceMinor !== undefined
+    && !structured.quantityAnomaly
+    && ['quantity-unit-total-consensus', 'quantity-unit-recovery'].includes(structured.resolutionReason);
+  const explicitUnit = trustedQuantity ? explicitReceiptQuantityUnit(line) : undefined;
   return {
     rawText: line,
     name,
@@ -1291,6 +1334,11 @@ function inlineItem(line: string): ParsedReceiptItem | undefined {
       ? { taxMarker: structured?.taxMarker ?? structured?.finalTaxMarker ?? finalPrice.taxMarker }
       : {}),
     financialResolution: structured?.resolutionReason ?? 'fallback',
+    ...(trustedQuantity ? {
+      quantity: structured.quantity!,
+      unitPriceMinor: structured.unitPriceMinor!,
+      ...(explicitUnit ? { unit: explicitUnit } : {}),
+    } : {}),
     confidence: structured?.recoveredAmount || recoveredQuantity || structured?.quantityAnomaly || prices.length > 1 || /[XĆ€%Il|48]$/u.test(finalPrice.raw) ? 'medium' : 'high',
     warnings,
   };
@@ -1984,6 +2032,10 @@ export function parseReceiptText(rawText: string): ParsedReceiptDraft {
       else if (items.length && lineIndex - lastItemLineIndex <= 1) {
         const previousItem = items[items.length - 1]!;
         previousItem.rawText = `${previousItem.rawText}\n${line}`;
+        const explicitUnit = receiptUnitOnlyLineValue(line);
+        if (explicitUnit && previousItem.quantity !== undefined && previousItem.unitPriceMinor !== undefined && previousItem.unit === undefined) {
+          previousItem.unit = explicitUnit;
+        }
         lastItemLineIndex = lineIndex;
       }
       continue;
@@ -1999,6 +2051,11 @@ export function parseReceiptText(rawText: string): ParsedReceiptDraft {
           baseAmountMinor: quantityInfo.amountMinor,
           discountMinor: 0,
           financialResolution: quantityInfo.financialResolution,
+          ...(quantityInfo.quantity === undefined || quantityInfo.unitPriceMinor === undefined ? {} : {
+            quantity: quantityInfo.quantity,
+            unitPriceMinor: quantityInfo.unitPriceMinor,
+            ...(quantityInfo.unit ? { unit: quantityInfo.unit } : {}),
+          }),
           confidence: 'medium',
           warnings: quantityInfo.quantityAnomaly
             ? ['Niepewna ilość: OCR nie zgadza się z ceną jednostkową i wartością pozycji. Kwota pozycji została zachowana.']

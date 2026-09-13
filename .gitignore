@@ -46,3 +46,15 @@ docs/RELEASE_AUDIT_*.md
 
 # Private/local receipt benchmark build output
 .benchmark-dist/
+
+# Tymczasowe screenshoty Visual QA
+artifacts/visual-qa/
+
+# Wewnętrzne checkpointy i paczki robocze - nigdy do publicznego repo
+HANDOFF_NEW_CHAT_*.md
+PRIVATE_*.md
+CURRENT_PROJECT_RULES.md
+CLEAN_CHECKPOINT_CONTENTS.md
+SHA256SUMS.txt
+BUILD_INFO.private.json
+docs/TRAVEL_RELEASE_CHECKLIST.md

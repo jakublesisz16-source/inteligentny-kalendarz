@@ -13,10 +13,43 @@ describe('CalendarConsistencyEngine 0.3.1', () => {
     expect(issues[0]?.overlapMinutes).toBe(60);
     expect(issues[0]?.planningImpact).toBe('BLOCKING');
   });
-  it('distinguishes touching from overlap', () => {
+  it('does not warn merely because two events touch when travel is unknown', () => {
     const issues = analyzeCalendarConsistency([event('a','2026-08-12T12:00','2026-08-12T16:00'), event('b','2026-08-12T16:00','2026-08-12T18:00','WORK','WORK_PDF')]);
-    expect(issues.some((issue) => issue.type === 'TOUCHING')).toBe(true);
+    expect(issues.some((issue) => issue.type === 'TOUCHING')).toBe(false);
     expect(issues.some((issue) => issue.type === 'HARD_OVERLAP')).toBe(false);
+  });
+  it('warns when a study-to-work gap is shorter than the configured commute', () => {
+    const issues = analyzeCalendarConsistency([
+      event('study','2026-08-12T12:00','2026-08-12T16:00','STUDY','UNIVERSITY_XLSX',{ locationId: 'university' }),
+      event('work','2026-08-12T16:10','2026-08-12T20:00','WORK','WORK_PDF',{ locationId: 'work' }),
+    ], [], [], { commuteMinutes: 30, workLocationId: 'work' });
+    const travel = issues.find((issue) => issue.type === 'TOUCHING');
+    expect(travel?.title).toBe('Za mało czasu na dojazd');
+    expect(travel?.gapMinutes).toBe(10);
+    expect(travel?.description).toContain('brakuje 20 min');
+  });
+
+  it('does not warn when the configured commute fits in the gap', () => {
+    const issues = analyzeCalendarConsistency([
+      event('study','2026-08-12T12:00','2026-08-12T16:00','STUDY','UNIVERSITY_XLSX',{ locationId: 'university' }),
+      event('work','2026-08-12T16:30','2026-08-12T20:00','WORK','WORK_PDF',{ locationId: 'work' }),
+    ], [], [], { commuteMinutes: 30, workLocationId: 'work' });
+    expect(issues.some((issue) => issue.type === 'TOUCHING')).toBe(false);
+  });
+  it('does not warn about commute when both events use the same known place', () => {
+    const issues = analyzeCalendarConsistency([
+      event('study','2026-08-12T12:00','2026-08-12T16:00','STUDY','UNIVERSITY_XLSX',{ locationId: 'campus' }),
+      event('work','2026-08-12T16:00','2026-08-12T20:00','WORK','WORK_PDF',{ locationId: 'campus' }),
+    ], [], [], { commuteMinutes: 30, workLocationId: 'campus' });
+    expect(issues.some((issue) => issue.type === 'TOUCHING')).toBe(false);
+  });
+
+  it('does not invent a commute warning when one location is unknown', () => {
+    const issues = analyzeCalendarConsistency([
+      event('study','2026-08-12T12:00','2026-08-12T16:00','STUDY','UNIVERSITY_XLSX'),
+      event('work','2026-08-12T16:00','2026-08-12T20:00','WORK','WORK_PDF',{ locationId: 'work' }),
+    ], [], [], { commuteMinutes: 30, workLocationId: 'work' });
+    expect(issues.some((issue) => issue.type === 'TOUCHING')).toBe(false);
   });
   it('detects study-work overlap', () => {
     const issues = analyzeCalendarConsistency([event('a','2026-08-12T14:00','2026-08-12T16:00'), event('b','2026-08-12T15:00','2026-08-12T20:00','WORK','WORK_PDF')]);

@@ -5,17 +5,22 @@ interface ModalProps {
   children: ReactNode;
   onClose: () => void;
   wide?: boolean;
+  headerActions?: ReactNode;
 }
 
 const focusableSelector = 'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])';
 
-export function Modal({ title, children, onClose, wide = false }: ModalProps) {
+export function Modal({ title, children, onClose, wide = false, headerActions }: ModalProps) {
   const cardRef = useRef<HTMLElement>(null);
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
 
   useEffect(() => {
     const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const body = document.body;
+    const openCount = Number(body.dataset.modalOpenCount ?? '0') + 1;
+    body.dataset.modalOpenCount = String(openCount);
+    body.classList.add('modal-open');
     const card = cardRef.current;
     const preferred = card?.querySelector<HTMLElement>('[data-modal-autofocus="true"]');
     const first = preferred ?? card?.querySelector<HTMLElement>(focusableSelector);
@@ -33,7 +38,17 @@ export function Modal({ title, children, onClose, wide = false }: ModalProps) {
     }
 
     document.addEventListener('keydown', onKeyDown);
-    return () => { document.removeEventListener('keydown', onKeyDown); previous?.focus(); };
+    return () => {
+      document.removeEventListener('keydown', onKeyDown);
+      const remaining = Math.max(0, Number(body.dataset.modalOpenCount ?? '1') - 1);
+      if (remaining === 0) {
+        delete body.dataset.modalOpenCount;
+        body.classList.remove('modal-open');
+      } else {
+        body.dataset.modalOpenCount = String(remaining);
+      }
+      previous?.focus();
+    };
   }, []);
 
   return (
@@ -48,7 +63,10 @@ export function Modal({ title, children, onClose, wide = false }: ModalProps) {
       >
         <header className="modal-header">
           <h2 id="modal-title">{title}</h2>
-          <button type="button" className="icon-button" onClick={onClose} aria-label="Zamknij okno">×</button>
+          <div className="modal-header-actions">
+            {headerActions}
+            <button type="button" className="icon-button" onClick={onClose} aria-label="Zamknij okno">×</button>
+          </div>
         </header>
         {children}
       </section>

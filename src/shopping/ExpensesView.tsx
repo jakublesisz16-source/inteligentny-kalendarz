@@ -12,7 +12,7 @@ import {
 } from '../storage/database';
 import { toLocalDateKey } from '../calendar/date.utils';
 import { Modal } from '../ui/Modal';
-import type { ExpenseCategory, Receipt, ReceiptDraft } from './expenses.types';
+import type { ExpenseCategory, Receipt, ReceiptDraft, ReceiptItemUnit } from './expenses.types';
 import { ReceiptScanFlow } from './receipt-ocr/ReceiptScanFlow';
 import { ExpenseCategoryIcon } from './ExpenseCategoryIcon';
 import {
@@ -38,6 +38,10 @@ interface ReceiptItemForm {
   name: string;
   categoryId: string;
   amountText: string;
+  originalAmountMinor?: number;
+  quantity?: number;
+  unit?: ReceiptItemUnit;
+  unitPriceMinor?: number;
 }
 
 interface ReceiptFormState {
@@ -69,6 +73,10 @@ function formFromReceipt(receipt: Receipt): ReceiptFormState {
       name: item.name,
       categoryId: item.categoryId,
       amountText: moneyMinorToInput(item.amountMinor),
+      originalAmountMinor: item.amountMinor,
+      ...(item.quantity === undefined ? {} : { quantity: item.quantity }),
+      ...(item.unit === undefined ? {} : { unit: item.unit }),
+      ...(item.unitPriceMinor === undefined ? {} : { unitPriceMinor: item.unitPriceMinor }),
     })),
   };
 }
@@ -283,7 +291,7 @@ export function ExpensesView() {
 
   async function saveScannedReceipt(draft: ReceiptDraft) {
     clearFeedback();
-    await createReceipt(draft);
+    await createReceipt({ ...draft, source: 'receipt' });
     setReceiptScanOpen(false);
     await refresh();
     setMessage('Dodano paragon ze skanu.');
@@ -328,15 +336,25 @@ export function ExpensesView() {
       const draft = {
         merchant: receiptForm.merchant,
         date: receiptForm.date,
-        items: parsedItems.map((item) => ({
-          ...(item.id ? { id: item.id } : {}),
-          name: item.name,
-          categoryId: item.categoryId,
-          amountMinor: item.amountMinor!,
-        })),
+        items: parsedItems.map((item) => {
+          const preserveUnitDetails = item.amountMinor === item.originalAmountMinor
+            && item.quantity !== undefined
+            && item.unitPriceMinor !== undefined;
+          return {
+            ...(item.id ? { id: item.id } : {}),
+            name: item.name,
+            categoryId: item.categoryId,
+            amountMinor: item.amountMinor!,
+            ...(preserveUnitDetails ? {
+              quantity: item.quantity,
+              unitPriceMinor: item.unitPriceMinor,
+              ...(item.unit ? { unit: item.unit } : {}),
+            } : {}),
+          };
+        }),
       };
       if (receiptForm.id) await updateReceipt(receiptForm.id, draft);
-      else await createReceipt(draft);
+      else await createReceipt({ ...draft, source: 'manual' });
       const wasEditing = Boolean(receiptForm.id);
       setReceiptForm(null);
       await refresh();
@@ -452,7 +470,7 @@ export function ExpensesView() {
       <div className="expenses-dashboard-header">
         <div className="expenses-dashboard-title">
           <div>
-            <p className="section-kicker">Wydatki</p>
+            <p className="section-kicker">Podsumowanie</p>
             <h2>Przegląd miesiąca</h2>
           </div>
           <div className="expenses-receipt-actions">

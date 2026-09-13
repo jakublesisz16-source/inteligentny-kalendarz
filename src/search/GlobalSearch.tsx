@@ -30,7 +30,7 @@ function eventSubtitle(item: GlobalSearchItem): string {
     ? formatDateKey(startDate)
     : `${formatDateKey(startDate)} - ${formatDateKey(endDate)}`;
   const timePart = event.allDay ? 'Cały dzień' : `${startTime}-${endTime}`;
-  return [datePart, timePart, item.eventLocation?.name].filter(Boolean).join(' · ');
+  return [datePart, timePart, item.eventLocation?.name ?? event.locationText].filter(Boolean).join(' · ');
 }
 
 function resultSubtitle(item: GlobalSearchItem): string {
@@ -40,7 +40,7 @@ function resultSubtitle(item: GlobalSearchItem): string {
 
 export function GlobalSearch({ events, locations, onOpenEvent, onOpenLocation, onClose }: GlobalSearchProps) {
   const [query, setQuery] = useState('');
-  const items = useMemo(() => buildGlobalSearchItems(events, locations), [events, locations]);
+  const items = useMemo(() => buildGlobalSearchItems(events, locations).filter((item) => item.kind !== 'LOCATION'), [events, locations]);
   const todayKey = useMemo(() => toLocalDateKey(new Date()), []);
   const response = useMemo(() => searchGlobalItems(items, query, todayKey), [items, query, todayKey]);
   const hasSearchableQuery = query.trim().length >= 2;
@@ -58,14 +58,14 @@ export function GlobalSearch({ events, locations, onOpenEvent, onOpenLocation, o
           <input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Szukaj wydarzeń, Studiów, Pracy i Miejsc..."
+            placeholder="Szukaj wydarzeń, Studiów i Pracy..."
             autoComplete="off"
             data-modal-autofocus="true"
           />
         </label>
 
         {!hasSearchableQuery ? (
-          <p className="global-search-hint">Szukaj po nazwie, miejscu, adresie lub fragmencie notatki.</p>
+          <p className="global-search-hint">Szukaj po nazwie, miejscu wydarzenia lub fragmencie notatki.</p>
         ) : response.totalCount === 0 ? (
           <p className="global-search-empty">Brak wyników.</p>
         ) : (

@@ -144,7 +144,7 @@ SUMA 0,74`);
     expect(draft).toEqual({
       merchant: 'SKLEP TESTOWY',
       date: '2026-08-16',
-      items: [{ name: 'Produkt Alfa', categoryId: 'other', amountMinor: 74 }],
+      items: [{ name: 'Produkt Alfa', categoryId: 'other', amountMinor: 74, quantity: 1, unitPriceMinor: 149 }],
     });
     expect(JSON.stringify(draft)).not.toContain('adjustments');
     expect(JSON.stringify(draft)).not.toContain('rawText');

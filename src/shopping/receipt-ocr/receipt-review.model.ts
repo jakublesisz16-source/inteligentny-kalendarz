@@ -1,5 +1,5 @@
 import type { ExpenseCategory, ReceiptDraft } from '../expenses.types';
-import { moneyMinorToInput, parseMoneyToMinor } from '../expenses.utils';
+import { moneyMinorToInput, parseMoneyToMinor, parseReceiptQuantity, receiptQuantityToInput } from '../expenses.utils';
 import type { ParsedReceiptDraft, ReceiptReviewDraft } from './receipt-ocr.types';
 
 export function createReceiptReviewDraft(parsed: ParsedReceiptDraft, categories: ExpenseCategory[]): ReceiptReviewDraft {
@@ -14,6 +14,9 @@ export function createReceiptReviewDraft(parsed: ParsedReceiptDraft, categories:
       name: item.name,
       categoryId: item.suggestedCategoryId ?? fallbackCategoryId,
       amountText: item.amountMinor === undefined ? '' : moneyMinorToInput(item.amountMinor),
+      ...(item.quantity === undefined ? {} : { quantityText: receiptQuantityToInput(item.quantity) }),
+      ...(item.unit === undefined ? {} : { unit: item.unit }),
+      ...(item.unitPriceMinor === undefined ? {} : { unitPriceText: moneyMinorToInput(item.unitPriceMinor) }),
       ...(item.baseAmountMinor === undefined ? {} : { baseAmountMinor: item.baseAmountMinor }),
       ...(item.discountMinor === undefined ? {} : { discountMinor: item.discountMinor }),
       confidence: item.confidence,
@@ -107,6 +110,13 @@ export function validateReceiptReviewForSave(
     if (amountMinor === null || amountMinor <= 0) {
       return { valid: false, message: `Wpisz prawidłową kwotę dla pozycji: ${name}.` };
     }
+    const quantityText = item.quantityText?.trim() ?? '';
+    const unitPriceText = item.unitPriceText?.trim() ?? '';
+    if (quantityText || unitPriceText) {
+      if (parseReceiptQuantity(quantityText) === null) return { valid: false, message: `Popraw ilość dla pozycji: ${name}.` };
+      const unitPriceMinor = parseMoneyToMinor(unitPriceText);
+      if (unitPriceMinor === null || unitPriceMinor <= 0) return { valid: false, message: `Popraw cenę jednostkową dla pozycji: ${name}.` };
+    }
   }
 
   return { valid: true, message: '' };
@@ -119,10 +129,22 @@ export function receiptReviewToDraft(review: ReceiptReviewDraft): ReceiptDraft {
   return {
     merchant: review.merchant.trim(),
     date: review.date,
-    items: review.items.map((item) => ({
-      name: item.name.trim(),
-      categoryId: item.categoryId,
-      amountMinor: parseMoneyToMinor(item.amountText)!,
-    })),
+    items: review.items.map((item) => {
+      const quantityText = item.quantityText?.trim() ?? '';
+      const unitPriceText = item.unitPriceText?.trim() ?? '';
+      const quantity = quantityText ? parseReceiptQuantity(quantityText) : null;
+      const unitPriceMinor = unitPriceText ? parseMoneyToMinor(unitPriceText) : null;
+      const hasUnitDetails = quantity !== null && unitPriceMinor !== null && unitPriceMinor > 0;
+      return {
+        name: item.name.trim(),
+        categoryId: item.categoryId,
+        amountMinor: parseMoneyToMinor(item.amountText)!,
+        ...(hasUnitDetails ? {
+          quantity,
+          unitPriceMinor,
+          ...(item.unit ? { unit: item.unit } : {}),
+        } : {}),
+      };
+    }),
   };
 }

@@ -70,6 +70,12 @@ export function WorkSummaryView({ workEvents, workImports, availabilityPlans, on
     .filter((event) => event.category === 'WORK' && !event.allDay && (event.source === 'MANUAL' || event.source === 'WORK_PDF'))
     .map(workSummaryShift), [workEvents]);
   const summary = useMemo(() => buildWorkMonthlySummary(monthKey, confirmedShifts), [confirmedShifts, monthKey]);
+  const previousMonthKey = shiftMonth(monthKey, -1);
+  const previousSummary = useMemo(() => buildWorkMonthlySummary(previousMonthKey, confirmedShifts), [confirmedShifts, previousMonthKey]);
+  const recentSummaries = useMemo(() => [-3, -2, -1, 0].map((offset) => {
+    const key = shiftMonth(monthKey, offset);
+    return buildWorkMonthlySummary(key, confirmedShifts);
+  }), [confirmedShifts, monthKey]);
   const pdfEvents = useMemo(() => {
     const dedupedIds = new Set(dedupeConfirmedWorkShifts(workEvents.filter((event) => event.source === 'WORK_PDF' && !event.allDay).map(workSummaryShift)).map((shift) => shift.id));
     return workEvents.filter((event) => dedupedIds.has(event.id) && eventOverlapsMonth(event, monthKey));
@@ -94,7 +100,11 @@ export function WorkSummaryView({ workEvents, workImports, availabilityPlans, on
 
   const comparisonSummary = useMemo(() => aggregateAvailabilityComparisonResults(comparisonData.comparisons), [comparisonData.comparisons]);
   const maxWeeklyMinutes = Math.max(1, ...summary.weeklyBuckets.map((bucket) => bucket.minutes));
+  const maxRecentMinutes = Math.max(1, ...recentSummaries.map((item) => item.totalMinutes));
   const monthDate = localDateFromKey(`${monthKey}-01`);
+  const previousMonthDate = localDateFromKey(`${previousMonthKey}-01`);
+  const monthDeltaMinutes = summary.totalMinutes - previousSummary.totalMinutes;
+  const compliancePercent = comparisonSummary.comparedShiftCount ? Math.round((comparisonSummary.fullyWithinCount / comparisonSummary.comparedShiftCount) * 100) : undefined;
 
   return <section className="work-summary-view" aria-label={`Podsumowanie pracy - ${formatMonthLabel(monthDate)}`}>
     <div className="work-summary-month-nav">
@@ -105,14 +115,18 @@ export function WorkSummaryView({ workEvents, workImports, availabilityPlans, on
 
     {!summary.shiftCount ? <section className="panel work-summary-empty"><h3>Brak danych o pracy w tym miesiącu</h3><p className="muted-copy">Zaimportuj grafik albo dodaj potwierdzoną zmianę pracy, a podsumowanie policzy się automatycznie.</p><button type="button" className="button button-primary" onClick={onImportClick}>Importuj grafik</button></section> : <>
       <section className="work-summary-hero" aria-label="Najważniejsze statystyki miesiąca">
-        <div className="work-summary-total"><strong>{formatWorkSummaryMinutes(summary.totalMinutes)}</strong><span>przepracowano</span></div>
-        <div className="work-summary-facts">
-          <span><strong>{summary.shiftCount}</strong> {summary.shiftCount === 1 ? 'zmiana' : 'zmian'}</span>
-          <span><strong>{summary.workDayCount}</strong> {summary.workDayCount === 1 ? 'dzień pracy' : 'dni pracy'}</span>
-          <span>Średnio <strong>{summary.averageShiftMinutes !== undefined ? formatWorkSummaryMinutes(summary.averageShiftMinutes) : 'Brak danych'}</strong></span>
-          <span>Najdłuższa <strong>{summary.longestShiftMinutes !== undefined ? formatWorkSummaryMinutes(summary.longestShiftMinutes) : 'Brak danych'}</strong></span>
+        <div className="work-summary-hero-top">
+          <div className="work-summary-total"><strong>{formatWorkSummaryMinutes(summary.totalMinutes)}</strong><span>przepracowano</span></div>
+          <div className={`work-summary-delta${monthDeltaMinutes > 0 ? ' up' : monthDeltaMinutes < 0 ? ' down' : ''}`}>
+            {previousSummary.shiftCount ? <><strong>{monthDeltaMinutes > 0 ? '+' : monthDeltaMinutes < 0 ? '-' : ''}{formatWorkSummaryMinutes(Math.abs(monthDeltaMinutes))}</strong><span>względem {formatMonthLabel(previousMonthDate)}</span></> : <><strong>Brak porównania</strong><span>brak danych z {formatMonthLabel(previousMonthDate)}</span></>}
+          </div>
         </div>
-        <p className="work-summary-weekend">Soboty: <strong>{summary.saturdayCount}</strong> · Niedziele: <strong>{summary.sundayCount}</strong></p>
+        <div className="work-summary-facts work-summary-facts-grid">
+          <span><strong>{summary.shiftCount}</strong><small>{summary.shiftCount === 1 ? 'zmiana' : 'zmian'}</small></span>
+          <span><strong>{summary.workDayCount}</strong><small>{summary.workDayCount === 1 ? 'dzień pracy' : 'dni pracy'}</small></span>
+          <span><strong>{summary.averageShiftMinutes !== undefined ? formatWorkSummaryMinutes(summary.averageShiftMinutes) : 'Brak'}</strong><small>średnia zmiana</small></span>
+          <span><strong>{summary.daysOffCount}</strong><small>dni wolnych</small></span>
+        </div>
       </section>
 
       <section className="panel work-summary-section">
@@ -126,9 +140,31 @@ export function WorkSummaryView({ workEvents, workImports, availabilityPlans, on
         </div>
       </section>
 
+      <section className="panel work-summary-section work-summary-insights">
+        <div className="work-summary-recent">
+          <div className="panel-heading compact-heading"><div><span className="section-kicker">Ostatnie miesiące</span><h3>Jak zmieniały się godziny</h3></div></div>
+          <div className="work-month-bars" role="img" aria-label={recentSummaries.map((item) => `${formatMonthLabel(localDateFromKey(`${item.monthKey}-01`))}: ${formatWorkSummaryMinutes(item.totalMinutes)}`).join('; ')}>
+            {recentSummaries.map((item) => <div className={`work-month-bar${item.monthKey === monthKey ? ' current' : ''}`} key={item.monthKey}>
+              <strong>{formatWorkSummaryMinutes(item.totalMinutes)}</strong>
+              <div className="work-month-bar-track" aria-hidden="true"><i style={{ height: `${Math.max(item.totalMinutes ? 12 : 2, (item.totalMinutes / maxRecentMinutes) * 100)}%` }} /></div>
+              <span>{new Intl.DateTimeFormat('pl-PL', { month: 'short' }).format(localDateFromKey(`${item.monthKey}-01`))}</span>
+            </div>)}
+          </div>
+        </div>
+        <div className="work-summary-rhythm">
+          <div className="panel-heading compact-heading"><div><span className="section-kicker">Rytm pracy</span><h3>Jak wyglądał miesiąc</h3></div></div>
+          <div className="work-rhythm-stats">
+            <div><strong>{summary.longestWorkStreakDays}</strong><span>najdłuższa seria dni pracy</span></div>
+            <div><strong>{summary.saturdayCount}</strong><span>pracujące soboty</span></div>
+            <div><strong>{summary.sundayCount}</strong><span>pracujące niedziele</span></div>
+          </div>
+        </div>
+      </section>
+
       <section className="panel work-summary-section work-summary-comparison">
         <div className="panel-heading compact-heading"><div><span className="section-kicker">Zgodność z dyspozycyjnością</span><h3>Grafik a wysłane godziny</h3></div></div>
         {!comparisonData.totalPdfShiftCount ? <p className="muted-copy">Porównanie dotyczy zmian z zaimportowanego grafiku PDF. W tym miesiącu nie ma takich zmian.</p> : !comparisonData.sentPlanCount || !comparisonSummary.comparedShiftCount ? <div className="work-summary-comparison-empty"><p>Brak wysłanej dyspozycyjności do porównania.</p><button type="button" className="button button-secondary button-small" onClick={onOpenAvailability}>Przejdź do Dyspozycyjności</button></div> : <>
+          <div className="work-summary-compliance-head"><strong>{compliancePercent}%</strong><span>{comparisonSummary.fullyWithinCount} z {comparisonSummary.comparedShiftCount} zmian w pełni zgodnych</span></div>
           <div className="work-summary-comparison-metrics" aria-label="Miesięczne podsumowanie zgodności">
             <div><strong>{comparisonSummary.fullyWithinCount}</strong><span>zgodnych</span></div>
             <div><strong>{comparisonSummary.partiallyOutsideCount}</strong><span>częściowo poza</span></div>

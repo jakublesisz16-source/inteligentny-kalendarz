@@ -189,6 +189,7 @@ export interface BackupSummary {
   availabilityPlans: number;
   shoppingItems: number;
   expenseCategories: number;
+  expenseProducts: number;
   receipts: number;
   cyclePeriods: number;
   cycleJournalEntries: number;

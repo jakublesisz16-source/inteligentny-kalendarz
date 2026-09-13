@@ -1,15 +1,21 @@
-import { useEffect, useState } from 'react';
+import { forwardRef, useEffect, useImperativeHandle, useState } from 'react';
 import type { Location } from '../locations/location.types';
 import { getWorkProfile, saveWorkProfile } from '../storage/database';
 import type { WorkProfile } from './work.types';
 
+export interface WorkProfileEditorHandle {
+  save: () => Promise<WorkProfile | undefined>;
+}
+
 interface WorkProfileEditorProps {
   locations: Location[];
   compact?: boolean;
+  hideSubmit?: boolean;
+  silentSuccess?: boolean;
   onSaved?: (profile: WorkProfile) => void | Promise<void>;
 }
 
-export function WorkProfileEditor({ locations, compact = false, onSaved }: WorkProfileEditorProps) {
+export const WorkProfileEditor = forwardRef<WorkProfileEditorHandle, WorkProfileEditorProps>(function WorkProfileEditor({ locations, compact = false, hideSubmit = false, silentSuccess = false, onSaved }, ref) {
   const [profile, setProfile] = useState<WorkProfile | undefined>(undefined);
   const [employeeMatchName, setEmployeeMatchName] = useState('');
   const [employerName, setEmployerName] = useState('');
@@ -33,11 +39,13 @@ export function WorkProfileEditor({ locations, compact = false, onSaved }: WorkP
     setStoreCoworkers(current.storeCoworkerSchedule);
   }
 
-  async function submit(event: React.FormEvent) {
-    event.preventDefault();
+  async function save(): Promise<WorkProfile | undefined> {
     setError('');
     setMessage('');
-    if (!employeeMatchName.trim()) { setError('Wpisz imię i nazwisko dokładnie tak, jak występuje w grafiku.'); return; }
+    if (!employeeMatchName.trim()) {
+      setError('Wpisz imię i nazwisko dokładnie tak, jak występuje w grafiku.');
+      return undefined;
+    }
     setSaving(true);
     try {
       const saved = await saveWorkProfile({
@@ -48,17 +56,21 @@ export function WorkProfileEditor({ locations, compact = false, onSaved }: WorkP
         ...(locationId ? { locationId } : {}),
       });
       setProfile(saved);
-      setMessage('Profil pracy zapisano lokalnie.');
+      if (!silentSuccess) setMessage('Profil pracy zapisano lokalnie.');
       await onSaved?.(saved);
+      return saved;
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Nie udało się zapisać profilu pracy.');
+      return undefined;
     } finally {
       setSaving(false);
     }
   }
 
+  useImperativeHandle(ref, () => ({ save }), [employeeMatchName, employerName, workplaceName, locationId, storeCoworkers, silentSuccess, onSaved]);
+
   return (
-    <form className={compact ? 'work-profile-form compact' : 'work-profile-form'} onSubmit={submit}>
+    <div className={compact ? 'work-profile-form compact' : 'work-profile-form'}>
       <div className="form-grid two-columns">
         <label className="field"><span>Pracodawca</span><input value={employerName} onChange={(e) => setEmployerName(e.target.value)} placeholder="Np. nazwa firmy" /></label>
         <label className="field"><span>Miejsce pracy</span><input value={workplaceName} onChange={(e) => setWorkplaceName(e.target.value)} placeholder="Np. nazwa sklepu / galerii" /></label>
@@ -70,7 +82,7 @@ export function WorkProfileEditor({ locations, compact = false, onSaved }: WorkP
       <label className="work-privacy-toggle"><input type="checkbox" checked={storeCoworkers} onChange={(e) => setStoreCoworkers(e.target.checked)} /><span><strong>Pokazuj kto jest ze mną na zmianie</strong><small>Po imporcie zapisujemy lokalnie tylko nazwę współpracownika i jego przedział pracy potrzebny do porównania zmian. Surowy PDF nie jest przechowywany.</small></span></label>
       {error ? <div className="study-message error-message" role="alert">{error}</div> : null}
       {message ? <div className="study-message success-message" role="status">{message}</div> : null}
-      <button type="submit" className="button button-primary align-start" disabled={saving}>{saving ? 'Zapisywanie...' : profile ? 'Zapisz profil pracy' : 'Utwórz profil pracy'}</button>
-    </form>
+      {!hideSubmit ? <button type="button" className="button button-primary align-start" disabled={saving} onClick={() => void save()}>{saving ? 'Zapisywanie...' : profile ? 'Zapisz profil pracy' : 'Utwórz profil pracy'}</button> : null}
+    </div>
   );
-}
+});

@@ -322,3 +322,67 @@ describe('nursing-week-matrix-v2 regressions', () => {
     expect(base).toMatchObject({ startTime: '07:30', endTime: '14:00', address: 'ul. Testowa 1' });
   });
 });
+
+function currentPlanPharmacologyWorkbook(): WorkbookSnapshot {
+  const workbook = wideWorkbook();
+  const plan = workbook.sheets[0]!;
+
+  plan.merges = plan.merges
+    .filter((entry) => entry.ref !== 'B3:C3' && entry.ref !== 'D3:D6')
+    .concat(merge(3, 2, 3, 4));
+
+  plan.cells = plan.cells.filter((entry) => {
+    if (entry.row === 2 && entry.col === 2) return false;
+    if (entry.row === 3 && entry.col >= 2 && entry.col <= 4) return false;
+    if (entry.row === 4 && entry.col >= 2 && entry.col <= 4) return false;
+    if (entry.row >= 8 && entry.row <= 10 && entry.col >= 2 && entry.col <= 4) return false;
+    return true;
+  });
+
+  plan.cells.push(
+    cell(2, 2, 'FARMAKOLOGIA seminaria 15g'),
+    cell(3, 2, 'Prof. dr hab. D. Test, seminaria PON., WT. i CZW. 10.15 - 14.00'),
+    cell(4, 2, 'poniedziałek'),
+    cell(4, 3, 'wtorek'),
+    cell(4, 4, 'czwartek'),
+    cell(8, 2, 'grupa 10'),
+    cell(8, 3, 'grupa 10'),
+    cell(9, 2, 'grupa 8'),
+    cell(9, 3, 'grupa 8'),
+    cell(10, 2, 'grupa 7'),
+    cell(10, 3, 'grupa 7'),
+  );
+
+  return workbook;
+}
+
+describe('nursing-week-matrix-v2 current 2026/2027 plan precedence', () => {
+  it('dokładny dzień konkretnej kolumny ma pierwszeństwo przed ogólnym PON/WT/CZW przedmiotu', () => {
+    const result = nursingWeekMatrixV2Adapter.analyze(currentPlanPharmacologyWorkbook());
+    const farmakologia = result.candidates.filter((candidate) =>
+      candidate.subject.startsWith('FARMAKOLOGIA')
+      && candidate.groupTags.includes('MAIN:10')
+      && candidate.date
+      && candidate.date >= '2025-10-06'
+      && candidate.date <= '2025-10-10');
+
+    expect(farmakologia.map((candidate) => candidate.date).sort()).toEqual(['2025-10-06', '2025-10-07']);
+    expect(farmakologia.some((candidate) => candidate.date === '2025-10-09')).toBe(false);
+    expect(farmakologia.every((candidate) => candidate.startTime === '10:15' && candidate.endTime === '14:00')).toBe(true);
+  });
+
+  it('lokalna aktualizacja godziny i miejsca w konkretnej kolumnie wygrywa z szerszym opisem sekcji', () => {
+    const workbook = currentPlanPharmacologyWorkbook();
+    const plan = workbook.sheets[0]!;
+    plan.cells = plan.cells.map((entry) => entry.address === 'B4'
+      ? { ...entry, value: 'poniedziałek 10.30 - 14.15, sala 201, ul. Nowa 5' }
+      : entry);
+
+    const result = nursingWeekMatrixV2Adapter.analyze(workbook);
+    const monday = result.candidates.find((candidate) => candidate.subject.startsWith('FARMAKOLOGIA') && candidate.groupTags.includes('MAIN:10') && candidate.date === '2025-10-06');
+    const tuesday = result.candidates.find((candidate) => candidate.subject.startsWith('FARMAKOLOGIA') && candidate.groupTags.includes('MAIN:10') && candidate.date === '2025-10-07');
+
+    expect(monday).toMatchObject({ startTime: '10:30', endTime: '14:15', room: 'sala 201', address: 'ul. Nowa 5' });
+    expect(tuesday).toMatchObject({ startTime: '10:15', endTime: '14:00' });
+  });
+});

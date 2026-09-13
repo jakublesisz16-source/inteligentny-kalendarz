@@ -23,6 +23,7 @@ export interface CalendarEvent {
   allDay: boolean;
   spanType: EventSpanType;
   locationId?: string;
+  locationText?: string;
   category: EventCategory;
   source: EventSourceType;
   availabilityImpact?: AvailabilityImpact;
@@ -51,6 +52,7 @@ export interface EventDraft {
   allDay?: boolean;
   spanType?: EventSpanType;
   locationId?: string;
+  locationText?: string;
   category: EventCategory;
   availabilityImpact?: AvailabilityImpact;
 }
@@ -63,6 +65,7 @@ export interface ManualMultiDateDraft {
   endTime: string;
   allDay: boolean;
   locationId?: string;
+  locationText?: string;
   category: EventCategory;
   availabilityImpact?: AvailabilityImpact;
 }

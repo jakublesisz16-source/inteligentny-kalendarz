@@ -30,6 +30,8 @@ export interface WorkMonthlySummary {
   longestShiftMinutes?: number;
   saturdayCount: number;
   sundayCount: number;
+  daysOffCount: number;
+  longestWorkStreakDays: number;
   weeklyBuckets: WorkWeeklyBucket[];
 }
 
@@ -180,6 +182,16 @@ export function buildWorkMonthlySummary(monthKey: string, inputShifts: WorkSumma
     shiftCount: bucket.shiftIds.size,
   }));
 
+  const sortedWorkDays = [...workDayOrdinals].sort((a, b) => a - b);
+  let longestWorkStreakDays = 0;
+  let currentWorkStreakDays = 0;
+  let previousWorkDay: number | undefined;
+  for (const dayOrdinal of sortedWorkDays) {
+    currentWorkStreakDays = previousWorkDay !== undefined && dayOrdinal === previousWorkDay + 1 ? currentWorkStreakDays + 1 : 1;
+    longestWorkStreakDays = Math.max(longestWorkStreakDays, currentWorkStreakDays);
+    previousWorkDay = dayOrdinal;
+  }
+  const monthDayCount = Math.round((bounds.end - bounds.start) / MINUTES_PER_DAY);
   const durations = clipped.map((item) => item.interval.end - item.interval.start);
   return {
     monthKey,
@@ -190,6 +202,8 @@ export function buildWorkMonthlySummary(monthKey: string, inputShifts: WorkSumma
     ...(durations.length ? { longestShiftMinutes: Math.max(...durations) } : {}),
     saturdayCount: saturdayOrdinals.size,
     sundayCount: sundayOrdinals.size,
+    daysOffCount: Math.max(0, monthDayCount - workDayOrdinals.size),
+    longestWorkStreakDays,
     weeklyBuckets,
   };
 }

@@ -70,7 +70,8 @@ describe('study import readability contract', () => {
     expect(app).toContain('getActiveUniversityImport()');
     expect(app).toContain('activeStudyGroups={activeStudyGroups}');
     expect(calendar).toContain('className="calendar-study-context"');
-    expect(calendar).toContain('Plan dla grup');
+    expect(calendar).toContain('Plan studiów aktywny');
+    expect(calendar).toContain('Wybrane grupy aktywnego planu');
     expect(profile).toContain('Grupy aktywnego planu');
     expect(profile).toContain('study-future-groups-note');
     expect(view).toContain('className="import-history-group-list"');
