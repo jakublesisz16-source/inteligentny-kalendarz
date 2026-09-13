@@ -17,7 +17,8 @@ describe('1.2.0.30 Finance core flow', () => {
 
   it('automatically persists scanned receipts into the existing finance model', () => {
     const dashboard = source('../finance/FinanceDashboardView.tsx');
-    expect(dashboard).toContain("const savedReceipt = await createReceipt({ ...draft, source: 'receipt'");
+    expect(dashboard).toContain("let receiptDraft: ReceiptDraft = { ...draft, source: 'receipt'");
+    expect(dashboard).toContain('const savedReceipt = await createReceipt(receiptDraft);');
     expect(dashboard).toContain('setMonthKey(draft.date.slice(0, 7));');
     expect(dashboard).toContain('await refresh();');
     expect(dashboard).toContain('setAutoReviewReceiptId(savedReceipt.id)');

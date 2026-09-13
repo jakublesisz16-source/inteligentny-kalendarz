@@ -28,8 +28,11 @@ jobs:
       - name: Release preflight
         run: npm run release:preflight
 
-      - name: Typecheck, tests, production build and project gates
-        run: npm run check
+      - name: Public repository safety
+        run: npm run security:public
+
+      - name: Typecheck, public tests, production build and project gates
+        run: npm run check:public
 
       - name: Production dependency audit
         run: npm run security:dependencies

@@ -13,9 +13,10 @@ describe('1.2.0.88 trip-list action hierarchy', () => {
     expect(finance).not.toContain("financeScope === 'TRIPS' && !activeTripName ? <button type=\"button\" className=\"button button-secondary\"");
   });
 
-  it('does not duplicate the same create action in the empty state', () => {
-    expect(finance).toContain('Utwórz pierwszy wyjazd przyciskiem w nagłówku.');
-    expect(finance).not.toContain('>+ Nowy wyjazd</button>');
+  it('keeps an explicit empty-state CTA while retaining the compact header action', () => {
+    expect(finance).toContain('finance-trip-empty-list');
+    expect(finance).toContain('Utwórz pierwszy wyjazd, a jego wydatki będą zebrane w jednym miejscu.');
+    expect(finance).toContain('>+ Wyjazd</button>');
   });
 
   it('keeps the header action compact on desktop and mobile', () => {

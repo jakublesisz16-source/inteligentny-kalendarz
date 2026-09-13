@@ -29,18 +29,39 @@ npm ci
 npm run dev
 ```
 
-Pełna walidacja projektu:
+Pełna walidacja publicznej części projektu:
 
 ```bash
-npm run check
-npm run security:dependencies
+npm run check:public
 ```
+
+Testy korzystające z lokalnych prywatnych fixture'ów są oddzielone od CI:
+
+```bash
+npm run test:private
+```
+
+`test:private` ma sens tylko wtedy, gdy lokalnie istnieją wymagane dane z `_PRIVATE_HISTORY/`.
 
 Build produkcyjny powstaje przez:
 
 ```bash
 npm run build
 ```
+
+
+## Najprostszy workflow z GitHub Desktop
+
+Projekt może być rozwijany i wydawany z jednego katalogu repozytorium - bez osobnego folderu `publish`, bez generowania `GITHUB_PREP` i bez kopiowania całego projektu przed każdym wydaniem.
+
+1. Pracuj bezpośrednio w jednym lokalnym repozytorium otwartym w GitHub Desktop.
+2. Prywatne pliki robocze trzymaj w `_LOCAL_ONLY/` albo w istniejącym `_PRIVATE_HISTORY/`. Oba katalogi są ignorowane przez Git.
+3. Po zakończeniu zmian wykonaj zwykły commit do `main` w GitHub Desktop. Sam commit jest lokalny i niczego jeszcze nie publikuje.
+4. W katalogu repozytorium uruchom `npm run release:local`.
+5. Gdy zobaczysz `LOCAL_RELEASE_OK`, kliknij `Push origin` w GitHub Desktop.
+6. Po pushu GitHub Actions wykonuje końcową kontrolę oraz audit zależności.
+
+`release:local` wymaga gałęzi `main`, czystego working tree i sprawdza tylko to, co może trafić do publicznego repozytorium. Prywatne benchmarki nie blokują publicznego CI.
 
 ## PWA i offline
 
@@ -57,7 +78,7 @@ W Ustawieniach można wyeksportować cały logiczny stan aplikacji do pliku JSON
 
 ## Rozwój i CI
 
-Workflow GitHub Actions wykonuje instalację z lockfile, release preflight, typecheck, testy, build i projektowe quality gates. Publiczne wydanie powinno być przygotowywane dopiero po zielonym CI i Visual QA na desktopie oraz telefonie.
+Workflow GitHub Actions wykonuje instalację z lockfile, release preflight, kontrolę publicznych plików, typecheck, publiczne testy, build i projektowe quality gates. Publiczne wydanie powinno być przygotowywane dopiero po zielonym CI i Visual QA na desktopie oraz telefonie.
 
 ## Licencja
 

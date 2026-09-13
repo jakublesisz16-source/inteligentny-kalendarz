@@ -16,7 +16,7 @@ describe('1.2.0.2 Today simplification', () => {
 
   it('uses only one add-event action when the day is empty', () => {
     const today = source('../calendar/TodayView.tsx');
-    expect(today).toContain('{hasPlan ? <button');
+    expect(today).toContain('{hasPlan ? <div className="today-add-row"><button');
     expect(today).toContain('actionLabel="+ Dodaj"');
     expect(today).toContain('title="Wolny dzień"');
     expect(today).toContain("'Nie masz dziś zaplanowanych wydarzeń.'");
