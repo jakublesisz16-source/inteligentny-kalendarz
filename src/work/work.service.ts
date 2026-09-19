@@ -117,29 +117,70 @@ export function detectCandidateCollisions(candidates: WorkImportCandidate[], eve
   return collisions;
 }
 
-export function buildWorkScheduleDiff(oldEntries: WorkScheduleEntry[], newShifts: WorkImportCandidate[], eventById = new Map<string, CalendarEvent>()): WorkScheduleDiff {
-  const items: WorkScheduleDiffItem[] = [];
-  const unmatchedOld = new Set(oldEntries.filter((entry) => entry.type === 'SHIFT').map((entry) => entry.id));
-  for (const shift of newShifts) {
-    const exact = oldEntries.find((entry) => unmatchedOld.has(entry.id) && entry.workOccurrenceKey === shift.workOccurrenceKey);
-    if (exact) {
-      unmatchedOld.delete(exact.id);
-      items.push({ id: `work-diff-${items.length}`, kind: exact.userDeleted ? 'CONFLICT_USER_DELETED' : 'UNCHANGED', oldEntry: exact, newShift: shift, ...(exact.eventId ? { eventId: exact.eventId } : {}), apply: !exact.userDeleted });
-      continue;
+export function pairWorkScheduleUpdates(oldEntries: WorkScheduleEntry[], newShifts: WorkImportCandidate[]): Map<number, WorkScheduleEntry> {
+  const oldShifts = oldEntries.filter((entry) => entry.type === 'SHIFT');
+  const unmatchedOld = new Set(oldShifts.map((entry) => entry.id));
+  const unmatchedNew = new Set(newShifts.map((_, index) => index));
+  const result = new Map<number, WorkScheduleEntry>();
+
+  function pairSingletons(oldKey: (entry: WorkScheduleEntry) => string | undefined, newKey: (shift: WorkImportCandidate) => string | undefined): void {
+    const oldGroups = new Map<string, WorkScheduleEntry[]>();
+    const newGroups = new Map<string, number[]>();
+    for (const entry of oldShifts) {
+      if (!unmatchedOld.has(entry.id)) continue;
+      const key = oldKey(entry);
+      if (!key) continue;
+      oldGroups.set(key, [...(oldGroups.get(key) ?? []), entry]);
     }
-    const sameDate = oldEntries.filter((entry) => unmatchedOld.has(entry.id) && entry.type === 'SHIFT' && entry.date === shift.date);
-    const old = sameDate.length === 1 ? sameDate[0] : undefined;
-    if (old) {
+    for (const index of unmatchedNew) {
+      const key = newKey(newShifts[index]!);
+      if (!key) continue;
+      newGroups.set(key, [...(newGroups.get(key) ?? []), index]);
+    }
+    for (const [key, oldGroup] of oldGroups) {
+      const newGroup = newGroups.get(key);
+      if (oldGroup.length !== 1 || newGroup?.length !== 1) continue;
+      const old = oldGroup[0]!;
+      const index = newGroup[0]!;
+      result.set(index, old);
       unmatchedOld.delete(old.id);
-      const event = old.eventId ? eventById.get(old.eventId) : undefined;
-      const conflict = old.userDeleted ? 'CONFLICT_USER_DELETED' : event?.userModified ? 'CONFLICT_USER_MODIFIED' : 'CHANGED_TIME';
-      items.push({ id: `work-diff-${items.length}`, kind: conflict, oldEntry: old, newShift: shift, ...(old.eventId ? { eventId: old.eventId } : {}), apply: conflict === 'CHANGED_TIME' });
-    } else {
-      items.push({ id: `work-diff-${items.length}`, kind: 'ADDED_SHIFT', newShift: shift, apply: true });
+      unmatchedNew.delete(index);
     }
   }
-  for (const id of unmatchedOld) {
-    const old = oldEntries.find((entry) => entry.id === id)!;
+
+  // Najpierw stabilna tożsamość źródłowa, potem jednoznaczny dzień, a na końcu
+  // konserwatywne 1:1 po identycznych godzinach. Ostatni krok pozwala rozpoznać
+  // przesunięcie tej samej zmiany na inny dzień, ale nie zgaduje przy powtórzeniach.
+  pairSingletons((entry) => entry.workOccurrenceKey, (shift) => shift.workOccurrenceKey);
+  pairSingletons((entry) => entry.date, (shift) => shift.date);
+  pairSingletons(
+    (entry) => entry.startTime && entry.endTime ? `${entry.startTime}|${entry.endTime}` : undefined,
+    (shift) => `${shift.startTime}|${shift.endTime}`,
+  );
+
+  return result;
+}
+
+export function buildWorkScheduleDiff(oldEntries: WorkScheduleEntry[], newShifts: WorkImportCandidate[], eventById = new Map<string, CalendarEvent>()): WorkScheduleDiff {
+  const items: WorkScheduleDiffItem[] = [];
+  const pairings = pairWorkScheduleUpdates(oldEntries, newShifts);
+  const matchedOld = new Set([...pairings.values()].map((entry) => entry.id));
+  newShifts.forEach((shift, index) => {
+    const old = pairings.get(index);
+    if (!old) {
+      items.push({ id: `work-diff-${items.length}`, kind: 'ADDED_SHIFT', newShift: shift, apply: true });
+      return;
+    }
+    const exact = old.workOccurrenceKey === shift.workOccurrenceKey;
+    if (exact) {
+      items.push({ id: `work-diff-${items.length}`, kind: old.userDeleted ? 'CONFLICT_USER_DELETED' : 'UNCHANGED', oldEntry: old, newShift: shift, ...(old.eventId ? { eventId: old.eventId } : {}), apply: !old.userDeleted });
+      return;
+    }
+    const event = old.eventId ? eventById.get(old.eventId) : undefined;
+    const conflict = old.userDeleted ? 'CONFLICT_USER_DELETED' : event?.userModified ? 'CONFLICT_USER_MODIFIED' : 'CHANGED_TIME';
+    items.push({ id: `work-diff-${items.length}`, kind: conflict, oldEntry: old, newShift: shift, ...(old.eventId ? { eventId: old.eventId } : {}), apply: conflict === 'CHANGED_TIME' });
+  });
+  for (const old of oldEntries.filter((entry) => entry.type === 'SHIFT' && !matchedOld.has(entry.id))) {
     const event = old.eventId ? eventById.get(old.eventId) : undefined;
     const kind = old.userDeleted ? 'CONFLICT_USER_DELETED' : event?.userModified ? 'CONFLICT_USER_MODIFIED' : 'REMOVED_SHIFT';
     items.push({ id: `work-diff-${items.length}`, kind, oldEntry: old, ...(old.eventId ? { eventId: old.eventId } : {}), apply: kind === 'REMOVED_SHIFT' });

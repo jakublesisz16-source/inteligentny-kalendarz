@@ -24,12 +24,17 @@ function filesUnder(dir) {
 for (const path of [
   '.gitignore',
   '.github/workflows/ci.yml',
+  '.github/workflows/pages.yml',
   'package.json',
   'src/core/version.ts',
   'public/manifest.webmanifest',
   'public/service-worker.js',
   'scripts/public-package-gate.mjs',
   'scripts/local-release.mjs',
+  'scripts/checkpoint-state-gate.mjs',
+  'scripts/checkpoint-manifest.mjs',
+  'scripts/checkpoint-gate.mjs',
+  'scripts/study-mobile-smoke.mjs',
   'vitest.public.config.ts',
   'vitest.private.config.ts',
 ]) requireFile(path);
@@ -39,14 +44,14 @@ if (!failures.length) {
   for (const pattern of [
     'node_modules/', 'dist/', '*.zip', '*.xlsx', '*.xls', '*.pdf', '*.ikbackup',
     '.env', '.env.*', '*.log', '.vite/', '.cache/', 'test-results/', 'playwright-report/',
-    '_LOCAL_ONLY/', '_PRIVATE_HISTORY/', 'PRIVATE_*.md', 'HANDOFF_NEW_CHAT_*.md',
-    'CURRENT_PROJECT_RULES.md', 'project-skills/'
+    '_LOCAL_ONLY/', '_PRIVATE_HISTORY/', 'PRIVATE.md', 'PRIVATE_*.md', 'HANDOFF_NEW_CHAT.md', 'HANDOFF_NEW_CHAT_*.md',
+    'CURRENT_PROJECT_RULES.md', 'CURRENT_STATE.json', 'BUILD_INFO.json', 'CHECKPOINT_MANIFEST.sha256', 'project-skills/'
   ]) requireText(gitignore, pattern, `.gitignore missing release-safety pattern: ${pattern}`);
 
   const packageJson = JSON.parse(source('package.json'));
   for (const script of [
     'check', 'check:public', 'test:public', 'test:private', 'security:public',
-    'security:dependencies', 'release:preflight', 'release:local'
+    'security:dependencies', 'release:preflight', 'release:local', 'study:mobile-smoke', 'checkpoint:state', 'checkpoint:manifest', 'checkpoint:gate'
   ]) {
     if (!packageJson.scripts?.[script]) failures.push(`package.json missing script: ${script}`);
   }
@@ -86,6 +91,17 @@ if (!failures.length) {
   requireText(ci, 'npm run security:public', 'CI must run public repository safety checks');
   requireText(ci, 'npm run check:public', 'CI must run the public typecheck/tests/build');
   requireText(ci, 'npm run security:dependencies', 'CI must run production dependency audit');
+
+  const pages = source('.github/workflows/pages.yml');
+  requireText(pages, 'name: Deploy GitHub Pages', 'GitHub Pages deployment workflow has an unexpected identity');
+  requireText(pages, 'branches: ["main"]', 'GitHub Pages deployment must be triggered by pushes to main');
+  requireText(pages, 'pages: write', 'GitHub Pages deployment must have pages: write permission');
+  requireText(pages, 'id-token: write', 'GitHub Pages deployment must have id-token: write permission');
+  requireText(pages, 'npm ci', 'GitHub Pages build must install the exact lockfile with npm ci');
+  requireText(pages, 'npm run check', 'GitHub Pages build must execute the full project check');
+  requireText(pages, 'actions/upload-pages-artifact@v3', 'GitHub Pages workflow must upload a Pages artifact');
+  requireText(pages, 'path: ./dist', 'GitHub Pages workflow must publish the production dist directory');
+  requireText(pages, 'actions/deploy-pages@v4', 'GitHub Pages workflow must deploy through actions/deploy-pages');
 }
 
 if (failures.length) {

@@ -1,7 +1,7 @@
 {
   "name": "inteligentny-kalendarz",
   "private": true,
-  "version": "1.2.0-private.112",
+  "version": "1.2.0-private.145",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -22,7 +22,12 @@
     "test:public": "vitest run --config vitest.public.config.ts",
     "test:private": "vitest run --config vitest.private.config.ts",
     "check:public": "npm run typecheck && npm run test:public && npm run build",
-    "release:local": "node scripts/local-release.mjs"
+    "release:local": "node scripts/local-release.mjs",
+    "study:audit": "vitest run --config vitest.private.config.ts src/tests/study-source-audit.optional.test.ts --reporter=verbose",
+    "checkpoint:state": "node scripts/checkpoint-state-gate.mjs",
+    "checkpoint:manifest": "node scripts/checkpoint-manifest.mjs",
+    "checkpoint:gate": "node scripts/checkpoint-gate.mjs",
+    "study:mobile-smoke": "node scripts/study-mobile-smoke.mjs"
   },
   "dependencies": {
     "react": "^19.1.1",

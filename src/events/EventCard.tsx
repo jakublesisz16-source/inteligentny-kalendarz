@@ -38,6 +38,11 @@ export function EventCard({ event, location, timeFormat, seriesCount, onEdit, on
       : undefined;
   const visibleWorkCoworkers = showAllWorkCoworkers ? workCoworkers : workCoworkers.slice(0, Math.max(0, workCoworkerLimit));
   const hiddenWorkCoworkerCount = Math.max(0, workCoworkers.length - visibleWorkCoworkers.length);
+  const workCoworkerCountLabel = workCoworkers.length === 1
+    ? '1 osoba'
+    : workCoworkers.length >= 2 && workCoworkers.length <= 4
+      ? `${workCoworkers.length} osoby`
+      : `${workCoworkers.length} osób`;
   const studyDisplay = studyEventDisplay(event);
   const locationText = location
     ? (() => {
@@ -70,7 +75,7 @@ export function EventCard({ event, location, timeFormat, seriesCount, onEdit, on
         {locationText ? <p className="event-location">{locationText}</p> : null}
         {studyDisplay.description ? <p className="event-description">{studyDisplay.description}</p> : null}
         {hasStudyIssues ? <p className="event-review-note">Brakujące dane: {(event.studyIssueCodes ?? []).map(importIssueLabel).join(' · ')}</p> : null}
-        {event.source === 'WORK_PDF' && workCoworkers.length ? <div className="event-coworkers"><strong>Z Tobą na zmianie</strong><span>{visibleWorkCoworkers.map((person) => <span className="event-coworker-line" key={`${person.displayName}-${person.coworkerStartTime}`}><b>{person.displayName}</b><small>razem {person.overlapStartTime}-{person.overlapEndTime}</small></span>)}{hiddenWorkCoworkerCount ? <small>+{hiddenWorkCoworkerCount} więcej</small> : null}</span></div> : null}
+        {event.source === 'WORK_PDF' && workCoworkers.length ? <div className="event-coworkers"><strong>Z Tobą na zmianie · {workCoworkerCountLabel}</strong><span>{visibleWorkCoworkers.map((person) => <span className="event-coworker-line" key={`${person.displayName}-${person.coworkerStartTime}`}><b>{person.displayName}</b><small>{person.overlapStartTime}-{person.overlapEndTime}</small></span>)}{hiddenWorkCoworkerCount ? <small>+{hiddenWorkCoworkerCount} więcej</small> : null}</span></div> : null}
       </div>
       <div className="event-actions-column">
         {directionsUrl ? <a className="text-button" href={directionsUrl} target="_blank" rel="noopener noreferrer" aria-label={`Wyznacz trasę do ${location?.name || event.locationText || 'miejsca'} w Mapach Google`}>Trasa</a> : null}

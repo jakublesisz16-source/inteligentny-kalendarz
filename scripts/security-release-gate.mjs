@@ -3,7 +3,7 @@ import { basename, extname, join, relative, sep } from 'node:path';
 
 const root = process.cwd();
 const excludedDirs = new Set(['.git', 'node_modules', 'dist', 'coverage', '.benchmark-dist', '_PRIVATE_HISTORY']);
-const excludedFiles = new Set(['SHA256SUMS.txt', 'security-release-gate.mjs', 'public-package-gate.mjs']);
+const excludedFiles = new Set(['SHA256SUMS.txt', 'CHECKPOINT_MANIFEST.sha256', 'security-release-gate.mjs', 'public-package-gate.mjs']);
 const privateExtensions = new Set(['.xls', '.xlsx', '.pdf', '.ikbackup', '.zip', '.7z', '.rar', '.pem', '.key', '.p12', '.pfx', '.jks', '.keystore']);
 const textExtensions = new Set(['.ts', '.tsx', '.js', '.mjs', '.cjs', '.json', '.md', '.txt', '.html', '.css', '.svg', '.webmanifest', '.ps1', '.yml', '.yaml']);
 

@@ -96,6 +96,25 @@ function timeDistance(a: string | undefined, b: string | undefined): number {
   return Math.abs(toMinutes(a) - toMinutes(b));
 }
 
+function normalizedIdentityText(value: string | undefined): string {
+  return (value ?? '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLocaleLowerCase('pl-PL')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function sameSourceSlot(entry: UniversityImportEntry, candidate: StudyScheduleCandidate): boolean {
+  return entry.sourceSheet === candidate.sourceSheet
+    && entry.sourceRange === candidate.sourceRange
+    && (entry.date ?? '') === (candidate.date ?? '')
+    && (entry.startTime ?? '') === (candidate.startTime ?? '')
+    && (entry.endTime ?? '') === (candidate.endTime ?? '')
+    && normalizedIdentityText(entry.subject) === normalizedIdentityText(candidate.subject)
+    && normalizedIdentityText(entry.activityType) === normalizedIdentityText(candidate.activityType);
+}
+
 function diffId(prefix: string, oldEntry?: UniversityImportEntry, candidate?: StudyScheduleCandidate): string {
   return `${prefix}:${oldEntry?.occurrenceKey ?? oldEntry?.id ?? 'none'}:${candidate?.occurrenceKey ?? candidate?.id ?? 'none'}`;
 }
@@ -266,6 +285,42 @@ export function buildScheduleDiff(input: BuildScheduleDiffInput): BuildScheduleD
         ...(blocking ? { note: review.state === 'INCOMPLETE' ? 'Nowy wpis jest niepełny w planie źródłowym i pozostaje do wglądu; nie zostanie zastosowany automatycznie.' : 'Nowy wpis ma nierozwiązany brak krytyczny i wymaga ręcznej kontroli.' } : {}),
       });
     }
+  }
+
+  // Fourth pass: the same physical source slot can legitimately change its
+  // assigned group. In the week-matrix adapter the group is part of both the
+  // series identity and sourceKey, so a group edit would otherwise look like
+  // REMOVED + ADDED. Pair only a unique old/new item from the exact same
+  // source sheet/range with the same date, time, subject and activity type.
+  // This keeps cancellations/new lessons in other cells explicit and fail-closed.
+  for (const candidate of [...unmatchedNew.values()]) {
+    const matches = [...unmatchedOld.values()].filter((entry) => sameSourceSlot(entry, candidate));
+    if (matches.length !== 1) continue;
+    const oldEntry = matches[0]!;
+    const competingNew = [...unmatchedNew.values()].filter((other) => sameSourceSlot(oldEntry, other));
+    if (competingNew.length !== 1) continue;
+
+    unmatchedOld.delete(oldEntry.id);
+    unmatchedNew.delete(candidate.id);
+    const changes = changesBetweenEntryAndCandidate(oldEntry, candidate);
+    const event = oldEntry.eventId ? eventById.get(oldEntry.eventId) : undefined;
+    const review = reviewCandidate(candidate);
+    const blocking = !review.canImport;
+    const conflict = hasUserConflict(event, changes);
+    items.push({
+      id: diffId(blocking ? 'ambiguous-slot' : conflict ? 'conflict-slot' : changes.length ? 'changed-slot' : 'unchanged-slot', oldEntry, candidate),
+      kind: blocking ? 'AMBIGUOUS' : conflict ? 'CONFLICT_USER_MODIFIED' : changes.length ? 'CHANGED' : 'UNCHANGED',
+      changeTypes: [...new Set(changes.map((entry) => entry.changeType))],
+      changes,
+      oldEntry,
+      newCandidate: candidate,
+      ...(oldEntry.eventId ? { oldEventId: oldEntry.eventId } : {}),
+      ...(event ? { oldEventSnapshot: eventSnapshot(event) } : {}),
+      ...(event?.userModified ? { oldEventUserModified: true } : {}),
+      ...(event?.userModifiedFields?.length ? { oldEventUserModifiedFields: [...event.userModifiedFields] } : {}),
+      resolution: blocking ? 'SKIP' : conflict ? 'SKIP' : 'APPLY',
+      ...(blocking ? { note: review.state === 'INCOMPLETE' ? 'Nowy wpis jest niepełny w planie źródłowym i pozostaje do wglądu; nie zostanie zastosowany automatycznie.' : 'Nowy wpis ma nierozwiązany brak krytyczny i wymaga ręcznej kontroli.' } : {}),
+    });
   }
 
   for (const candidate of unmatchedNew.values()) {

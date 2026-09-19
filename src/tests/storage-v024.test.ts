@@ -19,6 +19,7 @@ import {
   listRestorePoints,
   listStudyPreviewProfiles,
   listTrashItems,
+  permanentlyDeleteTrashItem,
   resetDatabaseConnectionForTests,
   restoreBackup,
   restoreRestorePoint,
@@ -73,6 +74,28 @@ describe('legacy safety schema and isolated study preview', () => {
     await restoreTrashItem(trash[0]!.id);
     expect((await listEvents()).map((item) => item.id)).toEqual([event.id]);
     expect(await listTrashItems()).toHaveLength(0);
+  });
+
+  it('trwałe usunięcie z Kosza tworzy punkt bezpieczeństwa i może zostać cofnięte z historii', async () => {
+    await initializeDatabase();
+    const event = await createEvent({
+      title: 'Do trwałego usunięcia',
+      startDateTime: '2026-08-12T15:00',
+      endDateTime: '2026-08-12T16:00',
+      category: 'OTHER',
+    });
+    await deleteEvent(event.id);
+    const [trash] = await listTrashItems();
+    if (!trash) throw new Error('Brak wpisu w Koszu.');
+
+    await permanentlyDeleteTrashItem(trash.id);
+    expect(await listTrashItems()).toHaveLength(0);
+    expect((await listRestorePoints()).some((point) => point.reason === 'BEFORE_PERMANENT_TRASH_DELETE')).toBe(true);
+    const change = (await listChangeJournal()).find((entry) => entry.operationType === 'PERMANENT_DELETE_TRASH' && !entry.undoneAt);
+    if (!change) throw new Error('Brak wpisu historii trwałego usunięcia.');
+
+    await undoChange(change.id);
+    expect((await listTrashItems()).map((item) => item.displayName)).toEqual(['Do trwałego usunięcia']);
   });
 
   it('cofa edycję pojedynczego wydarzenia przez Change Journal', async () => {

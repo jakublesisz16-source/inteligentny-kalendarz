@@ -5,6 +5,7 @@ import {
   commitWorkScheduleImport,
   createBackupFile,
   createEvent,
+  deleteWorkScheduleImport,
   deleteDatabaseForTests,
   getConfirmedWorkMinutes,
   getWorkProfile,
@@ -17,6 +18,7 @@ import {
   listWorkScheduleImports,
   resetDatabaseConnectionForTests,
   saveWorkProfile,
+  updateEvent,
 } from '../storage/database';
 import { buildWorkOccurrenceKey } from '../work/work.service';
 
@@ -68,6 +70,54 @@ describe('legacy work schema and current work data', () => {
     });
     await createEvent({ title: 'Praca ręczna', startDateTime: '2026-08-12T10:00', endDateTime: '2026-08-12T14:00', category: 'WORK' });
     expect(await getConfirmedWorkMinutes('2026-08-01', '2026-08-31')).toEqual({ importedWorkMinutes: 120, manualWorkMinutes: 240, totalConfirmedWorkMinutes: 360 });
+  });
+
+
+  it('aktualizuje jednoznacznie przesuniętą zmianę na inny dzień bez duplikatu', async () => {
+    await initializeDatabase();
+    const profile = await saveWorkProfile({ employeeMatchName: 'Anna Testowa', employerName: '', workplaceName: '', storeCoworkerSchedule: false });
+    const first = await commitWorkScheduleImport({
+      profileId: profile.id, fileName: 'grafik-1.pdf', fileHash: 'work-moved-1', adapterId: 'retail-roster-v1', periodStart: '2026-08-01', periodEnd: '2026-08-31',
+      shifts: [{ date: '2026-08-10', startTime: '14:00', endTime: '22:00', minutes: 480, sourcePage: 1, status: 'READY', issues: [], workOccurrenceKey: buildWorkOccurrenceKey(profile.id, '2026-08-10', '14:00', '22:00') }], coworkerShifts: [],
+    });
+    const firstEvent = (await listEvents()).find((event) => event.sourceWorkImportId === first.workImport.id);
+    if (!firstEvent) throw new Error('Brak wydarzenia po pierwszym imporcie.');
+    const second = await commitWorkScheduleImport({
+      profileId: profile.id, fileName: 'grafik-2.pdf', fileHash: 'work-moved-2', adapterId: 'retail-roster-v1', periodStart: '2026-08-01', periodEnd: '2026-08-31',
+      shifts: [{ date: '2026-08-11', startTime: '14:00', endTime: '22:00', minutes: 480, sourcePage: 1, status: 'READY', issues: [], workOccurrenceKey: buildWorkOccurrenceKey(profile.id, '2026-08-11', '14:00', '22:00') }], coworkerShifts: [],
+    });
+    const current = (await listEvents()).filter((event) => event.source === 'WORK_PDF');
+    expect(second.updatedEvents).toBe(1);
+    expect(second.createdEvents).toBe(0);
+    expect(second.removedEvents).toBe(0);
+    expect(current).toHaveLength(1);
+    expect(current[0]?.id).toBe(firstEvent.id);
+    expect(current[0]?.startDateTime).toBe('2026-08-11T14:00');
+  });
+
+  it('odłącza ręcznie zmienioną usuniętą zmianę od historycznego importu i nie kasuje jej przy usunięciu historii', async () => {
+    await initializeDatabase();
+    const profile = await saveWorkProfile({ employeeMatchName: 'Anna Testowa', employerName: '', workplaceName: '', storeCoworkerSchedule: false });
+    const first = await commitWorkScheduleImport({
+      profileId: profile.id, fileName: 'grafik-old.pdf', fileHash: 'work-detach-1', adapterId: 'retail-roster-v1', periodStart: '2026-08-01', periodEnd: '2026-08-31',
+      shifts: [{ date: '2026-08-10', startTime: '14:00', endTime: '22:00', minutes: 480, sourcePage: 1, status: 'READY', issues: [], workOccurrenceKey: buildWorkOccurrenceKey(profile.id, '2026-08-10', '14:00', '22:00') }], coworkerShifts: [],
+    });
+    const imported = (await listEvents()).find((event) => event.sourceWorkImportId === first.workImport.id);
+    if (!imported) throw new Error('Brak wydarzenia do ręcznej zmiany.');
+    await updateEvent(imported.id, {
+      title: 'Moja ręczna wersja', startDateTime: imported.startDateTime, endDateTime: imported.endDateTime,
+      category: 'WORK', allDay: false, spanType: imported.spanType,
+    });
+    await commitWorkScheduleImport({
+      profileId: profile.id, fileName: 'grafik-new.pdf', fileHash: 'work-detach-2', adapterId: 'retail-roster-v1', periodStart: '2026-08-01', periodEnd: '2026-08-31',
+      shifts: [{ date: '2026-08-20', startTime: '10:00', endTime: '18:00', minutes: 480, sourcePage: 1, status: 'READY', issues: [], workOccurrenceKey: buildWorkOccurrenceKey(profile.id, '2026-08-20', '10:00', '18:00') }], coworkerShifts: [],
+    });
+    const detached = (await listEvents()).find((event) => event.id === imported.id);
+    expect(detached?.userModified).toBe(true);
+    expect(detached?.sourceWorkImportId).toBeUndefined();
+    expect(detached?.sourceWorkEntryId).toBeUndefined();
+    await deleteWorkScheduleImport(first.workImport.id);
+    expect((await listEvents()).some((event) => event.id === imported.id)).toBe(true);
   });
 
   it('backup aktualnego schema zawiera dane pracy i opcjonalne minimalne dane zespołu', async () => {

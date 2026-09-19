@@ -26,7 +26,7 @@ describe('1.2.0.100 Finance empty-state actions on all viewports', () => {
   });
 
   it('keeps schema unchanged', () => {
-    expect(version).toContain("APP_VERSION = '1.2.0.112'");
+    expect(version).toContain("APP_VERSION = '1.2.0.145'");
     expect(version).toContain('DATABASE_SCHEMA_VERSION = 14');
   });
 });

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ChangeEvent } from 'react';
-import { createCanonicalDataTransferDocument, createDataTransferFile, importDataTransfer, inspectDataTransferText } from '../storage/database';
-import type { BackupInspection } from '../safety/safety.types';
+import { createCanonicalDataTransferDocument, createDataTransferFile, getCurrentDataTransferSummary, importDataTransfer, inspectDataTransferText } from '../storage/database';
+import type { BackupInspection, BackupSummary } from '../safety/safety.types';
 import { createExcelExportFile, downloadExcelFile } from './excel-export';
 
 interface DataTransferPanelProps {
@@ -8,6 +8,22 @@ interface DataTransferPanelProps {
 }
 
 const MAX_TRANSFER_FILE_BYTES = 25 * 1024 * 1024;
+
+const TRANSFER_COMPARISON_ROWS: Array<{ key: keyof BackupSummary; label: string }> = [
+  { key: 'events', label: 'Wydarzenia' },
+  { key: 'universityImports', label: 'Importy studiów' },
+  { key: 'workScheduleEntries', label: 'Zmiany pracy' },
+  { key: 'availabilityPlans', label: 'Dyspozycyjność' },
+  { key: 'shoppingItems', label: 'Lista zakupów' },
+  { key: 'receipts', label: 'Paragony' },
+  { key: 'cyclePeriods', label: 'Historia cyklu' },
+  { key: 'cycleJournalEntries', label: 'Dziennik cyklu' },
+];
+
+function countFromSummary(summary: BackupSummary, key: keyof BackupSummary): number {
+  const value = summary[key];
+  return typeof value === 'number' ? value : 0;
+}
 
 function formatDateTime(value: string): string {
   return new Intl.DateTimeFormat('pl-PL', { dateStyle: 'long', timeStyle: 'short' }).format(new Date(value));
@@ -29,6 +45,7 @@ export function DataTransferPanel({ onDataChanged }: DataTransferPanelProps) {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const confirmRef = useRef<HTMLButtonElement | null>(null);
   const [inspection, setInspection] = useState<BackupInspection | null>(null);
+  const [currentSummary, setCurrentSummary] = useState<BackupSummary | null>(null);
   const [fileName, setFileName] = useState('');
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -82,15 +99,18 @@ export function DataTransferPanel({ onDataChanged }: DataTransferPanelProps) {
     setMessage('');
     setError('');
     setInspection(null);
+    setCurrentSummary(null);
     setConfirming(false);
     try {
       if (file.size > MAX_TRANSFER_FILE_BYTES) throw new Error('Plik jest zbyt duży, aby bezpiecznie go zaimportować.');
       const text = await file.text();
-      const next = await inspectDataTransferText(text);
+      const [next, deviceSummary] = await Promise.all([inspectDataTransferText(text), getCurrentDataTransferSummary()]);
       setInspection(next);
+      setCurrentSummary(deviceSummary);
       setFileName(file.name);
     } catch (cause) {
       setFileName('');
+      setCurrentSummary(null);
       setError(cause instanceof Error ? cause.message : 'Nie udało się sprawdzić pliku danych.');
     } finally {
       setBusy(false);
@@ -107,6 +127,7 @@ export function DataTransferPanel({ onDataChanged }: DataTransferPanelProps) {
       await importDataTransfer(inspection.document);
       try { await onDataChanged(); } catch { /* import is already verified; UI refresh can retry on navigation/reload */ }
       setInspection(null);
+      setCurrentSummary(null);
       setConfirming(false);
       setFileName('');
       setMessage('Dane zostały przeniesione. Utworzono też punkt przywracania stanu sprzed importu.');
@@ -159,7 +180,7 @@ export function DataTransferPanel({ onDataChanged }: DataTransferPanelProps) {
               <span>Wybrany plik</span>
               <strong>{fileName}</strong>
             </div>
-            <button type="button" className="text-button" disabled={busy} onClick={() => { setInspection(null); setFileName(''); setConfirming(false); }}>Anuluj</button>
+            <button type="button" className="text-button" disabled={busy} onClick={() => { setInspection(null); setCurrentSummary(null); setFileName(''); setConfirming(false); }}>Anuluj</button>
           </div>
 
           <div className="data-transfer-meta">
@@ -181,6 +202,26 @@ export function DataTransferPanel({ onDataChanged }: DataTransferPanelProps) {
             <div><span>Historia cyklu</span><strong>{inspection.summary.cyclePeriods} wpisów</strong></div>
             <div><span>Dziennik cyklu</span><strong>{inspection.summary.cycleJournalEntries} wpisów</strong></div>
           </div>
+
+          {currentSummary ? (() => {
+            const decreases = TRANSFER_COMPARISON_ROWS.filter(({ key }) => countFromSummary(inspection.summary, key) < countFromSummary(currentSummary, key));
+            return (
+              <section className="data-transfer-comparison" aria-label="Porównanie danych urządzenia z plikiem">
+                <div className="data-transfer-comparison-heading">
+                  <div><strong>Co zostanie zastąpione</strong><span>Na urządzeniu → w pliku</span></div>
+                  {decreases.length ? <span className="data-transfer-reduction-badge">Mniej danych w {decreases.length} {decreases.length === 1 ? 'obszarze' : 'obszarach'}</span> : <span className="data-transfer-neutral-badge">Bez spadku w głównych danych</span>}
+                </div>
+                <div className="data-transfer-comparison-grid">
+                  {TRANSFER_COMPARISON_ROWS.map(({ key, label }) => {
+                    const current = countFromSummary(currentSummary, key);
+                    const incoming = countFromSummary(inspection.summary, key);
+                    return <div className={incoming < current ? 'is-reduction' : ''} key={String(key)}><span>{label}</span><strong><b>{current}</b><i aria-hidden="true">→</i><b>{incoming}</b></strong></div>;
+                  })}
+                </div>
+                {decreases.length ? <p className="data-transfer-reduction-warning" role="status">Plik zawiera mniej danych niż to urządzenie w: {decreases.map((item) => item.label).join(', ')}. To może być poprawny starszy backup, ale po imporcie obecny stan zostanie zastąpiony. Punkt przywracania pozwoli wrócić do stanu sprzed importu.</p> : null}
+              </section>
+            );
+          })() : null}
 
           {!confirming ? (
             <div className="data-transfer-import-row">

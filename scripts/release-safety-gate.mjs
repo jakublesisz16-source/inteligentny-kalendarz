@@ -28,8 +28,11 @@ const transfer = source('src/data-transfer/DataTransferPanel.tsx');
 const audit = source('scripts/production-audit.mjs');
 const sw = source('public/service-worker.js');
 const version = source('src/core/version.ts');
+const buildMeta = source('src/core/build.ts');
 const buildInfoText = sourceIfExists('BUILD_INFO.json');
 const buildInfo = buildInfoText ? JSON.parse(buildInfoText) : null;
+const currentStateText = sourceIfExists('CURRENT_STATE.json');
+const currentState = currentStateText ? JSON.parse(currentStateText) : null;
 const packageJson = JSON.parse(source('package.json'));
 const studyCompleteness = source('src/study/study-completeness.ts');
 const studyMatrixAdapter = source('src/imports/xlsx/adapters/nursing-week-matrix-v2.adapter.ts');
@@ -52,6 +55,7 @@ const navigation = source('src/ui/Navigation.tsx');
 const todayView = source('src/calendar/TodayView.tsx');
 const sha256 = source('src/core/sha256.ts');
 const studyService = source('src/study/study.service.ts');
+const studyDiffLogic = source('src/study/study-diff.ts');
 const availabilityService = source('src/availability/availability.service.ts');
 const modal = source('src/ui/Modal.tsx');
 const settingsView = source('src/settings/SettingsView.tsx');
@@ -65,6 +69,7 @@ const receiptDuplicate = source('src/shopping/receipt-ocr/receipt-duplicate.ts')
 const interfaceConsistency = source('src/styles/interface-consistency.css');
 const tokensCss = source('src/styles/tokens.css');
 const studyViewSource = source('src/study/StudyView.tsx');
+const studyGroupChoice = source('src/study/StudyGroupChoiceFields.tsx');
 const styleIndex = source('src/styles/index.css');
 const expenseTypes = source('src/shopping/expenses.types.ts');
 const expenseUtils = source('src/shopping/expenses.utils.ts');
@@ -79,24 +84,47 @@ const availabilityView = source('src/availability/AvailabilityView.tsx');
 const workSummaryView = source('src/work/WorkSummaryView.tsx');
 const releasePreflight = source('scripts/release-preflight.mjs');
 const publicPackageGate = source('scripts/public-package-gate.mjs');
+const studyMobileSmoke = source('scripts/study-mobile-smoke.mjs');
 const releaseChecklist = sourceIfExists('RELEASE_CHECKLIST.md');
 const githubCi = source('.github/workflows/ci.yml');
+const githubPages = sourceIfExists('.github/workflows/pages.yml');
 const gitignore = source('.gitignore');
 
 const projectRootEntries = readdirSync(new URL('../', import.meta.url));
-const rootHandoffs = projectRootEntries.filter((name) => /^HANDOFF_NEW_CHAT_.*\.md$/u.test(name));
-const rootPrivateNotes = projectRootEntries.filter((name) => /^PRIVATE_1\.2\.0\.\d+\.md$/u.test(name));
+const rootHandoffs = projectRootEntries.filter((name) => /^HANDOFF_NEW_CHAT(?:_.*)?\.md$/u.test(name));
+const rootPrivateNotes = projectRootEntries.filter((name) => /^PRIVATE(?:_.*)?\.md$/u.test(name));
 
 
 // RC package identity must be visible in-app and synchronized with build metadata.
-assert(version.includes("APP_VERSION = '1.2.0.112'"), 'APP_VERSION drifted');
+const appVersion = /APP_VERSION\s*=\s*'([^']+)'/u.exec(version)?.[1];
+const appBuild = /APP_BUILD\s*=\s*'([^']+)'/u.exec(buildMeta)?.[1];
+assert(appVersion === '1.2.0.145', 'APP_VERSION drifted');
+assert(appBuild === '145', 'APP_BUILD drifted');
+const versionParts = appVersion?.split('.') ?? [];
+assert(versionParts.length === 4 && versionParts.every((part) => /^\d+$/u.test(part)), 'APP_VERSION must use MAJOR.MINOR.STAGE.BUILD');
+const expectedReleaseVersion = versionParts.slice(0, 3).join('.');
+const expectedPrivatePackageVersion = `${expectedReleaseVersion}-private.${appBuild}`;
+assert(versionParts[3] === appBuild, 'APP_VERSION build suffix differs from src/core/build.ts');
 assert(!version.includes('APP_BUILD') && !version.includes('APP_STAGE'), 'technical build/stage metadata leaked back into app version module');
 assert(version.includes('DATABASE_SCHEMA_VERSION = 14'), 'database schema changed unexpectedly');
-if (buildInfo) assert(buildInfo.appVersion === '1.2.0.112' && buildInfo.channel === 'private' && buildInfo.packageVersion === '1.2.0-private.112' && buildInfo.date === '2026-09-13', 'BUILD_INFO.json is not synchronized with PRIVATE 1.2.0.112 metadata');
-assert(packageJson.version === '1.2.0-private.112', 'package.json version drifted');
+if (buildInfo) {
+  assert(buildInfo.appVersion === appVersion && buildInfo.build === appBuild, 'BUILD_INFO.json app/build identity differs from source metadata');
+  assert(buildInfo.versionScheme === 'MAJOR.MINOR.STAGE.BUILD' && buildInfo.releaseVersion === expectedReleaseVersion, 'BUILD_INFO.json version scheme/release metadata drifted');
+  assert(buildInfo.channel === 'private' && buildInfo.packageVersion === expectedPrivatePackageVersion && buildInfo.date === '2026-09-19', 'BUILD_INFO.json is not synchronized with PRIVATE 1.2.0.145 metadata');
+}
+if (currentState) {
+  assert(currentState.version === appVersion && String(currentState.build) === appBuild, 'CURRENT_STATE.json app/build identity differs from source metadata');
+  assert(currentState.versionScheme === 'MAJOR.MINOR.STAGE.BUILD' && currentState.releaseVersion === expectedReleaseVersion, 'CURRENT_STATE.json version scheme/release metadata drifted');
+  assert(currentState.versionPolicy?.normalUpdate === 'increment-build' && currentState.versionPolicy?.noFileChange === 'keep-version', 'CURRENT_STATE.json version policy drifted');
+  assert(currentState.channel === 'private', 'CURRENT_STATE.json must describe PRIVATE checkpoint');
+  assert(buildInfo?.status === currentState.status, 'BUILD_INFO.json and CURRENT_STATE.json status differ');
+}
+assert(packageJson.version === expectedPrivatePackageVersion, 'package.json version drifted');
 if (buildInfo?.channel === 'private') {
-  assert(rootHandoffs.length === 1 && rootHandoffs[0] === 'HANDOFF_NEW_CHAT_1.2.0.112.md', 'root must contain exactly one current handoff');
-  assert(rootPrivateNotes.length === 1 && rootPrivateNotes[0] === 'PRIVATE_1.2.0.112.md', 'root must contain exactly one current PRIVATE note');
+  assert(rootHandoffs.length === 1 && rootHandoffs[0] === 'HANDOFF_NEW_CHAT.md', 'root must contain exactly one fixed-name current handoff');
+  assert(rootPrivateNotes.length === 1 && rootPrivateNotes[0] === 'PRIVATE.md', 'root must contain exactly one fixed-name current PRIVATE note');
+  assert(source('HANDOFF_NEW_CHAT.md').includes('1.2.0 Build 145'), 'HANDOFF_NEW_CHAT.md content is not synchronized with Build 145');
+  assert(source('PRIVATE.md').includes('Build 145'), 'PRIVATE.md content is not synchronized with Build 145');
 }
 for (const obsolete of [
   'public/icon-192.png', 'public/icon-512.png', 'public/apple-touch-icon.png',
@@ -111,6 +139,7 @@ if (publicRepoDoc) assert(!publicRepoDoc.includes('Finalna architektura `1.0.0`'
 assert(packageJson.scripts?.build?.includes('service-worker-gate.mjs') && packageJson.scripts?.build?.includes('release-safety-gate.mjs') && packageJson.scripts?.build?.includes('travel-release-gate.mjs'), 'future production build does not execute release gates');
 assert(packageJson.scripts?.build?.includes('security-release-gate.mjs'), 'future production build does not execute security release gate');
 assert(packageJson.scripts?.['security:public']?.includes('public-package-gate.mjs'), 'public package security gate script is missing');
+assert(packageJson.scripts?.['checkpoint:state']?.includes('checkpoint-state-gate.mjs') && packageJson.scripts?.['checkpoint:manifest']?.includes('checkpoint-manifest.mjs') && packageJson.scripts?.['checkpoint:gate']?.includes('checkpoint-gate.mjs'), 'private checkpoint workflow scripts are missing');
 assert(packageJson.scripts?.['security:dependencies']?.includes('npm audit --omit=dev --audit-level=high'), 'production dependency audit script is missing');
 assert(viteConfig.includes('sourcemap: false'), 'production source maps are not disabled');
 assert(workPdfFile.includes('MAX_WORK_PDF_FILE_BYTES = 32 * 1024 * 1024'), 'work PDF pre-read size limit missing or changed unexpectedly');
@@ -164,12 +193,13 @@ assert(visualQaScript.includes('calendar-week-desktop-1440x1000.png') && visualQ
 assert(visualQaScript.includes('calendar-month-day-sheet-mobile-390x844.png'), 'mobile month day-sheet visual QA capture missing');
 assert(visualQaScript.includes('today-desktop-1440x1000.png') && visualQaScript.includes('today-mobile-390x844.png'), 'Today desktop/mobile visual QA capture presets missing');
 if (projectRules) assert(projectRules.includes('Visual QA i mobile są częścią Definition of Done'), 'visual/mobile Definition of Done rule missing');
-assert(!navigation.includes('bottom-nav-search') && !navigation.includes('onSearch'), 'visible global search leaked back into navigation');
-assert(!calendarView.includes('HeaderSearch') && !calendarView.includes('onSearch'), 'CalendarView still exposes a visible global search dependency');
-assert(app.includes("event.key.toLowerCase() !== 'k'") && app.includes('<GlobalSearch'), 'underlying global search is not preserved behind the non-visual desktop shortcut');
-assert(mobileResponsiveCss.includes('/* 1.2.0.53 - mobile density, integrated search and viewport-first core screens */'), '1.2.0.53 mobile density styles missing');
+assert(!navigation.includes('bottom-nav-search') && !navigation.includes('onSearch'), 'removed global search leaked back into navigation');
+assert(!calendarView.includes('HeaderSearch') && !calendarView.includes('onSearch'), 'CalendarView exposes a removed global search dependency');
+assert(!app.includes("event.key.toLowerCase() !== 'k'") && !app.includes('GlobalSearch') && !app.includes('searchOpen'), 'removed global search mechanism leaked back into App');
+assert(!sourceIfExists('src/search/GlobalSearch.tsx') && !sourceIfExists('src/search/global-search.ts') && !sourceIfExists('src/ui/HeaderSearch.tsx'), 'removed global search source files returned');
+assert(mobileResponsiveCss.includes('/* 1.2.0.53 - mobile density and viewport-first core screens */'), '1.2.0.53 mobile density styles missing');
 assert(mobileResponsiveCss.includes('grid-template-columns: repeat(6, minmax(0, 1fr));'), 'six-item mobile bottom navigation drifted');
-assert(mobileResponsiveCss.includes('/* 1.2.0.60 - mobile headers without a dedicated search control */'), '1.2.0.60 mobile header cleanup marker missing');
+assert(mobileResponsiveCss.includes('/* 1.2.0.60 - compact mobile headers */'), '1.2.0.60 mobile header cleanup marker missing');
 assert(modal.includes('headerActions?: ReactNode') && modal.includes('modal-header-actions'), 'Modal header actions support missing');
 assert(workView.includes('work-settings-header-save') && workView.includes('saveWorkSettings(true)'), 'mobile work settings header save action missing');
 assert(mobileResponsiveCss.includes('/* 1.2.0.53 - keep the primary work-settings action visible without scrolling */') && mobileResponsiveCss.includes('.work-settings-header-save { display: inline-flex;'), 'mobile work settings save action is not visible in modal header');
@@ -211,7 +241,7 @@ assert(tokensCss.includes('--category-study: #b95d84') && tokensCss.includes('--
 assert(interfaceConsistency.includes('/* 1.2.0.85 - one hierarchy and stronger semantic event categories. */') && interfaceConsistency.includes('.study-view > .view-header h1') && interfaceConsistency.includes('.work-view > .view-header h1') && interfaceConsistency.includes('.settings-minimal-view > .view-header h1'), '1.2.0.85 cross-module hierarchy is missing');
 assert(interfaceConsistency.includes('.calendar-week-event.category-study') && interfaceConsistency.includes('.calendar-week-event.category-work') && interfaceConsistency.includes('.calendar-week-event.category-personal') && interfaceConsistency.includes('.selected-day-panel .event-card.category-work'), 'semantic event contrast does not cover calendar and selected-day surfaces');
 assert(calendarView.includes('filter-${item.id.toLowerCase()}') && calendarView.includes('category-${event.category.toLowerCase()}'), 'calendar filters or mobile day preview lost semantic category classes');
-assert(studyViewSource.includes('Wczytaj Excel. Aplikacja pokaże zmiany przed zapisem'), 'Study intro was not simplified');
+assert(studyViewSource.includes('Wczytaj Excel. Przed zapisem zobaczysz zmiany i wybierzesz tylko potrzebne grupy.'), 'Study intro was not simplified');
 assert(styleIndex.trimEnd().endsWith("@import './interface-consistency.css';"), 'shared interface consistency stylesheet must load last');
 assert(privacyDoc.includes('## Lokalne kursy walut 1.2.0.85') && privacyDoc.includes('wbudowanych lokalnie') && privacyDoc.includes('nie wysyła kwoty wydatku'), 'simplified FX privacy boundary is not documented');
 assert(financeDashboard.includes('activeTripOriginalTotals') && financeDashboard.includes('finance-trip-currency-button'), 'Trip original-currency summary or currency settings entry is missing');
@@ -239,7 +269,7 @@ assert(workView.includes("activeWorkEvents.length ? 'Aktualizuj PDF' : 'Importuj
 assert(calendarCss.includes('/* 1.2.0.54 - global clarity pass') && mobileResponsiveCss.includes('/* 1.2.0.54 - real-device mobile clarity pass */'), '1.2.0.54 clarity styles missing');
 assert(calendarView.includes('mobileDayPanelOpen') && calendarView.includes('calendar-mobile-day-backdrop') && calendarView.includes("selected-day-panel${mobileDayPanelOpen ? ' mobile-open' : ''}"), '1.2.0.56 mobile month day-sheet wiring missing');
 assert(mobileResponsiveCss.includes('/* 1.2.0.56 - viewport-first mobile Calendar and lighter Today agenda */') && mobileResponsiveCss.includes('.selected-day-panel.mobile-open'), '1.2.0.56 mobile day-sheet styles missing');
-assert(calendarCss.includes('/* 1.2.0.60 - visible global search removed, headers reclaim the space */'), '1.2.0.60 header cleanup styles missing');
+assert(calendarCss.includes('/* 1.2.0.60 - cleaned headers reclaim the space */'), '1.2.0.60 header cleanup styles missing');
 assert(calendarCss.includes('/* 1.2.0.61 - one lightweight event composer across mobile entry points */'), '1.2.0.61 shared event composer marker missing');
 assert(mobileResponsiveCss.includes('/* 1.2.0.61 - shared mobile event bottom sheet */'), '1.2.0.61 mobile event sheet styles missing');
 assert(mobileResponsiveCss.includes('/* 1.2.0.62 - horizontal period swipe while preserving vertical scroll */'), '1.2.0.62 mobile swipe styles missing');
@@ -314,10 +344,13 @@ assert(deletion.includes('delete updated.locationId'), 'event/work profile locat
 assert(deletion.indexOf('locationStore.delete(id)') > deletion.indexOf('for (const profile of updatedWorkProfiles)'), 'location is deleted before dependent records are updated');
 assert(deletion.includes('tx.abort()'), 'explicit abort safeguard missing from location deletion');
 assert(deletion.includes("operationType: 'DELETE_LOCATION'"), 'location deletion is not journaled');
+assert(deletion.includes("'BEFORE_LOCATION_DELETE'"), 'location deletion lacks a pre-change restore point');
+assert(deletion.includes('restorePointId: safetyPoint.id'), 'location deletion cannot be undone through its pre-change restore point');
+assert(!deletion.includes('reversible: false'), 'location deletion is still marked as permanently non-reversible');
 
-const removeLocation = between(app, 'async function removeLocation()', '\n  async function changeSettings');
-assert(!removeLocation.includes('updateEvent('), 'App still detaches location event-by-event');
-assert(removeLocation.includes('await deleteLocation(removedId)'), 'App does not use transactional deleteLocation');
+// Build 114 removed the unreachable location editor that had only been reachable through the abandoned global search.
+// Transactional location deletion remains protected at the storage layer above.
+
 
 // A manually removed imported location must not be silently recreated during plan updates.
 assert(db.includes("const locationId = preserved.has('locationId')\n        ? oldEvent.locationId\n        : ensureCandidateLocation"), 'SKIP update may recreate a manually removed study location');
@@ -357,11 +390,44 @@ assert(!restoreStores.includes('STORE_NOTIFICATION_RUNTIME'), 'notification runt
 assert(!restoreStores.includes('STORE_NOTIFICATION_REMINDERS'), 'device reminder state must not be restored from backup');
 assert(!restoreStores.includes('STORE_RESTORE_POINTS'), 'restore-point recursion must not be embedded in snapshots');
 assert(db.includes('return [...restoreSnapshotStoreNames(), STORE_CHANGE_JOURNAL]'), 'backup store list does not extend restore list with journal');
+const allStoreConstants = [...db.matchAll(/const (STORE_[A-Z0-9_]+) =/gu)].map((match) => match[1]);
+const portableRestoreStoreConstants = new Set(restoreStores.match(/STORE_[A-Z0-9_]+/gu) ?? []);
+const explicitlyNonPortableStoreConstants = new Set(['STORE_RESTORE_POINTS', 'STORE_NOTIFICATION_RUNTIME', 'STORE_NOTIFICATION_REMINDERS']);
+const uncoveredPersistentStores = allStoreConstants.filter((name) => name !== 'STORE_CHANGE_JOURNAL' && !portableRestoreStoreConstants.has(name) && !explicitlyNonPortableStoreConstants.has(name));
+assert(uncoveredPersistentStores.length === 0, `persistent stores missing from backup contract: ${uncoveredPersistentStores.join(', ')}`);
+const backupShapeValidation = between(db, 'function validateCurrentBackupSnapshotShape', '\n}\n\nexport async function inspectBackupText');
+assert(backupShapeValidation.includes('backupSnapshotStoreNames().filter'), 'current-schema backup completeness validation is missing');
+assert(backupShapeValidation.includes('!Array.isArray(stores[name])'), 'current-schema backup does not reject malformed store payloads');
+assert(db.includes('validateCurrentBackupSnapshotShape(document);'), 'backup inspection does not enforce structural completeness');
+
+// Safety center must fail closed around destructive trash and restore-point operations.
+const permanentTrashDelete = between(db, 'export async function permanentlyDeleteTrashItem', '\n}\n\nexport async function emptyTrash');
+assert(permanentTrashDelete.includes("'BEFORE_PERMANENT_TRASH_DELETE'"), 'single permanent trash delete lacks a safety restore point');
+assert(permanentTrashDelete.includes("operationType: 'PERMANENT_DELETE_TRASH'"), 'single permanent trash delete is missing from change journal');
+assert(permanentTrashDelete.includes('restorePointId: safety.id'), 'single permanent trash delete cannot be undone through its restore point');
+const restorePointInternal = between(db, 'async function restoreRestorePointInternal', '\n}\n\nexport async function restoreRestorePoint');
+assert(restorePointInternal.includes('point.schemaVersion !== point.snapshot.databaseSchemaVersion'), 'restore point schema consistency check missing');
+assert(restorePointInternal.includes('point.snapshot.databaseSchemaVersion < DATABASE_SCHEMA_VERSION'), 'older restore points are still directly restorable');
+assert(!safety.includes("'MANUAL', false, true"), 'manual restore points are still pinned permanently');
+assert(db.includes("if (point.pinned) throw new Error('Ten punkt jest chroniony przez aplikację i nie może zostać usunięty.');"), 'backend still allows deleting pinned restore points');
+assert(safety.includes("compatible ? 'Przywróć' : 'Archiwalny'"), 'incompatible restore points are not disabled in Safety Center');
+
+// Destructive Finance operations with real user data must remain durably undoable after transient UI toasts expire.
+const receiptDelete = between(db, 'export async function deleteReceipt(id: string): Promise<void> {', '\n}\n\nexport async function restoreDeletedReceipt');
+assert(receiptDelete.includes("operationType: 'DELETE_RECEIPT'"), 'receipt deletion is not written to durable change history');
+assert(receiptDelete.includes("entityType: 'RECEIPT'"), 'receipt deletion history lost its entity contract');
+assert(receiptDelete.includes('beforeState: current'), 'receipt deletion does not retain the deleted transaction for undo');
+const receiptRestore = between(db, 'export async function restoreDeletedReceipt', '\n}\n\n\nfunction validateCyclePeriodDraft');
+assert(receiptRestore.includes("entry.operationType === 'DELETE_RECEIPT'"), 'transient receipt undo does not reconcile durable history');
+assert(receiptRestore.includes('markJournalUndone(matchingDelete.id)'), 'transient receipt undo leaves a stale reversible delete in history');
+const categoryDelete = between(db, 'export async function deleteExpenseCategory', '\n}\n\nexport async function listExpenseProducts');
+assert(categoryDelete.includes("operationType: 'DELETE_EXPENSE_CATEGORY'"), 'expense category deletion is not durably undoable');
+assert(db.includes("entry.operationType === 'DELETE_RECEIPT'") && db.includes("entry.operationType === 'DELETE_EXPENSE_CATEGORY'"), 'undo engine does not restore deleted Finance data');
 
 // Production audit and service worker must agree on the current RC cache contract.
 assert(sw.includes("const CACHE_PREFIX = 'inteligentny-kalendarz-shell-'"), 'current service worker cache prefix missing');
-assert(sw.includes("const CACHE_NAME = `${CACHE_PREFIX}v1.2.0.112`"), 'current service worker cache version missing');
-assert(audit.includes("const CACHE_NAME = `${CACHE_PREFIX}v1.2.0.112`"), 'production audit still expects an obsolete service worker revision');
+assert(sw.includes("const CACHE_NAME = `${CACHE_PREFIX}v1.2.0.145`"), 'current service worker cache version missing');
+assert(audit.includes("const CACHE_NAME = `${CACHE_PREFIX}v1.2.0.145`"), 'production audit still expects an obsolete service worker revision');
 assert(!/\bcaches\.match\s*\(/u.test(sw), 'service worker can read foreign origin caches');
 assert(sw.includes('key.startsWith(CACHE_PREFIX)'), 'service worker can delete unrelated caches');
 assert(sw.includes('await caches.delete(CACHE_NAME)'), 'partial current cache cleanup missing');
@@ -383,6 +449,8 @@ assert(studyMatrixAdapter.includes('sourceBlocks.push({'), 'week-matrix adapter 
 assert(studyMatrixAdapter.includes('declaredTeachingHoursFromText'), 'declared teaching-hour extraction missing');
 assert(studyMatrixAdapter.includes('unparsedAssignmentCellsForWeekRows'), 'unknown group-assignment fail-closed detector missing');
 assert(studyMatrixAdapter.includes('suspiciousUnparsedWeekRows'), 'unparsed week-row fail-closed detector missing');
+assert(studyMatrixAdapter.includes('hasMalformedExplicitWeekCue') && studyMatrixAdapter.includes('insideParsedBand || explicitMalformedWeek'), 'edge-of-band malformed week fail-closed guard missing');
+assert(studyMatrixAdapter.includes('/20\\d{2}/.test(value)') && studyMatrixAdapter.includes('looksLikeDateExpression(value)'), 'malformed week guard can regress into treating plain time ranges as week ranges');
 assert(studyMatrixAdapter.includes('mostSpecificWeekdays'), 'specific-column weekday precedence missing');
 assert(studyMatrixAdapter.includes('entriesMostSpecificFirst'), 'specific header ordering missing');
 assert(studyMatrixAdapter.includes('mostSpecificTime'), 'specific-column time precedence missing');
@@ -432,15 +500,15 @@ assert(calendarCss.includes('/* 1.2.0.50 - move Study context out of the main ca
 assert(mobileResponsiveCss.includes('/* 1.2.0.50 - compact side Study context */'), '1.2.0.50 responsive side-context styles missing');
 assert(studyProfile.includes('study-profile-heading-status') && studyProfile.includes('activeGroups.length'), 'Study profile does not expose active-plan group status');
 assert(studyProfile.includes('study-future-groups-note'), 'Study profile does not distinguish future-only group selection');
-assert(studyProfile.includes('study-profile-settings-always-open') && studyProfile.includes('Wybór grup') && studyProfile.includes('study-group-dashboard') && studyProfile.includes('setPartitionGroup') && !studyProfile.includes('Zmień grupy') && !studyProfile.includes('setEditing'), '1.2.0.102 Study group controls are no longer permanently visible in compact dashboard form');
+assert(studyProfile.includes('study-profile-settings-always-open') && studyProfile.includes('Wybór grup') && studyProfile.includes('StudyGroupChoiceFields') && !studyProfile.includes('Zmień grupy') && !studyProfile.includes('setEditing'), 'Study group controls are no longer permanently visible through the shared chooser');
 assert(source('src/study/StudyGroupPreviewPanel.tsx').includes('<section className="study-preview-sandbox">') && !source('src/study/StudyGroupPreviewPanel.tsx').includes('<section className="panel study-preview-sandbox">'), '1.2.0.101 Study preview returned to a nested panel');
 assert(transfer.includes('data-transfer-privacy-details') && transfer.includes('Informacje o bezpieczeństwie eksportu'), '1.2.0.101 compact transfer safety disclosure missing');
 assert(!safety.includes('<section className="panel safety-center">') && safety.includes('settings-section-intro'), '1.2.0.101 Settings safety hierarchy returned to a nested panel');
 assert(interfaceConsistency.includes('/* 1.2.0.101 - compact Studies and Settings without hiding primary controls. */') && interfaceConsistency.includes('.study-profile-group-picker .group-chip { min-height: 42px;'), '1.2.0.101 compact UI or mobile touch-size guard missing');
-assert(studyProfile.includes('PROFILE_PARTITIONS') && studyProfile.includes('study-group-dashboard-card') && studyProfile.includes('<select value={current}'), '1.2.0.102 Study group dashboard selector missing');
+assert(studyGroupChoice.includes('STUDY_GROUP_PARTITIONS') && studyGroupChoice.includes('study-group-choice-card') && studyGroupChoice.includes('<select value={current}') && studyGroupChoice.includes('setPartitionGroup'), 'Shared Study group selector missing');
 assert(workView.includes('className="work-overview-dashboard"'), '1.2.0.102 Work overview is no longer grouped as a dashboard');
 assert(settingsView.includes('className="settings-dashboard-grid"'), '1.2.0.102 Settings top modules are no longer grouped as a dashboard');
-assert(interfaceConsistency.includes('/* 1.2.0.102 - dashboard density: compact Studies, Work overview and Settings. */') && interfaceConsistency.includes('.study-group-dashboard-card select') && interfaceConsistency.includes('.work-overview-dashboard') && interfaceConsistency.includes('.settings-dashboard-grid'), '1.2.0.102 dashboard density styles missing');
+assert(interfaceConsistency.includes('/* 1.2.0.102 - dashboard density: compact Studies, Work overview and Settings. */') && interfaceConsistency.includes('.study-group-choice-card select') && interfaceConsistency.includes('.work-overview-dashboard') && interfaceConsistency.includes('.settings-dashboard-grid'), 'dashboard density styles missing');
 assert(studyViewSource.includes('study-upload-dashboard') && interfaceConsistency.includes('.study-view .study-upload-dashboard'), '1.2.0.102 compact Study import dashboard missing');
 // 1.2.0.103 continues dashboard density without hiding primary actions and adds optional calendar information layers.
 assert(todayView.includes('today-add-row') && todayView.includes('+ Dodaj wydarzenie') && todayView.includes('<div className="today-header-actions" />'), '1.2.0.103 Today add action is no longer centered below the agenda');
@@ -465,8 +533,35 @@ assert(interfaceConsistency.includes('.today-plan-panel .today-add-row .today-ad
 // 1.2.0.106 real-device phone screenshots: restore Finance scan and compact the longest mobile flows.
 assert(interfaceConsistency.includes('/* 1.2.0.106 - real-phone compaction based on 1.2.0.105 screenshots. */'), '1.2.0.106 real-phone compaction block missing');
 assert(interfaceConsistency.includes('.finance-dashboard-controls-v1258 .finance-core-actions .finance-scan-receipt') && interfaceConsistency.includes('display: inline-flex !important;'), '1.2.0.106 mobile Finance scanner is hidden again');
-assert(studyViewSource.includes('study-import-group-dashboard') && studyViewSource.includes('setImportPartitionGroup') && studyViewSource.includes('Wybierz grupę importu:'), '1.2.0.106 compact Study import group selectors missing');
+assert(studyViewSource.includes('StudyGroupChoiceFields') && studyGroupChoice.includes('setPartitionGroup') && studyGroupChoice.includes('aria-label={`Wybierz: ${partition.label}`}') && interfaceConsistency.includes('.study-group-choice-grid'), 'compact shared Study import group selectors missing');
 assert(interfaceConsistency.includes('.availability-dashboard-layout .availability-week-day') && interfaceConsistency.includes('.work-summary-facts.work-summary-facts-grid'), '1.2.0.106 Work mobile compaction guards missing');
+
+// 1.2.0.136 unifies Study group choice and form-flow layout without changing parser semantics.
+assert(studyViewSource.includes('form-flow-panel') && studyViewSource.includes('selection-progress') && studyViewSource.includes('inline-validation warning') && studyViewSource.includes('context-note') && studyViewSource.includes('panel-action-footer'), '1.2.0.136 Study form-flow primitives missing');
+assert(studyGroupChoice.includes('normalizeStudyGroupSelectionForAvailableGroups') && studyProfile.includes('studyGroupChoiceProgress'), '1.2.0.136 shared Study group normalization/progress missing');
+assert(interfaceConsistency.includes('/* 1.2.0.136 - shared form-flow rhythm and one Study group chooser across import and settings. */'), '1.2.0.136 shared form-flow styles missing');
+assert(!studyViewSource.includes('${selectedGroups.length} wybranych') && studyViewSource.includes("phase !== 'groups'"), '1.2.0.136 stale Study count or duplicate group-phase cancel action returned');
+
+// 1.2.0.137 Study release hardening: source identity/reference integrity + active-source regression metadata.
+const studySourceAudit = source('src/study/study-source-audit.ts');
+const studySourceAuditOptionalTest = source('src/tests/study-source-audit.optional.test.ts');
+assert(studyRegistry.includes('duplicateCandidateIds') && studyRegistry.includes('duplicateSourceKeys'), '1.2.0.137 source identity uniqueness gate missing');
+assert(studyRegistry.includes('unknownReferenceCount') && studyRegistry.includes('repeatedReferences') && studyRegistry.includes('orphanSpecific'), '1.2.0.137 source-block referential integrity gate missing');
+assert(studySourceAudit.includes('auditSelectedStudyProfile') && studySourceAudit.includes('importableMonthCounts'), '1.2.0.137 selected-profile source audit missing');
+assert(studySourceAuditOptionalTest.includes('activeStudyQaProfile') && studySourceAuditOptionalTest.includes('activeStudySourceFingerprint'), '1.2.0.137 active-source regression baseline is not enforced by private audit');
+if (currentState) assert(Array.isArray(currentState.activeStudyQaProfile?.selectedGroups) && currentState.activeStudyQaProfile.importableCount === 72 && currentState.activeStudyQaProfile.incompleteCount === 3, '1.2.0.137 active Study QA profile drifted');
+
+// 1.2.0.145 makes the release-blocking Study mobile import smoke repeatable on both phone widths.
+assert(packageJson.scripts?.['study:mobile-smoke'] === 'node scripts/study-mobile-smoke.mjs', '1.2.0.145 Study mobile smoke package command missing');
+assert(studyMobileSmoke.includes('runStudySmoke(cdp, 390, 844)') && studyMobileSmoke.includes('runStudySmoke(cdp, 360, 800)'), '1.2.0.145 Study mobile smoke viewports missing');
+assert(studyMobileSmoke.includes("DOM.setFileInputFiles") && studyMobileSmoke.includes("args.get('main')") && studyMobileSmoke.includes("args.get('g12')") && studyMobileSmoke.includes("args.get('g4')"), '1.2.0.145 Study mobile smoke does not exercise a parameterized real-source group flow');
+assert(!studyMobileSmoke.includes("'MAIN:10'") && !studyMobileSmoke.includes("'G12:10A'") && !studyMobileSmoke.includes("'G4:10B2'"), '1.2.0.145 public-capable Study smoke leaked the private QA profile as source defaults');
+assert(studyMobileSmoke.includes("event?.source === 'UNIVERSITY_XLSX'") && studyMobileSmoke.includes("clickMobileNav(cdp, 'Kalendarz')") && studyMobileSmoke.includes('STUDY_MOBILE_SMOKE_ALL_OK'), '1.2.0.145 Study mobile smoke does not prove commit-to-calendar handoff');
+assert(studyMobileSmoke.includes('async function waitForAppShell') && studyMobileSmoke.includes("document.querySelector('.app-shell')") && studyMobileSmoke.includes("document.querySelector('.startup-screen .error-card p')") && studyMobileSmoke.includes("new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })"), '1.2.0.145 Study smoke does not prove app bootstrap before navigation');
+
+// 1.2.0.145 preserves Windows-safe Chromium cleanup without masking the actual Study smoke result.
+assert(studyMobileSmoke.includes("await cdp.send('Browser.close')") && studyMobileSmoke.includes("spawnSync('taskkill', ['/PID', String(browserProcess.pid), '/T', '/F']") && studyMobileSmoke.includes('maxRetries: 12'), '1.2.0.145 Windows-safe Chromium shutdown/cleanup guard missing');
+assert(studyMobileSmoke.includes('STUDY_MOBILE_SMOKE_CLEANUP_WARN') && studyMobileSmoke.includes('await shutdownBrowser(browserProcess, cdp, profile)'), '1.2.0.145 cleanup can still mask the functional Study smoke result');
 
 // 1.2.0.107 removes redundant month-counter dots and enables safe receipt scanning inside foreign-currency trips.
 assert(!calendarView.includes('<i aria-hidden="true" />{counts[category]}'), '1.2.0.107 redundant calendar counter dot returned');
@@ -501,9 +596,43 @@ assert(packageJson.scripts?.['release:preflight'] === 'node scripts/release-pref
 assert(githubCi.includes('npm ci') && githubCi.includes('npm run check') && githubCi.includes('npm run security:dependencies'), '1.2.0.112 GitHub CI validation path incomplete');
 if (releaseChecklist) assert(releaseChecklist.includes('GitHub Desktop') && releaseChecklist.includes('Visual QA') && releaseChecklist.includes('SHA256'), '1.2.0.112 release checklist incomplete');
 assert(releasePreflight.includes('RELEASE_PREFLIGHT_PREP_OK') && releasePreflight.includes('Service Worker cache revision differs from APP_VERSION'), '1.2.0.112 dependency-free release preflight incomplete');
-assert(publicPackageGate.includes('forbiddenPrivateDocPatterns') && publicPackageGate.includes('HANDOFF_NEW_CHAT_') && publicPackageGate.includes('CLEAN_CHECKPOINT_CONTENTS'), '1.2.0.112 public package gate can leak PRIVATE checkpoint documents');
+assert(publicPackageGate.includes('forbiddenPrivateDocPatterns') && publicPackageGate.includes('HANDOFF_NEW_CHAT(?:_.*)?') && publicPackageGate.includes('CLEAN_CHECKPOINT_CONTENTS') && publicPackageGate.includes('CURRENT_STATE') && publicPackageGate.includes('CHECKPOINT_MANIFEST'), 'public package gate can leak PRIVATE checkpoint/process files');
 assert(gitignore.includes('.vite/') && gitignore.includes('test-results/') && gitignore.includes('playwright-report/'), '1.2.0.112 local release/test artifacts are not ignored');
 assert(interfaceConsistency.includes('/* 1.2.0.112 - compact release-prep polish: denser desktop history, unchanged mobile touch targets. */'), '1.2.0.112 compact Settings release-prep styles missing');
+
+// 1.2.0.113 makes GitHub Pages deployment a release invariant instead of an accidental repository file.
+assert(githubPages.includes('name: Deploy GitHub Pages'), '1.2.0.113 GitHub Pages workflow missing');
+assert(githubPages.includes('branches: [\"main\"]') && githubPages.includes('actions/upload-pages-artifact@v3') && githubPages.includes('path: ./dist'), '1.2.0.113 GitHub Pages build/upload path incomplete');
+assert(githubPages.includes('pages: write') && githubPages.includes('id-token: write') && githubPages.includes('actions/deploy-pages@v4'), '1.2.0.113 GitHub Pages deployment permissions/action incomplete');
+
+// 1.2.0.119 broadens only unambiguous week-range notation and keeps malformed week labels fail-closed.
+assert(studyMatrixAdapter.includes(".replace(/^tydzie[nń]\\s*[:.-]?\\s*/i, '')"), '1.2.0.119 optional week-prefix normalization missing');
+assert(studyMatrixAdapter.includes(".replace(/^od\\s+/i, '')") && studyMatrixAdapter.includes(".replace(/\\s+do\\s+/i, ' - ')"), '1.2.0.119 od/do week-range normalization missing');
+assert(studyMatrixAdapter.includes('compactSameMonth'), '1.2.0.119 compact same-month week-range support missing');
+
+// 1.2.0.120 tolerates a leading metadata column without weakening fail-closed assignment checks.
+assert(studyMatrixAdapter.includes('col: number;') && studyMatrixAdapter.includes('leftCandidates'), '1.2.0.120 week-range source-column tracking missing');
+assert(studyMatrixAdapter.includes('cell.col > weekRow.col') && studyMatrixAdapter.includes('entry.col > row.col'), '1.2.0.120 assignment boundary still assumes the first worksheet column');
+assert(studyMatrixAdapter.includes('cell.col > range.col'), '1.2.0.120 date-exception scan still assumes the first worksheet column');
+
+// 1.2.0.121 keeps real plan edits as CHANGED when the same source slot changes group identity.
+assert(studyDiffLogic.includes('function sameSourceSlot(') && studyDiffLogic.includes('entry.sourceRange === candidate.sourceRange'), '1.2.0.121 conservative source-slot matcher missing');
+assert(studyDiffLogic.includes('competingNew.length !== 1') && studyDiffLogic.includes("'changed-slot'"), '1.2.0.121 source-slot diff does not remain unique/fail-closed');
+assert(studyDiffLogic.includes("changeTypes: [...new Set(changes.map((entry) => entry.changeType))]"), '1.2.0.121 source-slot diff lost field-level change classification');
+
+// 1.2.0.122 accepts merge-less matrices only with explicit per-column headers and never drops an irreconcilable date exception silently.
+assert(studyRegistry.includes('function hasExplicitUnmergedColumnHeaders(') && studyRegistry.includes('matchedSheet.merges.length === 0 && !hasExplicitUnmergedColumnHeaders(analysis)'), '1.2.0.122 explicit unmerged-header safety gate missing');
+assert(studyRegistry.includes("/\\|R\\d+C\\d+$/.test(block.sourceSectionKey)") || studyRegistry.includes('/\|R\d+C\d+$/.test(block.sourceSectionKey)'), '1.2.0.122 unmerged matrix still allows non-explicit subjects');
+assert(studyMatrixAdapter.includes('unappliedDateExceptions.push({') && studyMatrixAdapter.includes('!dates.includes(exception.date)'), '1.2.0.122 irreconcilable date-exception detection missing');
+assert(studyRegistry.includes('unappliedDateExceptionCount') && studyRegistry.includes('jawnych wyjątków daty'), '1.2.0.122 irreconcilable date-exception integrity block missing');
+
+// 1.2.0.123 never invents a missing subject from a neighboring column.
+assert(!studyMatrixAdapter.includes('function repairMissingColumnSubjects(') && !studyMatrixAdapter.includes('context.subject = neighbor.subject'), '1.2.0.123 neighbor-subject guessing returned');
+assert(studyMatrixAdapter.includes("warnings.push('Nie udało się ustalić przedmiotu z nagłówka kolumny.')"), '1.2.0.123 missing-subject review signal missing');
+
+// Global-search removal remains a release contract after Build 114.
+assert(!app.includes('GlobalSearch') && !app.includes('searchOpen'), 'abandoned global search App state returned');
+assert(!calendarCss.includes('global-search') && !mobileResponsiveCss.includes('global-search') && !mobileResponsiveCss.includes('bottom-nav-search'), 'obsolete global search CSS returned');
 assert(studyView.includes('className="import-history-group-list"'), 'Study import history still renders groups as dense text');
 assert(componentCss.includes('.calendar-study-context'), 'calendar Study group context styling missing');
 assert(app.includes('incompleteStudyEntries={incompleteStudyEntries}'), 'Calendar does not receive source-incomplete Study entries');

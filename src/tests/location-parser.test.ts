@@ -10,13 +10,22 @@ describe('location parser hardening', () => {
     ['Aleja Niepodległości 10', 'al. Niepodległości 10'],
     ['ul.Niekłańska 4/24 - pierwsze spotkanie', 'ul. Niekłańska 4/24'],
     ['Milenijna 4', 'Milenijna 4'],
+    ['ul. Czajewicza 23A Piaseczno', 'ul. Czajewicza 23A'],
+    ['ul. Lindleya 4 SEM. ZIMOWY 2026/2027', 'ul. Lindleya 4'],
   ])('rozpoznaje adres %s', (input, expected) => {
     expect(parseLocationText(input).address).toBe(expected);
+  });
+
+  it('rozpoznaje Teams jako jawną lokalizację zdalną', () => {
+    expect(parseLocationText('wtorek 15.00 - 18.45 teams').label).toBe('Microsoft Teams');
   });
 
   it('rozpoznaje nazwy placówek', () => {
     expect(parseLocationText('Szpital Grochowski').label).toBe('Szpital Grochowski');
     expect(parseLocationText('Kampus Lindleya').label).toBe('Kampus Lindleya');
+    expect(parseLocationText('Hospicjum Ursynów, ul. Pileckiego 105').label).toBe('Hospicjum Ursynów');
+    expect(parseLocationText('Rezydencja Antonina, ul. Czajewicza 23A Piaseczno').label).toBe('Rezydencja Antonina');
+    expect(parseLocationText('Ośrodek oo. Bonifratrów, ul. Sapieżyńska 3').label).toBe('Ośrodek oo. Bonifratrów');
   });
 
   it('normalizuje kosmetyczne warianty tej samej ulicy', () => {

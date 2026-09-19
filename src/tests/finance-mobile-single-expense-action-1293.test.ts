@@ -22,7 +22,7 @@ describe('1.2.0.94 single empty-state expense CTA on mobile', () => {
   it('keeps the empty-state primary action available', () => {
     expect(dashboard).toContain('<h2>Dodaj pierwszy wydatek</h2>');
     expect(dashboard).toContain('<button type="button" className="button button-primary" onClick={openQuickExpense}>+ Wydatek</button>');
-    expect(version).toContain("APP_VERSION = '1.2.0.112'");
+    expect(version).toContain("APP_VERSION = '1.2.0.145'");
     expect(version).toContain('DATABASE_SCHEMA_VERSION = 14');
   });
 });

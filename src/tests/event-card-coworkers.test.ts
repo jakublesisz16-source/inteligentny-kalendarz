@@ -49,8 +49,9 @@ describe('1.0.1 coworkers on Today event card', () => {
     const markup = render(coworkers(6), true);
     expect(coworkerLineCount(markup)).toBe(6);
     expect(markup).not.toContain('+2 więcej');
-    expect(markup).toContain('razem 07:00-15:00');
-    expect(markup).toContain('razem 08:00-15:00');
+    expect(markup).toContain('Z Tobą na zmianie · 6 osób');
+    expect(markup).toContain('07:00-15:00');
+    expect(markup).toContain('08:00-15:00');
   });
 
   it('keeps the default compact card limited to four coworkers', () => {
@@ -126,7 +127,8 @@ describe('1.0.1 selected calendar day coworkers', () => {
 
     expect((markup.match(/class="event-coworker-line"/g) ?? []).length).toBe(6);
     expect(markup).toContain('ALEKSANDRA PRZYKŁADOWSKA');
-    expect(markup).toContain('razem 16:00-18:00');
+    expect(markup).toContain('Z Tobą na zmianie · 6 osób');
+    expect(markup).toContain('16:00-18:00');
     expect(markup).not.toContain('+2 więcej');
   });
 });

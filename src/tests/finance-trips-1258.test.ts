@@ -13,7 +13,7 @@ describe('1.2.0.58 trip expense summaries', () => {
     expect(types).toContain('tripName?: string;');
     expect(db).toContain("const tripName = normalizeExpenseText(draft.tripName ?? '')");
     expect(db).toContain('if (!normalized.tripName) delete updated.tripName;');
-    expect(version).toContain("APP_VERSION = '1.2.0.112'");
+    expect(version).toContain("APP_VERSION = '1.2.0.145'");
     expect(version).toContain('DATABASE_SCHEMA_VERSION = 14');
   });
 

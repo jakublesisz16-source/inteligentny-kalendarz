@@ -19,7 +19,7 @@ const responsive = source('src/styles/responsive.css');
 const modal = source('src/ui/Modal.tsx');
 const indexHtml = source('index.html');
 
-assert(version.includes("APP_VERSION = '1.2.0.112'"), 'wrong app version');
+assert(version.includes("APP_VERSION = '1.2.0.145'"), 'wrong app version');
 assert(rates.includes('LOCAL_CURRENT_PLN_RATES'), 'local FX table missing');
 assert(!rates.includes('fetch(') && !rates.includes('XMLHttpRequest') && !/https?:\/\//u.test(rates), 'Finance FX must not use network');
 assert(quickExpense.includes('inputMode="decimal"'), 'amount field must request numeric keyboard');
@@ -38,8 +38,8 @@ assert(transfer.includes('createDataTransferFile') && transfer.includes('importD
 assert(db.includes('export async function createBackupFile') && db.includes('export async function restoreBackup') && db.includes('replaceSnapshotVerified'), 'verified backup/restore core missing');
 assert(work.includes("activeWorkEvents.length ? 'Aktualizuj PDF' : 'Importuj PDF'"), 'Work should keep import secondary after schedule exists');
 assert(responsive.includes('.work-header-actions .work-import-button'), 'mobile Work import placement hardening missing');
-assert(study.includes('Wczytaj Excel. Aplikacja pokaże zmiany przed zapisem') && study.includes('Grupy i podgląd'), 'Study simplicity pass missing');
-assert(sw.includes("const CACHE_NAME = `${CACHE_PREFIX}v1.2.0.112`"), 'offline shell revision missing');
+assert(study.includes('Wczytaj Excel. Przed zapisem zobaczysz zmiany i wybierzesz tylko potrzebne grupy.') && study.includes('Grupy i podgląd'), 'Study simplicity pass missing');
+assert(sw.includes("const CACHE_NAME = `${CACHE_PREFIX}v1.2.0.145`"), 'offline shell revision missing');
 assert(sw.includes('MANDATORY_SHELL_ASSET_PATHS') && sw.includes("request.mode === 'navigate'") && sw.includes('cache.match(self.registration.scope)'), 'offline shell/navigation handling missing');
 
 console.log('TRAVEL_RELEASE_GATE PASS');

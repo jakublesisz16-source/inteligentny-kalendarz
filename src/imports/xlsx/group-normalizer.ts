@@ -93,15 +93,19 @@ export function formatStudyGroupList(groups: string[]): string {
   return groups.map(studyGroupDisplayLabel).join(', ');
 }
 
-export function inferStudyGroupKind(headerText: string, plainGroup: string): StudyGroupKind {
+export function inferStudyGroupKind(headerText: string, plainGroup: string, explicitKind?: StudyGroupKind): StudyGroupKind {
   const parsed = parsePlainGroupLabel(plainGroup);
-  if (parsed.number && !parsed.letter) return 'MAIN';
   if (parsed.subgroup) return 'G4';
+  // A global legend or an explicit section declaration is stronger than the
+  // visual shape of the label. Some plans number 12-person/8-person groups
+  // with plain integers, so `2` is not always a dean's MAIN group.
+  if (explicitKind && explicitKind !== 'GENERIC') return explicitKind;
 
   const folded = foldPolishText(headerText);
   if (/\b12\s*[- ]?\s*osob/.test(folded)) return 'G12';
   if (/\b8\s*[- ]?\s*osob/.test(folded)) return 'G8';
   if (/\b4\s*[- ]?\s*osob/.test(folded)) return 'G4';
+  if (parsed.number && !parsed.letter) return 'MAIN';
   return 'GENERIC';
 }
 
@@ -120,6 +124,41 @@ export function sortStudyGroups(groups: string[]): string[] {
     if (subgroupDifference !== 0) return subgroupDifference;
     return a.label.localeCompare(b.label, 'pl');
   });
+}
+
+export function canonicalizeStudyGroupSelection(groups: string[]): string[] {
+  const uniqueGroups = [...new Set(groups)];
+  const g4Numbers = new Set(
+    uniqueGroups
+      .map(parseStudyGroupKey)
+      .filter((group) => group.kind === 'G4' && group.number)
+      .map((group) => group.number!),
+  );
+
+  // G4 jednoznacznie określa odpowiadającą grupę G8. Nie przechowujemy więc
+  // drugiego, ręcznego wyboru G8 dla tej samej grupy głównej - zapobiega to
+  // ukrytym/starym kombinacjom typu G4:2B1 + G8:2A.
+  return sortStudyGroups(uniqueGroups.filter((group) => {
+    const parsed = parseStudyGroupKey(group);
+    return !(parsed.kind === 'G8' && parsed.number && g4Numbers.has(parsed.number));
+  }));
+}
+
+export function normalizeStudyGroupSelectionForAvailableGroups(availableGroups: string[], groups: string[]): string[] {
+  const canonical = canonicalizeStudyGroupSelection(groups);
+  const mainNumbersWithG4 = new Set(
+    availableGroups
+      .map(parseStudyGroupKey)
+      .filter((group) => group.kind === 'G4' && group.number)
+      .map((group) => group.number!),
+  );
+
+  // Jeżeli dany plan udostępnia dokładny podział G4, G8 jest informacją pochodną
+  // i nie może pozostać ukrytym wyborem z wcześniejszego profilu lub buildu.
+  return sortStudyGroups(canonical.filter((group) => {
+    const parsed = parseStudyGroupKey(group);
+    return !(parsed.kind === 'G8' && parsed.number && mainNumbersWithG4.has(parsed.number));
+  }));
 }
 
 function hasExplicitGroupContext(text: string): boolean {
@@ -183,6 +222,12 @@ export function normalizeGroupText(text: string, allowBare = false): NormalizedG
   if (explicitContext) body = body.split(/\b(?:sala|sale|ul\.?|al\.?|aleja|aleje|plac|pl\.?)\b/i)[0] ?? body;
   body = body.replace(/\s*\/\s*\d{1,2}[.:]\d{2}\s*[-–—]\s*\d{1,2}[.:]\d{2}.*$/i, '').trim();
   body = body.toUpperCase();
+
+  // Gwiazdki po samym oznaczeniu grupy są przypisem arkusza, nie częścią grupy
+  // (np. `4b*`, `6a **`). Usuwamy je wyłącznie wtedy, gdy po zdjęciu przypisu
+  // pozostaje jednoznaczne, samodzielne oznaczenie grupy.
+  const withoutFootnote = body.replace(/\s*\*{1,3}\s*$/, '').trim();
+  if (withoutFootnote !== body && looksLikeBareGroupExpression(withoutFootnote)) body = withoutFootnote;
 
   const permitted = explicitContext || (allowBare && looksLikeBareGroupExpression(body));
   const groups = permitted ? extractGroups(body, explicitContext || /^\s*\d{1,2}\s*$/.test(body)) : [];

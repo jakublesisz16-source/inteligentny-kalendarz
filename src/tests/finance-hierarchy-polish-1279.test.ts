@@ -34,7 +34,7 @@ describe('1.2.0.79 Finance hierarchy polish', () => {
   it('uses lighter desktop and mobile presentation without a schema bump', () => {
     expect(css).toContain('/* 1.2.0.79 - Finance hierarchy polish: expense-first actions and lighter trips */');
     expect(responsive).toContain('/* 1.2.0.79 - simple Finance hierarchy on phones */');
-    expect(version).toContain("APP_VERSION = '1.2.0.112'");
+    expect(version).toContain("APP_VERSION = '1.2.0.145'");
     expect(version).toContain('DATABASE_SCHEMA_VERSION = 14');
   });
 });

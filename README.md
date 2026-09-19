@@ -50,18 +50,20 @@ npm run build
 ```
 
 
-## Najprostszy workflow z GitHub Desktop
+## Workflow wydania
 
-Projekt może być rozwijany i wydawany z jednego katalogu repozytorium - bez osobnego folderu `publish`, bez generowania `GITHUB_PREP` i bez kopiowania całego projektu przed każdym wydaniem.
+Projekt jest rozwijany w prywatnym checkpointcie roboczym, a do publikacji powstaje osobny oczyszczony snapshot PUBLIC. GitHub Desktop służy wyłącznie do prostego opublikowania gotowego PUBLIC.
 
-1. Pracuj bezpośrednio w jednym lokalnym repozytorium otwartym w GitHub Desktop.
-2. Prywatne pliki robocze trzymaj w `_LOCAL_ONLY/` albo w istniejącym `_PRIVATE_HISTORY/`. Oba katalogi są ignorowane przez Git.
-3. Po zakończeniu zmian wykonaj zwykły commit do `main` w GitHub Desktop. Sam commit jest lokalny i niczego jeszcze nie publikuje.
-4. W katalogu repozytorium uruchom `npm run release:local`.
-5. Gdy zobaczysz `LOCAL_RELEASE_OK`, kliknij `Push origin` w GitHub Desktop.
-6. Po pushu GitHub Actions wykonuje końcową kontrolę oraz audit zależności.
+1. Rozwój i testy prowadzimy na aktualnym PRIVATE.
+2. Po zakończeniu etapu tworzymy nowy lekki PRIVATE bez `node_modules`, historii starych checkpointów i artefaktów builda.
+3. Z tego samego stanu generujemy sanitizowany PUBLIC i uruchamiamy publiczne testy, build oraz release gates.
+4. PUBLIC trafia do lokalnego repozytorium GitHub Desktop.
+5. W GitHub Desktop wykonujemy `Commit to main`, a następnie `Push origin`.
+6. GitHub Actions wykonuje końcową kontrolę, a workflow `Deploy GitHub Pages` publikuje `dist` po pushu do `main`.
+7. Brak `.github/workflows/pages.yml` ma blokować release preflight i build.
+8. Każde wydanie oznaczamy wersją i buildem, np. `1.2.0 - Build 130`, z tagiem `v1.2.0.130`.
 
-`release:local` wymaga gałęzi `main`, czystego working tree i sprawdza tylko to, co może trafić do publicznego repozytorium. Prywatne benchmarki nie blokują publicznego CI.
+PRIVATE nigdy nie jest publikowany. PUBLIC nie zawiera prywatnych checkpointów, `project-skills/`, dokumentów użytkownika, backupów ani sekretów.
 
 ## PWA i offline
 
@@ -78,7 +80,7 @@ W Ustawieniach można wyeksportować cały logiczny stan aplikacji do pliku JSON
 
 ## Rozwój i CI
 
-Workflow GitHub Actions wykonuje instalację z lockfile, release preflight, kontrolę publicznych plików, typecheck, publiczne testy, build i projektowe quality gates. Publiczne wydanie powinno być przygotowywane dopiero po zielonym CI i Visual QA na desktopie oraz telefonie.
+Workflow CI wykonuje instalację z lockfile, release preflight, kontrolę publicznych plików, typecheck, publiczne testy, build i projektowe quality gates. Osobny workflow Pages buduje ten sam stan i publikuje `dist`; oba workflow muszą pozostawać w repozytorium. Publiczne wydanie powinno być przygotowywane dopiero po zielonym CI i Visual QA na desktopie oraz telefonie.
 
 ## Licencja
 

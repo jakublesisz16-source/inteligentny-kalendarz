@@ -16,11 +16,11 @@ describe('1.2.0.53 mobile density pass', () => {
     expect(navigation).not.toContain('bottom-nav-search');
     expect(navigation).not.toContain('onSearch');
     expect(app).not.toContain('onSearch={() => setSearchOpen(true)}');
-    expect(responsive).toContain('/* 1.2.0.60 - mobile headers without a dedicated search control */');
+    expect(responsive).toContain('/* 1.2.0.60 - compact mobile headers */');
   });
 
   it('keeps core mobile views compact and protects important actions', () => {
-    expect(responsive).toContain('/* 1.2.0.53 - mobile density, integrated search and viewport-first core screens */');
+    expect(responsive).toContain('/* 1.2.0.53 - mobile density and viewport-first core screens */');
     expect(responsive).toContain('.work-settings-save-footer');
     expect(responsive).toContain('position: sticky');
     expect(responsive).toContain('.calendar-side-column.is-empty { display: none; }');
@@ -39,7 +39,7 @@ describe('1.2.0.53 mobile density pass', () => {
   });
 
   it('keeps the database schema stable', () => {
-    expect(version).toContain("APP_VERSION = '1.2.0.112'");
+    expect(version).toContain("APP_VERSION = '1.2.0.145'");
     expect(version).toContain('DATABASE_SCHEMA_VERSION = 14');
   });
 });

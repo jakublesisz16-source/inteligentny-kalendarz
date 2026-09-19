@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { addDaysToDateKey, localDateFromKey } from '../calendar/date.utils';
 import { getConfirmedWorkMinutes, getDayPlanningProfile, listConfirmedWorkBlocks } from '../storage/database';
 import { Modal } from '../ui/Modal';
@@ -36,6 +36,7 @@ export function AvailabilityView({ onDataChanged, onOpenSettings }: Availability
   const [editId, setEditId] = useState<string | null>(null);
   const [editDate, setEditDate] = useState(''); const [editStart, setEditStart] = useState(''); const [editEnd, setEditEnd] = useState('');
   const [dayEditor, setDayEditor] = useState<{ date: string; blockId?: string; mode: 'manual' | 'automation' } | null>(null);
+  const refreshRequestRef = useRef(0);
 
   useEffect(() => { void refresh(); }, [weekStart]);
   useEffect(() => {
@@ -44,10 +45,13 @@ export function AvailabilityView({ onDataChanged, onOpenSettings }: Availability
     return () => window.clearTimeout(timer);
   }, [message]);
   async function refresh() {
+    const requestId = ++refreshRequestRef.current;
+    const requestedWeek = weekStart;
     setError('');
     try {
-      const weekEnd = addDaysToDateKey(weekStart, 6);
-      const [profile, refreshedPlan, confirmed, workBlocks] = await Promise.all([getDayPlanningProfile(), refreshAvailabilityPlanStatus(weekStart), getConfirmedWorkMinutes(weekStart, weekEnd), listConfirmedWorkBlocks(weekStart, weekEnd)]);
+      const weekEnd = addDaysToDateKey(requestedWeek, 6);
+      const [profile, refreshedPlan, confirmed, workBlocks] = await Promise.all([getDayPlanningProfile(), refreshAvailabilityPlanStatus(requestedWeek), getConfirmedWorkMinutes(requestedWeek, weekEnd), listConfirmedWorkBlocks(requestedWeek, weekEnd)]);
+      if (requestId !== refreshRequestRef.current) return;
       const missing = !profile?.targetWeeklyWorkMinutes ? 'target' : !profile.allowedWorkStart || !profile.allowedWorkEnd ? 'hours' : null;
       const target = profile?.targetWeeklyWorkMinutes ?? 0;
       let currentPlan = refreshedPlan;
@@ -56,11 +60,13 @@ export function AvailabilityView({ onDataChanged, onOpenSettings }: Availability
       const hasProposal = currentPlan?.blocks.some((block) => block.status === 'PROPOSED') ?? false;
       const userRejectedAutomaticProposal = currentPlan?.blocks.some((block) => block.status === 'REJECTED' && (block.origin ?? 'OPTIMIZER') === 'OPTIMIZER') ?? false;
       if (!missing && required > acceptedCoverage && (!currentPlan || currentPlan.status === 'STALE' || (!hasProposal && !userRejectedAutomaticProposal))) {
-        currentPlan = await generateAvailabilityPlan(weekStart);
+        currentPlan = await generateAvailabilityPlan(requestedWeek);
+        if (requestId !== refreshRequestRef.current) return;
       }
       setPlan(currentPlan); setTargetMinutes(target); setConfirmedMinutes(confirmed.totalConfirmedWorkMinutes); setConfirmedWorkBlocks(workBlocks);
       setMissingConfiguration(missing);
     } catch (reason) {
+      if (requestId !== refreshRequestRef.current) return;
       setError(reason instanceof Error ? reason.message : 'Nie udało się odczytać dyspozycyjności.');
     }
   }
@@ -95,7 +101,19 @@ export function AvailabilityView({ onDataChanged, onOpenSettings }: Availability
       setError(reason instanceof Error ? reason.message : 'Nie udało się zapisać zmian.');
     }
   }
-  async function copySummary() { const blocks = acceptedBlocks(plan); if (!blocks.length) { setError('Najpierw zapisz lub zaakceptuj dyspozycyjność.'); return; } const text = [`Dyspozycyjność ${weekLabel(weekStart)}`, '', ...blocks.map((block) => `${dateLabel(block.date)}: ${block.startTime}-${block.endTime}`), '', `Łącznie: ${minutesLabel(blocks.reduce((sum, block) => sum + block.minutes, 0))}`].join('\n'); await navigator.clipboard.writeText(text); setMessage('Skopiowano dyspozycyjność.'); }
+  async function copySummary() {
+    const blocks = acceptedBlocks(plan);
+    if (!blocks.length) { setError('Najpierw zapisz lub zaakceptuj dyspozycyjność.'); return; }
+    const text = [`Dyspozycyjność ${weekLabel(weekStart)}`, '', ...blocks.map((block) => `${dateLabel(block.date)}: ${block.startTime}-${block.endTime}`), '', `Łącznie: ${minutesLabel(blocks.reduce((sum, block) => sum + block.minutes, 0))}`].join('\n');
+    setError('');
+    try {
+      if (!navigator.clipboard?.writeText) throw new Error('Schowek nie jest dostępny w tym środowisku.');
+      await navigator.clipboard.writeText(text);
+      setMessage('Skopiowano dyspozycyjność.');
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'Nie udało się skopiować dyspozycyjności.');
+    }
+  }
   async function markSent() { try { const next = await markAvailabilitySent(weekStart); setPlan(next); setMessage(`Zapisano wysłaną wersję ${next.sentSnapshots.length}.`); await onDataChanged(); } catch (reason) { setError(reason instanceof Error ? reason.message : 'Nie udało się zapisać wysłanej wersji.'); } }
   async function savedFromDayEditor() { await onDataChanged(); await refresh(); }
 

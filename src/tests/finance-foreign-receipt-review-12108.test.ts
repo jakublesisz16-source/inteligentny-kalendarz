@@ -57,7 +57,7 @@ describe('1.2.0.108 foreign receipt review and duplicate guard', () => {
   });
 
   it('keeps database schema 14', () => {
-    expect(version).toContain("APP_VERSION = '1.2.0.112'");
+    expect(version).toContain("APP_VERSION = '1.2.0.145'");
     expect(version).toContain('DATABASE_SCHEMA_VERSION = 14');
   });
 });

@@ -35,9 +35,8 @@ describe('1.2.0.2 navigation foundation', () => {
     expect(NAVIGATION_ITEMS.some((item) => ['shopping', 'cycle', 'locations'].includes(item.id))).toBe(false);
   });
 
-  it('keeps search as a utility icon rather than a seventh navigation item', () => {
-    expect(APP_ICON_NAMES).toContain('search');
-    expect(NAVIGATION_ITEMS.some((item) => item.icon === 'search')).toBe(false);
+  it('does not keep the removed global-search icon', () => {
+    expect(APP_ICON_NAMES).not.toContain('search' as never);
     expect(NAVIGATION_ITEMS).toHaveLength(6);
   });
 

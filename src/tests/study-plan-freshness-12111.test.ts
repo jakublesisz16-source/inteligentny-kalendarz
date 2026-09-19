@@ -43,7 +43,7 @@ describe('1.2.0.111 study plan freshness and diff summary', () => {
   it('keeps the status compact on desktop and mobile without a schema migration', () => {
     expect(styles).toContain('1.2.0.111 - compact study plan freshness and readable update breakdown.');
     expect(styles).toContain('.study-plan-freshness');
-    expect(version).toContain("APP_VERSION = '1.2.0.112'");
+    expect(version).toContain("APP_VERSION = '1.2.0.145'");
     expect(version).toContain('DATABASE_SCHEMA_VERSION = 14');
   });
 });

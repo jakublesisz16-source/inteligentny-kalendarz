@@ -32,7 +32,7 @@ describe('1.2.0.42 quick week add', () => {
   it('keeps the compact composer visually separate without changing the schema', () => {
     expect(css).toContain('/* 1.2.0.42 - quick add directly from the weekly timeline */');
     expect(css).toContain('.calendar-week-quick-add');
-    expect(version).toContain("APP_VERSION = '1.2.0.112'");
+    expect(version).toContain("APP_VERSION = '1.2.0.145'");
     expect(version).toContain('DATABASE_SCHEMA_VERSION = 14');
   });
 });

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { analyzeScheduleWorkbook, diagnoseUnrecognizedWorkbook } from '../imports/xlsx/adapter-registry';
 import { validateCandidateForImport } from '../imports/xlsx/import-validation';
 import { readSpreadsheetFile } from '../imports/xlsx/spreadsheet-reader';
-import { formatStudyGroupList, parseStudyGroupKey, studyGroupCompactLabel, studyGroupDisplayLabel, studyGroupPlainLabel, type StudyGroupKind } from '../imports/xlsx/group-normalizer';
+import { canonicalizeStudyGroupSelection, formatStudyGroupList, normalizeStudyGroupSelectionForAvailableGroups, studyGroupCompactLabel, studyGroupDisplayLabel } from '../imports/xlsx/group-normalizer';
 import {
   applyUniversityScheduleUpdate,
   cancelScheduleUpdate,
@@ -29,7 +29,7 @@ import { candidatesForSelectedGroups, findStudyScheduleConflicts, hashFile, vali
 import { completenessForSelectedGroups } from './study-completeness';
 import { ScheduleDiffView } from './ScheduleDiffView';
 import { StudyGroupPreviewPanel } from './StudyGroupPreviewPanel';
-import { StudyGroupSelector } from './StudyGroupSelector';
+import { StudyGroupChoiceFields, studyGroupChoiceProgress } from './StudyGroupChoiceFields';
 import { StudyProfileSettings } from './StudyProfileSettings';
 import type {
   PendingStudyCorrectionRule,
@@ -47,13 +47,6 @@ interface StudyViewProps {
 
 type Phase = 'idle' | 'groups' | 'preview' | 'diff';
 type PreviewFilter = 'all' | 'ready' | 'warning' | 'incomplete' | 'blocking';
-
-const IMPORT_GROUP_PARTITIONS: Array<{ kind: Exclude<StudyGroupKind, 'GENERIC'>; label: string; helper: string }> = [
-  { kind: 'MAIN', label: 'Grupa główna', helper: 'Twoja grupa bazowa' },
-  { kind: 'G12', label: '12-osobowa', helper: 'Niezależny podział zajęć' },
-  { kind: 'G8', label: '8-osobowa', helper: 'Podział zajęć 8-os.' },
-  { kind: 'G4', label: '4-osobowa', helper: 'Najdokładniejsze przypisanie' },
-];
 
 interface SelectedFileMeta {
   file: File;
@@ -244,7 +237,10 @@ export function StudyView({ onDataChanged }: StudyViewProps) {
       setAnalysis(result);
       setFileMeta({ file, hash });
 
-      const preferredGroups = (profileGroups.length ? profileGroups : activeImport?.selectedGroups ?? []).filter((group) => result.groups.includes(group));
+      const preferredGroups = normalizeStudyGroupSelectionForAvailableGroups(
+        result.groups,
+        canonicalizeStudyGroupSelection((profileGroups.length ? profileGroups : activeImport?.selectedGroups ?? []).filter((group) => result.groups.includes(group))),
+      );
       if (!result.groups.length) {
         preparePreview(result, []);
         return;
@@ -267,35 +263,18 @@ export function StudyView({ onDataChanged }: StudyViewProps) {
     }
   }
 
-  function toggleGroup(group: string) {
-    setSelectedGroups((current) => current.includes(group) ? current.filter((item) => item !== group) : [...current, group]);
-  }
-
-  function setImportPartitionGroup(kind: Exclude<StudyGroupKind, 'GENERIC'>, group: string) {
-    setSelectedGroups((current) => {
-      const chosen = group ? parseStudyGroupKey(group) : null;
-      let next = current.filter((item) => parseStudyGroupKey(item).kind !== kind);
-      if (chosen?.number) {
-        next = next.filter((item) => {
-          const parsed = parseStudyGroupKey(item);
-          return parsed.kind === 'GENERIC' || !parsed.number || parsed.number === chosen.number;
-        });
-      }
-      return group ? [...next, group] : next;
-    });
-  }
-
   function preparePreview(sourceAnalysis: ScheduleAnalysis, groups: string[]) {
-    const groupValidation = validateStudyGroupSelection(sourceAnalysis.groups, groups);
+    const normalizedGroups = normalizeStudyGroupSelectionForAvailableGroups(sourceAnalysis.groups, groups);
+    const groupValidation = validateStudyGroupSelection(sourceAnalysis.groups, normalizedGroups);
     if (!groupValidation.valid) {
       setError(groupValidation.errors.join(' '));
       return;
     }
-    const filtered = candidatesForSelectedGroups(sourceAnalysis, groups).map((candidate) => {
+    const filtered = candidatesForSelectedGroups(sourceAnalysis, normalizedGroups).map((candidate) => {
       const identified = identifyCandidate(candidate);
       return { ...identified, include: defaultIncludeForCandidate(identified) };
     });
-    setSelectedGroups(groups);
+    setSelectedGroups(normalizedGroups);
     setWorkingCandidates(filtered);
     setPendingCorrectionRules([]);
     setPreviewFilter('all');
@@ -523,10 +502,7 @@ export function StudyView({ onDataChanged }: StudyViewProps) {
   const attentionCount = warningPreviewCount + incompletePreviewCount + blockingPreviewCount;
   const importBlocked = Boolean(selectedCompleteness && !selectedCompleteness.safe) || invalidIncluded.length > 0 || !importable.length;
   const selectedGroupSummary = formatStudyGroupList(selectedGroups) || 'Wspólne / bez grup';
-  const parsedImportGroups = analysis?.groups.map((group) => ({ key: group, parsed: parseStudyGroupKey(group) })) ?? [];
-  const parsedSelectedGroups = selectedGroups.map(parseStudyGroupKey);
-  const selectedImportMainNumber = parsedSelectedGroups.find((group) => group.kind === 'MAIN' && group.number)?.number ?? parsedSelectedGroups.find((group) => group.number)?.number;
-  const genericImportGroups = parsedImportGroups.filter(({ parsed }) => parsed.kind === 'GENERIC').map(({ key }) => key);
+  const groupChoiceProgress = analysis ? studyGroupChoiceProgress(analysis.groups, selectedGroups) : { completed: 0, required: 0 };
   const activePlanUpdate = activeImport && latestAppliedUpdate?.newFileHash === activeImport.fileHash ? latestAppliedUpdate : null;
 
   return (
@@ -535,10 +511,10 @@ export function StudyView({ onDataChanged }: StudyViewProps) {
         <div>
           <p className="eyebrow">Studia</p>
           <h1>{activeImport ? 'Zaktualizuj plan studiów' : 'Twój plan studiów'}</h1>
-          <p className="view-subtitle">Wczytaj Excel. Aplikacja pokaże zmiany przed zapisem i zapyta o grupy tylko wtedy, gdy to potrzebne.</p>
+          <p className="view-subtitle">Wczytaj Excel. Przed zapisem zobaczysz zmiany i wybierzesz tylko potrzebne grupy.</p>
         </div>
         <div className="view-header-actions">
-          {phase !== 'idle' ? <button type="button" className="button button-secondary" onClick={() => resetFlow()}>Anuluj import</button> : null}
+          {phase !== 'idle' && phase !== 'groups' ? <button type="button" className="button button-secondary" onClick={() => resetFlow()}>Anuluj import</button> : null}
         </div>
       </header>
 
@@ -569,30 +545,18 @@ export function StudyView({ onDataChanged }: StudyViewProps) {
       ) : null}
 
       {phase === 'groups' && analysis ? (
-        <section className="panel group-panel study-group-simple">
-          <div className="panel-heading"><div><p className="section-kicker">Grupy</p><h2>Wybierz swoje grupy</h2></div><span className="selection-count">{selectedGroups.length} wybranych</span></div>
-          <p className="panel-copy">Plan zawiera kilka grup. Zaznacz te, do których należysz - zapamiętamy wybór przy kolejnych planach.</p>
-          <div className="study-import-group-grid-desktop">
-            <StudyGroupSelector groups={analysis.groups} selectedGroups={selectedGroups} onToggle={toggleGroup} />
+        <section className="panel group-panel study-group-simple form-flow-panel">
+          <div className="panel-heading">
+            <div><p className="section-kicker">Grupy</p><h2>Wybierz swoje grupy</h2></div>
+            <span className={groupSelectionValidation.valid ? 'selection-progress is-complete' : 'selection-progress'}>{groupSelectionValidation.valid ? 'Wybór kompletny' : `${groupChoiceProgress.completed} z ${groupChoiceProgress.required} wymaganych`}</span>
           </div>
-          <div className="study-import-group-dashboard" aria-label="Kompaktowy wybór grup do importu">
-            {IMPORT_GROUP_PARTITIONS.map((partition) => {
-              const options = parsedImportGroups.filter(({ parsed }) => parsed.kind === partition.kind && (partition.kind === 'MAIN' || !selectedImportMainNumber || parsed.number === selectedImportMainNumber));
-              if (!options.length) return null;
-              const current = selectedGroups.find((group) => parseStudyGroupKey(group).kind === partition.kind) ?? '';
-              return <label key={partition.kind} className="study-import-group-select">
-                <span><strong>{partition.label}</strong><small>{partition.helper}</small></span>
-                <select value={current} onChange={(event) => setImportPartitionGroup(partition.kind, event.target.value)} aria-label={`Wybierz grupę importu: ${partition.label}`}>
-                  <option value="">Nie wybrano</option>
-                  {options.map(({ key }) => <option key={key} value={key}>{studyGroupPlainLabel(key)}</option>)}
-                </select>
-              </label>;
-            })}
-            {genericImportGroups.length ? <div className="study-import-generic-groups"><span>Pozostałe oznaczenia</span><StudyGroupSelector groups={genericImportGroups} selectedGroups={selectedGroups} onToggle={toggleGroup} compact /></div> : null}
+          <p className="panel-copy">Wskaż tylko niezależne przypisania. Dokładniejsza podgrupa automatycznie obejmie szerszy podział.</p>
+          <div className="form-flow-body">
+            <StudyGroupChoiceFields availableGroups={analysis.groups} selectedGroups={selectedGroups} onChange={setSelectedGroups} ariaLabel="Wybór grup do importu" />
+            {!groupSelectionValidation.valid ? <div className="inline-validation warning" role="status"><strong>Uzupełnij wybór</strong><span>{groupSelectionValidation.errors.join(' ')}</span></div> : null}
+            <section className="context-note"><strong>Jak aplikacja łączy grupy?</strong><p>Grupa 4-osobowa automatycznie obejmuje odpowiadającą jej grupę 8-osobową i grupę główną. Grupę 12-osobową wybierasz osobno.</p></section>
           </div>
-          {!groupSelectionValidation.valid ? <div className="study-information warning-info"><strong>Wybór nie jest jeszcze kompletny.</strong><ul>{groupSelectionValidation.errors.map((item) => <li key={item}>{item}</li>)}</ul></div> : null}
-          <section className="study-group-help"><strong>Jak aplikacja łączy grupy?</strong><p>Grupa 4-osobowa obejmuje odpowiadającą jej grupę 8-osobową i grupę główną. Podziału 12-osobowego nie wyliczamy z samej litery, bo może przecinać inny podział.</p></section>
-          <footer className="study-actions split-study-actions"><button type="button" className="button button-secondary" onClick={() => resetFlow()}>Wybierz inny plik</button><button type="button" className="button button-primary" disabled={!groupSelectionValidation.valid} onClick={goToPreview}>Pokaż mój plan</button></footer>
+          <footer className="panel-action-footer"><button type="button" className="button button-secondary" onClick={() => resetFlow()}>Wybierz inny plik</button><button type="button" className="button button-primary" disabled={!groupSelectionValidation.valid} onClick={goToPreview}>Pokaż mój plan</button></footer>
         </section>
       ) : null}
 

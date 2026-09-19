@@ -19,6 +19,7 @@ export interface StudySourceBlock {
   excludedDates: string[];
   exceptionDate?: string;
   sourceHasFullTimeRange: boolean;
+  sourceTimeAdjustedByExplicitHint?: boolean;
   declaredTeachingHours?: number;
   candidateIds: string[];
 }
@@ -115,6 +116,8 @@ export interface ScheduleDiagnostics {
   unparsedAssignmentCellCount?: number;
   unparsedAssignmentSamples?: string[];
   suspiciousUnparsedWeekRows?: number[];
+  unappliedDateExceptionCount?: number;
+  unappliedDateExceptionSamples?: string[];
 }
 
 export interface ScheduleAnalysis {

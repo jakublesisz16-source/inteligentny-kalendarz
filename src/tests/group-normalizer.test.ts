@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { groupSetsIntersect, normalizeGroupText, studyGroupCompactLabel, studyGroupDisplayLabel } from '../imports/xlsx/group-normalizer';
+import { canonicalizeStudyGroupSelection, groupSetsIntersect, normalizeGroupText, normalizeStudyGroupSelectionForAvailableGroups, studyGroupCompactLabel, studyGroupDisplayLabel } from '../imports/xlsx/group-normalizer';
 
 describe('normalizeGroupText hardening', () => {
   const cases: Array<[string, string[], boolean?]> = [
@@ -31,6 +31,12 @@ describe('normalizeGroupText hardening', () => {
 
   it.each(cases)('%s -> %j', (input, expected, allowBare = false) => {
     expect(normalizeGroupText(input, allowBare).groups).toEqual(expected);
+  });
+
+  it('usuwa gwiazdki-przypisy tylko z jednoznacznego oznaczenia grupy', () => {
+    expect(normalizeGroupText('4b*', true).groups).toEqual(['4B']);
+    expect(normalizeGroupText('6a **', true).groups).toEqual(['6A']);
+    expect(normalizeGroupText('1a***', true).groups).toEqual(['1A']);
   });
 
   it('normalizuje warianty kliniki', () => {
@@ -67,6 +73,26 @@ describe('normalizeGroupText hardening', () => {
     expect(groupSetsIntersect(['G12:13A'], ['G4:13A1'])).toBe(false);
     expect(groupSetsIntersect(['G12:13A'], ['G8:13A'])).toBe(false);
     expect(groupSetsIntersect(['G4:13A1'], ['G4:13A2'])).toBe(false);
+  });
+
+
+  it('usuwa redundantny wybór G8, gdy dokładna grupa G4 już go wyznacza', () => {
+    expect(canonicalizeStudyGroupSelection(['MAIN:2', 'G12:2A', 'G8:2B', 'G4:2B1'])).toEqual([
+      'MAIN:2', 'G12:2A', 'G4:2B1',
+    ]);
+    expect(canonicalizeStudyGroupSelection(['MAIN:2', 'G12:2A', 'G8:2B'])).toEqual([
+      'MAIN:2', 'G12:2A', 'G8:2B',
+    ]);
+  });
+
+  it('usuwa ukryty stary wybór G8, jeśli aktualny plan wymaga dokładnego G4', () => {
+    const available = ['MAIN:2', 'G12:2A', 'G8:2A', 'G8:2B', 'G4:2A1', 'G4:2A2', 'G4:2B1', 'G4:2B2'];
+    expect(normalizeStudyGroupSelectionForAvailableGroups(available, ['MAIN:2', 'G12:2A', 'G8:2B'])).toEqual([
+      'MAIN:2', 'G12:2A',
+    ]);
+    expect(normalizeStudyGroupSelectionForAvailableGroups(['MAIN:2', 'G12:2A', 'G8:2B'], ['MAIN:2', 'G12:2A', 'G8:2B'])).toEqual([
+      'MAIN:2', 'G12:2A', 'G8:2B',
+    ]);
   });
 
   it('pokazuje użytkownikowi czytelny typ grupy zamiast klucza technicznego', () => {

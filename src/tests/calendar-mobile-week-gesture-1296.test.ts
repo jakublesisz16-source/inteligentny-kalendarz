@@ -30,7 +30,7 @@ describe('1.2.0.96 mobile week gesture hardening', () => {
   });
 
   it('records the current private version without changing the database schema', () => {
-    expect(version).toContain("APP_VERSION = '1.2.0.112'");
+    expect(version).toContain("APP_VERSION = '1.2.0.145'");
     expect(version).toContain('DATABASE_SCHEMA_VERSION = 14');
   });
 });

@@ -146,6 +146,24 @@ describe('0.3.6 one-file data transfer', () => {
     await expect(inspectDataTransferText(JSON.stringify(newer))).rejects.toThrow('nowszej wersji aplikacji');
   });
 
+  it('blocks a checksum-valid current-schema transfer that omits a required portable store', async () => {
+    const transfer = await createDataTransferFile();
+    const current = JSON.parse(transfer.text) as BackupDocument;
+    const incomplete = structuredClone(current);
+    delete incomplete.data.stores.shoppingItems;
+    const resigned = await resign(incomplete);
+    await expect(inspectDataTransferText(JSON.stringify(resigned))).rejects.toThrow('Backup jest niekompletny');
+  });
+
+  it('blocks a checksum-valid current-schema transfer with a malformed portable store', async () => {
+    const transfer = await createDataTransferFile();
+    const current = JSON.parse(transfer.text) as BackupDocument;
+    const malformed = structuredClone(current);
+    (malformed.data.stores as Record<string, unknown>).events = { invalid: true };
+    const resigned = await resign(malformed);
+    await expect(inspectDataTransferText(JSON.stringify(resigned))).rejects.toThrow('Backup jest niekompletny');
+  });
+
   it('does not serialize raw PDF/XLSX binary fields in the canonical transfer', async () => {
     const transfer = await createDataTransferFile();
     const lower = transfer.text.toLowerCase();

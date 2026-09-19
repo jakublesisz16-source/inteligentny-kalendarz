@@ -4,8 +4,8 @@ export interface ParsedTimeRange {
 }
 
 const DASH = '[-–—]';
-const TIME_RANGE_PATTERN = new RegExp(`(\\d{1,2})[.:](\\d{2})\\s*${DASH}\\s*(\\d{1,2})[.:](\\d{2})`);
-const STRICT_TIME_RANGE_PATTERN = new RegExp(`^\\s*\\d{1,2}[.:]\\d{2}\\s*${DASH}\\s*\\d{1,2}[.:]\\d{2}\\s*$`);
+const TIME_RANGE_PATTERN = new RegExp(`(\\d{1,2})[.:](\\d{2})\\.?\\s*${DASH}\\s*(\\d{1,2})[.:](\\d{2})\\.?`);
+const STRICT_TIME_RANGE_PATTERN = new RegExp(`^\\s*\\d{1,2}[.:]\\d{2}\\.?\\s*${DASH}\\s*\\d{1,2}[.:]\\d{2}\\.?\\s*$`);
 
 function toTime(hour: string, minute: string): string | null {
   const h = Number(hour);

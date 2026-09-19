@@ -13,6 +13,7 @@ import {
 } from '../storage/database';
 import type { ChangeJournalEntry, RestorePoint, TrashItem } from './safety.types';
 import { StoragePersistencePanel } from '../settings/StoragePersistencePanel';
+import { DATABASE_SCHEMA_VERSION } from '../core/version';
 
 interface SafetyCenterProps {
   onDataChanged: () => Promise<void>;
@@ -62,7 +63,7 @@ export function SafetyCenter({ onDataChanged }: SafetyCenterProps) {
 
   async function createManualPoint() {
     await run(async () => {
-      await createRestorePoint(restoreName || 'Ręczny punkt przywracania', 'MANUAL', false, true);
+      await createRestorePoint(restoreName || 'Ręczny punkt przywracania', 'MANUAL');
       setRestoreName('');
     }, 'Utworzono punkt przywracania.');
   }
@@ -87,7 +88,7 @@ export function SafetyCenter({ onDataChanged }: SafetyCenterProps) {
         <div className="safety-list">
           {journal.length ? journal.slice(0, showAllHistory ? journal.length : 5).map((entry) => (
             <article key={entry.id} className="safety-list-item">
-              <div><strong>{entry.description}</strong><span>{formatDateTime(entry.timestamp)}</span>{entry.undoneAt ? <small>Cofnięto: {formatDateTime(entry.undoneAt)}</small> : null}</div>
+              <div><strong>{entry.description}</strong><span>{formatDateTime(entry.timestamp)}</span>{entry.undoneAt ? <small>Cofnięto: {formatDateTime(entry.undoneAt)}</small> : entry.metadata?.undoUnavailableReason === 'RESTORE_BARRIER' ? <small>Starsza oś zmian została zamknięta po przywróceniu całego stanu.</small> : entry.metadata?.undoUnavailableReason ? <small>Punkt potrzebny do cofnięcia nie jest już dostępny.</small> : null}</div>
               {entry.reversible && !entry.undoneAt ? <button type="button" className="button button-secondary button-small" disabled={busy} onClick={() => void run(() => undoChange(entry.id), 'Cofnięto zmianę.')}>Cofnij</button> : <span className="history-status">Tylko historia</span>}
             </article>
           )) : <p className="muted-copy">Historia jest pusta. Nowe istotne operacje będą zapisywane tutaj.</p>}
@@ -102,7 +103,7 @@ export function SafetyCenter({ onDataChanged }: SafetyCenterProps) {
               <div><strong>{item.displayName}</strong><span>Usunięto {formatDateTime(item.deletedAt)}</span><small>{item.entityType === 'MANUAL_SERIES' ? 'Ręczna seria' : item.entityType === 'DAY_CONSTRAINT' ? 'Ograniczenie dnia' : 'Wydarzenie'}</small></div>
               <div className="safety-item-actions">
                 <button type="button" className="button button-secondary button-small" disabled={busy} onClick={() => void run(() => restoreTrashItem(item.id), 'Przywrócono element z Kosza.')}>Przywróć</button>
-                <button type="button" className="text-button danger-text" disabled={busy} onClick={() => { if (window.confirm('Usunąć trwale? Tej operacji nie będzie można cofnąć z Kosza.')) void run(() => permanentlyDeleteTrashItem(item.id), 'Element usunięto trwale.'); }}>Usuń trwale</button>
+                <button type="button" className="text-button danger-text" disabled={busy} onClick={() => { if (window.confirm('Usunąć trwale z Kosza? Przed operacją powstanie automatyczny punkt przywracania.')) void run(() => permanentlyDeleteTrashItem(item.id), 'Element usunięto trwale. Utworzono punkt przywracania.'); }}>Usuń trwale</button>
               </div>
             </article>
           ))}</div> : <p className="muted-copy">Kosz jest pusty.</p>}
@@ -117,15 +118,18 @@ export function SafetyCenter({ onDataChanged }: SafetyCenterProps) {
             <button type="button" className="button button-primary" disabled={busy} onClick={() => void createManualPoint()}>Utwórz punkt</button>
           </div>
           <div className="safety-list">
-            {restorePoints.map((point) => (
-              <article key={point.id} className="safety-list-item">
-                <div><strong>{point.label}</strong><span>{formatDateTime(point.createdAt)}</span><small>{point.automatic ? 'Automatyczny' : 'Ręczny'}{point.pinned ? ' - chroniony' : ''} - schema {point.schemaVersion}</small></div>
-                <div className="safety-item-actions">
-                  <button type="button" className="button button-secondary button-small" disabled={busy} onClick={() => { if (window.confirm(`Przywrócić punkt „${point.label}”? Najpierw zostanie zapisany bieżący stan.`)) void run(() => restoreRestorePoint(point.id), 'Przywrócono wcześniejszy stan.'); }}>Przywróć</button>
-                  {!point.pinned ? <button type="button" className="text-button danger-text" disabled={busy} onClick={() => void run(() => deleteRestorePoint(point.id), 'Usunięto punkt przywracania.')}>Usuń</button> : null}
-                </div>
-              </article>
-            ))}
+            {restorePoints.map((point) => {
+              const compatible = point.schemaVersion === DATABASE_SCHEMA_VERSION && point.snapshot.databaseSchemaVersion === DATABASE_SCHEMA_VERSION;
+              return (
+                <article key={point.id} className="safety-list-item">
+                  <div><strong>{point.label}</strong><span>{formatDateTime(point.createdAt)}</span><small>{point.automatic ? 'Automatyczny' : 'Ręczny'}{point.pinned ? ' - chroniony' : ''}{!compatible ? ' - archiwalny' : ''} - schema {point.schemaVersion}</small></div>
+                  <div className="safety-item-actions">
+                    <button type="button" className="button button-secondary button-small" disabled={busy || !compatible} title={!compatible ? 'Punkt pochodzi z innego schematu bazy i nie może być bezpiecznie przywrócony w tej wersji.' : undefined} onClick={() => { if (window.confirm(`Przywrócić punkt „${point.label}”? Najpierw zostanie zapisany bieżący stan.`)) void run(() => restoreRestorePoint(point.id), 'Przywrócono wcześniejszy stan.'); }}>{compatible ? 'Przywróć' : 'Archiwalny'}</button>
+                    {!point.pinned ? <button type="button" className="text-button danger-text" disabled={busy} onClick={() => { if (window.confirm(`Usunąć punkt przywracania „${point.label}”? Tej operacji nie można cofnąć.`)) void run(() => deleteRestorePoint(point.id), 'Usunięto punkt przywracania.'); }}>Usuń</button> : null}
+                  </div>
+                </article>
+              );
+            })}
           </div>
         </div>
       ) : null}

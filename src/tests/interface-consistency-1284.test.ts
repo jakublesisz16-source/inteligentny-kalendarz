@@ -34,13 +34,13 @@ describe('1.2.0.85 interface consistency and semantic category contrast', () => 
   });
 
   it('makes Study calmer without hiding its workflow', () => {
-    expect(study).toContain('Wczytaj Excel. Aplikacja pokaże zmiany przed zapisem');
+    expect(study).toContain('Wczytaj Excel. Przed zapisem zobaczysz zmiany i wybierzesz tylko potrzebne grupy.');
     expect(consistency).toContain('.study-view .study-upload-simple');
     expect(consistency).toContain('min-height: 220px');
   });
 
   it('keeps the database schema stable', () => {
-    expect(version).toContain("APP_VERSION = '1.2.0.112'");
+    expect(version).toContain("APP_VERSION = '1.2.0.145'");
     expect(version).toContain('DATABASE_SCHEMA_VERSION = 14');
   });
 });

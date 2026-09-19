@@ -12,6 +12,7 @@ import {
   listChangeJournal,
   listEvents,
   listLocations,
+  listRestorePoints,
   saveWorkProfile,
   updateSettings,
 } from '../storage/database';
@@ -119,7 +120,9 @@ describe('transakcyjne usuwanie lokalizacji', () => {
     const journal = await listChangeJournal();
     const deletion = journal.find((entry) => entry.operationType === 'DELETE_LOCATION');
     expect(deletion?.entityType).toBe('LOCATION');
-    expect(deletion?.reversible).toBe(false);
+    expect(deletion?.reversible).toBe(true);
+    expect(deletion?.restorePointId).toBeTruthy();
+    expect((await listRestorePoints()).some((point) => point.id === deletion?.restorePointId && point.reason === 'BEFORE_LOCATION_DELETE')).toBe(true);
     expect(deletion?.metadata).toMatchObject({ affectedEventCount: 4, affectedWorkProfileCount: 1, settingsAffected: true });
   });
 
@@ -152,5 +155,6 @@ describe('transakcyjne usuwanie lokalizacji', () => {
     expect(event?.locationId).toBe(location.id);
     expect(event?.userModified).toBeUndefined();
     expect((await listChangeJournal()).some((entry) => entry.operationType === 'DELETE_LOCATION')).toBe(false);
+    expect((await listRestorePoints()).some((point) => point.reason === 'BEFORE_LOCATION_DELETE')).toBe(false);
   });
 });

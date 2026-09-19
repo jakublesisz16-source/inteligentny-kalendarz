@@ -26,10 +26,14 @@ export function normalizeLocationIdentity(text: string): string {
 }
 
 function parseAddress(compact: string): string | undefined {
-  const prefixed = /\b(aleja|aleje|ul\.?|al\.?|plac|pl\.?)\s*([\p{L}0-9 .'-]*?\p{L}[\p{L} .'-]*\s+\d+[a-zA-Z]?(?:\/\d+)?)(?=\s*[,;|]|\s*[-–—]\s*|\s*\*+|\s*$)/iu.exec(compact);
+  // Adres w planach uczelni bywa połączony bez przecinka z nazwą miasta albo
+  // dalszą metadana, np. "ul. Czajewicza 23A Piaseczno" czy
+  // "ul. Lindleya 4 SEM. ZIMOWY 2026/2027". Kończymy więc adres na
+  // pierwszym wiarygodnym numerze budynku zamiast wymagać separatora po nim.
+  const prefixed = /\b(aleja|aleje|ul\.?|al\.?|plac|pl\.?)\s*([\p{L}0-9 .'-]*?\p{L}[\p{L}0-9 .'-]*?\s+\d+[a-zA-Z]?(?:\/\d+)?)/iu.exec(compact);
   if (prefixed?.[2]) {
     const prefix = canonicalStreetPrefix(prefixed[1]);
-    const body = compactWhitespace(prefixed[2]);
+    const body = compactWhitespace(prefixed[2]).replace(/[.,;:]+$/g, '');
     return `${prefix} ${body}`.trim();
   }
 
@@ -47,7 +51,10 @@ export function parseLocationText(text: string): LocationParseResult {
 
   const roomMatch = /\b(sala(?:\s+nr)?|sale|sala\s+seminaryjna)\s*([^,;|]*?)(?=\s*[,;|]\s*(?:ul\.?|al\.?|aleja|plac|pl\.?)\b|\s*$)/i.exec(compact);
   if (roomMatch?.[1] && roomMatch[2]) {
-    const room = `${roomMatch[1]} ${roomMatch[2]}`.replace(/\s+/g, ' ').trim();
+    const roomBody = roomMatch[2]
+      .replace(/\s+\d{1,2}[.:]\d{2}\s*[-–—]\s*\d{1,2}[.:]\d{2}.*$/u, '')
+      .trim();
+    const room = `${roomMatch[1]} ${roomBody}`.replace(/\s+/g, ' ').trim();
     if (room.length > 4) result.room = room;
   }
 
@@ -56,10 +63,20 @@ export function parseLocationText(text: string): LocationParseResult {
 
   const campusMatch = /\bKampus\s+[A-ZĄĆĘŁŃÓŚŹŻ][\p{L}0-9 -]+?(?=\s*[,;|]|\s*$)/u.exec(compact);
   if (campusMatch) result.label = compactWhitespace(campusMatch[0]);
-  const hospitalMatch = /\bSzpital\s+[A-ZĄĆĘŁŃÓŚŹŻ][\p{L}0-9 -]+?(?=\s*[,;|]|\s*$)/u.exec(compact);
+  const hospitalMatch = /\bSzpital\s+[A-ZĄĆĘŁŃÓŚŹŻ][\p{L}0-9 .'-]+?(?=\s*[,;|]|\s+\b(?:ul\.?|al\.?|aleja|plac|pl\.?)\b|\s*$)/u.exec(compact);
   if (hospitalMatch) result.label = compactWhitespace(hospitalMatch[0]);
   if (!result.label && /\bCBI\b/i.test(compact)) result.label = 'CBI';
   if (!result.label && /\bCSM\b/i.test(compact)) result.label = 'CSM';
+  if (!result.label && /\b(?:microsoft\s+)?teams\b/i.test(compact)) result.label = 'Microsoft Teams';
+  if (!result.label && /mazowieck(?:ie|im)\s+specjalistyczn(?:e|ym)\s+centrum\s+zdrowia/i.test(compact)) result.label = 'Mazowieckie Specjalistyczne Centrum Zdrowia';
+
+  if (!result.label) {
+    // Placówki opiekuńcze i medyczne są często zapisane jako nazwa + adres,
+    // bez słowa "Szpital". Wyciągamy wyłącznie jawny fragment nazwy przed
+    // adresem; nie próbujemy odgadywać placówki po samym przedmiocie.
+    const facilityMatch = /\b((?:Hospicjum|Rezydencja|Ośrodek|Osrodek|Dom\s+Opieki|Bonifraterskie\s+Centrum\s+Medyczne|Mazowieckie\s+(?:Specjalistyczne\s+)?Centrum\s+Zdrowia|Zakład\s+Opiekuńczo-Leczniczy|Zaklad\s+Opiekunczo-Leczniczy)[^,;|]*?)(?=\s*[,;|]|\s+\b(?:ul\.?|al\.?|aleja|plac|pl\.?)\b|\s*$)/iu.exec(compact);
+    if (facilityMatch?.[1]) result.label = compactWhitespace(facilityMatch[1]);
+  }
 
   if (!result.label) {
     const institutionMatches = [...compact.matchAll(/\b(Zakład|Katedra(?:\s+i\s+Zakład)?|Klinika)\s+([\p{L}][\p{L} .'-]{2,}?)(?=\s*\(|\s*[,;|]|\s+-\s+|\s*$)/giu)];
@@ -104,12 +121,35 @@ function footerMatchTokens(text: string): Set<string> {
     if (/^chirurg/.test(token)) return 'chirurg';
     if (/^intern/.test(token)) return 'intern';
     if (/^farmak/.test(token)) return 'farmak';
+    // Common Polish subject/facility inflection: neurologia -> neurologii,
+    // chirurgia -> chirurgii, pediatria -> pediatrii. This is a lexical
+    // normalization for footer matching, not a subject-specific lookup table.
+    if (token.length > 6 && token.endsWith('ii')) return `${token.slice(0, -2)}ia`;
     // Krótkie nazwiska odmieniane a/y (Mucha/Muchy) oraz formy typu Stec/Steca.
     if (token.length === 5 && /[ay]$/.test(token)) return token.slice(0, 4);
     return token;
   });
   // "Podst." jest zbyt ogólne do wiązania lokalizacji.
   return new Set(canonical.filter((token) => token !== 'podst'));
+}
+
+export function findFooterHintByExplicitUnitCode(text: string, hints: FooterLocationHint[]): FooterLocationHint | undefined {
+  const codes = [...new Set((text.toUpperCase().match(/\b(?:NZ[A-Z]{1,3}|CBI|CSM|CD)\b/g) ?? []))];
+  // A code is a safe join key only when the header names exactly one unit.
+  // Composite notes such as "CD ... NZJ ..." must stay date/day scoped instead
+  // of lending one footer address to the whole column.
+  if (codes.length !== 1) return undefined;
+  const code = codes[0]!;
+  const codePattern = new RegExp(`\\b${code.replace(/[.*+?^${}()|[\\]\\]/g, '\\$&')}\\b`, 'i');
+  const matches = hints.filter((hint) => codePattern.test(hint.rawText || hint.key) && Boolean(hint.address || hint.label));
+  if (!matches.length) return undefined;
+  const identities = new Map<string, FooterLocationHint>();
+  for (const hint of matches) {
+    const identity = [hint.address ?? '', hint.label ?? ''].join('|');
+    if (!identity.replace(/\|/g, '')) continue;
+    identities.set(identity, hint);
+  }
+  return identities.size === 1 ? [...identities.values()][0] : undefined;
 }
 
 export function findUnambiguousFooterHint(subject: string, hints: FooterLocationHint[]): FooterLocationHint | undefined {

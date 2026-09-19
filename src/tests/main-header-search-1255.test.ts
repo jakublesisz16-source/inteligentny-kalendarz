@@ -12,7 +12,7 @@ const settings = readFileSync('src/settings/SettingsView.tsx', 'utf8');
 const css = readFileSync('src/styles/components.css', 'utf8');
 const version = readFileSync('src/core/version.ts', 'utf8');
 
-describe('1.2.0.60 hidden global search and clean headers', () => {
+describe('global search removal and clean headers', () => {
   it('removes visible global search controls from all main views and navigation', () => {
     expect(navigation).not.toContain('onSearch');
     expect(navigation).not.toContain('nav-search-item');
@@ -23,10 +23,10 @@ describe('1.2.0.60 hidden global search and clean headers', () => {
     }
   });
 
-  it('keeps the underlying search mechanism available only through a non-visual desktop shortcut for now', () => {
-    expect(app).toContain("event.key.toLowerCase() !== 'k'");
-    expect(app).toContain('setSearchOpen(true)');
-    expect(app).toContain('<GlobalSearch');
+  it('removes the obsolete global search mechanism instead of hiding it behind a shortcut', () => {
+    expect(app).not.toContain("event.key.toLowerCase() !== 'k'");
+    expect(app).not.toContain('searchOpen');
+    expect(app).not.toContain('GlobalSearch');
   });
 
   it('preserves complete coworker context in Today', () => {
@@ -35,8 +35,8 @@ describe('1.2.0.60 hidden global search and clean headers', () => {
   });
 
   it('reclaims header space without a schema change', () => {
-    expect(css).toContain('/* 1.2.0.60 - visible global search removed, headers reclaim the space */');
-    expect(version).toContain("APP_VERSION = '1.2.0.112'");
+    expect(css).toContain('/* 1.2.0.60 - cleaned headers reclaim the space */');
+    expect(version).toContain("APP_VERSION = '1.2.0.145'");
     expect(version).toContain('DATABASE_SCHEMA_VERSION = 14');
   });
 });

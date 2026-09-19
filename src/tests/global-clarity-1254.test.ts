@@ -48,9 +48,9 @@ describe('1.2.0.54 global clarity pass', () => {
   });
 
   it('keeps the database schema stable and build metadata separated', () => {
-    expect(version).toContain("APP_VERSION = '1.2.0.112'");
+    expect(version).toContain("APP_VERSION = '1.2.0.145'");
     expect(version).not.toContain('APP_BUILD');
-    expect(build).toContain("APP_BUILD = '112'");
+    expect(build).toContain("APP_BUILD = '145'");
     expect(version).toContain('DATABASE_SCHEMA_VERSION = 14');
   });
 });

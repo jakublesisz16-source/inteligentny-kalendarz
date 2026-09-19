@@ -62,6 +62,26 @@ describe('work domain', () => {
     expect(conflict.summary.conflicts).toBe(1);
   });
 
+
+  it('rozpoznaje jednoznaczne przesunięcie tej samej zmiany na inny dzień jako zmianę, nie remove+add', () => {
+    const moved = buildWorkScheduleDiff([entry()], [candidate('2026-08-11', '14:00', '22:00')], new Map([['event-1', event()]]));
+    expect(moved.summary.changed).toBe(1);
+    expect(moved.summary.added).toBe(0);
+    expect(moved.summary.removed).toBe(0);
+  });
+
+  it('nie zgaduje przesunięcia dnia, gdy identyczne godziny występują wielokrotnie', () => {
+    const old = [
+      entry({ id: 'entry-a', eventId: 'event-a' }),
+      entry({ id: 'entry-b', eventId: 'event-b', date: '2026-08-11', workOccurrenceKey: buildWorkOccurrenceKey('primary-work', '2026-08-11', '14:00', '22:00') }),
+    ];
+    const next = [candidate('2026-08-12', '14:00', '22:00'), candidate('2026-08-13', '14:00', '22:00')];
+    const ambiguous = buildWorkScheduleDiff(old, next);
+    expect(ambiguous.summary.changed).toBe(0);
+    expect(ambiguous.summary.added).toBe(2);
+    expect(ambiguous.summary.removed).toBe(2);
+  });
+
   it('pokazuje tylko osoby faktycznie nakładające się na zmianę', () => {
     const shifts: WorkCoworkerShift[] = [
       { id: 'a', importId: 'i', date: '2026-08-10', displayName: 'Anna Testowa', normalizedName: 'ANNA TESTOWA', startTime: '10:00', endTime: '18:00', minutes: 480, sourcePage: 1 },

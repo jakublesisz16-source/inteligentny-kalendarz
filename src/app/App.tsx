@@ -3,7 +3,6 @@ import type { AppView } from './app.types';
 import { Navigation } from '../ui/Navigation';
 import { Modal } from '../ui/Modal';
 import { AppSplash } from '../ui/AppSplash';
-import { GlobalSearch } from '../search/GlobalSearch';
 import { TodayView } from '../calendar/TodayView';
 import { CalendarView } from '../calendar/CalendarView';
 import { SettingsView } from '../settings/SettingsView';
@@ -13,9 +12,8 @@ import { FinanceView } from '../finance/FinanceView';
 import type { CoworkerOverlap } from '../work/work.types';
 import { StudyEventCorrection } from '../study/StudyEventCorrection';
 import { EventForm } from '../events/EventForm';
-import { LocationForm } from '../locations/LocationForm';
 import type { CalendarEvent, EventDraft, EventEditScope, EventSubmitOptions, ManualMultiDateDraft } from '../events/event.types';
-import type { Location, LocationDraft } from '../locations/location.types';
+import type { Location } from '../locations/location.types';
 import type { AppSettings, AppSettingsPatch } from '../settings/settings.types';
 import type { DayConstraint } from '../safety/safety.types';
 import type { CalendarConsistencyIssue, DayAttribute } from '../planning/planning.types';
@@ -28,10 +26,8 @@ import { StudySeriesTimingCorrection } from '../planning/StudySeriesTimingCorrec
 import {
   createEvent,
   createManualEventSeries,
-  createLocation,
   deleteEvent,
   deleteManualEventSeries,
-  deleteLocation,
   getSettings,
   getActiveUniversityImport,
   listUniversityImportEntries,
@@ -41,7 +37,7 @@ import {
   listDayConstraints,
   listDayAttributes,
   listCalendarConsistencyIssues,
-  listCoworkersForWorkEvent,
+  listCoworkersForWorkEvents,
   getLatestReversibleChange,
   setWorkAvailabilityExcluded,
   setTradingSunday,
@@ -50,7 +46,6 @@ import {
   undoChange,
   updateEvent,
   updateManualEventSeries,
-  updateLocation,
   updateSettings,
 } from '../storage/database';
 
@@ -61,10 +56,6 @@ interface EventEditorState {
   initialTitle?: string | undefined;
   initialEndDate?: Date | undefined;
   initialDates?: string[] | undefined;
-}
-
-interface LocationEditorState {
-  location?: Location | undefined;
 }
 
 interface ToastState {
@@ -88,26 +79,13 @@ export function App() {
   const [coworkersByEvent, setCoworkersByEvent] = useState<Record<string, CoworkerOverlap[]>>({});
   const [view, setView] = useState<AppView>('today');
   const [eventEditor, setEventEditor] = useState<EventEditorState | null>(null);
-  const [locationEditor, setLocationEditor] = useState<LocationEditorState | null>(null);
   const [studyCorrectionEvent, setStudyCorrectionEvent] = useState<CalendarEvent | null>(null);
   const [studySeriesTimingEvent, setStudySeriesTimingEvent] = useState<CalendarEvent | null>(null);
   const [toast, setToast] = useState<ToastState | null>(null);
   const [availabilityEditor, setAvailabilityEditor] = useState<{ date: string; blockId?: string } | null>(null);
-  const [searchOpen, setSearchOpen] = useState(false);
-
 
   useEffect(() => {
     void bootstrap();
-  }, []);
-
-  useEffect(() => {
-    function handleSearchShortcut(event: KeyboardEvent) {
-      if (!(event.ctrlKey || event.metaKey) || event.key.toLowerCase() !== 'k') return;
-      event.preventDefault();
-      setSearchOpen(true);
-    }
-    window.addEventListener('keydown', handleSearchShortcut);
-    return () => window.removeEventListener('keydown', handleSearchShortcut);
   }, []);
 
   useEffect(() => {
@@ -117,9 +95,7 @@ export function App() {
   }, [toast]);
 
   async function loadCoworkerMap(sourceEvents: CalendarEvent[]) {
-    const workEvents = sourceEvents.filter((event) => event.source === 'WORK_PDF');
-    const pairs = await Promise.all(workEvents.map(async (event) => [event.id, await listCoworkersForWorkEvent(event.id)] as const));
-    return Object.fromEntries(pairs) as Record<string, CoworkerOverlap[]>;
+    return listCoworkersForWorkEvents(sourceEvents);
   }
 
   async function loadIncompleteStudyEntries(activeImport: UniversityScheduleImport | undefined): Promise<UniversityImportEntry[]> {
@@ -172,18 +148,8 @@ export function App() {
   }
 
   async function openEventEditor(event: CalendarEvent) {
-    const workCoworkers = event.source === 'WORK_PDF' ? await listCoworkersForWorkEvent(event.id) : [];
+    const workCoworkers = event.source === 'WORK_PDF' ? (await listCoworkersForWorkEvents([event]))[event.id] ?? [] : [];
     setEventEditor({ event, ...(workCoworkers.length ? { workCoworkers } : {}) });
-  }
-
-  function openSearchEvent(event: CalendarEvent) {
-    setSearchOpen(false);
-    void openEventEditor(event);
-  }
-
-  function openSearchLocation(location: Location) {
-    setSearchOpen(false);
-    setLocationEditor({ location });
   }
 
   async function refreshAllData() {
@@ -244,12 +210,6 @@ export function App() {
   function openConsistencyCenter() {
     setView('calendar');
     window.setTimeout(() => document.getElementById('consistency-center')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 80);
-  }
-
-  async function refreshLocationsAndSettings() {
-    const [loadedLocations, loadedSettings] = await Promise.all([listLocations(), getSettings()]);
-    setLocations(loadedLocations);
-    setSettings(loadedSettings);
   }
 
   async function quickEditEvent(event: CalendarEvent, draft: EventDraft) {
@@ -321,24 +281,6 @@ export function App() {
     setEventEditor(null);
   }
 
-  async function saveLocation(draft: LocationDraft) {
-    if (locationEditor?.location) await updateLocation(locationEditor.location.id, draft);
-    else await createLocation(draft);
-    await refreshLocationsAndSettings();
-    setLocationEditor(null);
-    setToast({ message: locationEditor?.location ? 'Zapisano zmiany miejsca.' : 'Dodano miejsce.' });
-  }
-
-  async function removeLocation() {
-    if (!locationEditor?.location) return;
-    const removedId = locationEditor.location.id;
-    await deleteLocation(removedId);
-    await refreshEvents();
-    await refreshLocationsAndSettings();
-    setLocationEditor(null);
-    setToast({ message: 'Usunięto miejsce.' });
-  }
-
   async function changeSettings(patch: AppSettingsPatch) {
     const next = await updateSettings(patch);
     setSettings(next);
@@ -385,16 +327,6 @@ export function App() {
           <SettingsView settings={settings} locations={locations} onChange={changeSettings} onDataChanged={refreshAllData} />
         ) : null}
       </main>
-
-      {searchOpen ? (
-        <GlobalSearch
-          events={events}
-          locations={locations}
-          onOpenEvent={openSearchEvent}
-          onOpenLocation={openSearchLocation}
-          onClose={() => setSearchOpen(false)}
-        />
-      ) : null}
 
       {eventEditor ? (
         <Modal
@@ -443,17 +375,6 @@ export function App() {
       {availabilityEditor ? (
         <Modal title="Dyspozycyjność" onClose={() => setAvailabilityEditor(null)}>
           <DayAvailabilityEditor date={availabilityEditor.date} {...(availabilityEditor.blockId ? { blockId: availabilityEditor.blockId } : {})} onSaved={refreshAllData} onClose={() => setAvailabilityEditor(null)} />
-        </Modal>
-      ) : null}
-
-      {locationEditor ? (
-        <Modal title={locationEditor.location ? 'Edytuj miejsce' : 'Nowe miejsce'} onClose={() => setLocationEditor(null)}>
-          <LocationForm
-            location={locationEditor.location}
-            onSubmit={saveLocation}
-            onDelete={locationEditor.location ? removeLocation : undefined}
-            onCancel={() => setLocationEditor(null)}
-          />
         </Modal>
       ) : null}
 

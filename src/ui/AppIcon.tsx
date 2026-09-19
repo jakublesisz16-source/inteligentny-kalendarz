@@ -7,8 +7,7 @@ export type AppIconName =
   | 'shopping'
   | 'cycle'
   | 'locations'
-  | 'settings'
-  | 'search';
+  | 'settings';
 
 interface AppIconProps {
   name: AppIconName;
@@ -26,7 +25,6 @@ export const APP_ICON_NAMES: AppIconName[] = [
   'cycle',
   'locations',
   'settings',
-  'search',
 ];
 
 function IconGlyph({ name }: { name: AppIconName }) {
@@ -97,13 +95,6 @@ function IconGlyph({ name }: { name: AppIconName }) {
           <circle cx="14" cy="6" r="2" />
           <circle cx="9" cy="12" r="2" />
           <circle cx="16" cy="18" r="2" />
-        </>
-      );
-    case 'search':
-      return (
-        <>
-          <circle cx="10.8" cy="10.8" r="6.2" />
-          <path d="m15.4 15.4 4.2 4.2" />
         </>
       );
   }

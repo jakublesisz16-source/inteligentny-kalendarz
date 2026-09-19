@@ -34,11 +34,11 @@ describe('1.2.0.80 mobile month selection and inline day preview', () => {
     expect(components).toContain('/* 1.2.0.80 - mobile month date selection stays separate from event details */');
     expect(components).toContain('.calendar-mobile-day-preview { display: none; }');
     expect(responsive).toContain('/* 1.2.0.80 - tapping a month date only selects it; event rows are the explicit detail action. */');
-    expect(responsive).toContain('.calendar-mobile-day-preview-event:first-child { border-top: 0; }');
+    expect(responsive).toContain('.calendar-mobile-day-preview-event:first-child { border-top: 1px solid color-mix(in srgb, var(--line) 78%, transparent); }');
   });
 
   it('keeps database schema stable', () => {
-    expect(version).toContain("APP_VERSION = '1.2.0.112'");
+    expect(version).toContain("APP_VERSION = '1.2.0.145'");
     expect(version).toContain('DATABASE_SCHEMA_VERSION = 14');
   });
 });

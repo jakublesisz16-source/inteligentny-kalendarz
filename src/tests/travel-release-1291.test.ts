@@ -32,7 +32,7 @@ describe('1.2.0.92 travel-ready hardening', () => {
   });
 
   it('keeps Study copy short while preserving direct access', () => {
-    expect(study).toContain('Wczytaj Excel. Aplikacja pokaże zmiany przed zapisem');
+    expect(study).toContain('Wczytaj Excel. Przed zapisem zobaczysz zmiany i wybierzesz tylko potrzebne grupy.');
     expect(study).toContain('Grupy i podgląd');
     expect(study).not.toContain('Grupy i dodatkowe opcje');
   });

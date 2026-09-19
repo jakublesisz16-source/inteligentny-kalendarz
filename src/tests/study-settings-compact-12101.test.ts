@@ -13,7 +13,7 @@ describe('1.2.0.101 compact Studies and Settings', () => {
   it('keeps the real Study group selector permanently visible', () => {
     expect(studyProfile).toContain('study-profile-settings-always-open');
     expect(studyProfile).toContain('study-profile-group-picker');
-    expect(studyProfile).toContain('study-group-dashboard');
+    expect(studyProfile).toContain('StudyGroupChoiceFields');
     expect(studyProfile).toContain('Wybór grup');
     expect(studyProfile).not.toContain('Zmień grupy');
     expect(studyProfile).not.toContain('setEditing');
@@ -37,7 +37,7 @@ describe('1.2.0.101 compact Studies and Settings', () => {
   });
 
   it('does not require a database migration', () => {
-    expect(version).toContain("APP_VERSION = '1.2.0.112'");
+    expect(version).toContain("APP_VERSION = '1.2.0.145'");
     expect(version).toContain('DATABASE_SCHEMA_VERSION = 14');
   });
 });

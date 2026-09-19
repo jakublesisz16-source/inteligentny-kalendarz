@@ -3,6 +3,7 @@ import { analyzeScheduleWorkbook } from '../imports/xlsx/adapter-registry';
 import { nursingWeekMatrixV2Adapter } from '../imports/xlsx/adapters/nursing-week-matrix-v2.adapter';
 import type { SheetCellSnapshot, SheetMergeSnapshot, SheetSnapshot, WorkbookSnapshot } from '../imports/xlsx/xlsx.types';
 import { candidatesForSelectedGroups } from '../study/study.service';
+import { expectedDatesForSourceBlock } from '../study/study-completeness';
 
 function colName(col: number): string {
   let value = col;
@@ -266,6 +267,72 @@ describe('nursing-week-matrix-v2 adapter', () => {
     expect(analyzeScheduleWorkbook(broken)).toBeNull();
   });
 
+  it('akceptuje brak scaleń, gdy każda kolumna zachowuje własny jawny nagłówek przedmiotu, dnia i godzin', () => {
+    const baseline = analyzeScheduleWorkbook(wideWorkbook());
+    const changed = wideWorkbook();
+    const plan = changed.sheets[0]!;
+    plan.merges = [];
+    plan.cells.push(
+      cell(2, 3, 'CHIRURGIA - grupy 8-osobowe'),
+      cell(2, 4, 'CHIRURGIA - grupy 8-osobowe'),
+      cell(3, 3, 'pon. - pt. 8.00 - 14.00'),
+      cell(2, 6, 'INTERNA (seminaria)'),
+      cell(2, 8, 'PROMOCJA ZDROWIA - grupy 8-osobowe'),
+    );
+
+    const result = analyzeScheduleWorkbook(changed);
+    expect(baseline).not.toBeNull();
+    expect(result).not.toBeNull();
+    const baselineCandidates = baseline!.candidates.map(semanticCandidate).sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b)));
+    const changedCandidates = result!.candidates.map(semanticCandidate).sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b)));
+    expect(changedCandidates).toEqual(baselineCandidates);
+  });
+
+  it('toleruje dodatkowe wiersze informacyjne między nagłówkami a pierwszym tygodniem', () => {
+    const baseline = analyzeScheduleWorkbook(wideWorkbook());
+    const changed = wideWorkbook();
+    const plan = changed.sheets[0]!;
+    plan.cells = plan.cells.map((entry) => entry.row >= 8 ? { ...entry, row: entry.row + 3, address: `${colName(entry.col)}${entry.row + 3}` } : entry);
+    plan.merges = plan.merges.map((entry) => entry.startRow >= 8 ? {
+      ...entry,
+      startRow: entry.startRow + 3,
+      endRow: entry.endRow + 3,
+      ref: `${colName(entry.startCol)}${entry.startRow + 3}:${colName(entry.endCol)}${entry.endRow + 3}`,
+    } : entry);
+    plan.maxRow += 3;
+    plan.cells.push(cell(8, 1, 'Uwagi organizacyjne'), cell(9, 2, 'Aktualizacja planu'), cell(10, 2, 'Obowiązuje od października'));
+
+    const result = analyzeScheduleWorkbook(changed);
+    expect(baseline).not.toBeNull();
+    expect(result).not.toBeNull();
+    const baselineCandidates = baseline!.candidates.map(semanticCandidate).sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b)));
+    const changedCandidates = result!.candidates.map(semanticCandidate).sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b)));
+    expect(changedCandidates).toEqual(baselineCandidates);
+  });
+
+  it('stosuje wyjątek godziny na tej samej dacie bez tworzenia drugiego bazowego terminu', () => {
+    const changed = wideWorkbook();
+    changed.sheets[0]!.cells = changed.sheets[0]!.cells.map((entry) => entry.address === 'D3'
+      ? { ...entry, value: 'wtorek zajęcia w Centrum Symulacji, ul. Testowa 2, 9.00 - 12.00' }
+      : entry);
+    const result = analyzeScheduleWorkbook(changed);
+    expect(result).not.toBeNull();
+    const tuesday = result!.candidates.filter((candidate) => candidate.groupTags.includes('G8:1B') && candidate.date === '2025-10-07');
+    expect(tuesday).toHaveLength(1);
+    expect(tuesday[0]).toMatchObject({ startTime: '09:00', endTime: '12:00', address: 'ul. Testowa 2' });
+  });
+
+  it('fail-closed zatrzymuje jawny wyjątek daty, którego nie da się pogodzić z bazowym dniem kolumny', () => {
+    const changed = wideWorkbook();
+    changed.sheets[0]!.cells = changed.sheets[0]!.cells.map((entry) => entry.address === 'D8'
+      ? { ...entry, value: '11.10.', valueType: 'date' as const, dateValue: '2025-10-11' }
+      : entry);
+    expect(analyzeScheduleWorkbook(changed)).toBeNull();
+    const direct = nursingWeekMatrixV2Adapter.analyze(changed);
+    expect(direct.diagnostics?.unappliedDateExceptionCount).toBe(1);
+    expect(direct.diagnostics?.unappliedDateExceptionSamples?.[0]).toContain('C8 + D8: 2025-10-11');
+  });
+
   it('odrzuca macierz po utracie scaleń nagłówków nawet jeśli pozostaje scalenie tytułu', () => {
     const broken = wideWorkbook();
     broken.sheets = broken.sheets.map((sheet) => ({
@@ -281,10 +348,69 @@ describe('nursing-week-matrix-v2 adapter', () => {
     expect(analyzeScheduleWorkbook(changed)).toBeNull();
   });
 
-  it('fail-closed zatrzymuje wiersz pełen grup, jeśli zmienił się format zakresu tygodnia', () => {
+  it('nie gubi tygodni po dodaniu pomocniczej kolumny przed zakresem dat', () => {
+    const baseline = analyzeScheduleWorkbook(wideWorkbook());
+    const changed = shiftWorkbook(wideWorkbook(), 0, 1);
+    const plan = changed.sheets[0]!;
+    plan.minCol = 1;
+    plan.cells.push(cell(1, 1, 'Nr tyg.'));
+    [8, 9, 10].forEach((row, index) => plan.cells.push(cell(row, 1, String(index + 1))));
+
+    const result = analyzeScheduleWorkbook(changed);
+    expect(baseline).not.toBeNull();
+    expect(result).not.toBeNull();
+    expect(result?.diagnostics?.weekRowCount).toBe(3);
+    expect(result?.diagnostics?.unparsedAssignmentCellCount).toBe(0);
+    const baselineCandidates = baseline!.candidates.map(semanticCandidate).sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b)));
+    const changedCandidates = result!.candidates.map(semanticCandidate).sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b)));
+    expect(changedCandidates).toEqual(baselineCandidates);
+  });
+
+  it('akceptuje bezpieczne warianty zapisu zakresu tygodnia bez strojenia pod jeden arkusz', () => {
+    for (const value of [
+      'tydzień 06.10. - 10.10.2025',
+      'od 06.10.2025 do 10.10.2025',
+      '6-10.10.2025',
+      '06.10.2025 - 10.10.2025',
+    ]) {
+      const changed = wideWorkbook();
+      changed.sheets[0]!.cells = changed.sheets[0]!.cells.map((entry) => entry.address === 'A8' ? { ...entry, value } : entry);
+      const result = analyzeScheduleWorkbook(changed);
+      expect(result, value).not.toBeNull();
+      expect(result?.candidates.some((candidate) => candidate.groupTags.includes('G8:1A') && candidate.date === '2025-10-06'), value).toBe(true);
+      expect(result?.candidates.some((candidate) => candidate.groupTags.includes('G8:1A') && candidate.date === '2025-10-10'), value).toBe(true);
+    }
+  });
+
+  it('nie zgaduje przedmiotu z sąsiedniej kolumny, gdy lokalna kolumna ma grupę, dzień i godzinę, ale brak nagłówka przedmiotu', () => {
     const changed = wideWorkbook();
-    changed.sheets[0]!.cells = changed.sheets[0]!.cells.map((entry) => entry.address === 'A8' ? { ...entry, value: 'tydzień 06.10. - 10.10.2025' } : entry);
-    expect(analyzeScheduleWorkbook(changed)).toBeNull();
+    const plan = changed.sheets[0]!;
+    plan.cells.push(
+      cell(5, 9, 'środa 10.00 - 12.00, sala 999, ul. Testowa 99'),
+      cell(8, 9, '5a'),
+    );
+
+    const result = analyzeScheduleWorkbook(changed);
+    expect(result).not.toBeNull();
+    const ambiguous = result!.candidates.find((candidate) => candidate.sourceRange === 'I8');
+    expect(ambiguous).toBeDefined();
+    expect(ambiguous?.subject).toBe('');
+    expect(ambiguous?.date).toBe('2025-10-08');
+    expect(ambiguous?.startTime).toBe('10:00');
+    expect(ambiguous?.endTime).toBe('12:00');
+    expect(ambiguous?.room).toBe('sala 999');
+    expect(ambiguous?.address).toBe('ul. Testowa 99');
+    expect(ambiguous?.include).toBe(false);
+    expect(ambiguous?.warnings.join(' ')).toContain('przedmiotu');
+    expect(ambiguous?.sourceSectionKey).toBe('PLAN ZAJĘĆ|C9');
+  });
+
+  it('nadal fail-closed zatrzymuje wiersz grup, gdy zakres tygodnia nie daje dwóch jednoznacznych dat', () => {
+    for (const address of ['A8', 'A10']) {
+      const changed = wideWorkbook();
+      changed.sheets[0]!.cells = changed.sheets[0]!.cells.map((entry) => entry.address === address ? { ...entry, value: 'tydzień pierwszy października' } : entry);
+      expect(analyzeScheduleWorkbook(changed), address).toBeNull();
+    }
   });
 
   it('nie uznaje przypadkowego arkusza z pojedynczą datą za plan zajęć', () => {
@@ -397,5 +523,220 @@ describe('nursing-week-matrix-v2 current 2026/2027 plan precedence', () => {
 
     expect(monday).toMatchObject({ startTime: '10:30', endTime: '14:15', room: 'sala 201', address: 'ul. Nowa 5' });
     expect(tuesday).toMatchObject({ startTime: '10:15', endTime: '14:00' });
+  });
+});
+
+function thirdYear2026LayoutWorkbook(): WorkbookSnapshot {
+  const plan: SheetSnapshot = {
+    name: 'PLAN ZAJĘĆ', usedRange: 'A1:D20', minRow: 1, minCol: 1, maxRow: 20, maxCol: 4, merges: [merge(1, 1, 1, 4)],
+    cells: [
+      cell(1, 1, 'III ROK PIELĘGNIARSTWO STACJONARNE SEMESTR ZIMOWY 2026/2027'),
+      cell(2, 2, 'ANESTEZJOLOGIA'),
+      cell(3, 2, '40G'),
+      cell(4, 2, 'zaj. prakt. (pon. - pt.) 8.00. - 14.00.'),
+      cell(5, 2, 'Szpital Testowy, ul. Testowa 1'),
+      cell(2, 3, 'RATOWNICTWO MEDYCZNE'),
+      cell(3, 3, 'ćwiczenia 10G'),
+      cell(4, 3, 'poniedziałki 15.00 - 18.45'),
+      cell(5, 3, 'sala 218, ul. Litewska 14/16'),
+      cell(2, 4, 'PSYCHIATRIA\nMazowieckie Centrum Zdrowia, ul. Partyzantów 2/4, Oddział 2SK'),
+      cell(3, 4, 'seminaria 5G'),
+      cell(4, 4, 'poniedziałek 15.00 - 18.45'),
+      cell(8, 1, '12.10. - 16.10.2026'), cell(8, 2, '4b*'), cell(8, 3, '4b'), cell(8, 4, '7'),
+      cell(9, 1, '19.10. - 23.10.2026'), cell(9, 3, '4b'),
+      cell(20, 1, 'oznaczenie grup: seminaria w grupach dziekańskich (24 osoby); ćwiczenia w 1/2 grupy dziekańskiej (12 osób); zajęcia praktyczne w 1/3 grupy dziekańskiej (8 osób)'),
+    ],
+  };
+  return { sheetNames: [plan.name], sheets: [plan] };
+}
+
+describe('nursing-week-matrix-v2 III year 2026/2027 layout', () => {
+  it('wyprowadza trzy niezależne poziomy grup z globalnej legendy i usuwa przypisowe gwiazdki', () => {
+    const result = nursingWeekMatrixV2Adapter.analyze(thirdYear2026LayoutWorkbook());
+    expect(result.groups).toEqual(expect.arrayContaining(['MAIN:7', 'G12:4B', 'G8:4B']));
+    expect(result.groups.some((group) => group.startsWith('GENERIC:'))).toBe(false);
+    expect(result.diagnostics?.unparsedAssignmentCellCount).toBe(0);
+    expect(result.diagnostics?.suspiciousUnparsedWeekRows).toEqual([]);
+  });
+
+  it('nie bierze etykiet seminaria/ćwiczenia za nazwę przedmiotu i zachowuje właściwy rodzaj zajęć', () => {
+    const result = nursingWeekMatrixV2Adapter.analyze(thirdYear2026LayoutWorkbook());
+    const practical = result.candidates.find((candidate) => candidate.groupTags.includes('G8:4B'));
+    const exercise = result.candidates.find((candidate) => candidate.groupTags.includes('G12:4B'));
+    const seminar = result.candidates.find((candidate) => candidate.groupTags.includes('MAIN:7'));
+    expect(practical).toMatchObject({ subject: 'ANESTEZJOLOGIA', activityType: 'Zajęcia praktyczne', startTime: '08:00', endTime: '14:00' });
+    expect(exercise).toMatchObject({ subject: 'RATOWNICTWO MEDYCZNE', activityType: 'Ćwiczenia', startTime: '15:00', endTime: '18:45' });
+    expect(seminar).toMatchObject({ subject: 'PSYCHIATRIA', activityType: 'Seminaria', address: 'ul. Partyzantów 2/4' });
+  });
+
+  it('traktuje jawne przesunięcie godziny z arkusza jako silniejsze od matematycznego przeliczenia deklarowanych G', () => {
+    const workbook = thirdYear2026LayoutWorkbook();
+    workbook.sheets[0]!.cells = workbook.sheets[0]!.cells.map((entry) => entry.address === 'B4'
+      ? { ...entry, value: 'zaj. prakt. (pon. - pt.) 8.00 - 14.00; Uwaga! zajęcia zaczynają się od godz. 7.00' }
+      : entry);
+    const result = nursingWeekMatrixV2Adapter.analyze(workbook);
+    const audit = result.completeness?.hourAudits.find((entry) => entry.subject === 'ANESTEZJOLOGIA' && entry.groupTag === 'G8:4B');
+    expect(audit?.enforcement).toBe('ADVISORY');
+    expect(result.completeness?.safe).toBe(true);
+    expect(result.candidates.find((candidate) => candidate.groupTags.includes('G8:4B'))).toMatchObject({ startTime: '07:00', endTime: '14:00' });
+  });
+
+  it('czyta pełną nazwę auli i literówkę Drhab w wykładach', () => {
+    const workbook = lectureOnlyWorkbook();
+    const lectures = workbook.sheets[0]!;
+    lectures.cells = lectures.cells.map((entry) => {
+      if (entry.address === 'A1') return { ...entry, value: 'WYKŁADY III ROK PIELĘGNIARSTWO STACJONARNE ŚRODY aula im. Prof. A. Grucy, ul. Lindleya 4 SEM. ZIMOWY 2026/2027' };
+      if (entry.address === 'B3') return { ...entry, value: 'ANESTEZJOLOGIA Drhab D. Kosson 15.00 - 16.30 (2)' };
+      return entry;
+    });
+    const result = nursingWeekMatrixV2Adapter.analyze(workbook);
+    const lecture = result.candidates.find((candidate) => candidate.subject === 'ANESTEZJOLOGIA');
+    expect(lecture).toMatchObject({ room: 'aula im. Prof. A. Grucy', address: 'ul. Lindleya 4' });
+  });
+});
+
+function thirdYearFirstMeetingLocationWorkbook(): WorkbookSnapshot {
+  const plan: SheetSnapshot = {
+    name: 'PLAN ZAJĘĆ', usedRange: 'A1:C20', minRow: 1, minCol: 1, maxRow: 20, maxCol: 3, merges: [],
+    cells: [
+      cell(1, 1, 'III ROK PIELĘGNIARSTWO STACJONARNE SEMESTR ZIMOWY 2026/2027'),
+      cell(2, 2, 'PSYCHIATRIA'),
+      cell(3, 2, '80G'),
+      cell(4, 2, 'zaj. prakt. (pon. - pt.) 8.00. - 14.00.'),
+      cell(5, 2, 'Prof. A. Szulc'),
+      cell(2, 3, 'PSYCHIATRIA'),
+      cell(3, 3, '80G'),
+      cell(4, 3, 'zaj. prakt. (pon. - pt.) 8.00. - 14.00.'),
+      cell(5, 3, 'dr hab. A. Silczuk'),
+      cell(8, 1, '12.10. - 16.10.2026'), cell(8, 2, '2a'), cell(8, 3, '3a'),
+      cell(9, 1, '19.10. - 23.10.2026'), cell(9, 2, '2a'), cell(9, 3, '3a'),
+      cell(18, 2, 'Prof. A. Szulc - pierwsze spotkanie w Mazowieckim Specjalistycznym Centrum Zdrowia, ul. Partyzantów 2/4, Oddział 2DE'),
+      cell(20, 1, 'oznaczenie grup: seminaria w grupach dziekańskich (24 osoby); ćwiczenia w 1/2 grupy dziekańskiej (12 osób); zajęcia praktyczne w 1/3 grupy dziekańskiej (8 osób)'),
+    ],
+  };
+  return { sheetNames: [plan.name], sheets: [plan] };
+}
+
+describe('nursing-week-matrix-v2 source-faithful first meeting locations', () => {
+  it('nie rozciąga lokalizacji oznaczonej jako pierwsze spotkanie na cały tydzień ani na innego prowadzącego', () => {
+    const result = nursingWeekMatrixV2Adapter.analyze(thirdYearFirstMeetingLocationWorkbook());
+    const szulc = result.candidates
+      .filter((candidate) => candidate.groupTags.includes('G8:2A'))
+      .sort((a, b) => (a.date ?? '').localeCompare(b.date ?? ''));
+    const silczuk = result.candidates
+      .filter((candidate) => candidate.groupTags.includes('G8:3A'))
+      .sort((a, b) => (a.date ?? '').localeCompare(b.date ?? ''));
+
+    expect(szulc).toHaveLength(10);
+    expect(szulc[0]).toMatchObject({ date: '2026-10-12', address: 'ul. Partyzantów 2/4' });
+    expect(szulc.slice(1).every((candidate) => !candidate.address && !candidate.locationLabel)).toBe(true);
+    expect(silczuk).toHaveLength(10);
+    expect(silczuk.every((candidate) => !candidate.address && !candidate.locationLabel)).toBe(true);
+  });
+});
+
+
+function thirdYearNeurologySeminarFooterWorkbook(): WorkbookSnapshot {
+  const plan: SheetSnapshot = {
+    name: 'PLAN ZAJĘĆ', usedRange: 'A1:B18', minRow: 1, minCol: 1, maxRow: 18, maxCol: 2, merges: [],
+    cells: [
+      cell(1, 1, 'III ROK PIELĘGNIARSTWO STACJONARNE SEMESTR ZIMOWY 2026/2027'),
+      cell(2, 2, 'NEUROLOGIA'),
+      cell(3, 2, 'seminaria 5G'),
+      cell(4, 2, 'piątek 9.00 - 12.45'),
+      cell(8, 1, '12.10. - 16.10.2026'), cell(8, 2, '2'),
+      cell(18, 1, 'Dr hab. D. Koziorowski - Klinika Neurologii WNoZ, zajęcia praktyczne dla grup oraz seminaria dla wszystkich grup dziekańskich odbywają się w Klinice Neurologii, ul. Kondratowicza 8'),
+    ],
+  };
+  return { sheetNames: [plan.name], sheets: [plan] };
+}
+
+describe('nursing-week-matrix-v2 footer describing more than one activity type', () => {
+  it('nie odrzuca jawnej lokalizacji seminarium tylko dlatego, że ta sama stopka wspomina też zajęcia praktyczne', () => {
+    const result = nursingWeekMatrixV2Adapter.analyze(thirdYearNeurologySeminarFooterWorkbook());
+    const seminar = result.candidates.find((candidate) => candidate.groupTags.includes('MAIN:2'));
+    expect(seminar).toMatchObject({ subject: 'NEUROLOGIA', activityType: 'Seminaria', address: 'ul. Kondratowicza 8' });
+  });
+});
+
+
+describe('nursing-week-matrix-v2 II year 2026/2027 current layout hardening', () => {
+  it('nie interpretuje dużej scalonej tabeli lokalizacji jako przypisania grupy', () => {
+    const workbook = wideWorkbook();
+    const plan = workbook.sheets[0]!;
+    plan.maxCol = 20;
+    plan.usedRange = 'A1:T25';
+    plan.merges.push(merge(9, 9, 20, 20));
+    plan.cells.push(cell(9, 9, 'poniedziałek środa piątek gr. 13 - sala 210 w NZJ gr. 1 - sala 119 w CBI gr. 14 - sala 102 w NZN gr. 8 - sala 101, ul. Litewska 14/16'));
+
+    const result = nursingWeekMatrixV2Adapter.analyze(workbook);
+    expect(result.candidates.some((candidate) => candidate.originalGroupText?.includes('gr. 13 - sala') === true)).toBe(false);
+  });
+
+  it('stosuje lokalizację z dnia tylko do tego dnia i respektuje zakresy dat w tej samej komórce', () => {
+    const workbook = wideWorkbook();
+    const plan = workbook.sheets[0]!;
+    plan.cells.push(cell(5, 2, 'pon. - sala 126 w CD pt. - 10.10. - 24.10. - sala 210 w NZJ'));
+
+    const result = nursingWeekMatrixV2Adapter.analyze(workbook);
+    const group = result.candidates.filter((candidate) => candidate.groupTags.includes('G8:1A'));
+    expect(group.find((candidate) => candidate.date === '2025-10-06')).toMatchObject({ room: 'sala 126 w CD' });
+    expect(group.find((candidate) => candidate.date === '2025-10-07')?.room).toBeUndefined();
+    expect(group.find((candidate) => candidate.date === '2025-10-10')).toMatchObject({ room: 'sala 210 w NZJ' });
+    expect(group.find((candidate) => candidate.date === '2025-10-17')).toMatchObject({ room: 'sala 210 w NZJ' });
+  });
+
+  it('wiąże jawny kod jednostki NZJ z jednoznacznym adresem ze stopki bez zgadywania po przedmiocie', () => {
+    const workbook = wideWorkbook();
+    const plan = workbook.sheets[0]!;
+    plan.cells = plan.cells.map((entry) => {
+      if (entry.address === 'E2') return { ...entry, value: 'POZ ćw. 5 godz. grupy 12-osobowe' };
+      if (entry.address === 'E3') return { ...entry, value: 'środa sala 210 w NZJ 8.00 - 11.45' };
+      return entry;
+    });
+    plan.cells.push(cell(22, 5, 'POZ ćwiczenia'), cell(23, 5, 'Zakład Rozwoju Pielęgniarstwa (NZJ), ul. Ciołka 27'));
+
+    const result = nursingWeekMatrixV2Adapter.analyze(workbook);
+    const poz = result.candidates.find((candidate) => candidate.groupTags.includes('G12:2') && candidate.subject.startsWith('POZ'));
+    expect(poz).toMatchObject({ room: 'sala 210 w NZJ', address: 'ul. Ciołka 27' });
+  });
+
+  it('naprawia bezpiecznie przesunięte scalenie godzin tylko wtedy, gdy nakłada się na jeden jednoznaczny dzień', () => {
+    const workbook = wideWorkbook();
+    const plan = workbook.sheets[0]!;
+    plan.maxCol = 11;
+    plan.usedRange = 'A1:K25';
+    plan.merges.push(merge(2, 9, 2, 11), merge(4, 10, 4, 11), merge(5, 9, 6, 11));
+    plan.cells.push(
+      cell(2, 9, 'POZ seminaria 15g'),
+      cell(3, 9, 'Zakład Rozwoju Pielęgniarstwa, ul. Ciołka 27'),
+      cell(4, 10, 'piątek'),
+      cell(5, 9, '8.00 - 11.45'),
+      cell(8, 9, 'grupa 14'), cell(8, 10, 'grupa 1'), cell(8, 11, 'grupa 2'),
+      cell(9, 9, 'grupa 13'), cell(9, 10, 'grupa 3'), cell(9, 11, 'grupa 4'),
+      cell(10, 9, 'grupa 12'), cell(10, 10, 'grupa 5'), cell(10, 11, 'grupa 6'),
+    );
+
+    const result = nursingWeekMatrixV2Adapter.analyze(workbook);
+    const group14 = result.candidates.find((candidate) => candidate.groupTags.includes('MAIN:14') && candidate.subject.startsWith('POZ'));
+    expect(group14).toMatchObject({ date: '2025-10-10', startTime: '08:00', endTime: '11:45' });
+  });
+});
+
+describe('nursing-week-matrix-v2 inline exact-date assignments', () => {
+  it('traktuje datę wpisaną bezpośrednio w komórce grupy jako dokładny wyjątek, także poza tygodniem wiersza', () => {
+    const workbook = wideWorkbook();
+    const plan = workbook.sheets[0]!;
+    plan.cells = plan.cells.map((entry) => entry.address === 'B8'
+      ? { ...entry, value: '1a\n06.11. - 8.00 - 14.00\nsala 101 ZPK' }
+      : entry);
+
+    const direct = nursingWeekMatrixV2Adapter.analyze(workbook);
+    const candidate = direct.candidates.find((entry) => entry.sourceRange === 'B8');
+    const sourceBlock = direct.sourceBlocks?.find((entry) => entry.sourceRange === 'B8');
+
+    expect(candidate).toMatchObject({ date: '2025-11-06', startTime: '08:00', endTime: '14:00', groupTags: ['G8:1A'] });
+    expect(sourceBlock).toMatchObject({ weekdays: [], exceptionDate: '2025-11-06' });
+    expect(expectedDatesForSourceBlock(sourceBlock!)).toEqual(['2025-11-06']);
   });
 });

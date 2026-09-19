@@ -60,10 +60,15 @@ playwright-report/
 *.rej
 
 # PRIVATE checkpoint/process files - nigdy nie dodawać do publicznego repo
+PRIVATE.md
 PRIVATE_*.md
+HANDOFF_NEW_CHAT.md
 HANDOFF_NEW_CHAT_*.md
 CLEAN_CHECKPOINT_CONTENTS.md
 CURRENT_PROJECT_RULES.md
+BUILD_INFO.json
+CURRENT_STATE.json
+CHECKPOINT_MANIFEST.sha256
 README_GITHUB.md
 docs/*_GITHUB.md
 project-skills/

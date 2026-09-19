@@ -7,15 +7,14 @@ const responsive = readFileSync('src/styles/responsive.css', 'utf8');
 const version = readFileSync('src/core/version.ts', 'utf8');
 
 describe('1.2.0.50 compact calendar study context placement', () => {
-  it('moves active Study group context into the right calendar column below the selected-day panel', () => {
+  it('keeps active Study group context inside the selected-day panel hierarchy instead of as a separate box', () => {
     expect(calendar).toContain('calendar-side-column');
     expect(calendar).toContain('calendar-side-study-context');
-    const sideColumnIndex = calendar.indexOf('calendar-side-column');
-    const selectedPanelIndex = calendar.indexOf('selected-day-panel${mobileDayPanelOpen', sideColumnIndex);
-    const studyContextIndex = calendar.indexOf('calendar-side-study-context', sideColumnIndex);
-    expect(sideColumnIndex).toBeGreaterThan(-1);
-    expect(selectedPanelIndex).toBeGreaterThan(sideColumnIndex);
-    expect(studyContextIndex).toBeGreaterThan(selectedPanelIndex);
+    expect(calendar).toContain('calendar-selected-day-study-context');
+    const panelIndex = calendar.indexOf('selected-day-panel${mobileDayPanelOpen');
+    const studyContextIndex = calendar.indexOf('calendar-selected-day-study-context', panelIndex);
+    expect(panelIndex).toBeGreaterThan(-1);
+    expect(studyContextIndex).toBeGreaterThan(panelIndex);
   });
 
   it('keeps the Study context compact and responsive instead of consuming vertical space above the calendar', () => {
@@ -27,7 +26,7 @@ describe('1.2.0.50 compact calendar study context placement', () => {
   });
 
   it('does not change the database schema', () => {
-    expect(version).toContain("APP_VERSION = '1.2.0.112'");
+    expect(version).toContain("APP_VERSION = '1.2.0.145'");
     expect(version).toContain('DATABASE_SCHEMA_VERSION = 14');
   });
 });

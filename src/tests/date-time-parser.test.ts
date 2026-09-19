@@ -66,6 +66,11 @@ describe('time parser hardening', () => {
     expect(parseTimeRange(input)).toEqual({ start: '07:00', end: '07:15' });
   });
 
+  it('akceptuje kropkę po minutach używaną w nowych planach WUM', () => {
+    expect(parseTimeRange('8.00. - 14.00.')).toEqual({ start: '08:00', end: '14:00' });
+    expect(parseTimeRange('zaj. prakt. 8.00.- 14.00.')).toEqual({ start: '08:00', end: '14:00' });
+  });
+
   it('wyciąga precyzyjną godzinę z wpisu grupy', () => {
     expect(parseTimeRange('grupa 5 / 8.15 - 9.50')).toEqual({ start: '08:15', end: '09:50' });
   });

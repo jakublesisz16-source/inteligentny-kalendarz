@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
 const studyView = readFileSync(new URL('../study/StudyView.tsx', import.meta.url), 'utf8');
+const studyChoice = readFileSync(new URL('../study/StudyGroupChoiceFields.tsx', import.meta.url), 'utf8');
 const financeView = readFileSync(new URL('../finance/FinanceDashboardView.tsx', import.meta.url), 'utf8');
 const interfaceCss = readFileSync(new URL('../styles/interface-consistency.css', import.meta.url), 'utf8');
 const comparison = readFileSync(new URL('../work/AvailabilityWorkComparisonPanel.tsx', import.meta.url), 'utf8');
@@ -15,11 +16,12 @@ describe('1.2.0.106 real-device mobile compaction', () => {
   });
 
   it('uses compact partition selects for Study group import on phones', () => {
-    expect(studyView).toContain('study-import-group-dashboard');
-    expect(studyView).toContain('setImportPartitionGroup');
-    expect(studyView).toContain('Wybierz grupę importu:');
-    expect(interfaceCss).toContain('.study-import-group-grid-desktop { display: none; }');
-    expect(interfaceCss).toContain('grid-template-columns: repeat(2, minmax(0, 1fr));');
+    expect(studyView).toContain('StudyGroupChoiceFields');
+    expect(studyChoice).toContain('setPartitionGroup');
+    expect(studyChoice).toContain('aria-label={`Wybierz: ${partition.label}`}');
+    expect(studyView).not.toContain('study-import-group-grid-desktop');
+    expect(interfaceCss).toContain('.study-group-choice-grid {\n  display: grid;');
+    expect(interfaceCss).toContain('.study-group-choice-grid { grid-template-columns: 1fr; }');
   });
 
   it('compacts Work cards while keeping touch targets and summary facts readable', () => {
@@ -30,6 +32,6 @@ describe('1.2.0.106 real-device mobile compaction', () => {
   });
 
   it('is synchronized to 1.2.0.106', () => {
-    expect(version).toContain("APP_VERSION = '1.2.0.112'");
+    expect(version).toContain("APP_VERSION = '1.2.0.145'");
   });
 });

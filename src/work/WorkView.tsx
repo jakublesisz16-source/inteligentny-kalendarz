@@ -16,7 +16,7 @@ import {
   getConfirmedWorkMinutes,
   getWorkProfile,
   listAvailabilityPlans,
-  listCoworkersForWorkEvent,
+  listCoworkersForWorkEvents,
   listEvents,
   listWorkScheduleEntries,
   listWorkScheduleImports,
@@ -97,8 +97,7 @@ export function WorkView({ locations, onDataChanged }: WorkViewProps) {
     const monthEndDate = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
     const monthEnd = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(monthEndDate).padStart(2, '0')}`;
     setSummary(await getConfirmedWorkMinutes(monthStart, monthEnd));
-    const coworkerPairs = await Promise.all(pdfEvents.map(async (event) => [event.id, await listCoworkersForWorkEvent(event.id)] as const));
-    setCoworkersByEvent(Object.fromEntries(coworkerPairs));
+    setCoworkersByEvent(await listCoworkersForWorkEvents(pdfEvents));
   }
 
   const activeImports = imports.filter((item) => item.lifecycleStatus === 'ACTIVE').sort((a, b) => b.periodStart.localeCompare(a.periodStart));

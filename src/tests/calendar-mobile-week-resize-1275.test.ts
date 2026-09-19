@@ -28,7 +28,7 @@ describe('1.2.0.76 mobile week resize hardening', () => {
   });
 
   it('keeps database schema stable', () => {
-    expect(version).toContain("APP_VERSION = '1.2.0.112'");
+    expect(version).toContain("APP_VERSION = '1.2.0.145'");
     expect(version).toContain('DATABASE_SCHEMA_VERSION = 14');
   });
 });

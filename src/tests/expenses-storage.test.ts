@@ -7,10 +7,12 @@ import {
   deleteExpenseCategory,
   deleteReceipt,
   getReceipt,
+  listChangeJournal,
   listExpenseCategories,
   listReceipts,
   restoreDeletedReceipt,
   updateExpenseCategory,
+  undoChange,
   updateReceipt,
 } from '../storage/database';
 
@@ -37,6 +39,10 @@ describe('1.1.0-dev.1 expense storage', () => {
     expect(renamed.name).toBe('Pupil');
     await deleteExpenseCategory(custom.id);
     expect((await listExpenseCategories()).some((entry) => entry.id === custom.id)).toBe(false);
+    const categoryDeletion = (await listChangeJournal()).find((entry) => entry.operationType === 'DELETE_EXPENSE_CATEGORY' && entry.entityIds.includes(custom.id));
+    expect(categoryDeletion?.reversible).toBe(true);
+    await undoChange(categoryDeletion!.id);
+    expect((await listExpenseCategories()).some((entry) => entry.id === custom.id)).toBe(true);
   });
 
   it('creates, persists, updates and deletes receipts with recalculated totals', async () => {
@@ -65,17 +71,25 @@ describe('1.1.0-dev.1 expense storage', () => {
     await expect(createReceipt({ merchant: 'X', date: '2026-08-15', items: [{ name: 'Błąd', categoryId: category.id, amountMinor: 0 }] })).rejects.toThrow('prawidłową kwotę');
     await deleteReceipt(created.id);
     expect(await listReceipts()).toEqual([]);
+    const deletion = (await listChangeJournal()).find((entry) => entry.operationType === 'DELETE_RECEIPT' && entry.entityIds.includes(created.id));
+    expect(deletion?.reversible).toBe(true);
+    await undoChange(deletion!.id);
+    expect((await getReceipt(created.id))?.merchant).toBe('Lidl');
   });
 
 
-  it('restores the exact deleted receipt for temporary undo and blocks duplicate restore', async () => {
+  it('restores the exact deleted receipt for temporary undo and reconciles durable history', async () => {
     const category = (await listExpenseCategories())[0]!;
     const created = await createReceipt({ merchant: 'Lidl', date: '2026-08-15', items: [{ name: 'Mleko', categoryId: category.id, amountMinor: 449 }] });
     const snapshot = structuredClone(created);
     await deleteReceipt(created.id);
     expect(await getReceipt(created.id)).toBeUndefined();
+    const deletion = (await listChangeJournal()).find((entry) => entry.operationType === 'DELETE_RECEIPT' && entry.entityIds.includes(created.id));
+    expect(deletion?.undoneAt).toBeUndefined();
     await restoreDeletedReceipt(snapshot);
     expect(await getReceipt(created.id)).toEqual(snapshot);
+    const reconciled = (await listChangeJournal()).find((entry) => entry.id === deletion?.id);
+    expect(reconciled?.undoneAt).toBeTruthy();
     await expect(restoreDeletedReceipt(snapshot)).rejects.toThrow('już istnieje');
   });
 

@@ -49,6 +49,40 @@ describe('schedule diff', () => {
     expect(result.items[0]?.changeTypes).toContain('CHANGED_TIME');
   });
 
+  it('rozpoznaje realistyczną zmianę czasu mimo zmiany sourceKey', () => {
+    const result = buildScheduleDiff({
+      oldEntries: [entry({ sourceKey: 'PRAKTYKI|C18|2026-03-21|08:00|10:00|Farmakologia|13A', sourceRange: 'C18' })],
+      oldEvents: [event()],
+      newCandidates: [candidate({ sourceKey: 'PRAKTYKI|C18|2026-03-21|09:00|11:00|Farmakologia|13A', sourceRange: 'C18', startTime: '09:00', endTime: '11:00' })],
+      adapterId: 'nursing-plan-v1',
+    });
+    expect(result.summary).toMatchObject({ added: 0, removed: 0, changed: 1 });
+    expect(result.items[0]?.changeTypes).toContain('CHANGED_TIME');
+  });
+
+  it('rozpoznaje realistyczną zmianę daty mimo zmiany occurrenceKey i sourceKey', () => {
+    const result = buildScheduleDiff({
+      oldEntries: [entry({ sourceKey: 'PRAKTYKI|C18|2026-03-21|08:00|10:00|Farmakologia|13A', sourceRange: 'C18' })],
+      oldEvents: [event()],
+      newCandidates: [candidate({ sourceKey: 'PRAKTYKI|C18|2026-03-23|08:00|10:00|Farmakologia|13A', sourceRange: 'C18', date: '2026-03-23' })],
+      adapterId: 'nursing-plan-v1',
+    });
+    expect(result.summary).toMatchObject({ added: 0, removed: 0, changed: 1 });
+    expect(result.items[0]?.changeTypes).toContain('CHANGED_DATE');
+  });
+
+  it('rozpoznaje zmianę lokalizacji jako zmianę istniejących zajęć', () => {
+    const result = buildScheduleDiff({
+      oldEntries: [entry({ room: '204', address: 'ul. Testowa 1' })],
+      oldEvents: [event()],
+      newCandidates: [candidate({ room: '308', address: 'ul. Nowa 2', locationLabel: 'CSK' })],
+      adapterId: 'nursing-plan-v1',
+    });
+    expect(result.summary).toMatchObject({ added: 0, removed: 0, changed: 1 });
+    expect(result.items[0]?.changeTypes).toContain('CHANGED_LOCATION');
+    expect(result.items[0]?.changes.map((change) => change.field)).toEqual(expect.arrayContaining(['room', 'address', 'locationLabel']));
+  });
+
   it('łączy zmianę sali i czasu w jeden diff', () => {
     const result = buildScheduleDiff({ oldEntries: [entry()], oldEvents: [event()], newCandidates: [candidate({ startTime: '09:00', endTime: '11:00', room: '308' })], adapterId: 'nursing-plan-v1' });
     expect(result.items).toHaveLength(1);
@@ -71,6 +105,47 @@ describe('schedule diff', () => {
     expect(result.summary.added).toBe(0);
     expect(result.summary.removed).toBe(0);
     expect(result.items[0]?.changeTypes).toContain('CHANGED_GROUP');
+  });
+
+  it('rozpoznaje zmianę grupy w tym samym slocie źródłowym nawet gdy realistyczny sourceKey i seriesKey też się zmieniają', () => {
+    const oldEntry = entry({
+      id: 'old-group-slot',
+      eventId: 'event-group-slot',
+      sourceKey: 'PRAKTYKI|C18|2026-03-21|08:00|10:00|Farmakologia|13A',
+      sourceRange: 'C18',
+      groupTags: ['13A'],
+    });
+    const next = candidate({
+      id: 'new-group-slot',
+      sourceKey: 'PRAKTYKI|C18|2026-03-21|08:00|10:00|Farmakologia|13B',
+      sourceRange: 'C18',
+      groupTags: ['13B'],
+    });
+    const result = buildScheduleDiff({
+      oldEntries: [oldEntry],
+      oldEvents: [event({ id: 'event-group-slot', sourceEntryId: 'old-group-slot' })],
+      newCandidates: [next],
+      adapterId: 'nursing-plan-v1',
+    });
+    expect(result.summary).toMatchObject({ added: 0, removed: 0, changed: 1, ambiguous: 0 });
+    expect(result.items).toHaveLength(1);
+    expect(result.items[0]?.changeTypes).toContain('CHANGED_GROUP');
+    expect(result.items[0]?.changes.map((change) => change.field)).toContain('groupTags');
+  });
+
+  it('slot fallback nie scala dwóch kandydatów pasujących do tej samej starej komórki', () => {
+    const oldEntry = entry({ id: 'old-ambiguous-slot', eventId: 'event-ambiguous-slot', sourceKey: 'old-key', sourceRange: 'C18' });
+    const first = candidate({ id: 'new-slot-a', sourceKey: 'new-key-a', sourceRange: 'C18', groupTags: ['13B'] });
+    const second = candidate({ id: 'new-slot-b', sourceKey: 'new-key-b', sourceRange: 'C18', groupTags: ['13C'] });
+    const result = buildScheduleDiff({
+      oldEntries: [oldEntry],
+      oldEvents: [event({ id: 'event-ambiguous-slot', sourceEntryId: 'old-ambiguous-slot' })],
+      newCandidates: [first, second],
+      adapterId: 'nursing-plan-v1',
+    });
+    expect(result.summary.changed).toBe(0);
+    expect(result.summary.removed).toBe(1);
+    expect(result.summary.added).toBe(2);
   });
 
   it('nie gubi wpisu świadomie usuniętego przez użytkownika podczas budowania diffu', () => {

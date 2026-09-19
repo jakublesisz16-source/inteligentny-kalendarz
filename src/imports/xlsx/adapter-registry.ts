@@ -17,6 +17,20 @@ function ratio(part: number, total: number): number {
   return total > 0 ? part / total : 0;
 }
 
+function hasExplicitUnmergedColumnHeaders(analysis: ScheduleAnalysis): boolean {
+  const blocks = analysis.sourceBlocks ?? [];
+  if (!blocks.length) return false;
+  return blocks.every((block) =>
+    Boolean(block.subject)
+    && block.weekdays.length > 0
+    && block.sourceHasFullTimeRange
+    // Przy braku scaleń bezpiecznie akceptujemy tylko kolumny, które mają
+    // własny, bezpośrednio odczytany nagłówek przedmiotu. Wartość `|C<n>`
+    // oznacza brak jawnego nagłówka przedmiotu dla tej kolumny.
+    && /\|R\d+C\d+$/.test(block.sourceSectionKey),
+  );
+}
+
 export function assessScheduleAnalysisIntegrity(analysis: ScheduleAnalysis, workbook?: WorkbookSnapshot): ScheduleAnalysisIntegrity {
   // Stary adapter siatki czasu ma osobne, historycznie zweryfikowane bramki.
   // FIX4 dotyczy szerokiej macierzy tygodniowej, w której częściowo rozpoznany
@@ -36,6 +50,10 @@ export function assessScheduleAnalysisIntegrity(analysis: ScheduleAnalysis, work
   }
   if ((analysis.diagnostics?.suspiciousUnparsedWeekRows?.length ?? 0) > 0) {
     reasons.push(`Wykryto wiersze z przypisaniami grup, ale bez rozpoznanego zakresu tygodnia: ${analysis.diagnostics?.suspiciousUnparsedWeekRows?.join(', ')}.`);
+  }
+  if ((analysis.diagnostics?.unappliedDateExceptionCount ?? 0) > 0) {
+    const samples = analysis.diagnostics?.unappliedDateExceptionSamples?.slice(0, 4).join('; ');
+    reasons.push(`Wykryto ${analysis.diagnostics?.unappliedDateExceptionCount} jawnych wyjątków daty, których nie da się jednoznacznie pogodzić z bazowym rozkładem${samples ? ` (${samples})` : ''}.`);
   }
   if (!specific.length) {
     if ((analysis.diagnostics?.weekRowCount ?? 0) > 0) {
@@ -58,8 +76,8 @@ export function assessScheduleAnalysisIntegrity(analysis: ScheduleAnalysis, work
   const matchedSheet = workbook && analysis.diagnostics?.matchedSheet
     ? workbook.sheets.find((sheet) => sheet.name === analysis.diagnostics?.matchedSheet)
     : undefined;
-  if (matchedSheet && matchedSheet.merges.length === 0) {
-    reasons.push('Macierz grupowa nie zawiera żadnych scaleń, od których zależy interpretacja wspólnych nagłówków kolumn.');
+  if (matchedSheet && matchedSheet.merges.length === 0 && !hasExplicitUnmergedColumnHeaders(analysis)) {
+    reasons.push('Macierz grupowa nie zawiera scaleń ani kompletu jawnych nagłówków w każdej kolumnie przypisań.');
   }
 
   // Progi są celowo szerokie. Nie służą do oceniania jakości planu uczelni,
@@ -77,6 +95,44 @@ export function assessScheduleAnalysisIntegrity(analysis: ScheduleAnalysis, work
   if ((encodedCount >= 8 && ratio(genericCount, parsedGroups.length) > 0.10)
     || (parsedGroups.length >= 4 && genericCount >= 2 && ratio(genericCount, parsedGroups.length) > 0.25)) {
     reasons.push(`Wykryto niespójny model grup - ${genericCount}/${parsedGroups.length} etykiet pozostało bez rozpoznanego poziomu podziału.`);
+  }
+
+  // Tożsamość źródłowa jest podstawą późniejszej aktualizacji planu. Dwa różne wpisy
+  // nie mogą dostać tego samego id/sourceKey, bo diff mógłby połączyć lub nadpisać
+  // niepowiązane zajęcia. To jest bramka strukturalna, niezależna od konkretnego semestru.
+  const duplicateValues = (values: string[]) => {
+    const counts = new Map<string, number>();
+    for (const value of values) counts.set(value, (counts.get(value) ?? 0) + 1);
+    return [...counts.entries()].filter(([, count]) => count > 1).map(([value]) => value);
+  };
+  const duplicateCandidateIds = duplicateValues(analysis.candidates.map((candidate) => candidate.id));
+  const duplicateSourceKeys = duplicateValues(analysis.candidates.map((candidate) => candidate.sourceKey));
+  if (duplicateCandidateIds.length) {
+    reasons.push(`Wykryto ${duplicateCandidateIds.length} zduplikowanych identyfikatorów kandydatów zajęć.`);
+  }
+  if (duplicateSourceKeys.length) {
+    reasons.push(`Wykryto ${duplicateSourceKeys.length} zduplikowanych kluczy źródłowych zajęć.`);
+  }
+
+  // Macierz tygodniowa przechowuje dodatkową warstwę bloków źródłowych. Jeżeli jej
+  // referencje rozjadą się po zmianie układu przyszłego Excela, import ma się zatrzymać
+  // zamiast pozornie działać z niepełnym lub podwójnie przypisanym planem.
+  const sourceBlocks = analysis.sourceBlocks ?? [];
+  if (sourceBlocks.length) {
+    const candidateIds = new Set(analysis.candidates.map((candidate) => candidate.id));
+    const blockReferenceCounts = new Map<string, number>();
+    let unknownReferenceCount = 0;
+    for (const block of sourceBlocks) {
+      for (const candidateId of block.candidateIds) {
+        if (!candidateIds.has(candidateId)) unknownReferenceCount += 1;
+        blockReferenceCounts.set(candidateId, (blockReferenceCounts.get(candidateId) ?? 0) + 1);
+      }
+    }
+    const repeatedReferences = [...blockReferenceCounts.values()].filter((count) => count > 1).length;
+    const orphanSpecific = specific.filter((candidate) => !blockReferenceCounts.has(candidate.id)).length;
+    if (unknownReferenceCount) reasons.push(`Bloki źródłowe zawierają ${unknownReferenceCount} odwołań do nieistniejących kandydatów zajęć.`);
+    if (repeatedReferences) reasons.push(`Wykryto ${repeatedReferences} kandydatów zajęć przypisanych do więcej niż jednego bloku źródłowego.`);
+    if (orphanSpecific) reasons.push(`Wykryto ${orphanSpecific} grupowych kandydatów zajęć bez odpowiadającego bloku źródłowego.`);
   }
 
   if (analysis.completeness && !analysis.completeness.safe) {

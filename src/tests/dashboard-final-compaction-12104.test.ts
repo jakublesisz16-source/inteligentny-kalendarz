@@ -16,7 +16,7 @@ describe('1.2.0.104 dashboard compaction', () => {
     const profile = source('../study/StudyProfileSettings.tsx');
     expect(profile).toContain('study-profile-plan-summary');
     expect(profile).not.toContain('Grupy aktywnego planu');
-    expect(profile).toContain('study-group-dashboard');
+    expect(profile).toContain('StudyGroupChoiceFields');
   });
 
   it('keeps Calendar Study context compact until the user expands group details', () => {

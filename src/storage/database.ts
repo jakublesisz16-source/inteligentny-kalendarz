@@ -28,7 +28,7 @@ import type {
   WorkScheduleEntry,
   WorkScheduleImport,
 } from '../work/work.types';
-import { coworkerOverlaps, workDateTimes, workMinutes } from '../work/work.service';
+import { coworkerOverlaps, pairWorkScheduleUpdates, workDateTimes, workMinutes } from '../work/work.service';
 import { analyzeCalendarConsistency, openPlanningBlockingIssues } from '../planning/consistency';
 import type { CalendarConsistencyIssue, ConsistencyAcknowledgement, DailyRoutineRule, DayAttribute, DayPlanningContext, DayPlanningProfile, WeekPlanningContext } from '../planning/planning.types';
 import type { AvailabilityPlan } from '../availability/availability.types';
@@ -1170,7 +1170,8 @@ export async function updateExpenseCategory(id: string, nameInput: string, paren
 
 export async function deleteExpenseCategory(id: string): Promise<void> {
   const categories = await listExpenseCategories();
-  if (!categories.some((category) => category.id === id)) return;
+  const current = categories.find((category) => category.id === id);
+  if (!current) return;
   if (categories.some((category) => category.parentId === id)) {
     throw new Error('Ta kategoria ma podkategorie. Najpierw przenieś lub usuń podkategorie.');
   }
@@ -1179,9 +1180,17 @@ export async function deleteExpenseCategory(id: string): Promise<void> {
     throw new Error('Ta kategoria jest używana przez zapisane paragony. Najpierw zmień kategorię tych pozycji.');
   }
   const db = await openDatabase();
-  const tx = db.transaction(STORE_EXPENSE_CATEGORIES, 'readwrite');
+  const tx = db.transaction([STORE_EXPENSE_CATEGORIES, STORE_CHANGE_JOURNAL], 'readwrite');
   tx.objectStore(STORE_EXPENSE_CATEGORIES).delete(id);
+  putJournalEntry(tx, buildJournalEntry({
+    operationType: 'DELETE_EXPENSE_CATEGORY',
+    entityType: 'EXPENSE_CATEGORY',
+    entityIds: [current.id],
+    description: `Usunięto kategorię wydatków: ${current.name}`,
+    beforeState: current,
+  }));
   await transactionDone(tx);
+  await pruneChangeJournal();
 }
 
 export async function listExpenseProducts(): Promise<ExpenseProduct[]> {
@@ -1578,19 +1587,34 @@ export async function updateReceipt(id: string, draft: ReceiptDraft): Promise<Re
 }
 
 export async function deleteReceipt(id: string): Promise<void> {
+  const current = await getReceipt(id);
+  if (!current) return;
   const db = await openDatabase();
-  const tx = db.transaction(STORE_RECEIPTS, 'readwrite');
+  const tx = db.transaction([STORE_RECEIPTS, STORE_CHANGE_JOURNAL], 'readwrite');
   tx.objectStore(STORE_RECEIPTS).delete(id);
+  putJournalEntry(tx, buildJournalEntry({
+    operationType: 'DELETE_RECEIPT',
+    entityType: 'RECEIPT',
+    entityIds: [current.id],
+    description: `Usunięto transakcję: ${current.merchant} (${current.date})`,
+    beforeState: current,
+  }));
   await transactionDone(tx);
+  await pruneChangeJournal();
 }
 
 export async function restoreDeletedReceipt(receipt: Receipt): Promise<void> {
   const existing = await getReceipt(receipt.id);
   if (existing) throw new Error('Nie można cofnąć usunięcia, ponieważ paragon o tym ID już istnieje.');
+  const matchingDelete = (await listChangeJournal()).find((entry) =>
+    entry.operationType === 'DELETE_RECEIPT'
+      && !entry.undoneAt
+      && entry.entityIds.includes(receipt.id));
   const db = await openDatabase();
   const tx = db.transaction(STORE_RECEIPTS, 'readwrite');
   tx.objectStore(STORE_RECEIPTS).add(structuredClone(receipt));
   await transactionDone(tx);
+  if (matchingDelete) await markJournalUndone(matchingDelete.id);
 }
 
 
@@ -1665,7 +1689,7 @@ export async function createCyclePeriod(draft: CyclePeriodDraft): Promise<CycleP
   putJournalEntry(tx, buildJournalEntry({
     operationType: 'ADD_CYCLE_PERIOD',
     entityType: 'CYCLE_PERIOD',
-    entityIds: [period.id],
+    entityIds: [period.id, ...(next && nextUpdated && nextUpdated !== next ? [next.id] : [])],
     description: `Dodano początek miesiączki: ${period.startDate}`,
     beforeState: { nextPeriod: next ?? null },
     afterState: { created: period, nextPeriod: nextUpdated ?? null },
@@ -1945,6 +1969,9 @@ export async function updateLocation(id: string, draft: LocationDraft): Promise<
 }
 
 export async function deleteLocation(id: string): Promise<void> {
+  const currentLocation = (await listLocations()).find((location) => location.id === id);
+  if (!currentLocation) throw new Error('Nie znaleziono miejsca.');
+  const safetyPoint = await createRestorePoint(`Przed usunięciem miejsca: ${currentLocation.name}`, 'BEFORE_LOCATION_DELETE', true);
   const db = await openDatabase();
   const tx = db.transaction([
     STORE_LOCATIONS,
@@ -2031,7 +2058,7 @@ export async function deleteLocation(id: string): Promise<void> {
         ...(updatedSettings ? { settings: updatedSettings } : {}),
         affectedWorkProfiles: updatedWorkProfiles,
       },
-      reversible: false,
+      restorePointId: safetyPoint.id,
       metadata: {
         affectedEventCount: affectedEvents.length,
         affectedWorkProfileCount: affectedWorkProfiles.length,
@@ -2045,6 +2072,11 @@ export async function deleteLocation(id: string): Promise<void> {
       tx.abort();
     } catch {
       // Transaction may already be completed or aborted by IndexedDB.
+    }
+    try {
+      await deleteRestorePoint(safetyPoint.id);
+    } catch {
+      // The failed deletion did not alter user data; an extra restore point is safer than masking the original error.
     }
     throw error;
   }
@@ -3416,17 +3448,34 @@ async function pruneAutomaticRestorePoints(): Promise<void> {
   await transactionDone(txRead);
   const automatic = points.filter((point) => point.automatic && !point.pinned).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   if (automatic.length <= AUTOMATIC_RESTORE_POINT_LIMIT) return;
-  const tx = db.transaction(STORE_RESTORE_POINTS, 'readwrite');
-  for (const point of automatic.slice(AUTOMATIC_RESTORE_POINT_LIMIT)) tx.objectStore(STORE_RESTORE_POINTS).delete(point.id);
+  const removedIds = new Set(automatic.slice(AUTOMATIC_RESTORE_POINT_LIMIT).map((point) => point.id));
+  const tx = db.transaction([STORE_RESTORE_POINTS, STORE_CHANGE_JOURNAL], 'readwrite');
+  const journalStore = tx.objectStore(STORE_CHANGE_JOURNAL);
+  const entries = await requestToPromise(journalStore.getAll() as IDBRequest<ChangeJournalEntry[]>);
+  for (const pointId of removedIds) tx.objectStore(STORE_RESTORE_POINTS).delete(pointId);
+  for (const entry of entries) {
+    if (!entry.restorePointId || !removedIds.has(entry.restorePointId) || !entry.reversible || entry.undoneAt) continue;
+    journalStore.put({
+      ...entry,
+      reversible: false,
+      metadata: { ...entry.metadata, undoUnavailableReason: 'RESTORE_POINT_PRUNED' },
+    } satisfies ChangeJournalEntry);
+  }
   await transactionDone(tx);
 }
 
 export async function listChangeJournal(): Promise<ChangeJournalEntry[]> {
   const db = await openDatabase();
-  const tx = db.transaction(STORE_CHANGE_JOURNAL, 'readonly');
-  const result = await requestToPromise(tx.objectStore(STORE_CHANGE_JOURNAL).getAll() as IDBRequest<ChangeJournalEntry[]>);
+  const tx = db.transaction([STORE_CHANGE_JOURNAL, STORE_RESTORE_POINTS], 'readonly');
+  const [result, points] = await Promise.all([
+    requestToPromise(tx.objectStore(STORE_CHANGE_JOURNAL).getAll() as IDBRequest<ChangeJournalEntry[]>),
+    requestToPromise(tx.objectStore(STORE_RESTORE_POINTS).getAll() as IDBRequest<RestorePoint[]>),
+  ]);
   await transactionDone(tx);
-  return result.sort((a, b) => b.timestamp.localeCompare(a.timestamp));
+  const restoreIds = new Set(points.map((point) => point.id));
+  return result.map((entry) => entry.restorePointId && entry.reversible && !entry.undoneAt && !restoreIds.has(entry.restorePointId)
+    ? { ...entry, reversible: false, metadata: { ...entry.metadata, undoUnavailableReason: 'RESTORE_POINT_MISSING' } }
+    : entry).sort((a, b) => b.timestamp.localeCompare(a.timestamp));
 }
 
 export async function getLatestReversibleChange(): Promise<ChangeJournalEntry | undefined> {
@@ -3531,6 +3580,26 @@ export async function undoChange(id: string): Promise<void> {
     const tx = db.transaction(STORE_SHOPPING_ITEMS, 'readwrite');
     const store = tx.objectStore(STORE_SHOPPING_ITEMS);
     for (const item of before) store.put(item);
+    await transactionDone(tx);
+  } else if (entry.operationType === 'DELETE_EXPENSE_CATEGORY') {
+    const before = entry.beforeState as ExpenseCategory | undefined;
+    if (!before) throw new Error('Brak danych usuniętej kategorii wydatków.');
+    const categories = await listExpenseCategories();
+    if (categories.some((category) => category.id !== before.id && expenseCategoryNameKey(category.name) === expenseCategoryNameKey(before.name))) {
+      throw new Error('Nie można cofnąć usunięcia, ponieważ istnieje już kategoria o tej samej nazwie.');
+    }
+    if (before.parentId && !categories.some((category) => category.id === before.parentId)) {
+      throw new Error('Nie można cofnąć usunięcia, ponieważ kategoria nadrzędna już nie istnieje.');
+    }
+    const tx = db.transaction(STORE_EXPENSE_CATEGORIES, 'readwrite');
+    tx.objectStore(STORE_EXPENSE_CATEGORIES).put(before);
+    await transactionDone(tx);
+  } else if (entry.operationType === 'DELETE_RECEIPT') {
+    const before = entry.beforeState as Receipt | undefined;
+    if (!before) throw new Error('Brak danych usuniętej transakcji.');
+    if (await getReceipt(before.id)) throw new Error('Nie można cofnąć usunięcia, ponieważ transakcja o tym ID już istnieje.');
+    const tx = db.transaction(STORE_RECEIPTS, 'readwrite');
+    tx.objectStore(STORE_RECEIPTS).put(before);
     await transactionDone(tx);
   } else if (entry.operationType === 'ADD_CYCLE_JOURNAL_ENTRY') {
     const tx = db.transaction(STORE_CYCLE_JOURNAL_ENTRIES, 'readwrite');
@@ -3782,10 +3851,22 @@ export async function restoreTrashItem(id: string): Promise<void> {
 }
 
 export async function permanentlyDeleteTrashItem(id: string): Promise<void> {
+  const item = (await listTrashItems()).find((entry) => entry.id === id);
+  if (!item) throw new Error('Nie znaleziono elementu w Koszu.');
+  const safety = await createRestorePoint(`Przed trwałym usunięciem z Kosza: ${item.displayName}`, 'BEFORE_PERMANENT_TRASH_DELETE', true);
   const db = await openDatabase();
-  const tx = db.transaction(STORE_TRASH_ITEMS, 'readwrite');
+  const tx = db.transaction([STORE_TRASH_ITEMS, STORE_CHANGE_JOURNAL], 'readwrite');
   tx.objectStore(STORE_TRASH_ITEMS).delete(id);
+  putJournalEntry(tx, buildJournalEntry({
+    operationType: 'PERMANENT_DELETE_TRASH',
+    entityType: item.entityType === 'DAY_CONSTRAINT' ? 'DAY_CONSTRAINT' : item.entityType,
+    entityIds: item.entityIds,
+    description: `Usunięto trwale z Kosza: ${item.displayName}`,
+    restorePointId: safety.id,
+    metadata: { trashItemId: item.id },
+  }));
   await transactionDone(tx);
+  await pruneChangeJournal();
 }
 
 export async function emptyTrash(): Promise<void> {
@@ -3814,7 +3895,7 @@ export async function listRestorePoints(): Promise<RestorePoint[]> {
   return result.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
 
-export async function createRestorePoint(label: string, reason: RestorePointReason = 'MANUAL', automatic = false, pinned = false): Promise<RestorePoint> {
+export async function createRestorePoint(label: string, reason: RestorePointReason = 'MANUAL', automatic = false, pinned = false, pruneAutomatic = true): Promise<RestorePoint> {
   const snapshot = await captureSnapshot(restoreSnapshotStoreNames());
   const serialized = JSON.stringify(snapshot);
   const point: RestorePoint = {
@@ -3834,7 +3915,7 @@ export async function createRestorePoint(label: string, reason: RestorePointReas
   const tx = db.transaction(STORE_RESTORE_POINTS, 'readwrite');
   tx.objectStore(STORE_RESTORE_POINTS).put(point);
   await transactionDone(tx);
-  if (automatic) await pruneAutomaticRestorePoints();
+  if (automatic && pruneAutomatic) await pruneAutomaticRestorePoints();
   return point;
 }
 
@@ -3852,26 +3933,45 @@ async function restoreRestorePointInternal(id: string, createSafetyPoint: boolea
   const point = points.find((item) => item.id === id);
   if (!point) throw new Error('Nie znaleziono punktu przywracania.');
   await validateRestorePoint(point);
+  if (point.schemaVersion !== point.snapshot.databaseSchemaVersion) throw new Error('Punkt przywracania ma niespójny numer schematu i nie może zostać użyty.');
   if (point.snapshot.databaseSchemaVersion > DATABASE_SCHEMA_VERSION) throw new Error('Ten punkt pochodzi z nowszej, nieobsługiwanej wersji bazy.');
+  if (point.snapshot.databaseSchemaVersion < DATABASE_SCHEMA_VERSION) throw new Error('Ten punkt pochodzi ze starszego schematu bazy. Zachowujemy go jako archiwalny, ale nie można go bezpiecznie przywrócić bezpośrednio w tej wersji aplikacji.');
   if (createSafetyPoint) await createRestorePoint(`Przed przywróceniem: ${point.label}`, 'BEFORE_RESTORE_POINT', true);
   await replaceSnapshotVerified(point.snapshot, false);
 }
 
 export async function restoreRestorePoint(id: string): Promise<void> {
-  const before = await createRestorePoint('Przed ręcznym przywróceniem punktu', 'BEFORE_RESTORE_POINT', true);
+  // Nie przycinaj automatycznych punktów przed użyciem celu. Gdy lista ma limit,
+  // dodanie punktu bezpieczeństwa mogłoby usunąć właśnie najstarszy wybrany punkt.
+  const before = await createRestorePoint('Przed ręcznym przywróceniem punktu', 'BEFORE_RESTORE_POINT', true, false, false);
   const notificationsSuspended = await suspendNotificationsForDataReplace();
+  let restored = false;
   try {
     await restoreRestorePointInternal(id, false);
+    restored = true;
     try {
       const db = await openDatabase();
       const tx = db.transaction(STORE_CHANGE_JOURNAL, 'readwrite');
-      putJournalEntry(tx, buildJournalEntry({
+      const store = tx.objectStore(STORE_CHANGE_JOURNAL);
+      const entries = await requestToPromise(store.getAll() as IDBRequest<ChangeJournalEntry[]>);
+      const barrierAt = journalNowIso();
+      for (const entry of entries) {
+        if (!entry.reversible || entry.undoneAt) continue;
+        store.put({
+          ...entry,
+          reversible: false,
+          metadata: { ...entry.metadata, undoUnavailableReason: 'RESTORE_BARRIER', restoreBarrierAt: barrierAt, restoredPointId: id },
+        } satisfies ChangeJournalEntry);
+      }
+      const restoreEntry = buildJournalEntry({
         operationType: 'RESTORE_POINT',
         entityType: 'APPLICATION_DATA',
         entityIds: ['application-data'],
         description: 'Przywrócono punkt przywracania',
         restorePointId: before.id,
-      }));
+        metadata: { restoredPointId: id },
+      });
+      store.put({ ...restoreEntry, timestamp: nextJournalTimestampIso(restoreEntry.timestamp, entries.map((entry) => entry.timestamp)) } satisfies ChangeJournalEntry);
       await transactionDone(tx);
       await pruneChangeJournal();
     } catch {
@@ -3879,13 +3979,27 @@ export async function restoreRestorePoint(id: string): Promise<void> {
     }
   } finally {
     await resumeNotificationsAfterDataReplace(notificationsSuspended);
+    if (restored) await pruneAutomaticRestorePoints();
   }
 }
 
 export async function deleteRestorePoint(id: string): Promise<void> {
+  const point = (await listRestorePoints()).find((item) => item.id === id);
+  if (!point) throw new Error('Nie znaleziono punktu przywracania.');
+  if (point.pinned) throw new Error('Ten punkt jest chroniony przez aplikację i nie może zostać usunięty.');
   const db = await openDatabase();
-  const tx = db.transaction(STORE_RESTORE_POINTS, 'readwrite');
+  const tx = db.transaction([STORE_RESTORE_POINTS, STORE_CHANGE_JOURNAL], 'readwrite');
   tx.objectStore(STORE_RESTORE_POINTS).delete(id);
+  const journalStore = tx.objectStore(STORE_CHANGE_JOURNAL);
+  const entries = await requestToPromise(journalStore.getAll() as IDBRequest<ChangeJournalEntry[]>);
+  for (const entry of entries) {
+    if (entry.restorePointId !== id || !entry.reversible || entry.undoneAt) continue;
+    journalStore.put({
+      ...entry,
+      reversible: false,
+      metadata: { ...entry.metadata, undoUnavailableReason: 'RESTORE_POINT_DELETED' },
+    } satisfies ChangeJournalEntry);
+  }
   await transactionDone(tx);
 }
 
@@ -3917,6 +4031,19 @@ function backupSummary(document: BackupDocument): BackupSummary {
     cyclePeriods: stores[STORE_CYCLE_PERIODS]?.length ?? 0,
     cycleJournalEntries: stores[STORE_CYCLE_JOURNAL_ENTRIES]?.length ?? 0,
   };
+}
+
+export async function getCurrentDataTransferSummary(): Promise<BackupSummary> {
+  const data = await captureSnapshot(backupSnapshotStoreNames());
+  return backupSummary({
+    format: 'inteligentny-kalendarz-backup',
+    backupVersion: 1,
+    appVersion: APP_VERSION,
+    databaseSchemaVersion: DATABASE_SCHEMA_VERSION,
+    createdAt: nowIso(),
+    checksum: '',
+    data,
+  });
 }
 
 export async function createCanonicalDataTransferDocument(): Promise<BackupDocument> {
@@ -4014,6 +4141,22 @@ export async function importDataTransfer(document: BackupDocument): Promise<{ re
   return { restorePoint, summary: inspected.summary };
 }
 
+function validateCurrentBackupSnapshotShape(document: BackupDocument): void {
+  if (document.data.snapshotVersion !== 1) throw new Error('Backup używa nieobsługiwanej wersji snapshotu danych.');
+  if (document.data.databaseSchemaVersion !== document.databaseSchemaVersion) {
+    throw new Error('Backup ma niespójny numer schematu danych.');
+  }
+  if (document.databaseSchemaVersion !== DATABASE_SCHEMA_VERSION) return;
+  const stores = document.data.stores;
+  if (!stores || typeof stores !== 'object' || Array.isArray(stores)) {
+    throw new Error('Backup nie zawiera kompletnego zestawu danych aplikacji.');
+  }
+  const invalidStores = backupSnapshotStoreNames().filter((name) => !Array.isArray(stores[name]));
+  if (invalidStores.length) {
+    throw new Error(`Backup jest niekompletny i nie może zostać bezpiecznie zaimportowany. Brakujące lub uszkodzone sekcje: ${invalidStores.join(', ')}.`);
+  }
+}
+
 export async function inspectBackupText(text: string): Promise<BackupInspection> {
   let document: BackupDocument;
   try {
@@ -4035,6 +4178,7 @@ export async function inspectBackupText(text: string): Promise<BackupInspection>
   };
   const actual = await sha256Text(JSON.stringify(unsigned));
   if (actual !== document.checksum) throw new Error('Nie można przywrócić kopii. Plik jest uszkodzony lub został zmieniony.');
+  validateCurrentBackupSnapshotShape(document);
   if (![DATABASE_SCHEMA_VERSION, 13, 12, 11, 10, 9, 8, 7].includes(document.databaseSchemaVersion)) {
     throw new Error(`Backup używa schematu ${document.databaseSchemaVersion}. Ta wersja obsługuje przywracanie schematu ${DATABASE_SCHEMA_VERSION}, 13, 12, 11, 10, 9, 8 oraz 7.`);
   }
@@ -4708,7 +4852,8 @@ export async function commitWorkScheduleImport(input: WorkImportCommitInput): Pr
 
   const newEntries: WorkScheduleEntry[] = [];
   const coworkerRecords: WorkCoworkerShift[] = profile.storeCoworkerSchedule ? input.coworkerShifts.map((shift) => ({ ...shift, id: createId('coworker-shift'), importId })) : [];
-  const matchedOld = new Set<string>();
+  const pairings = pairWorkScheduleUpdates(oldEntries, input.shifts);
+  const matchedOld = new Set([...pairings.values()].map((entry) => entry.id));
   const eventsToPut: CalendarEvent[] = [];
   const eventIdsToDelete = new Set<string>();
   let createdEvents = 0;
@@ -4716,11 +4861,8 @@ export async function commitWorkScheduleImport(input: WorkImportCommitInput): Pr
   let removedEvents = 0;
   let preservedUserChanges = 0;
 
-  for (const shift of input.shifts) {
-    const exact = oldEntries.find((entry) => !matchedOld.has(entry.id) && entry.workOccurrenceKey === shift.workOccurrenceKey);
-    const sameDate = exact ? undefined : oldEntries.filter((entry) => !matchedOld.has(entry.id) && entry.type === 'SHIFT' && entry.date === shift.date);
-    const old = exact ?? (sameDate?.length === 1 ? sameDate[0] : undefined);
-    if (old) matchedOld.add(old.id);
+  for (const [shiftIndex, shift] of input.shifts.entries()) {
+    const old = pairings.get(shiftIndex);
     const entry: WorkScheduleEntry = {
       id: createId('work-entry'),
       importId,
@@ -4782,6 +4924,10 @@ export async function commitWorkScheduleImport(input: WorkImportCommitInput): Pr
     const event = oldEventById.get(old.eventId);
     if (!event) continue;
     if (event.userModified) {
+      const detached: CalendarEvent = { ...event, updatedAt: timestamp };
+      delete detached.sourceWorkImportId;
+      delete detached.sourceWorkEntryId;
+      eventsToPut.push(detached);
       preservedUserChanges += 1;
       continue;
     }
@@ -4823,12 +4969,17 @@ export async function deleteWorkScheduleImport(id: string): Promise<void> {
   const workImport = await getWorkScheduleImport(id);
   if (!workImport || workImport.lifecycleStatus === 'DELETED') return;
   const safety = await createRestorePoint(`Przed usunięciem grafiku ${workImport.periodStart.slice(0, 7)}`, 'BEFORE_WORK_IMPORT_DELETE', true);
-  const [entries, coworkers] = await Promise.all([listWorkScheduleEntries(id), listWorkCoworkerShifts(id)]);
+  const [entries, coworkers, events] = await Promise.all([listWorkScheduleEntries(id), listWorkCoworkerShifts(id), listEvents()]);
+  const eventById = new Map(events.map((event) => [event.id, event]));
   const db = await openDatabase();
   const tx = db.transaction([STORE_WORK_SCHEDULE_IMPORTS, STORE_WORK_SCHEDULE_ENTRIES, STORE_WORK_COWORKER_SHIFTS, STORE_EVENTS, STORE_CHANGE_JOURNAL], 'readwrite');
   tx.objectStore(STORE_WORK_SCHEDULE_IMPORTS).put({ ...workImport, lifecycleStatus: 'DELETED' } satisfies WorkScheduleImport);
   const eventStore = tx.objectStore(STORE_EVENTS);
-  for (const entry of entries) if (entry.eventId) eventStore.delete(entry.eventId);
+  for (const entry of entries) {
+    if (!entry.eventId) continue;
+    const event = eventById.get(entry.eventId);
+    if (event?.sourceWorkImportId === id) eventStore.delete(entry.eventId);
+  }
   const coworkerStore = tx.objectStore(STORE_WORK_COWORKER_SHIFTS);
   for (const coworker of coworkers) coworkerStore.delete(coworker.id);
   putJournalEntry(tx, buildJournalEntry({
@@ -4842,14 +4993,23 @@ export async function deleteWorkScheduleImport(id: string): Promise<void> {
   await pruneChangeJournal();
 }
 
+export async function listCoworkersForWorkEvents(events: CalendarEvent[]): Promise<Record<string, CoworkerOverlap[]>> {
+  const workEvents = events.filter((event) => event.source === 'WORK_PDF' && event.sourceWorkImportId);
+  const importIds = [...new Set(workEvents.map((event) => event.sourceWorkImportId!))];
+  const coworkerGroups = await Promise.all(importIds.map(async (importId) => [importId, await listWorkCoworkerShifts(importId)] as const));
+  const coworkerByImport = new Map(coworkerGroups);
+  return Object.fromEntries(workEvents.map((event) => {
+    const date = event.startDateTime.slice(0, 10);
+    const startTime = event.startDateTime.slice(11, 16);
+    const endTime = event.endDateTime.slice(11, 16);
+    return [event.id, coworkerOverlaps(date, startTime, endTime, coworkerByImport.get(event.sourceWorkImportId!) ?? [])];
+  }));
+}
+
 export async function listCoworkersForWorkEvent(eventId: string): Promise<CoworkerOverlap[]> {
   const event = await getEvent(eventId);
-  if (!event || event.source !== 'WORK_PDF' || !event.sourceWorkImportId) return [];
-  const date = event.startDateTime.slice(0, 10);
-  const startTime = event.startDateTime.slice(11, 16);
-  const endTime = event.endDateTime.slice(11, 16);
-  const coworkers = await listWorkCoworkerShifts(event.sourceWorkImportId);
-  return coworkerOverlaps(date, startTime, endTime, coworkers);
+  if (!event) return [];
+  return (await listCoworkersForWorkEvents([event]))[event.id] ?? [];
 }
 
 export async function listConfirmedWorkBlocks(startDate: string, endDate: string): Promise<ConfirmedWorkBlock[]> {

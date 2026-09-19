@@ -3,7 +3,7 @@ import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { basename, extname, join, relative, resolve, sep } from 'node:path';
 
 const target = resolve(process.argv[2] ?? '.');
-const forbiddenDirs = new Set(['_PRIVATE_HISTORY', '_LOCAL_ONLY', '.git', 'node_modules', 'dist', 'coverage', '.benchmark-dist']);
+const forbiddenDirs = new Set(['_PRIVATE_HISTORY', '_LOCAL_ONLY', 'project-skills', '.git', 'node_modules', 'dist', 'coverage', '.benchmark-dist']);
 const forbiddenExtensions = new Set(['.xls', '.xlsx', '.pdf', '.ikbackup', '.zip', '.7z', '.rar', '.bak', '.tmp', '.log', '.map', '.pem', '.key', '.p12', '.pfx', '.jks', '.keystore']);
 const privateMediaExtensions = new Set(['.png', '.jpg', '.jpeg', '.webp', '.heic', '.avif', '.gif', '.bmp', '.tif', '.tiff', '.mp4', '.mov', '.m4v', '.webm', '.mp3', '.wav', '.m4a', '.ogg']);
 const allowedPublicImages = new Set([
@@ -11,7 +11,7 @@ const allowedPublicImages = new Set([
   'public/icon-192-v1203.png',
   'public/icon-512-v1203.png',
 ]);
-const forbiddenPrivateDocPatterns = [/^PRIVATE_.*\.md$/u, /^HANDOFF_NEW_CHAT_.*\.md$/u, /^CLEAN_CHECKPOINT_CONTENTS\.md$/u, /^CURRENT_PROJECT_RULES\.md$/u];
+const forbiddenPrivateDocPatterns = [/^PRIVATE(?:_.*)?\.md$/u, /^HANDOFF_NEW_CHAT(?:_.*)?\.md$/u, /^CLEAN_CHECKPOINT_CONTENTS\.md$/u, /^CURRENT_PROJECT_RULES\.md$/u, /^CURRENT_STATE\.json$/u, /^BUILD_INFO\.json$/u, /^CHECKPOINT_MANIFEST\.sha256$/u];
 const textExtensions = new Set(['.ts', '.tsx', '.js', '.mjs', '.cjs', '.json', '.md', '.txt', '.html', '.css', '.svg', '.webmanifest', '.ps1', '.yml', '.yaml']);
 const secretPatterns = [
   ['private key', /-----BEGIN (?:RSA |EC |OPENSSH |DSA )?PRIVATE KEY-----/u],

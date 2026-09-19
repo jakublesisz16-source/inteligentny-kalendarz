@@ -6,16 +6,10 @@ import {
   prepareGroupRecalculation,
   updateStudyProfileGroups,
 } from '../storage/database';
-import { formatStudyGroupList, parseStudyGroupKey, studyGroupPlainLabel, type StudyGroupKind } from '../imports/xlsx/group-normalizer';
+import { canonicalizeStudyGroupSelection, formatStudyGroupList, normalizeStudyGroupSelectionForAvailableGroups } from '../imports/xlsx/group-normalizer';
 import type { GroupRecalculationPreview, StudyProfile, UniversityScheduleImport } from './study.types';
-import { StudyGroupSelector } from './StudyGroupSelector';
-
-const PROFILE_PARTITIONS: Array<{ kind: Exclude<StudyGroupKind, 'GENERIC'>; label: string; helper: string }> = [
-  { kind: 'MAIN', label: 'Grupa główna', helper: 'Twoja grupa bazowa' },
-  { kind: 'G12', label: '12-osobowa', helper: 'Niezależny podział zajęć' },
-  { kind: 'G8', label: '8-osobowa', helper: 'Opcjonalna przy grupie 4-os.' },
-  { kind: 'G4', label: '4-osobowa', helper: 'Najdokładniejsze przypisanie' },
-];
+import { StudyGroupChoiceFields, studyGroupChoiceProgress } from './StudyGroupChoiceFields';
+import { validateStudyGroupSelection } from './study.service';
 
 interface StudyProfileSettingsProps {
   onDataChanged: () => Promise<void>;
@@ -38,35 +32,16 @@ export function StudyProfileSettings({ onDataChanged }: StudyProfileSettingsProp
 
   async function refresh() {
     const [loadedProfile, active] = await Promise.all([getStudyProfile(), getActiveUniversityImport()]);
+    const available = loadedProfile?.availableGroups ?? active?.availableGroups ?? loadedProfile?.selectedGroups ?? active?.selectedGroups ?? [];
     setProfile(loadedProfile ?? null);
     setActiveImport(active ?? null);
-    setGroupsDraft(loadedProfile?.selectedGroups ?? active?.selectedGroups ?? []);
+    setGroupsDraft(normalizeStudyGroupSelectionForAvailableGroups(available, loadedProfile?.selectedGroups ?? active?.selectedGroups ?? []));
   }
 
   function resetFeedback() {
     setRecalculation(null);
     setMessage('');
     setError('');
-  }
-
-  function toggleGroup(group: string) {
-    setGroupsDraft((current) => current.includes(group) ? current.filter((item) => item !== group) : [...current, group]);
-    resetFeedback();
-  }
-
-  function setPartitionGroup(kind: Exclude<StudyGroupKind, 'GENERIC'>, group: string) {
-    setGroupsDraft((current) => {
-      const chosen = group ? parseStudyGroupKey(group) : null;
-      let next = current.filter((item) => parseStudyGroupKey(item).kind !== kind);
-      if (chosen?.number) {
-        next = next.filter((item) => {
-          const parsed = parseStudyGroupKey(item);
-          return parsed.kind === 'GENERIC' || !parsed.number || parsed.number === chosen.number;
-        });
-      }
-      return group ? [...next, group] : next;
-    });
-    resetFeedback();
   }
 
   async function saveFutureGroups() {
@@ -108,17 +83,14 @@ export function StudyProfileSettings({ onDataChanged }: StudyProfileSettingsProp
     finally { setSaving(false); }
   }
 
-  const activeGroups = activeImport?.selectedGroups ?? [];
-  const futureGroups = profile?.selectedGroups ?? activeGroups;
+  const availableGroups = profile?.availableGroups ?? activeImport?.availableGroups ?? profile?.selectedGroups ?? [];
+  const activeGroups = normalizeStudyGroupSelectionForAvailableGroups(availableGroups, canonicalizeStudyGroupSelection(activeImport?.selectedGroups ?? []));
+  const futureGroups = normalizeStudyGroupSelectionForAvailableGroups(availableGroups, canonicalizeStudyGroupSelection(profile?.selectedGroups ?? activeGroups));
   const futureGroupsDiffer = !sameGroups(futureGroups, activeGroups);
   const draftDiffersFromFuture = !sameGroups(groupsDraft, futureGroups);
   const draftDiffersFromActive = !sameGroups(groupsDraft, activeGroups);
-  const availableGroups = profile?.availableGroups ?? activeImport?.availableGroups ?? profile?.selectedGroups ?? [];
-  const parsedAvailableGroups = availableGroups.map((group) => ({ key: group, parsed: parseStudyGroupKey(group) }));
-  const hasStructuredGroups = parsedAvailableGroups.some(({ parsed }) => parsed.encoded && parsed.kind !== 'GENERIC');
-  const parsedDraftGroups = groupsDraft.map(parseStudyGroupKey);
-  const selectedMainNumber = parsedDraftGroups.find((group) => group.kind === 'MAIN' && group.number)?.number ?? parsedDraftGroups.find((group) => group.number)?.number;
-  const genericGroups = parsedAvailableGroups.filter(({ parsed }) => parsed.kind === 'GENERIC').map(({ key }) => key);
+  const draftValidation = validateStudyGroupSelection(availableGroups, groupsDraft);
+  const draftProgress = studyGroupChoiceProgress(availableGroups, groupsDraft);
   if (!profile && !activeImport) return null;
 
   return <section className="study-profile-settings study-profile-settings-always-open" aria-labelledby="study-profile-groups-title">
@@ -142,30 +114,15 @@ export function StudyProfileSettings({ onDataChanged }: StudyProfileSettingsProp
 
       <div className="study-profile-group-picker">
         <div className="settings-groups-heading">
-          <div><strong>Wybór grup</strong><span>Zaznacz grupy, które dotyczą Ciebie.</span></div>
-          <span>{groupsDraft.length} wybranych</span>
+          <div><strong>Wybór grup</strong><span>Używamy tego samego, uproszczonego wyboru co podczas importu planu.</span></div>
+          <span>{draftValidation.valid ? 'Wybór kompletny' : `${draftProgress.completed} z ${draftProgress.required}`}</span>
         </div>
-        {availableGroups.length ? <>
-          {hasStructuredGroups ? <div className="study-group-dashboard" aria-label="Stały wybór grup studiów">
-            {PROFILE_PARTITIONS.map((partition) => {
-              const options = parsedAvailableGroups.filter(({ parsed }) => parsed.kind === partition.kind && (partition.kind === 'MAIN' || !selectedMainNumber || parsed.number === selectedMainNumber));
-              if (!options.length) return null;
-              const current = groupsDraft.find((group) => parseStudyGroupKey(group).kind === partition.kind) ?? '';
-              return <label key={partition.kind} className="study-group-dashboard-card">
-                <span><strong>{partition.label}</strong><small>{partition.helper}</small></span>
-                <select value={current} onChange={(event) => setPartitionGroup(partition.kind, event.target.value)} aria-label={`Wybierz: ${partition.label}`}>
-                  <option value="">Nie wybrano</option>
-                  {options.map(({ key }) => <option key={key} value={key}>{studyGroupPlainLabel(key)}</option>)}
-                </select>
-              </label>;
-            })}
-          </div> : null}
-          {genericGroups.length ? <div className="study-generic-groups"><span>Pozostałe oznaczenia</span><StudyGroupSelector groups={genericGroups} selectedGroups={groupsDraft} onToggle={toggleGroup} compact /></div> : null}
-        </> : <p className="muted-copy">Aktywny plan nie udostępnia osobnych grup do wyboru.</p>}
+        {availableGroups.length ? <StudyGroupChoiceFields availableGroups={availableGroups} selectedGroups={groupsDraft} onChange={(groups) => { setGroupsDraft(groups); resetFeedback(); }} ariaLabel="Stały wybór grup studiów" /> : <p className="muted-copy">Aktywny plan nie udostępnia osobnych grup do wyboru.</p>}
+        {!draftValidation.valid && availableGroups.length ? <div className="inline-validation warning compact"><strong>Uzupełnij wybór</strong><span>{draftValidation.errors.join(' ')}</span></div> : null}
         <div className="settings-study-actions compact-study-actions">
           {draftDiffersFromFuture ? <button type="button" className="button button-secondary" disabled={saving} onClick={() => { setGroupsDraft(futureGroups); setRecalculation(null); setError(''); setMessage(''); }}>Przywróć zapisany wybór</button> : null}
-          <button type="button" className="button button-secondary" disabled={saving || !groupsDraft.length || !draftDiffersFromFuture} onClick={() => void saveFutureGroups()}>Tylko kolejne importy</button>
-          <button type="button" className="button button-primary" disabled={saving || !groupsDraft.length || !draftDiffersFromActive} onClick={() => void previewRecalculation()}>Sprawdź aktualny plan</button>
+          <button type="button" className="button button-secondary" disabled={saving || !draftValidation.valid || !draftDiffersFromFuture} onClick={() => void saveFutureGroups()}>Tylko kolejne importy</button>
+          <button type="button" className="button button-primary" disabled={saving || !draftValidation.valid || !draftDiffersFromActive} onClick={() => void previewRecalculation()}>Sprawdź aktualny plan</button>
         </div>
       </div>
 

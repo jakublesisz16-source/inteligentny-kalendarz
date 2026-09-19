@@ -20,7 +20,7 @@ describe('1.2.0.110 mobile calendar overlay context', () => {
   });
 
   it('does not change the database schema', () => {
-    expect(version).toContain("APP_VERSION = '1.2.0.112'");
+    expect(version).toContain("APP_VERSION = '1.2.0.145'");
     expect(version).toContain('DATABASE_SCHEMA_VERSION = 14');
   });
 });

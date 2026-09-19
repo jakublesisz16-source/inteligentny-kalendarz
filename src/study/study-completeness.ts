@@ -78,7 +78,7 @@ function auditBlock(block: StudySourceBlock, byId: Map<string, StudyScheduleCand
 
 function buildHourAudits(blocks: StudySourceBlock[], candidates: StudyScheduleCandidate[]): StudyHourAudit[] {
   const byId = candidateMap(candidates);
-  const groups = new Map<string, { blocks: StudySourceBlock[]; subject: string; activityType?: string; sectionKey: string; groupTag: string; declared: number }>();
+  const groups = new Map<string, { blocks: StudySourceBlock[]; subject: string; activityType?: string; sectionKey: string; groupTag: string; declared: number; hasExplicitTimeAdjustment: boolean }>();
 
   for (const block of blocks) {
     if (!block.declaredTeachingHours) continue;
@@ -86,14 +86,17 @@ function buildHourAudits(blocks: StudySourceBlock[], candidates: StudyScheduleCa
     for (const groupTag of groupTags) {
       const key = `${block.sourceSectionKey}|${groupTag}|${block.declaredTeachingHours}`;
       const existing = groups.get(key);
-      if (existing) existing.blocks.push(block);
-      else groups.set(key, {
+      if (existing) {
+        existing.blocks.push(block);
+        if (block.sourceTimeAdjustedByExplicitHint) existing.hasExplicitTimeAdjustment = true;
+      } else groups.set(key, {
         blocks: [block],
         subject: block.subject,
         ...(block.activityType ? { activityType: block.activityType } : {}),
         sectionKey: block.sourceSectionKey,
         groupTag,
         declared: block.declaredTeachingHours,
+        hasExplicitTimeAdjustment: Boolean(block.sourceTimeAdjustedByExplicitHint),
       });
     }
   }
@@ -121,7 +124,15 @@ function buildHourAudits(blocks: StudySourceBlock[], candidates: StudyScheduleCa
     }
 
     const expectedMinutes = group.declared * 45;
-    const enforcement: StudyHourAudit['enforcement'] = group.declared >= 20 && (group.activityType === 'Zajęcia praktyczne' || group.activityType === 'Ćwiczenia') ? 'STRICT' : 'ADVISORY';
+    // Jawna korekta czasu w źródle (np. "zajęcia zaczynają się od 7.30") jest
+    // silniejsza niż matematyczne przeliczenie godzin dydaktycznych na minuty
+    // zegarowe. Zachowujemy taki audit informacyjnie, ale nie blokujemy importu
+    // tylko dlatego, że kliniczny rozkład czasu przekracza deklarację 80G.
+    const enforcement: StudyHourAudit['enforcement'] = !group.hasExplicitTimeAdjustment
+      && group.declared >= 20
+      && (group.activityType === 'Zajęcia praktyczne' || group.activityType === 'Ćwiczenia')
+      ? 'STRICT'
+      : 'ADVISORY';
     let status: StudyHourAudit['status'];
     if (confirmedMinutes === expectedMinutes && incompleteSourceCount === 0) status = 'MATCH';
     else if (incompleteSourceCount > 0) status = 'SOURCE_INCOMPLETE';

@@ -31,7 +31,7 @@ describe('1.2.0.23 calendar viewport-first layout', () => {
     expect(components).toContain('padding-top: 10px;');
     expect(components).toContain('.calendar-view-header .calendar-primary-controls');
     expect(responsive).toContain('1.2.0.23 - calendar viewport-first');
-    expect(version).toContain("APP_VERSION = '1.2.0.112'");
+    expect(version).toContain("APP_VERSION = '1.2.0.145'");
     expect(version).toContain('DATABASE_SCHEMA_VERSION = 14');
   });
 });
