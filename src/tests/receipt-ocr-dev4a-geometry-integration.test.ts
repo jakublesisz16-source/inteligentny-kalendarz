@@ -56,6 +56,6 @@ describe('DEV4-A geometry integration contracts', () => {
 
   it('bumps only the shell cache revision for production JS changes', () => {
     expect(serviceWorker).toContain("const CACHE_PREFIX = 'inteligentny-kalendarz-shell-'");
-    expect(serviceWorker).toContain("const CACHE_NAME = `${CACHE_PREFIX}v1.2.0.145`");
+    expect(serviceWorker).toMatch(/const CACHE_NAME = `\$\{CACHE_PREFIX\}v\d+\.\d+\.\d+\.\d+`/u);
   });
 });

@@ -36,7 +36,7 @@ describe('global search removal and clean headers', () => {
 
   it('reclaims header space without a schema change', () => {
     expect(css).toContain('/* 1.2.0.60 - cleaned headers reclaim the space */');
-    expect(version).toContain("APP_VERSION = '1.2.0.145'");
+    expect(version).toMatch(/APP_VERSION\s*=\s*'\d+\.\d+\.\d+\.\d+'/u);
     expect(version).toContain('DATABASE_SCHEMA_VERSION = 14');
   });
 });

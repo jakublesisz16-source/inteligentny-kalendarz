@@ -26,7 +26,8 @@ describe('1.2.0.35 Finance fast category review', () => {
 
   it('uses the canonical product category across old occurrences without rewriting receipt amounts', () => {
     const dashboard = source('../finance/FinanceDashboardView.tsx');
-    expect(dashboard).toContain('productCategoryByKey');
+    expect(dashboard).toContain('buildExpenseProductIndex');
+    expect(dashboard).toContain('resolveExpenseItemClassification');
     expect(dashboard).toContain('categorizedReceipts');
     expect(dashboard).toContain('effectiveCategoryId');
   });

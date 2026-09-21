@@ -81,7 +81,7 @@ describe('DEV4-A-GATE3 runtime-only production geometry selector', () => {
     const selected = decideReceiptGeometryProductionSelection(validInput());
     expect(selected).toMatchObject({
       decision: 'SELECT_RECOVERY',
-      reason: 'selected-recovery',
+      reason: 'selected-value-column-recovery',
       primaryItemCount: 1,
       geometryItemCount: 11,
       completeBefore: 7,

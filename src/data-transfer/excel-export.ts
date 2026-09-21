@@ -1,6 +1,7 @@
 import ExcelJS, { type Worksheet } from 'exceljs';
 import type { BackupDocument } from '../safety/safety.types';
-import type { ExpenseCategory, Receipt } from '../shopping/expenses.types';
+import type { ExpenseCategory, ExpenseProduct, Receipt } from '../shopping/expenses.types';
+import { buildExpenseProductIndex, expenseNecessityLabel, resolveExpenseItemClassification } from '../shopping/expenses.utils';
 
 const EXCEL_CELL_TEXT_LIMIT = 32_767;
 const PLN_FORMAT = '#,##0.00 [$zł-pl-PL]';
@@ -280,6 +281,14 @@ function asReceipts(items: unknown[]): Receipt[] {
   return items.filter(isRecord).filter((item) => typeof item.id === 'string' && Array.isArray(item.items)) as unknown as Receipt[];
 }
 
+function asExpenseProducts(items: unknown[]): ExpenseProduct[] {
+  return items.filter(isRecord).filter((item) =>
+    typeof item.id === 'string'
+    && typeof item.name === 'string'
+    && typeof item.normalizedKey === 'string'
+    && typeof item.categoryId === 'string') as unknown as ExpenseProduct[];
+}
+
 function extraFields(record: RecordLike, known: readonly string[]): RecordLike {
   return Object.fromEntries(Object.entries(record).filter(([key]) => !known.includes(key)));
 }
@@ -287,6 +296,7 @@ function extraFields(record: RecordLike, known: readonly string[]): RecordLike {
 function addReceiptSheets(workbook: ExcelJS.Workbook, receiptSheetName: string, categoriesSheetName: string, stores: Record<string, unknown[]>, usedNames: Set<string>): void {
   const categories = asExpenseCategories(stores.expenseCategories ?? []);
   const categoryById = new Map(categories.map((category) => [category.id, category.name]));
+  const productByKey = buildExpenseProductIndex(asExpenseProducts(stores.expenseProducts ?? []));
   const receipts = [...asReceipts(stores.receipts ?? [])].sort((a, b) => a.date.localeCompare(b.date) || a.id.localeCompare(b.id));
 
   const receiptSheet = workbook.addWorksheet(receiptSheetName);
@@ -306,27 +316,31 @@ function addReceiptSheets(workbook: ExcelJS.Workbook, receiptSheetName: string, 
 
   const itemSheetName = safeExcelSheetName('Pozycje paragonów', usedNames);
   const itemSheet = workbook.addWorksheet(itemSheetName);
-  itemSheet.addRow(['ID paragonu', 'Data', 'Sklep', 'ID pozycji', 'Produkt', 'Kategoria', 'Kwota', 'Ilość', 'Jednostka', 'Cena jednostkowa', 'Dane dodatkowe']);
+  itemSheet.addRow(['ID paragonu', 'Data', 'Sklep', 'ID pozycji', 'Produkt', 'Kategoria', 'Kwota', 'Ilość', 'Jednostka', 'Cena jednostkowa', 'Nazwa ujednolicona', 'Typ', 'Kategoria zapisana', 'Dane dodatkowe']);
   for (const receipt of receipts) {
     for (const item of receipt.items) {
+      const classification = resolveExpenseItemClassification(item, productByKey);
       const row = itemSheet.addRow([
         receipt.id,
         '',
         receipt.merchant,
         item.id,
         item.name,
-        categoryById.get(item.categoryId) ?? item.categoryId,
+        categoryById.get(classification.categoryId) ?? classification.categoryId,
         item.amountMinor / 100,
         item.quantity ?? '',
         item.unit ?? '',
         item.unitPriceMinor === undefined ? '' : item.unitPriceMinor / 100,
+        classification.canonicalName,
+        expenseNecessityLabel(classification.necessity),
+        categoryById.get(item.categoryId) ?? item.categoryId,
         '',
       ]);
       setCellValue(row.getCell(2), 'date', receipt.date);
       row.getCell(7).numFmt = PLN_FORMAT;
       if (item.unitPriceMinor !== undefined) row.getCell(10).numFmt = PLN_FORMAT;
       const extras = extraFields(item as unknown as RecordLike, ['id', 'name', 'categoryId', 'amountMinor', 'quantity', 'unit', 'unitPriceMinor']);
-      if (Object.keys(extras).length) row.getCell(11).value = safeJson(extras, `Pozycja ${item.id} - dane dodatkowe`);
+      if (Object.keys(extras).length) row.getCell(14).value = safeJson(extras, `Pozycja ${item.id} - dane dodatkowe`);
     }
   }
   if (itemSheet.rowCount === 1) itemSheet.addRow(['Brak danych']);

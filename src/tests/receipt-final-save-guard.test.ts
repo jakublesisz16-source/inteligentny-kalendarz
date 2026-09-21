@@ -17,10 +17,20 @@ describe('DEV3-B025 receipt save single-flight and failure safety', () => {
     const saveStart = flow.indexOf('async function saveDraft');
     const saveEnd = flow.indexOf('const progressPercent', saveStart);
     const block = flow.slice(saveStart, saveEnd);
-    expect(block.indexOf('await onSave(draft);')).toBeGreaterThan(-1);
-    expect(block.indexOf("setDiagnosticOcrText('');")).toBeGreaterThan(block.indexOf('await onSave(draft);'));
+    expect(block.indexOf('await onSave(draftWithSource);')).toBeGreaterThan(-1);
+    expect(block.indexOf("setDiagnosticOcrText('');")).toBeGreaterThan(block.indexOf('await onSave(draftWithSource);'));
     expect(block).toContain("setReview(null);");
     expect(block).toContain("URL.revokeObjectURL(imageUrlRef.current)");
     expect(block).toContain('Keep the full review and transient OCR source in memory so the user can retry.');
+  });
+
+  it('hard-stops the same source file before persistence while keeping likely matches confirmable', () => {
+    const flow = source('../shopping/receipt-ocr/ReceiptScanFlow.tsx');
+    const saveStart = flow.indexOf('async function saveDraft');
+    const saveEnd = flow.indexOf('const progressPercent', saveStart);
+    const block = flow.slice(saveStart, saveEnd);
+    expect(block).toContain("duplicate?.confidence === 'exact'");
+    expect(block).toContain('Nie utworzono duplikatu');
+    expect(block).toContain('Czy to na pewno osobny zakup?');
   });
 });

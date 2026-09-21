@@ -5,7 +5,7 @@ const database = readFileSync('src/storage/database.ts', 'utf8');
 const types = readFileSync('src/safety/safety.types.ts', 'utf8');
 const version = readFileSync('src/core/version.ts', 'utf8');
 
-describe('1.2.0.145 destructive data safety', () => {
+describe('1.2.0.146 destructive data safety', () => {
   it('keeps receipt deletion durably reversible and reconciles quick undo with history', () => {
     expect(types).toContain("'DELETE_RECEIPT'");
     expect(types).toContain("'RECEIPT'");
@@ -31,7 +31,7 @@ describe('1.2.0.145 destructive data safety', () => {
   });
 
   it('keeps database schema stable', () => {
-    expect(version).toContain("APP_VERSION = '1.2.0.145'");
+    expect(version).toMatch(/APP_VERSION\s*=\s*'\d+\.\d+\.\d+\.\d+'/u);
     expect(version).toContain('DATABASE_SCHEMA_VERSION = 14');
   });
 });

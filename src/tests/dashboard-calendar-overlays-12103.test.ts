@@ -9,7 +9,7 @@ describe('1.2.0.103 dashboard continuation and calendar overlays', () => {
     const today = source('../calendar/TodayView.tsx');
     expect(today).toContain('today-add-row');
     expect(today).toContain('+ Dodaj wydarzenie');
-    expect(today).toContain('<div className="today-header-actions" />');
+    expect(today).not.toContain('today-header-actions');
   });
 
   it('keeps empty trips to one central create action', () => {

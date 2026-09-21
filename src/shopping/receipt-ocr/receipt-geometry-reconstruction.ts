@@ -761,6 +761,37 @@ function canonicalItemLines(item: GeometryReceiptItemCandidate): string[] {
   return lines;
 }
 
+const RECEIPT_FOOTER_DATE = /\b(?:\d{2}[.\-/]\d{2}[.\-/]\d{4}|\d{4}-\d{2}-\d{2})\b/u;
+
+function normalizedFooterRow(text: string): string {
+  return text
+    .replace(/[Łł]/gu, 'L')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/gu, '')
+    .toLocaleUpperCase('pl-PL')
+    .replace(/\s+/gu, ' ')
+    .trim();
+}
+
+export function trimReceiptTechnicalFooterRows(rows: readonly ReceiptOcrRow[]): ReceiptOcrRow[] {
+  let finalSeen = false;
+  let paymentSeen = false;
+  for (let index = 0; index < rows.length; index += 1) {
+    const row = rows[index]!;
+    const normalized = normalizedFooterRow(row.text);
+    if (/\b(?:DO ZAPLATY|SUMA PLN|RAZEM(?: PLN)?)\b/u.test(normalized)) finalSeen = true;
+    if (/\b(?:KARTA(?: PLATNICZA)?|GOTOWKA|BON|PLATNOSC)\b/u.test(normalized)) paymentSeen = true;
+    if (finalSeen && paymentSeen && RECEIPT_FOOTER_DATE.test(row.text)) {
+      // Anything printed below a confirmed final/payment/date trio is technical
+      // footer material for expense parsing (fiscal signature, barcode, masked
+      // card number, survey text, etc.). Keep raw geometry for diagnostics, but
+      // do not feed that tail back into the parser.
+      return rows.slice(0, index + 1);
+    }
+  }
+  return [...rows];
+}
+
 function buildCanonicalGeometryText(
   rows: readonly ReceiptOcrRow[],
   items: readonly GeometryReceiptItemCandidate[],
@@ -785,8 +816,9 @@ export function reconstructReceiptTextFromGeometry(geometry: ReceiptOcrGeometry)
   const rows = clusterReceiptTokensIntoRows(validation.valid);
   const columns = inferReceiptColumns(rows, geometry.imageWidth);
   const itemResult = reconstructReceiptItemsFromGeometry(rows, columns);
-  const rowMajorText = rows.map((row) => row.text).filter(Boolean).join('\n');
-  const canonical = buildCanonicalGeometryText(rows, itemResult.items, itemResult.itemSectionStartRowIndex, itemResult.itemSectionEndRowIndex);
+  const parserRows = trimReceiptTechnicalFooterRows(rows);
+  const rowMajorText = parserRows.map((row) => row.text).filter(Boolean).join('\n');
+  const canonical = buildCanonicalGeometryText(parserRows, itemResult.items, itemResult.itemSectionStartRowIndex, itemResult.itemSectionEndRowIndex);
   const completeItems = itemResult.items.filter((item) => item.finalAmountMinor !== undefined);
   const grossItemsTotalMinor = itemResult.items.reduce((sum, item) => sum + (item.grossBeforeDiscountMinor ?? 0), 0);
   const discountsTotalMinor = itemResult.items.reduce((sum, item) => sum + (item.discountMinor ?? 0), 0);

@@ -510,8 +510,8 @@ export function StudyView({ onDataChanged }: StudyViewProps) {
       <header className="view-header hero-header study-hero-simple">
         <div>
           <p className="eyebrow">Studia</p>
-          <h1>{activeImport ? 'Zaktualizuj plan studiów' : 'Twój plan studiów'}</h1>
-          <p className="view-subtitle">Wczytaj Excel. Przed zapisem zobaczysz zmiany i wybierzesz tylko potrzebne grupy.</p>
+          <h1>Studia</h1>
+          <p className="view-subtitle">Plan, grupy i aktualizacje.</p>
         </div>
         <div className="view-header-actions">
           {phase !== 'idle' && phase !== 'groups' ? <button type="button" className="button button-secondary" onClick={() => resetFlow()}>Anuluj import</button> : null}
@@ -528,11 +528,9 @@ export function StudyView({ onDataChanged }: StudyViewProps) {
             <h2>{activeImport ? 'Wczytaj nowszy plan' : 'Wczytaj plan zajęć'}</h2>
             <p>{activeImport ? 'Nowy plik najpierw porównamy z obecnym - nic nie zmieni się bez Twojego zatwierdzenia.' : 'Wskaż plik planu. Format Excel zostanie rozpoznany automatycznie, a przed zapisem zobaczysz krótkie podsumowanie.'}</p>
             {activeImport ? (
-              <div className="study-plan-freshness" aria-label="Status aktualnego planu studiów">
-                <span><b>Aktualny plan</b><strong>{activeImport.fileName}</strong></span>
-                <span><b>Zaimportowano</b><strong>{formatImportDate(activeImport.importedAt)}</strong></span>
-                <span><b>Wydarzenia</b><strong>{activeImport.importedEventCount}</strong></span>
-                <span className="study-plan-last-change"><b>Ostatnie porównanie</b><strong>{activePlanUpdate ? formatUpdateSummary(activePlanUpdate.summary) : 'pierwszy import'}</strong>{activePlanUpdate?.appliedAt ? <small>{formatImportDate(activePlanUpdate.appliedAt)}</small> : null}</span>
+              <div className="study-current-plan-line" aria-label="Status aktualnego planu studiów">
+                <div className="study-current-plan-main"><b>Aktualny plan</b><strong>{activeImport.fileName}</strong><small>{activeImport.importedEventCount} wydarzeń · {formatImportDate(activeImport.importedAt)}</small></div>
+                {activePlanUpdate ? <span className="study-current-plan-change" title={activePlanUpdate.appliedAt ? formatImportDate(activePlanUpdate.appliedAt) : undefined}>{formatUpdateSummary(activePlanUpdate.summary)}</span> : null}
               </div>
             ) : null}
             <span className="upload-hint">XLSX lub XLS - na komputerze możesz też przeciągnąć plik tutaj.</span>
@@ -623,18 +621,18 @@ export function StudyView({ onDataChanged }: StudyViewProps) {
 
       {phase === 'diff' && updatePreview ? <ScheduleDiffView preview={updatePreview} saving={saving} onChange={setUpdatePreview} onApply={() => void applyUpdate()} onCancel={() => void cancelUpdate()} /> : null}
 
-      {phase === 'idle' && (activeImport || profileGroups.length) ? <section className="panel study-secondary-tools study-static-section"><div className="study-static-section-heading"><span><strong>Grupy i podgląd</strong><small>Zmień swoje grupy albo sprawdź plan innej grupy.</small></span></div><div className="study-secondary-tools-body"><StudyProfileSettings onDataChanged={async () => { await Promise.all([refreshStudyData(), onDataChanged()]); }} />{activeImport ? <StudyGroupPreviewPanel activeImport={activeImport} primaryGroups={profileGroups} /> : null}</div></section> : null}
+      {phase === 'idle' && (activeImport || profileGroups.length) ? <section className="study-groups-primary" aria-label="Wybór grup studiów"><StudyProfileSettings onDataChanged={async () => { await Promise.all([refreshStudyData(), onDataChanged()]); }} />{activeImport ? <StudyGroupPreviewPanel activeImport={activeImport} primaryGroups={profileGroups} /> : null}</section> : null}
 
       {phase === 'idle' && imports.length ? (
-        <section className="panel imports-section study-history-details study-static-section">
-          <div className="study-static-section-heading"><span><strong>Historia planów</strong><small>{imports.length} {imports.length === 1 ? 'zapisany plan' : 'zapisane plany'}</small></span></div>
-          <div className="import-history-grid">
+        <details className="imports-section study-history-details study-compact-details">
+          <summary><span><strong>Historia planów</strong><small>{imports.length} {imports.length === 1 ? 'zapisany plan' : 'zapisane plany'}</small></span><span className="study-details-action">Pokaż</span></summary>
+          <div className="import-history-grid study-history-compact-grid">
             {imports.map((item) => {
               const active = item.id === activeImport?.id || item.lifecycleStatus === 'ACTIVE';
-              return <article key={item.id} className={`panel import-history-card${active ? ' active-import' : ''}`}><div><strong>{item.fileName}</strong><span>{formatImportDate(item.importedAt)}</span>{active ? <span className="active-plan-pill">AKTYWNY PLAN</span> : <span className="history-plan-pill">HISTORYCZNY</span>}</div><dl><div className="import-history-groups"><dt>Grupy aktywnego planu</dt><dd>{item.selectedGroups.length ? <span className="import-history-group-list">{item.selectedGroups.map((group) => <i key={group} title={studyGroupDisplayLabel(group)}>{studyGroupCompactLabel(group)}</i>)}</span> : 'Wspólne / bez grup'}</dd></div><div><dt>Wydarzenia</dt><dd>{item.importedEventCount}</dd></div><div><dt>Fingerprint</dt><dd>{item.fileHash.slice(0, 10)}...</dd></div></dl><button type="button" className="text-button danger-text" onClick={() => void removeImport(item)}>{active ? 'Usuń aktywny plan' : 'Usuń zapis historyczny'}</button></article>;
+              return <article key={item.id} className={`import-history-card${active ? ' active-import' : ''}`}><div><strong>{item.fileName}</strong><span>{formatImportDate(item.importedAt)}</span>{active ? <span className="active-plan-pill">AKTYWNY PLAN</span> : <span className="history-plan-pill">HISTORYCZNY</span>}</div><dl><div className="import-history-groups"><dt>Grupy</dt><dd>{item.selectedGroups.length ? <span className="import-history-group-list">{item.selectedGroups.map((group) => <i key={group} title={studyGroupDisplayLabel(group)}>{studyGroupCompactLabel(group)}</i>)}</span> : 'Wspólne / bez grup'}</dd></div><div><dt>Wydarzenia</dt><dd>{item.importedEventCount}</dd></div></dl><button type="button" className="text-button danger-text" onClick={() => void removeImport(item)}>{active ? 'Usuń aktywny plan' : 'Usuń zapis historyczny'}</button></article>;
             })}
           </div>
-        </section>
+        </details>
       ) : null}
     </section>
   );

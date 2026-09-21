@@ -2,9 +2,11 @@ import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
 import type { ExpenseCategory, FinanceCurrencyCode, ReceiptDraft } from '../expenses.types';
 import { expenseCategoryPath, formatCurrencyAmountMinor, formatMoneyMinor } from '../expenses.utils';
 import type { ReceiptOcrDiagnostics, ReceiptOcrQuality, ReceiptReviewDraft, ReceiptReviewItem } from './receipt-ocr.types';
+import { stringifyReceiptJsonFeedbackSnapshot, type ReceiptJsonFeedbackContext } from './receipt-json-feedback';
 import {
   isSignificantReceiptMismatch,
   receiptReviewDifferenceMinor,
+  receiptReviewItemNeedsReview,
   receiptReviewItemsTotalMinor,
   receiptReviewSavingsMinor,
   receiptReviewToDraft,
@@ -31,6 +33,7 @@ function reviewQuantitySummary(item: ReceiptReviewItem, currency: FinanceCurrenc
   return `${quantity}${unit ? ` ${unit}` : ''} × ${reviewAmountText(unitPrice, currency)}`;
 }
 
+
 interface ReceiptScanReviewProps {
   review: ReceiptReviewDraft;
   categories: ExpenseCategory[];
@@ -41,12 +44,14 @@ interface ReceiptScanReviewProps {
   diagnosticOcrText: string;
   diagnosticOcrMeta: ReceiptOcrDiagnostics | null;
   diagnosticOcrQuality: ReceiptOcrQuality | null;
+  jsonFeedbackContext: ReceiptJsonFeedbackContext | null;
   onChange: (review: ReceiptReviewDraft) => void;
   onRotate: (direction: 'left' | 'right') => void;
   onRerun: () => void;
   onCancel: () => void;
   onSave: (draft: ReceiptDraft) => Promise<void>;
   displayCurrency?: FinanceCurrencyCode;
+  sourceKind?: 'ocr' | 'structured-json';
 }
 
 function confidenceLabel(confidence: ReceiptReviewDraft['merchantConfidence']): string {
@@ -71,20 +76,24 @@ export function ReceiptScanReview({
   diagnosticOcrText,
   diagnosticOcrMeta,
   diagnosticOcrQuality,
+  jsonFeedbackContext,
   onChange,
   onRotate,
   onRerun,
   onCancel,
   onSave,
   displayCurrency = 'PLN',
+  sourceKind = 'ocr',
 }: ReceiptScanReviewProps) {
   const [mobilePane, setMobilePane] = useState<'data' | 'image'>('data');
   const [localError, setLocalError] = useState('');
   const [confirmMismatch, setConfirmMismatch] = useState(false);
   const [diagnosticCopyStatus, setDiagnosticCopyStatus] = useState('');
   const [showDiagnosticFallback, setShowDiagnosticFallback] = useState(false);
+  const [itemFilter, setItemFilter] = useState<'all' | 'review'>(() => review.items.some(receiptReviewItemNeedsReview) ? 'review' : 'all');
+  const [diagnosticOpen, setDiagnosticOpen] = useState(false);
   const [expandedItemIds, setExpandedItemIds] = useState<Set<string>>(() => new Set(
-    review.items.filter((item) => item.confidence !== 'high' || item.warnings.length > 0).map((item) => item.localId),
+    review.items.filter(receiptReviewItemNeedsReview).map((item) => item.localId),
   ));
   const titleRef = useRef<HTMLHeadingElement>(null);
   const finalItemsTotalMinor = useMemo(() => receiptReviewItemsTotalMinor(review), [review]);
@@ -93,6 +102,17 @@ export function ReceiptScanReview({
   const mismatch = differenceMinor !== undefined && Math.abs(differenceMinor) > 1;
   const validCategoryIds = useMemo(() => new Set(categories.map((category) => category.id)), [categories]);
   const saveValidation = useMemo(() => validateReceiptReviewForSave(review, validCategoryIds), [review, validCategoryIds]);
+  const jsonFeedbackText = useMemo(() => (sourceKind === 'structured-json' && jsonFeedbackContext
+    ? stringifyReceiptJsonFeedbackSnapshot(jsonFeedbackContext, review, validCategoryIds)
+    : ''), [jsonFeedbackContext, review, sourceKind, validCategoryIds]);
+  const flaggedItemsCount = useMemo(() => review.items.filter(receiptReviewItemNeedsReview).length, [review]);
+  const fieldsToReviewCount = flaggedItemsCount + (review.merchantConfidence === 'high' ? 0 : 1) + (review.dateConfidence === 'high' ? 0 : 1);
+  const visibleItems = useMemo(
+    () => review.items
+      .map((item, index) => ({ item, index }))
+      .filter(({ item }) => itemFilter === 'all' || receiptReviewItemNeedsReview(item)),
+    [itemFilter, review.items],
+  );
   const expansionKey = review.items
     .map((item) => `${item.localId}:${item.confidence}:${item.warnings.length}`)
     .join('|');
@@ -103,17 +123,39 @@ export function ReceiptScanReview({
     setExpandedItemIds((current) => {
       const next = new Set([...current].filter((id) => currentIds.has(id)));
       for (const item of review.items) {
-        if (item.confidence !== 'high' || item.warnings.length > 0) next.add(item.localId);
+        if (receiptReviewItemNeedsReview(item)) next.add(item.localId);
       }
       return next;
     });
   }, [expansionKey]);
+
+  useEffect(() => {
+    if (!flaggedItemsCount && itemFilter === 'review') setItemFilter('all');
+  }, [flaggedItemsCount, itemFilter]);
 
   function setItemExpanded(localId: string, expanded: boolean) {
     setExpandedItemIds((current) => {
       const next = new Set(current);
       if (expanded) next.add(localId);
       else next.delete(localId);
+      return next;
+    });
+  }
+
+  function expandVisibleItems() {
+    setExpandedItemIds((current) => {
+      const next = new Set(current);
+      for (const { item } of visibleItems) next.add(item.localId);
+      return next;
+    });
+  }
+
+  function collapseReviewedItems() {
+    setExpandedItemIds((current) => {
+      const next = new Set(current);
+      for (const { item } of visibleItems) {
+        if (!receiptReviewItemNeedsReview(item)) next.delete(item.localId);
+      }
       return next;
     });
   }
@@ -126,6 +168,11 @@ export function ReceiptScanReview({
 
   function patchItem(index: number, patchValue: Partial<ReceiptReviewItem>) {
     patch({ items: review.items.map((item, itemIndex) => itemIndex === index ? { ...item, ...patchValue } : item) });
+  }
+
+  function markItemReviewed(index: number, localId: string) {
+    patchItem(index, { confidence: 'high', warnings: [] });
+    setItemExpanded(localId, false);
   }
 
   function patchItemUnit(index: number, value: string) {
@@ -174,9 +221,9 @@ export function ReceiptScanReview({
     patch({ items: review.items.filter((_, itemIndex) => itemIndex !== index) });
   }
 
-  function fallbackCopyDiagnosticText(): boolean {
+  function fallbackCopyText(value: string): boolean {
     const textarea = document.createElement('textarea');
-    textarea.value = diagnosticOcrText;
+    textarea.value = value;
     textarea.setAttribute('readonly', '');
     textarea.style.position = 'fixed';
     textarea.style.opacity = '0';
@@ -202,18 +249,60 @@ export function ReceiptScanReview({
     try {
       if (navigator.clipboard?.writeText) {
         await navigator.clipboard.writeText(diagnosticOcrText);
-      } else if (!fallbackCopyDiagnosticText()) {
+      } else if (!fallbackCopyText(diagnosticOcrText)) {
         throw new Error('Clipboard unavailable');
       }
       setDiagnosticCopyStatus('Skopiowano tekst OCR.');
     } catch {
-      if (fallbackCopyDiagnosticText()) {
+      if (fallbackCopyText(diagnosticOcrText)) {
         setDiagnosticCopyStatus('Skopiowano tekst OCR.');
         return;
       }
       setShowDiagnosticFallback(true);
       setDiagnosticCopyStatus('Nie udało się skopiować automatycznie. Zaznacz tekst poniżej ręcznie.');
     }
+  }
+
+  async function copyStructuredJsonFeedback() {
+    setDiagnosticCopyStatus('');
+    setShowDiagnosticFallback(false);
+    if (!jsonFeedbackText) {
+      setDiagnosticCopyStatus('Brak diagnostyki JSON do skopiowania.');
+      return;
+    }
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(jsonFeedbackText);
+      } else if (!fallbackCopyText(jsonFeedbackText)) {
+        throw new Error('Clipboard unavailable');
+      }
+      setDiagnosticCopyStatus('Skopiowano bezpieczną diagnostykę JSON.');
+    } catch {
+      if (fallbackCopyText(jsonFeedbackText)) {
+        setDiagnosticCopyStatus('Skopiowano bezpieczną diagnostykę JSON.');
+        return;
+      }
+      setShowDiagnosticFallback(true);
+      setDiagnosticCopyStatus('Nie udało się skopiować automatycznie. Zaznacz diagnostykę poniżej ręcznie.');
+    }
+  }
+
+  function downloadStructuredJsonFeedback() {
+    if (!jsonFeedbackText || !jsonFeedbackContext) {
+      setDiagnosticCopyStatus('Brak diagnostyki JSON do pobrania.');
+      return;
+    }
+    const baseName = jsonFeedbackContext.sourceFileName.replace(/\.json$/iu, '').replace(/[^a-z0-9._-]+/giu, '-');
+    const blob = new Blob([jsonFeedbackText], { type: 'application/json;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = `${baseName || 'paragon'}-diagnostyka.json`;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    URL.revokeObjectURL(url);
+    setDiagnosticCopyStatus('Pobrano bezpieczną diagnostykę JSON - możesz wysłać ten plik do analizy.');
   }
 
   async function copyPrivateGeometrySnapshot() {
@@ -240,7 +329,9 @@ export function ReceiptScanReview({
       return;
     }
     try {
-      const draft = receiptReviewToDraft(review);
+      const depositCategoryId = categories.find((category) => category.id === 'expense-category-deposit')?.id
+        ?? categories.find((category) => category.name.trim().toLocaleLowerCase('pl-PL') === 'kaucja / opakowania zwrotne')?.id;
+      const draft = receiptReviewToDraft(review, depositCategoryId ? { depositCategoryId } : {});
       if (isSignificantReceiptMismatch(review) && !confirmMismatch) {
         setConfirmMismatch(true);
         return;
@@ -257,17 +348,17 @@ export function ReceiptScanReview({
     <div className="receipt-scan-review" role="document">
       <div className="receipt-scan-review-heading">
         <div>
-          <p className="section-kicker">Lokalny OCR</p>
+          <p className="section-kicker">{sourceKind === 'structured-json' ? 'Dane strukturalne JSON' : 'Lokalny OCR'}</p>
           <h2 ref={titleRef} tabIndex={-1}>Sprawdź paragon</h2>
         </div>
-        <div className="receipt-scan-mobile-tabs" role="tablist" aria-label="Widok paragonu">
+        {imageUrl ? <div className="receipt-scan-mobile-tabs" role="tablist" aria-label="Widok paragonu">
           <button type="button" role="tab" aria-selected={mobilePane === 'data'} className={mobilePane === 'data' ? 'is-active' : ''} onClick={() => setMobilePane('data')}>Dane</button>
           <button type="button" role="tab" aria-selected={mobilePane === 'image'} className={mobilePane === 'image' ? 'is-active' : ''} onClick={() => setMobilePane('image')}>Zdjęcie</button>
-        </div>
+        </div> : null}
       </div>
 
-      <div className="receipt-scan-review-grid">
-        <aside className={`receipt-scan-image-pane${mobilePane === 'image' ? ' is-mobile-active' : ''}`} aria-label="Zdjęcie paragonu">
+      <div className={`receipt-scan-review-grid${imageUrl ? '' : ' no-image'}`}>
+        {imageUrl ? <aside className={`receipt-scan-image-pane${mobilePane === 'image' ? ' is-mobile-active' : ''}`} aria-label="Zdjęcie paragonu">
           <div className="receipt-scan-image-frame">
             <img src={imageUrl} alt="Zdjęcie paragonu do porównania z rozpoznanymi danymi" style={{ transform: `rotate(${rotation}deg)` }} />
           </div>
@@ -276,16 +367,36 @@ export function ReceiptScanReview({
             <button type="button" className="button button-secondary button-small" onClick={() => onRotate('right')}>Obróć w prawo</button>
             <button type="button" className="text-button" onClick={onRerun}>Rozpoznaj ponownie</button>
           </div>
-        </aside>
+        </aside> : null}
 
-        <section className={`receipt-scan-data-pane${mobilePane === 'data' ? ' is-mobile-active' : ''}`} aria-label="Rozpoznane dane paragonu">
+        <section className={`receipt-scan-data-pane${!imageUrl || mobilePane === 'data' ? ' is-mobile-active' : ''}`} aria-label="Rozpoznane dane paragonu">
           {(error || localError) ? <div className="study-message error-message receipt-scan-message" role="alert">{error || localError}</div> : null}
           {!review.items.length ? (
             <div className="receipt-scan-empty" role="status">
               <strong>Nie udało się automatycznie rozpoznać pozycji.</strong>
-              <span>Dodaj je ręcznie na podstawie zdjęcia.</span>
+              <span>{sourceKind === 'structured-json' ? 'Sprawdź plik JSON albo dodaj pozycje ręcznie.' : 'Dodaj je ręcznie na podstawie zdjęcia.'}</span>
             </div>
           ) : null}
+
+          <div className={`receipt-review-priority${fieldsToReviewCount ? ' needs-review' : ''}`} aria-label="Szybkie podsumowanie korekty">
+            <div className="receipt-review-priority-copy">
+              <strong>{fieldsToReviewCount ? `Sprawdź jeszcze ${fieldsToReviewCount} element${fieldsToReviewCount === 1 ? '' : 'ów'}.` : 'Paragon wygląda spójnie.'}</strong>
+              <span>
+                {differenceMinor === undefined
+                  ? sourceKind === 'structured-json' ? 'Sprawdź sumę w źródłowym e-paragonie przed zapisem.' : 'Sprawdź sumę bezpośrednio na zdjęciu przed zapisem.'
+                  : Math.abs(differenceMinor) <= 1
+                    ? 'Kwoty są zgodne. Możesz zatwierdzić paragon lub poprawić szczegóły.'
+                    : `Najpierw popraw różnicę ${reviewAmountMinor(Math.abs(differenceMinor), displayCurrency)}.`}
+              </span>
+            </div>
+            <div className="receipt-review-priority-chips" aria-label="Priorytety korekty">
+              <span className={`receipt-review-chip${fieldsToReviewCount ? ' is-warning' : ''}`}>Do sprawdzenia {fieldsToReviewCount}</span>
+              <span className="receipt-review-chip">Pozycje {review.items.length}</span>
+              <span className={`receipt-review-chip${differenceMinor !== undefined && Math.abs(differenceMinor) > 1 ? ' is-warning' : ''}`}>
+                {differenceMinor === undefined ? 'Brak sumy' : Math.abs(differenceMinor) <= 1 ? 'Kwoty zgodne' : `Różnica ${reviewAmountMinor(Math.abs(differenceMinor), displayCurrency)}`}
+              </span>
+            </div>
+          </div>
 
           <div className="receipt-review-main-fields">
             <label className={`field receipt-review-field${review.merchantConfidence === 'high' ? '' : ' needs-review'}`}>
@@ -298,32 +409,56 @@ export function ReceiptScanReview({
             </label>
           </div>
 
-          <div className="receipt-review-items-heading">
-            <strong>Pozycje <span>{review.items.length}</span></strong>
-            <button type="button" className="button button-secondary button-small" onClick={addItem}>+ Dodaj</button>
+          <div className="receipt-review-items-toolbar">
+            <div className="receipt-review-items-heading">
+              <strong>Pozycje <span>{review.items.length}</span></strong>
+              <button type="button" className="button button-secondary button-small" onClick={addItem}>+ Dodaj</button>
+            </div>
+            <div className="receipt-review-item-filters" role="tablist" aria-label="Filtr pozycji paragonu">
+              <button type="button" role="tab" aria-selected={itemFilter === 'review'} className={itemFilter === 'review' ? 'is-active' : ''} onClick={() => setItemFilter('review')} disabled={!flaggedItemsCount}>Do sprawdzenia {flaggedItemsCount}</button>
+              <button type="button" role="tab" aria-selected={itemFilter === 'all'} className={itemFilter === 'all' ? 'is-active' : ''} onClick={() => setItemFilter('all')}>Wszystkie {review.items.length}</button>
+            </div>
+            <div className="receipt-review-item-tools">
+              <button type="button" className="text-button" onClick={expandVisibleItems}>Rozwiń wszystkie</button>
+              <button type="button" className="text-button" onClick={collapseReviewedItems}>Zwiń poprawne</button>
+            </div>
           </div>
 
+          {itemFilter === 'review' && !visibleItems.length ? (
+            <div className="receipt-scan-empty receipt-scan-empty-compact" role="status">
+              <strong>Nie ma już pozycji do sprawdzenia.</strong>
+              <span>Możesz zapisać paragon albo przełączyć listę na wszystkie pozycje.</span>
+            </div>
+          ) : null}
+
           <div className="receipt-review-items">
-            {review.items.map((item, index) => {
+            {visibleItems.map(({ item, index }) => {
               const expanded = expandedItemIds.has(item.localId);
               if (!expanded) {
                 return (
-                  <article className="receipt-review-item receipt-review-item-compact" key={item.localId}>
+                  <article className={`receipt-review-item receipt-review-item-compact${receiptReviewItemNeedsReview(item) ? ' needs-review' : ''}`} key={item.localId}>
                     <span className="receipt-review-item-number">#{index + 1}</span>
                     <button type="button" className="receipt-review-item-compact-main" onClick={() => setItemExpanded(item.localId, true)}>
-                      <span><strong>{item.name || 'Bez nazwy'}</strong><small>{expenseCategoryPath(categories, item.categoryId)}</small></span>
+                      <span>
+                        <strong>{item.name || 'Bez nazwy'}</strong>
+                        <small>{expenseCategoryPath(categories, item.categoryId)}</small>
+                      </span>
                       {(item.quantityText !== undefined || item.unitPriceText !== undefined) ? <small>{reviewQuantitySummary(item, displayCurrency)}</small> : null}
                     </button>
                     <strong className="receipt-review-item-compact-amount">{item.amountText ? reviewAmountText(item.amountText, displayCurrency) : 'Brak kwoty'}</strong>
-                    <button type="button" className="text-button" onClick={() => setItemExpanded(item.localId, true)}>Edytuj</button>
+                    <div className="receipt-review-item-compact-actions">
+                      {receiptReviewItemNeedsReview(item) ? <small className="receipt-review-item-compact-flag">Sprawdź{item.warnings.length ? ` (${item.warnings.length})` : ''}</small> : null}
+                      <button type="button" className="text-button" onClick={() => setItemExpanded(item.localId, true)}>Edytuj</button>
+                    </div>
                   </article>
                 );
               }
               return (
-                <article className={`receipt-review-item${item.confidence === 'high' ? '' : ' needs-review'}`} key={item.localId}>
+                <article className={`receipt-review-item${receiptReviewItemNeedsReview(item) ? ' needs-review' : ''}`} key={item.localId}>
                   <div className="receipt-review-item-topline">
                     <span>#{index + 1}</span>
-                    {item.confidence !== 'high' ? <small>{confidenceLabel(item.confidence)}</small> : null}
+                    {receiptReviewItemNeedsReview(item) ? <small>{item.confidence !== 'high' ? confidenceLabel(item.confidence) : 'Sprawdź'}</small> : null}
+                    {receiptReviewItemNeedsReview(item) ? <button type="button" className="text-button receipt-review-mark-done" onClick={() => markItemReviewed(index, item.localId)}>Sprawdzone</button> : null}
                     <button type="button" className="text-button" onClick={() => setItemExpanded(item.localId, false)}>Zwiń</button>
                     <button type="button" className="text-button danger-text" onClick={() => removeItem(index)}>Usuń</button>
                   </div>
@@ -399,16 +534,37 @@ export function ReceiptScanReview({
           ) : null}
 
           {import.meta.env.DEV ? (
-            <div className="receipt-ocr-diagnostic" aria-label="Diagnostyka OCR FIX1J">
-              <div>
-                <strong>Diagnostyka FIX1J</strong>
-                <span>Tekst OCR jest tylko w pamięci tej sesji i nie jest zapisywany. Dane preprocessingu i jakości również są tylko w pamięci tej sesji i nie są zapisywane.</span>
-              </div>
+            <details className="receipt-ocr-diagnostic" aria-label={sourceKind === 'structured-json' ? 'Diagnostyka importu JSON' : 'Diagnostyka OCR FIX1J'} open={diagnosticOpen} onToggle={(event) => setDiagnosticOpen((event.currentTarget as HTMLDetailsElement).open)}>
+              <summary>
+                <strong>{sourceKind === 'structured-json' ? 'Diagnostyka JSON' : 'Diagnostyka FIX1J'}</strong>
+                <span>{sourceKind === 'structured-json'
+                  ? 'Raport zawiera wynik importu i kontroli finansowej bez surowego JSON-u, danych karty i identyfikatorów płatności.'
+                  : 'Tekst OCR i dane preprocessingu pozostają tylko w pamięci tej sesji.'}</span>
+              </summary>
               <div className="receipt-ocr-diagnostic-actions">
-                <button type="button" className="button button-secondary button-small" onClick={() => void copyDiagnosticOcrText()} disabled={!diagnosticOcrText}>Kopiuj tekst OCR</button>
-                {diagnosticOcrMeta?.geometryAvailable ? <button type="button" className="button button-secondary button-small" onClick={() => void copyPrivateGeometrySnapshot()}>Kopiuj geom. JSON</button> : null}
+                {sourceKind === 'structured-json' ? <>
+                  <button type="button" className="button button-secondary button-small" onClick={() => void copyStructuredJsonFeedback()} disabled={!jsonFeedbackText}>Kopiuj diagnostykę JSON</button>
+                  <button type="button" className="button button-secondary button-small" onClick={downloadStructuredJsonFeedback} disabled={!jsonFeedbackText}>Pobierz raport JSON</button>
+                </> : <>
+                  <button type="button" className="button button-secondary button-small" onClick={() => void copyDiagnosticOcrText()} disabled={!diagnosticOcrText}>Kopiuj tekst OCR</button>
+                  {diagnosticOcrMeta?.geometryAvailable ? <button type="button" className="button button-secondary button-small" onClick={() => void copyPrivateGeometrySnapshot()}>Kopiuj geom. JSON</button> : null}
+                </>}
               </div>
-              {diagnosticOcrMeta ? (
+              {sourceKind === 'structured-json' && jsonFeedbackContext ? (
+                <dl className="receipt-ocr-diagnostic-meta">
+                  <div><dt>Źródło</dt><dd>JSON bez OCR</dd></div>
+                  <div><dt>Format</dt><dd>{jsonFeedbackContext.format}</dd></div>
+                  <div><dt>Waluta</dt><dd>{jsonFeedbackContext.currency}</dd></div>
+                  <div><dt>Pozycje</dt><dd>{review.items.length}</dd></div>
+                  <div><dt>Do sprawdzenia</dt><dd>{flaggedItemsCount}</dd></div>
+                  <div><dt>Suma pozycji</dt><dd>{reviewAmountMinor(finalItemsTotalMinor, displayCurrency)}</dd></div>
+                  {review.depositTotalMinor !== undefined ? <div><dt>Kaucja</dt><dd>{reviewAmountMinor(review.depositTotalMinor, displayCurrency)}</dd></div> : null}
+                  {review.declaredTotalMinor !== undefined ? <div><dt>Final</dt><dd>{reviewAmountMinor(review.declaredTotalMinor, displayCurrency)}</dd></div> : null}
+                  {review.paymentTotalMinor !== undefined ? <div><dt>Płatność</dt><dd>{reviewAmountMinor(review.paymentTotalMinor, displayCurrency)}</dd></div> : null}
+                  <div><dt>Różnica</dt><dd>{differenceMinor === undefined ? 'brak' : reviewAmountMinor(differenceMinor, displayCurrency)}</dd></div>
+                  <div><dt>Zapis</dt><dd>{saveValidation.valid ? 'GOTOWY' : 'BLOKOWANY'}</dd></div>
+                </dl>
+              ) : diagnosticOcrMeta ? (
                 <dl className="receipt-ocr-diagnostic-meta">
                   <div><dt>Źródło</dt><dd>{diagnosticOcrMeta.sourceType === 'pdf' ? 'PDF' : 'Zdjęcie'}</dd></div>
                   <div><dt>Jakość źródła</dt><dd>{sourceQualityLabel(diagnosticOcrMeta.sourceQuality.level)} ({diagnosticOcrMeta.sourceQuality.score}/100)</dd></div>
@@ -472,8 +628,8 @@ export function ReceiptScanReview({
               {diagnosticOcrMeta?.sourceQuality.warnings.length ? <small>{diagnosticOcrMeta.sourceQuality.warnings.join(' ')}</small> : null}
               {diagnosticOcrQuality?.warnings.length ? <small>{diagnosticOcrQuality.warnings.join(' ')}</small> : null}
               {diagnosticCopyStatus ? <small role="status">{diagnosticCopyStatus}</small> : null}
-              {showDiagnosticFallback ? <textarea readOnly value={diagnosticOcrText} aria-label="Surowy tekst OCR do ręcznego skopiowania" rows={8} /> : null}
-            </div>
+              {showDiagnosticFallback ? <textarea readOnly value={sourceKind === 'structured-json' ? jsonFeedbackText : diagnosticOcrText} aria-label={sourceKind === 'structured-json' ? 'Diagnostyka JSON do ręcznego skopiowania' : 'Surowy tekst OCR do ręcznego skopiowania'} rows={8} /> : null}
+            </details>
           ) : null}
 
           <div className={`receipt-review-totals${mismatch ? ' has-mismatch' : ''}`} aria-live="polite">
@@ -492,8 +648,8 @@ export function ReceiptScanReview({
 
           {confirmMismatch ? (
             <div className="receipt-review-save-warning" role="alert">
-              <strong>Suma różni się co najmniej o {displayCurrency === 'PLN' ? '1,00 zł' : `1 ${displayCurrency}`}.</strong>
-              <span>Jeśli dane są poprawne, kliknij ponownie „Zapisz paragon”.</span>
+              <strong>Suma pozycji różni się od paragonu o {reviewAmountMinor(Math.abs(differenceMinor ?? 0), displayCurrency)}.</strong>
+              <span>Sprawdź zaznaczone pozycje. Jeśli różnica jest prawidłowa, kliknij ponownie „Zapisz paragon”.</span>
             </div>
           ) : null}
 

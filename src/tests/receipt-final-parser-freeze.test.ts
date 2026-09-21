@@ -12,7 +12,8 @@ const B028_FIX4_HOTFIX1_BASELINE = '623aec47097b1dc5631b0370bb58f0df31715a8af17b
 const B028_FIX4_HOTFIX2C_BASELINE = '9da87a5f1c8965a736bdad370cb18f87360574a5b375824f94080aee02c25dee';
 const DEV4_B_FIX2_BLOCKER1_BASELINE = '30e6e18bd462deec9d751d33437ee3f52625a565c302413a173897f559ce6aab';
 const DEV4_B_FIX2_GATE1_BLOCKER1_BASELINE = 'f477e6b53cc483f86cad8b8aada3cf69f6332146a7edaf2cf995e0ac5ba97ac2';
-const FINANCE_QUANTITY_1231_EXPECTED = '7d1fd2530f63fbf60ae3728899ac3c448aadabc143b018785535fd3ae503c226';
+const FINANCE_QUANTITY_1231_BASELINE = '7d1fd2530f63fbf60ae3728899ac3c448aadabc143b018785535fd3ae503c226';
+const BUILD191_PARSER_EXPECTED = 'ee12277995df1ef21c458b7b24bbbc0b9bac62ed00439a558b0bbdf325f1e4ba';
 
 function canonicalSourceBytes(path: string): Buffer {
   const text = readFileSync(new URL(path, import.meta.url), 'utf8').replace(/\r\n?/g, '\n');
@@ -32,10 +33,11 @@ describe('1.2.0.31 reviewed receipt parser checkpoint', () => {
     expect(hash).not.toBe(B028_FIX4_HOTFIX2C_BASELINE);
     expect(hash).not.toBe(DEV4_B_FIX2_BLOCKER1_BASELINE);
     expect(hash).not.toBe(DEV4_B_FIX2_GATE1_BLOCKER1_BASELINE);
+    expect(hash).not.toBe(FINANCE_QUANTITY_1231_BASELINE);
   });
 
-  it('freezes the reviewed 1.2.0.31 quantity parser checkpoint', () => {
-    expect(createHash('sha256').update(canonicalSourceBytes('../shopping/receipt-ocr/receipt-parser.ts')).digest('hex')).toBe(FINANCE_QUANTITY_1231_EXPECTED);
+  it('freezes the currently reviewed parser checkpoint after intentional post-1.2.0.31 evolution', () => {
+    expect(createHash('sha256').update(canonicalSourceBytes('../shopping/receipt-ocr/receipt-parser.ts')).digest('hex')).toBe(BUILD191_PARSER_EXPECTED);
   });
 
   it('keeps the reviewed receipt parser compatible with database schema 14 while app version may advance', () => {

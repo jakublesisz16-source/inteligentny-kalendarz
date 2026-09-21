@@ -6,7 +6,7 @@ const center = readFileSync('src/safety/SafetyCenter.tsx', 'utf8');
 const types = readFileSync('src/safety/safety.types.ts', 'utf8');
 const version = readFileSync('src/core/version.ts', 'utf8');
 
-describe('1.2.0.145 safety center hardening', () => {
+describe('1.2.0.146 safety center hardening', () => {
   it('creates a restore point before permanently deleting one trash item', () => {
     expect(types).toContain("'PERMANENT_DELETE_TRASH'");
     expect(types).toContain("'BEFORE_PERMANENT_TRASH_DELETE'");
@@ -31,7 +31,7 @@ describe('1.2.0.145 safety center hardening', () => {
   });
 
   it('keeps database schema stable', () => {
-    expect(version).toContain("APP_VERSION = '1.2.0.145'");
+    expect(version).toMatch(/APP_VERSION\s*=\s*'\d+\.\d+\.\d+\.\d+'/u);
     expect(version).toContain('DATABASE_SCHEMA_VERSION = 14');
   });
 });

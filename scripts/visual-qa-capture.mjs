@@ -143,7 +143,7 @@ async function captureMobileView(cdp, filename, label, calendarMode) {
     });
   }
   const clicked = await cdp.send('Runtime.evaluate', {
-    expression: `(() => { const button = [...document.querySelectorAll('.bottom-nav-item')].find((item) => item.textContent?.trim() === ${JSON.stringify(label)}); if (!button) return false; button.click(); return true; })()`,
+    expression: `(() => { const button = [...document.querySelectorAll('.bottom-nav-item')].find((item) => item.getAttribute('aria-label') === ${JSON.stringify(label)}); if (!button) return false; button.click(); return true; })()`,
     returnByValue: true,
   });
   if (!clicked.result?.value) throw new Error(`Nie znaleziono mobilnej zakładki: ${label}`);

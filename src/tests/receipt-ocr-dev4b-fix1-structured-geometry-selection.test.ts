@@ -126,7 +126,7 @@ describe('DEV4-B-FIX1 structured geometry consensus selector', () => {
         primaryValueCoverageRatio: plan.itemGroupCount ? (plan.itemGroupCount - 1) / plan.itemGroupCount : 0,
       } : plan),
     };
-    expect(decideReceiptGeometryProductionSelection(input)).toMatchObject({ decision: 'KEEP_PRIMARY', reason: 'recovery-not-attempted' });
+    expect(decideReceiptGeometryProductionSelection(input)).toMatchObject({ decision: 'KEEP_PRIMARY', reason: 'value-column-recovery-not-attempted' });
   });
 
   it('keeps primary when an unresolved item remains', () => {

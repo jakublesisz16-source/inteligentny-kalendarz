@@ -1,4 +1,4 @@
-import type { ExpenseCategory, ExpenseNecessity, FinanceCurrencyCode, Receipt, ReceiptItemUnit, ReceiptSource } from './expenses.types';
+import type { ExpenseCategory, ExpenseNecessity, ExpenseProduct, FinanceCurrencyCode, Receipt, ReceiptItem, ReceiptItemUnit, ReceiptSource } from './expenses.types';
 
 export const DEFAULT_EXPENSE_CATEGORY_DEFINITIONS = [
   { id: 'expense-category-food', name: 'Jedzenie' },
@@ -178,6 +178,11 @@ export function normalizeExpenseText(value: string): string {
   return value.trim().replace(/\s+/g, ' ');
 }
 
+export function normalizeReceiptSourceFingerprint(value: string | undefined): string | undefined {
+  const normalized = value?.trim().toLowerCase();
+  return normalized && /^sha256:[a-f0-9]{64}$/u.test(normalized) ? normalized : undefined;
+}
+
 export function normalizeExpenseLabel(value: string): string {
   return normalizeExpenseText(value).toLocaleLowerCase('pl-PL');
 }
@@ -241,6 +246,46 @@ export function expenseNecessityLabel(value: ExpenseNecessity | undefined): stri
   if (value === 'essential') return 'Niezbędne';
   if (value === 'nonessential') return 'Zbędne';
   return 'Do oceny';
+}
+
+export interface EffectiveExpenseItemClassification {
+  normalizedKey: string;
+  canonicalName: string;
+  categoryId: string;
+  necessity: ExpenseNecessity;
+  product?: ExpenseProduct;
+}
+
+export function buildExpenseProductIndex(products: readonly ExpenseProduct[]): Map<string, ExpenseProduct> {
+  return new Map(products.map((product) => [product.normalizedKey, product]));
+}
+
+export function resolveExpenseItemClassification(
+  item: Pick<ReceiptItem, 'name' | 'categoryId'>,
+  productByKey: ReadonlyMap<string, ExpenseProduct>,
+): EffectiveExpenseItemClassification {
+  const normalizedKey = normalizeExpenseProductKey(item.name);
+  const product = normalizedKey ? productByKey.get(normalizedKey) : undefined;
+  return {
+    normalizedKey,
+    canonicalName: product?.name ?? item.name,
+    categoryId: product?.categoryId ?? item.categoryId,
+    necessity: product?.necessity ?? 'unknown',
+    ...(product ? { product } : {}),
+  };
+}
+
+export function expenseItemNeedsCategoryReview(
+  classification: Pick<EffectiveExpenseItemClassification, 'categoryId'>,
+  otherCategoryId: string,
+): boolean {
+  return Boolean(otherCategoryId && classification.categoryId === otherCategoryId);
+}
+
+export function expenseItemNeedsNecessityReview(
+  classification: Pick<EffectiveExpenseItemClassification, 'necessity'>,
+): boolean {
+  return classification.necessity === 'unknown';
 }
 
 export function expenseCategoryNameKey(value: string): string {

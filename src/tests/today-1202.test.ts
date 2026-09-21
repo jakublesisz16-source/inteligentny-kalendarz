@@ -19,7 +19,7 @@ describe('1.2.0.2 Today simplification', () => {
     expect(today).toContain('{hasPlan ? <div className="today-add-row"><button');
     expect(today).toContain('actionLabel="+ Dodaj"');
     expect(today).toContain('title="Wolny dzień"');
-    expect(today).toContain("'Nie masz dziś zaplanowanych wydarzeń.'");
+    expect(today).toContain('description=""');
   });
 
   it('keeps the existing calendar and work/availability data flows intact', () => {

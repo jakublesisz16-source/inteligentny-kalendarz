@@ -181,6 +181,27 @@ export function shouldRetryReceiptOcr(candidate: ReceiptOcrCandidateAssessment):
   return false;
 }
 
+
+/**
+ * PDF pages are usually clean enough that one OCR pass is sufficient, but when
+ * the first pass is not structurally complete we must not treat it as the only
+ * source of truth. This keeps PDF behavior aligned with the photo recovery
+ * path without paying for a second pass on already reconciled pages.
+ */
+export function shouldRetryReceiptPdfOcr(candidate: ReceiptOcrCandidateAssessment): boolean {
+  if (candidate.profile !== 'primary') return false;
+  if (shouldRetryReceiptOcr(candidate)) return true;
+  const parsed = candidate.parsed;
+  if (!candidate.goodsReconcile) return true;
+  if (parsed.declaredTotalMinor === undefined) return true;
+  if (parsed.paymentTotalMinor !== undefined && !candidate.paymentReconciles) return true;
+  if (parsed.declaredSubtotalMinor !== undefined
+      && parsed.depositTotalMinor !== undefined
+      && !candidate.finalStructureReconciles) return true;
+  if (parsed.merchantConfidence === 'low' || parsed.dateConfidence === 'low') return true;
+  return candidate.quality.financialScore < 75;
+}
+
 function compareCandidateQuality(left: ReceiptOcrCandidateAssessment, right: ReceiptOcrCandidateAssessment): number {
   if (left.goodsReconcile !== right.goodsReconcile) return left.goodsReconcile ? 1 : -1;
   if (left.paymentReconciles !== right.paymentReconciles) return left.paymentReconciles ? 1 : -1;

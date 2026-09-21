@@ -41,7 +41,7 @@ describe('1.2.0.48 editable quick-add hours', () => {
     expect(responsive).toContain('.calendar-week-quick-add-times input { min-height: 40px;');
     expect(visualQa).toContain('calendar-week-quick-add-desktop-1440x1000.png');
     expect(visualQa).toContain('calendar-week-quick-add-mobile-390x844.png');
-    expect(version).toContain("APP_VERSION = '1.2.0.145'");
+    expect(version).toMatch(/APP_VERSION\s*=\s*'\d+\.\d+\.\d+\.\d+'/u);
     expect(version).toContain('DATABASE_SCHEMA_VERSION = 14');
   });
 });

@@ -23,7 +23,7 @@ describe('1.1.0-dev.3 DEV3-B021 aggregate OCR test contract hotfix', () => {
   it('aggregates all PDF page OCR in page order before diagnostics, quality analysis and parsing', () => {
     const flow = source('../shopping/receipt-ocr/ReceiptScanFlow.tsx');
     const aggregate = captureCombinedTextIdentifier(flow);
-    expect(flow).toContain('pageTexts.push(result.text)');
+    expect(flow).toContain('pageTexts.push(selectedPageAssessment.text)');
     expect(flow).toContain(`setDiagnosticOcrText(${aggregate})`);
     expect(flow).toContain(`analyzeReceiptOcrQuality(${aggregate}, sourceType, resultConfidence)`);
     expect(flow).toContain(`parseReceiptText(${aggregate})`);

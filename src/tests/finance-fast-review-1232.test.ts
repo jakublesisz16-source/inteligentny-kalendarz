@@ -2,7 +2,7 @@ import 'fake-indexeddb/auto';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { createReceipt, deleteDatabaseForTests, listExpenseCategories, listReceipts } from '../storage/database';
-import { findLikelyDuplicateReceipt } from '../shopping/receipt-ocr/receipt-duplicate';
+import { findLikelyDuplicateReceipt, findReceiptDuplicateMatch } from '../shopping/receipt-ocr/receipt-duplicate';
 import { classifyNonessentialExpenseGroup } from '../finance/finance-products';
 
 function source(relative: string): string {
@@ -12,7 +12,7 @@ function source(relative: string): string {
 beforeEach(async () => { await deleteDatabaseForTests(); });
 
 describe('1.2.0.32 Finance fast review and simple breakdown', () => {
-  it('warns for exact duplicates and arithmetic-identical rescans without blocking legitimate different totals', async () => {
+  it('keeps content-identical rescans as likely while exact source identity is reserved for persisted source hashes', async () => {
     const category = (await listExpenseCategories())[0]!;
     await createReceipt({
       merchant: 'Biedronka Poznań',
@@ -65,6 +65,41 @@ describe('1.2.0.32 Finance fast review and simple breakdown', () => {
       items: [{ name: 'Inny produkt za tę samą cenę', categoryId: category.id, amountMinor: 499 }],
     }, singleItemReceipt);
     expect(oneLineSameAmountDifferentName).toBeNull();
+
+    const exactMatch = findReceiptDuplicateMatch({
+      merchant: 'BIEDRONKA POZNAN',
+      date: '2026-09-08',
+      items: [
+        { name: 'Chleb', categoryId: category.id, amountMinor: 399 },
+        { name: 'Mleko Laciate', categoryId: category.id, amountMinor: 499 },
+      ],
+    }, receipts);
+    expect(exactMatch?.confidence).toBe('likely');
+    expect(exactMatch?.reason).toBe('same-items');
+
+    const amountOnlyMatch = findReceiptDuplicateMatch({
+      merchant: 'Biedronka Poznań',
+      date: '2026-09-08',
+      items: [
+        { name: 'Inna nazwa A', categoryId: category.id, amountMinor: 399 },
+        { name: 'Inna nazwa B', categoryId: category.id, amountMinor: 499 },
+      ],
+    }, receipts);
+    expect(amountOnlyMatch?.confidence).toBe('likely');
+    expect(amountOnlyMatch?.reason).toBe('same-amounts');
+
+    const sourceFingerprint = `sha256:${'a'.repeat(64)}`;
+    const sameSourceMatch = findReceiptDuplicateMatch({
+      merchant: 'OCR po korekcie',
+      date: '2026-09-09',
+      sourceFingerprint,
+      items: [
+        { name: 'Inna nazwa', categoryId: category.id, amountMinor: 123 },
+        { name: 'Druga nazwa', categoryId: category.id, amountMinor: 456 },
+      ],
+    }, [{ ...receipts[0]!, sourceFingerprint }]);
+    expect(sameSourceMatch?.confidence).toBe('exact');
+    expect(sameSourceMatch?.reason).toBe('same-source');
   });
 
   it('keeps the nonessential breakdown intentionally small', () => {
@@ -78,22 +113,25 @@ describe('1.2.0.32 Finance fast review and simple breakdown', () => {
     const review = source('../shopping/receipt-ocr/ReceiptScanReview.tsx');
     expect(review).toContain('receipt-review-item-compact');
     expect(review).toContain('expandedItemIds');
-    expect(review).toContain("item.confidence !== 'high' || item.warnings.length > 0");
+    expect(review).toContain('receiptReviewItemNeedsReview');
+    expect(review).toContain('Sprawdzone');
     expect(review).toContain('Edytuj');
     expect(review).toContain('Zwiń');
   });
 
   it('checks for a duplicate only at scanned-receipt save time', () => {
     const flow = source('../shopping/receipt-ocr/ReceiptScanFlow.tsx');
-    expect(flow).toContain('findLikelyDuplicateReceipt');
-    expect(flow).toContain('Ten paragon wygląda na już zapisany');
-    expect(flow).toContain('Zapisać go ponownie?');
+    expect(flow).toContain('findReceiptDuplicateMatch');
+    expect(flow).toContain('Ten sam plik paragonu jest już zapisany');
+    expect(flow).toContain('Ten paragon jest podobny do już zapisanego');
+    expect(flow).toContain('createReceiptSourceFingerprint');
   });
 
   it('keeps nonessential spending visible in the compact month summary and filter', () => {
     const dashboard = source('../finance/FinanceDashboardView.tsx');
     expect(dashboard).toContain('necessityTotals.nonessential');
     expect(dashboard).toContain("filterByNecessity('nonessential')");
-    expect(dashboard).toContain('Zbędne <strong>{formatMoneyMinor(necessityTotals.nonessential)}</strong>');
+    expect(dashboard).toContain('<span>Zbędne</span>');
+    expect(dashboard).toContain('<strong>{formatMoneyMinor(necessityTotals.nonessential)}</strong>');
   });
 });

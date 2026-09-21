@@ -9,7 +9,7 @@ const database = readFileSync('src/storage/database.ts', 'utf8');
 
 describe('1.2.0.13 calendar polish', () => {
   it('keeps only one add action for an empty selected day', () => {
-    expect(calendar).toContain('actionLabel="Dodaj wydarzenie"');
+    expect(calendar).toContain('actionLabel="+ Dodaj"');
     expect(calendar).toContain('selectedEvents.length || selectedIncompleteStudyEntries.length');
   });
 

@@ -11,7 +11,8 @@ describe('1.2.0.79 Finance hierarchy polish', () => {
     expect(dashboard).toContain('button button-primary finance-manual-expense');
     expect(dashboard).toContain('>+ Wydatek</button>');
     expect(dashboard).toContain('button button-secondary finance-scan-receipt');
-    expect(dashboard).toContain('>Skanuj paragon</button>');
+    expect(dashboard).toContain('finance-scan-receipt-short">Skanuj');
+    expect(dashboard).toContain('finance-scan-receipt-long">paragon');
   });
 
   it('keeps trips light and removes dashboard-like duplicate statistics', () => {
@@ -34,7 +35,7 @@ describe('1.2.0.79 Finance hierarchy polish', () => {
   it('uses lighter desktop and mobile presentation without a schema bump', () => {
     expect(css).toContain('/* 1.2.0.79 - Finance hierarchy polish: expense-first actions and lighter trips */');
     expect(responsive).toContain('/* 1.2.0.79 - simple Finance hierarchy on phones */');
-    expect(version).toContain("APP_VERSION = '1.2.0.145'");
+    expect(version).toMatch(/APP_VERSION\s*=\s*'\d+\.\d+\.\d+\.\d+'/u);
     expect(version).toContain('DATABASE_SCHEMA_VERSION = 14');
   });
 });

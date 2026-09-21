@@ -25,7 +25,7 @@ describe('1.2.0.101 compact Studies and Settings', () => {
     expect(safety).toContain('<section className="safety-center">');
     expect(safety).not.toContain('<section className="panel safety-center">');
     expect(settings).toContain('Backup i przenoszenie');
-    expect(settings).toContain('Dane i historia');
+    expect(settings).toContain('Historia i bezpieczeństwo');
   });
 
   it('keeps safety information available without occupying the default layout', () => {
@@ -37,7 +37,7 @@ describe('1.2.0.101 compact Studies and Settings', () => {
   });
 
   it('does not require a database migration', () => {
-    expect(version).toContain("APP_VERSION = '1.2.0.145'");
+    expect(version).toMatch(/APP_VERSION\s*=\s*'\d+\.\d+\.\d+\.\d+'/u);
     expect(version).toContain('DATABASE_SCHEMA_VERSION = 14');
   });
 });

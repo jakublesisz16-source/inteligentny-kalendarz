@@ -4,7 +4,7 @@ import { join, relative } from 'node:path';
 
 const root = process.cwd();
 const dist = join(root, 'dist');
-const expectedParserHash = '7d1fd2530f63fbf60ae3728899ac3c448aadabc143b018785535fd3ae503c226';
+const expectedParserHash = 'ee12277995df1ef21c458b7b24bbbc0b9bac62ed00439a558b0bbdf325f1e4ba';
 const parserPath = join(root, 'src/shopping/receipt-ocr/receipt-parser.ts');
 
 function fail(message) {
@@ -30,7 +30,8 @@ if (existsSync(dist)) {
   }
 }
 
-const parserHash = createHash('sha256').update(readFileSync(parserPath)).digest('hex');
+const parserSource = readFileSync(parserPath, 'utf8').replace(/\r\n?/g, '\n');
+const parserHash = createHash('sha256').update(Buffer.from(parserSource, 'utf8')).digest('hex');
 if (parserHash !== expectedParserHash) fail(`receipt-parser.ts changed: ${parserHash}`);
 
 const textFiles = existsSync(dist)
@@ -46,7 +47,11 @@ if (!existsSync(swPath)) fail('service-worker.js missing from production dist.')
 else {
   const sw = readFileSync(swPath, 'utf8');
   if (!sw.includes("const CACHE_PREFIX = 'inteligentny-kalendarz-shell-'")) fail('Release Service Worker cache prefix missing.');
-  if (!sw.includes("const CACHE_NAME = `${CACHE_PREFIX}v1.2.0.145`")) fail('Release Service Worker revision missing.');
+  const versionSource = readFileSync(join(root, 'src/core/version.ts'), 'utf8');
+  const appVersion = /APP_VERSION\s*=\s*'([^']+)'/u.exec(versionSource)?.[1];
+  if (!appVersion) fail('APP_VERSION missing.');
+  const expectedCacheMarker = `const CACHE_NAME = ` + '`' + `\${CACHE_PREFIX}v${appVersion}` + '`' + `;`;
+  if (!sw.includes(expectedCacheMarker)) fail('Release Service Worker revision missing.');
   if (!sw.includes('await caches.delete(CACHE_NAME)')) fail('Release Service Worker must clear a partial current-version cache before/after failed install.');
   if (/\bcaches\.match\s*\(/u.test(sw)) fail('Service Worker must not read arbitrary caches from the origin.');
   if (!sw.includes('key.startsWith(CACHE_PREFIX)')) fail('Service Worker must scope old-cache cleanup to Inteligentny Kalendarz caches.');

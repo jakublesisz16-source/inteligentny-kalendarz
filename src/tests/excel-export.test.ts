@@ -71,6 +71,33 @@ describe('1.1.0-dev.2 FIX4 Excel export', () => {
     expect(workbook.getWorksheet(file.storeSheetNames.events!)!.getCell('B2').text).toContain('Wizyta Łódź');
   });
 
+
+  it('exports the same effective finance category and necessity that the app shows while preserving the stored category for audit', async () => {
+    const document = documentWithData();
+    document.data.stores.expenseCategories = [
+      { id: 'expense-category-food', name: 'Jedzenie', sortOrder: 0, createdAt: '2026-08-01T10:00:00.000Z', updatedAt: '2026-08-01T10:00:00.000Z' },
+      { id: 'expense-category-other', name: 'Inne', sortOrder: 1, createdAt: '2026-08-01T10:00:00.000Z', updatedAt: '2026-08-01T10:00:00.000Z' },
+    ];
+    document.data.stores.receipts = [{
+      id: 'receipt-1', date: '2026-08-16', merchant: 'Sklep', totalMinor: 1234,
+      items: [{ id: 'item-1', name: 'Mleko Łaciate', categoryId: 'expense-category-other', amountMinor: 1234 }],
+      createdAt: '2026-08-16T10:00:00.000Z', updatedAt: '2026-08-16T10:00:00.000Z',
+    }];
+    document.data.stores.expenseProducts = [{
+      id: 'product-1', name: 'Mleko Łaciate', originalName: 'Mleko Łaciate', normalizedKey: 'mleko laciate',
+      categoryId: 'expense-category-food', necessity: 'essential',
+      createdAt: '2026-08-16T10:00:00.000Z', updatedAt: '2026-08-16T10:00:00.000Z',
+    }];
+
+    const file = await createExcelExportFile(document, new Date(2026, 7, 16, 12, 10));
+    const workbook = await loadWorkbook(file.buffer);
+    const items = workbook.getWorksheet('Pozycje paragonów')!;
+    expect(items.getCell('F2').value).toBe('Jedzenie');
+    expect(items.getCell('K2').value).toBe('Mleko Łaciate');
+    expect(items.getCell('L2').value).toBe('Niezbędne');
+    expect(items.getCell('M2').value).toBe('Inne');
+  });
+
   it('covers every top-level canonical collection with a worksheet and preserves Polish text', async () => {
     const document = documentWithData();
     const file = await createExcelExportFile(document, new Date(2026, 7, 16, 12, 5));

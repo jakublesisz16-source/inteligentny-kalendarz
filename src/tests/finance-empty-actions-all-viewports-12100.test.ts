@@ -14,7 +14,9 @@ describe('1.2.0.100 Finance empty-state actions on all viewports', () => {
   });
 
   it('keeps receipt scanning reachable in the empty month on desktop and mobile', () => {
-    expect(dashboard).toContain('<button type="button" className="button button-secondary finance-scan-receipt" onClick={openReceiptScan}>Skanuj paragon</button>');
+    expect(dashboard).toContain('<button type="button" className="button button-secondary finance-scan-receipt" onClick={openReceiptScan}>');
+    expect(dashboard).toContain('finance-scan-receipt-short">Skanuj');
+    expect(dashboard).toContain('finance-scan-receipt-long">paragon');
     expect(responsive).toContain('.finance-month-is-empty > .finance-dashboard-controls-v1258 .finance-core-actions .finance-scan-receipt');
     expect(responsive).toContain('display: inline-flex;');
   });
@@ -26,7 +28,7 @@ describe('1.2.0.100 Finance empty-state actions on all viewports', () => {
   });
 
   it('keeps schema unchanged', () => {
-    expect(version).toContain("APP_VERSION = '1.2.0.145'");
+    expect(version).toMatch(/APP_VERSION\s*=\s*'\d+\.\d+\.\d+\.\d+'/u);
     expect(version).toContain('DATABASE_SCHEMA_VERSION = 14');
   });
 });

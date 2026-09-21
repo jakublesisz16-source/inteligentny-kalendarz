@@ -94,36 +94,28 @@ export function StudyProfileSettings({ onDataChanged }: StudyProfileSettingsProp
   if (!profile && !activeImport) return null;
 
   return <section className="study-profile-settings study-profile-settings-always-open" aria-labelledby="study-profile-groups-title">
-    <div className="study-profile-settings-heading">
+    <div className="study-profile-settings-heading study-groups-visible-heading">
       <div>
-        <span className="section-kicker">Moje studia</span>
-        <strong id="study-profile-groups-title">Grupy i aktywny plan</strong>
+        <strong id="study-profile-groups-title">Wybór grup</strong>
+        <span>{formatStudyGroupList(groupsDraft) || 'Wybierz swoje grupy'}</span>
       </div>
-      <span className="study-profile-heading-status">{activeGroups.length ? `${activeGroups.length} aktywne` : 'Brak grup'}</span>
+      {!draftValidation.valid ? <span className="study-profile-heading-status">{draftProgress.completed} z {draftProgress.required}</span> : null}
     </div>
 
     <div className="study-profile-settings-body">
       {error ? <div className="study-message error-message" role="alert">{error}</div> : null}
       {message ? <div className="study-message success-message" role="status">{message}</div> : null}
 
-      <div className="study-profile-summary minimal study-profile-plan-summary">
-        <div><span>Aktywny plan</span><strong>{activeImport?.fileName ?? 'Brak'}</strong></div>
-      </div>
-
-      {futureGroupsDiffer ? <div className="study-future-groups-note"><span>Dla kolejnych importów</span><strong>{formatStudyGroupList(futureGroups)}</strong></div> : null}
+      {futureGroupsDiffer ? <div className="study-future-groups-note"><span>Aktualny plan: {formatStudyGroupList(activeGroups)}</span><strong>Kolejne importy: {formatStudyGroupList(futureGroups)}</strong></div> : null}
 
       <div className="study-profile-group-picker">
-        <div className="settings-groups-heading">
-          <div><strong>Wybór grup</strong><span>Używamy tego samego, uproszczonego wyboru co podczas importu planu.</span></div>
-          <span>{draftValidation.valid ? 'Wybór kompletny' : `${draftProgress.completed} z ${draftProgress.required}`}</span>
-        </div>
         {availableGroups.length ? <StudyGroupChoiceFields availableGroups={availableGroups} selectedGroups={groupsDraft} onChange={(groups) => { setGroupsDraft(groups); resetFeedback(); }} ariaLabel="Stały wybór grup studiów" /> : <p className="muted-copy">Aktywny plan nie udostępnia osobnych grup do wyboru.</p>}
         {!draftValidation.valid && availableGroups.length ? <div className="inline-validation warning compact"><strong>Uzupełnij wybór</strong><span>{draftValidation.errors.join(' ')}</span></div> : null}
-        <div className="settings-study-actions compact-study-actions">
-          {draftDiffersFromFuture ? <button type="button" className="button button-secondary" disabled={saving} onClick={() => { setGroupsDraft(futureGroups); setRecalculation(null); setError(''); setMessage(''); }}>Przywróć zapisany wybór</button> : null}
-          <button type="button" className="button button-secondary" disabled={saving || !draftValidation.valid || !draftDiffersFromFuture} onClick={() => void saveFutureGroups()}>Tylko kolejne importy</button>
-          <button type="button" className="button button-primary" disabled={saving || !draftValidation.valid || !draftDiffersFromActive} onClick={() => void previewRecalculation()}>Sprawdź aktualny plan</button>
-        </div>
+        {draftDiffersFromFuture || draftDiffersFromActive ? <div className="settings-study-actions compact-study-actions">
+          {draftDiffersFromFuture ? <button type="button" className="button button-secondary" disabled={saving} onClick={() => { setGroupsDraft(futureGroups); setRecalculation(null); setError(''); setMessage(''); }}>Przywróć</button> : null}
+          {draftDiffersFromFuture ? <button type="button" className="button button-secondary" disabled={saving || !draftValidation.valid} onClick={() => void saveFutureGroups()}>Tylko kolejne importy</button> : null}
+          {draftDiffersFromActive ? <button type="button" className="button button-primary" disabled={saving || !draftValidation.valid} onClick={() => void previewRecalculation()}>Zastosuj do planu</button> : null}
+        </div> : null}
       </div>
 
       {recalculation ? <div className="group-recalc-preview">

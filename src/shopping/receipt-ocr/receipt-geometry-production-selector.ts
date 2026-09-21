@@ -12,18 +12,18 @@ import type {
 export type ReceiptGeometryProductionDecision = 'SELECT_RECOVERY' | 'SELECT_STRUCTURED_GEOMETRY' | 'KEEP_PRIMARY';
 
 export type ReceiptGeometryProductionReason =
-  | 'selected-recovery'
+  | 'selected-value-column-recovery'
   | 'selected-structured-geometry'
   | 'primary-missing'
   | 'geometry-missing'
-  | 'recovery-not-attempted'
-  | 'recovery-pass-missing'
-  | 'recovery-pass-count-unsafe'
-  | 'recovery-not-used'
-  | 'recovery-money-evidence-missing'
-  | 'recovery-delta-missing'
-  | 'recovery-not-material'
-  | 'recovery-regressed'
+  | 'value-column-recovery-not-attempted'
+  | 'value-column-recovery-pass-missing'
+  | 'value-column-recovery-pass-count-unsafe'
+  | 'value-column-recovery-not-used'
+  | 'value-column-recovery-money-evidence-missing'
+  | 'value-column-recovery-delta-missing'
+  | 'value-column-recovery-not-material'
+  | 'value-column-recovery-regressed'
   | 'candidate-rejected'
   | 'candidate-unresolved'
   | 'candidate-quantity-unresolved'
@@ -72,7 +72,7 @@ export interface ReceiptGeometryProductionSelectionResult {
 type SelectionState = Omit<ReceiptGeometryProductionSelectionResult, 'decision' | 'reason'>;
 
 function keep(
-  reason: Exclude<ReceiptGeometryProductionReason, 'selected-recovery' | 'selected-structured-geometry'>,
+  reason: Exclude<ReceiptGeometryProductionReason, 'selected-value-column-recovery' | 'selected-structured-geometry'>,
   state: SelectionState,
 ): ReceiptGeometryProductionSelectionResult {
   return { decision: 'KEEP_PRIMARY', reason, ...state };
@@ -275,7 +275,7 @@ export function decideReceiptGeometryProductionSelection(
   if (!geometryCandidate || !reconstruction) return keep('geometry-missing', state);
 
   if (!recovery.attempted) {
-    if (!structuredValueCoverageIsComplete(recovery)) return keep('recovery-not-attempted', state);
+    if (!structuredValueCoverageIsComplete(recovery)) return keep('value-column-recovery-not-attempted', state);
     const structuralFailure = validateCandidateStructure(
       primary,
       geometryCandidate,
@@ -293,13 +293,13 @@ export function decideReceiptGeometryProductionSelection(
   }
 
   // Existing DEV4-A recovery contract remains unchanged.
-  if (recovery.passCount < 1 || recovery.eligiblePlanCount < 1) return keep('recovery-pass-missing', state);
-  if (recovery.passCount !== recovery.eligiblePlanCount) return keep('recovery-pass-count-unsafe', state);
-  if (!recovery.used) return keep('recovery-not-used', state);
-  if (recovery.usableTokenCount < 1 || recovery.recoveryTokenCount < 1) return keep('recovery-money-evidence-missing', state);
-  if (!delta) return keep('recovery-delta-missing', state);
-  if (delta.completeAfter <= delta.completeBefore || delta.recoveredCompleteGroups <= 0) return keep('recovery-not-material', state);
-  if (delta.completeAfter < delta.completeBefore || delta.unresolvedAfter > delta.unresolvedBefore) return keep('recovery-regressed', state);
+  if (recovery.passCount < 1 || recovery.eligiblePlanCount < 1) return keep('value-column-recovery-pass-missing', state);
+  if (recovery.passCount !== recovery.eligiblePlanCount) return keep('value-column-recovery-pass-count-unsafe', state);
+  if (!recovery.used) return keep('value-column-recovery-not-used', state);
+  if (recovery.usableTokenCount < 1 || recovery.recoveryTokenCount < 1) return keep('value-column-recovery-money-evidence-missing', state);
+  if (!delta) return keep('value-column-recovery-delta-missing', state);
+  if (delta.completeAfter <= delta.completeBefore || delta.recoveredCompleteGroups <= 0) return keep('value-column-recovery-not-material', state);
+  if (delta.completeAfter < delta.completeBefore || delta.unresolvedAfter > delta.unresolvedBefore) return keep('value-column-recovery-regressed', state);
 
   const structuralFailure = validateCandidateStructure(
     primary,
@@ -317,7 +317,7 @@ export function decideReceiptGeometryProductionSelection(
   state = selectionState(primary, geometryCandidate, delta, financial.financiallyConsistent);
   if (!state.financiallyConsistent) return keep('financial-mismatch', state);
 
-  return { decision: 'SELECT_RECOVERY', reason: 'selected-recovery', ...state };
+  return { decision: 'SELECT_RECOVERY', reason: 'selected-value-column-recovery', ...state };
 }
 
 const ITEM_BLOCK_WARNING_CODES = new Set<ReceiptParseWarning['code']>([

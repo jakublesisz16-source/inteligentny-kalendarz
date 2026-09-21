@@ -38,7 +38,7 @@ import { CYCLE_BLEEDING_LEVELS, CYCLE_PAIN_LEVELS, CYCLE_WELLBEING_LEVELS } from
 import type { CycleGapDecision, CycleJournalEntry, CycleJournalEntryDraft, CyclePeriod, CyclePeriodDraft } from '../cycle/cycle.types';
 import { cycleDaysBetween, isValidCycleDateKey } from '../cycle/cycle-prediction';
 import { normalizeShoppingName, normalizeShoppingQuantity, sortShoppingItems } from '../shopping/shopping.utils';
-import { DEFAULT_EXPENSE_CATEGORY_DEFINITIONS, expenseCategoryNameKey, inferExpenseNecessity, isDepositExpenseCategoryName, isFinanceCurrencyCode, normalizeExpenseProductKey, normalizeExpenseText } from '../shopping/expenses.utils';
+import { DEFAULT_EXPENSE_CATEGORY_DEFINITIONS, expenseCategoryNameKey, inferExpenseNecessity, isDepositExpenseCategoryName, isFinanceCurrencyCode, normalizeExpenseProductKey, normalizeExpenseText, normalizeReceiptSourceFingerprint } from '../shopping/expenses.utils';
 import type {
   ApplyScheduleUpdateResult,
   CommitUniversityImportInput,
@@ -1305,24 +1305,25 @@ export async function updateReceiptItemCategory(
   if (!categories.some((category) => category.id === categoryId)) throw new Error('Wybierz istniejącą kategorię.');
   const item = receipt.items.find((entry) => entry.id === itemId);
   if (!item) throw new Error('Nie znaleziono pozycji transakcji.');
-  if (item.categoryId === categoryId) {
-    const product = products.find((entry) => entry.normalizedKey === normalizeExpenseProductKey(item.name));
-    return { receipt, ...(product ? { product } : {}) };
-  }
+  const product = products.find((entry) => entry.normalizedKey === normalizeExpenseProductKey(item.name));
+  const receiptNeedsUpdate = item.categoryId !== categoryId;
+  const productNeedsUpdate = Boolean(product && product.categoryId !== categoryId);
+  if (!receiptNeedsUpdate && !productNeedsUpdate) return { receipt, ...(product ? { product } : {}) };
 
   const timestamp = nowIso();
-  const updatedReceipt: Receipt = {
+  const updatedReceipt: Receipt = receiptNeedsUpdate ? {
     ...receipt,
     items: receipt.items.map((entry) => entry.id === itemId ? { ...entry, categoryId } : entry),
     updatedAt: timestamp,
-  };
-  const product = products.find((entry) => entry.normalizedKey === normalizeExpenseProductKey(item.name));
-  const updatedProduct = product ? { ...product, categoryId, updatedAt: timestamp } satisfies ExpenseProduct : undefined;
+  } : receipt;
+  const updatedProduct = productNeedsUpdate && product
+    ? { ...product, categoryId, updatedAt: timestamp } satisfies ExpenseProduct
+    : product;
 
   const db = await openDatabase();
   const tx = db.transaction([STORE_RECEIPTS, STORE_EXPENSE_PRODUCTS], 'readwrite');
-  tx.objectStore(STORE_RECEIPTS).put(updatedReceipt);
-  if (updatedProduct) tx.objectStore(STORE_EXPENSE_PRODUCTS).put(updatedProduct);
+  if (receiptNeedsUpdate) tx.objectStore(STORE_RECEIPTS).put(updatedReceipt);
+  if (productNeedsUpdate && updatedProduct) tx.objectStore(STORE_EXPENSE_PRODUCTS).put(updatedProduct);
   await transactionDone(tx);
   return { receipt: updatedReceipt, ...(updatedProduct ? { product: updatedProduct } : {}) };
 }
@@ -1390,7 +1391,7 @@ function normalizeReceiptCurrencyMetadata(draft: ReceiptDraft, current: Receipt 
   };
 }
 
-async function normalizeReceiptDraft(draft: ReceiptDraft, current?: Receipt): Promise<{ date: string; merchant: string; items: ReceiptItem[]; totalMinor: number; tripName?: string } & NormalizedReceiptCurrencyMetadata> {
+async function normalizeReceiptDraft(draft: ReceiptDraft, current?: Receipt): Promise<{ date: string; merchant: string; items: ReceiptItem[]; totalMinor: number; sourceFingerprint?: string; tripName?: string } & NormalizedReceiptCurrencyMetadata> {
   const date = draft.date.trim();
   if (!isValidReceiptDateKey(date)) throw new Error('Wybierz prawidłową datę paragonu.');
   const merchant = normalizeExpenseText(draft.merchant);
@@ -1424,8 +1425,11 @@ async function normalizeReceiptDraft(draft: ReceiptDraft, current?: Receipt): Pr
   });
   const totalMinor = items.reduce((sum, item) => sum + item.amountMinor, 0);
   if (!Number.isSafeInteger(totalMinor)) throw new Error('Suma paragonu jest zbyt duża.');
+  const requestedSourceFingerprint = draft.sourceFingerprint ?? current?.sourceFingerprint;
+  const sourceFingerprint = normalizeReceiptSourceFingerprint(requestedSourceFingerprint);
+  if (requestedSourceFingerprint && !sourceFingerprint) throw new Error('Nieprawidłowy identyfikator źródła paragonu.');
   const currencyMetadata = normalizeReceiptCurrencyMetadata(draft, current, totalMinor);
-  return { date, merchant, items, totalMinor, ...(tripName ? { tripName } : {}), ...currencyMetadata };
+  return { date, merchant, items, totalMinor, ...(sourceFingerprint ? { sourceFingerprint } : {}), ...(tripName ? { tripName } : {}), ...currencyMetadata };
 }
 
 function financeTripIdentity(value: string): string {

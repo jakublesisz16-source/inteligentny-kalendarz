@@ -8,7 +8,8 @@ function source(path: string): string {
 describe('finance categories and history regression', () => {
   it('keeps category management and editing available while using one purchase table', () => {
     const dashboard = source('../finance/FinanceDashboardView.tsx');
-    expect(dashboard).toContain('Skanuj paragon');
+    expect(dashboard).toContain('finance-scan-receipt-short">Skanuj');
+    expect(dashboard).toContain('finance-scan-receipt-long">paragon');
     expect(dashboard).toContain('<Modal title="Kategorie"');
     expect(dashboard).toContain('Szukaj nazwy, miejsca lub kategorii');
     expect(dashboard).toContain('Wyczyść filtry');
@@ -21,7 +22,8 @@ describe('finance categories and history regression', () => {
   it('uses OCR in the main finance flow without reintroducing the old merchant/product dashboard blocks', () => {
     const dashboard = source('../finance/FinanceDashboardView.tsx');
     expect(dashboard).toContain('ReceiptScanFlow');
-    expect(dashboard).toContain('Skanuj paragon');
+    expect(dashboard).toContain('finance-scan-receipt-short">Skanuj');
+    expect(dashboard).toContain('finance-scan-receipt-long">paragon');
     expect(dashboard).not.toContain('aggregateExpensesByProduct');
     expect(dashboard).not.toContain('aggregateExpensesByMerchant');
   });

@@ -4,7 +4,7 @@ import type { OcrProgress, ProcessedReceiptImage, ReceiptOcrDiagnostics, Receipt
 import { ReceiptScanReview } from './ReceiptScanReview';
 import { createReceiptHeaderOcrChunk, createReceiptLocalNumericVerificationChunk, createReceiptValueColumnRecoveryChunk, preprocessReceiptImage } from './image-preprocess';
 import { combineReceiptPdfPageTexts, renderReceiptPdfPages } from './receipt-pdf';
-import { isReceiptPdfFile, validateReceiptScanFile } from './receipt-source';
+import { isReceiptJsonFile, isReceiptPdfFile, validateReceiptScanFile } from './receipt-source';
 import { applyCategorySuggestions } from './category-suggestions';
 import { disposeReceiptOcrEngine, recognizeReceiptImageChunks } from './ocr-engine';
 import { assessReceiptGeometryStructuredCandidate, reconstructReceiptTextFromGeometry } from './receipt-geometry-reconstruction';
@@ -27,7 +27,11 @@ import {
 } from './receipt-value-column-recovery';
 import { diagnoseReceiptDateText, diagnoseReceiptStructuralText, parseReceiptText, resolveReceiptMerchant, type ReceiptMerchantResolution } from './receipt-parser';
 import { createReceiptReviewDraft } from './receipt-review.model';
-import { findLikelyDuplicateReceipt } from './receipt-duplicate';
+import { reconcileParsedReceiptFinancials } from './receipt-financial-reconciliation';
+import { findReceiptDuplicateMatch } from './receipt-duplicate';
+import { createReceiptSourceFingerprint } from './receipt-source-fingerprint';
+import { parseStructuredReceiptJsonFile } from './receipt-json';
+import type { ReceiptJsonFeedbackContext } from './receipt-json-feedback';
 import { analyzeReceiptOcrQuality } from './receipt-ocr-quality';
 import { applyReceiptDegradedSafety } from './receipt-degraded-safety';
 import { applyReceiptPartialRecovery } from './receipt-partial-recovery';
@@ -40,6 +44,7 @@ import {
   shouldRecoverReceiptFiscalRegion,
   shouldRetryReceiptFiscalThreshold,
   shouldRetryReceiptOcr,
+  shouldRetryReceiptPdfOcr,
   type ReceiptOcrCandidateAssessment,
 } from './receipt-ocr-recovery';
 
@@ -94,9 +99,11 @@ export function ReceiptScanFlow({ categories, products = [], receipts, onSave, o
   const [diagnosticOcrText, setDiagnosticOcrText] = useState('');
   const [diagnosticOcrMeta, setDiagnosticOcrMeta] = useState<ReceiptOcrDiagnostics | null>(null);
   const [diagnosticOcrQuality, setDiagnosticOcrQuality] = useState<ReceiptOcrQuality | null>(null);
+  const [jsonFeedbackContext, setJsonFeedbackContext] = useState<ReceiptJsonFeedbackContext | null>(null);
   const [error, setError] = useState('');
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [sourceKind, setSourceKind] = useState<'ocr' | 'structured-json'>('ocr');
   const saveInFlightRef = useRef(false);
   const abortRef = useRef<AbortController | null>(null);
   const imageUrlRef = useRef('');
@@ -129,8 +136,33 @@ export function ReceiptScanFlow({ categories, products = [], receipts, onSave, o
     setDiagnosticOcrText('');
     setDiagnosticOcrMeta(null);
     setDiagnosticOcrQuality(null);
+    setJsonFeedbackContext(null);
     setProgress({ stage: 'preparing', label: 'Przygotowuję plik...' });
     try {
+      if (isReceiptJsonFile(targetFile)) {
+        setSourceKind('structured-json');
+        setProgress({ stage: 'parsing', label: 'Czytam strukturalne dane paragonu JSON...' });
+        const structured = await parseStructuredReceiptJsonFile(targetFile);
+        if (controller.signal.aborted) return;
+        if (structured.currency !== displayCurrency) {
+          throw new Error(`Paragon JSON ma walutę ${structured.currency}, a bieżący widok oczekuje ${displayCurrency}. Zmień kontekst waluty albo dodaj paragon ręcznie.`);
+        }
+        const parsed = applyCategorySuggestions(structured.parsed, receipts, categories, products);
+        const nextReview = createReceiptReviewDraft(parsed, categories);
+        setJsonFeedbackContext({
+          sourceFileName: targetFile.name,
+          sourceFileSizeBytes: targetFile.size,
+          format: structured.format,
+          currency: structured.currency,
+          parsed,
+        });
+        setReview(nextReview);
+        setDirty(false);
+        setPhase('review');
+        return;
+      }
+
+      setSourceKind('ocr');
       const sourceType: ReceiptOcrSourceType = isReceiptPdfFile(targetFile) ? 'pdf' : 'photo';
       let resultText = '';
       let resultConfidence: number | undefined;
@@ -226,6 +258,7 @@ export function ReceiptScanFlow({ categories, products = [], receipts, onSave, o
         const confidences: number[] = [];
         const pageDiagnostics: ReceiptOcrDiagnostics[] = [];
         const pageGeometries: ReceiptOcrGeometry[] = [];
+        const selectedPageAssessments: ReceiptOcrCandidateAssessment[] = [];
         let totalChunks = 0;
         let pagesProcessed = 0;
         let pageCount = 0;
@@ -245,21 +278,52 @@ export function ReceiptScanFlow({ categories, products = [], receipts, onSave, o
           processedByPage.set(rendered.pageNumber, processed);
           pageDiagnostics.push(processed.diagnostics);
           totalChunks += processed.chunks.length;
-          const result = await recognizeReceiptImageChunks(processed.chunks, (next) => {
-            const localProgress = next.progress ?? 0;
-            setProgress({
-              ...next,
-              progress: Math.min(1, (rendered.pageNumber - 1 + localProgress) / rendered.pageCount),
-              label: `Strona ${rendered.pageNumber} z ${rendered.pageCount}: ${next.label}`,
-            });
-          }, controller.signal);
+
+          const runPageOcr = async (profile: 'primary' | 'single-block-recovery') => {
+            const retry = profile === 'single-block-recovery';
+            const result = await recognizeReceiptImageChunks(processed.chunks, (next) => {
+              const localProgress = next.progress ?? 0;
+              setProgress({
+                ...next,
+                progress: Math.min(1, (rendered.pageNumber - 1 + localProgress) / rendered.pageCount),
+                label: retry
+                  ? `Strona ${rendered.pageNumber} z ${rendered.pageCount}: sprawdzam drugi odczyt...`
+                  : `Strona ${rendered.pageNumber} z ${rendered.pageCount}: ${next.label}`,
+              });
+            }, controller.signal, profile);
+            fullOcrPasses += 1;
+            return result;
+          };
+
+          const primaryResult = await runPageOcr('primary');
           if (controller.signal.aborted) return;
-          pageTexts.push(result.text);
-          if (typeof result.confidence === 'number') confidences.push(result.confidence);
-          if (result.geometry) {
+          const primaryAssessment = assessReceiptOcrCandidate('primary', primaryResult.text, sourceType, primaryResult.confidence);
+          candidateAssessments.push(primaryAssessment);
+          let selectedPageAssessment = primaryAssessment;
+          let selectedPageResult = primaryResult;
+
+          if (shouldRetryReceiptPdfOcr(primaryAssessment)) {
+            const recoveryResult = await runPageOcr('single-block-recovery');
+            if (controller.signal.aborted) return;
+            const recoveryAssessment = assessReceiptOcrCandidate(
+              'single-block-recovery',
+              recoveryResult.text,
+              sourceType,
+              recoveryResult.confidence,
+            );
+            candidateAssessments.push(recoveryAssessment);
+            const chosen = chooseReceiptOcrCandidate(primaryAssessment, recoveryAssessment);
+            selectedPageAssessment = chosen;
+            if (chosen === recoveryAssessment) selectedPageResult = recoveryResult;
+          }
+
+          selectedPageAssessments.push(selectedPageAssessment);
+          pageTexts.push(selectedPageAssessment.text);
+          if (typeof selectedPageAssessment.confidence === 'number') confidences.push(selectedPageAssessment.confidence);
+          if (selectedPageResult.geometry) {
             const recoveredGeometry = await recoverValueColumn(
               processed,
-              result.geometry,
+              selectedPageResult.geometry,
               `Strona ${rendered.pageNumber} z ${rendered.pageCount}: `,
             );
             if (controller.signal.aborted) return;
@@ -270,6 +334,9 @@ export function ReceiptScanFlow({ categories, products = [], receipts, onSave, o
         if (controller.signal.aborted) return;
         resultText = combineReceiptPdfPageTexts(pageTexts);
         resultConfidence = confidences.length ? confidences.reduce((sum, value) => sum + value, 0) / confidences.length : undefined;
+        selectedAssessment = selectedPageAssessments.length === 1
+          ? selectedPageAssessments[0]
+          : assessReceiptOcrCandidate('primary', resultText, sourceType, resultConfidence);
         if (pageGeometries.length) {
           selectedGeometry = {
             source: 'primary',
@@ -454,10 +521,9 @@ export function ReceiptScanFlow({ categories, products = [], receipts, onSave, o
         }
       }
 
-      // DEV4-B-FIX2 is shadow-only. It may spend at most two cell-level OCR passes
-      // after the production decision has already been made. The resulting evidence
-      // is diagnostic and must never modify selectedGeometry, geometrySelection, or
-      // parsedBeforeMerchantRecovery in this experiment gate.
+      // Local numeric verification is intentionally bounded to at most two cell-level OCR passes.
+      // The evidence is first collected without mutating the geometry decision, then a separate
+      // strict promotion gate may replace only values that have explicit local OCR support.
       if (selectedGeometry && geometryReconstruction && geometryParsed) {
         const numericPlan = planReceiptLocalNumericVerification({
           geometry: selectedGeometry,
@@ -532,6 +598,16 @@ export function ReceiptScanFlow({ categories, products = [], receipts, onSave, o
           parsedBeforeMerchantRecovery = numericVerificationProduction.parsed;
         }
       }
+
+      // Keep one production-facing definition of financial consistency. The geometry
+      // selector may reject a candidate for lack of independent evidence even when the
+      // primary draft is already financially exact. Diagnostics must describe the draft
+      // that production actually selected, not the rejected candidate path.
+      const productionFinancial = reconcileParsedReceiptFinancials(parsedBeforeMerchantRecovery);
+      geometrySelection = {
+        ...geometrySelection,
+        financiallyConsistent: productionFinancial.financiallyConsistent,
+      };
 
       const geometrySelected = geometrySelection.decision !== 'KEEP_PRIMARY';
       if (import.meta.env.DEV) {
@@ -711,6 +787,23 @@ export function ReceiptScanFlow({ categories, products = [], receipts, onSave, o
           valueColumnRecoveryPasses,
           valueColumnRecoveryUsed,
         } : current);
+      } else if (sourceType === 'pdf') {
+        const candidateDiagnostics = candidateAssessments.map((candidate) => (
+          describeReceiptOcrCandidate(candidate, candidate === selectedAssessment)
+        ));
+        setDiagnosticOcrMeta((current) => current ? {
+          ...current,
+          itemBlockSource: geometrySelection.decision === 'SELECT_RECOVERY'
+            ? 'geometry-value-recovery'
+            : geometrySelection.decision === 'SELECT_STRUCTURED_GEOMETRY'
+              ? 'geometry-structured-consensus'
+              : selectedAssessment?.parsed.items.length ? selectedAssessment.profile : 'unresolved',
+          candidateDiagnostics,
+          fullOcrPasses,
+          valueColumnRecoveryAttempted,
+          valueColumnRecoveryPasses,
+          valueColumnRecoveryUsed,
+        } : current);
       }
       setDiagnosticOcrText(resultText);
       const quality = selectedAssessment?.quality ?? analyzeReceiptOcrQuality(resultText, sourceType, resultConfidence);
@@ -762,12 +855,13 @@ export function ReceiptScanFlow({ categories, products = [], receipts, onSave, o
       setDiagnosticOcrText('');
       setDiagnosticOcrMeta(null);
       setDiagnosticOcrQuality(null);
+      setJsonFeedbackContext(null);
       if (import.meta.env.DEV) {
         const debugWindow = window as Window & { __IK_PRIVATE_RECEIPT_GEOMETRY__?: unknown };
         delete debugWindow.__IK_PRIVATE_RECEIPT_GEOMETRY__;
       }
       setDirty(false);
-      if (isReceiptPdfFile(selected)) {
+      if (isReceiptPdfFile(selected) || isReceiptJsonFile(selected)) {
         if (imageUrlRef.current) URL.revokeObjectURL(imageUrlRef.current);
         imageUrlRef.current = '';
         setImageUrl('');
@@ -800,20 +894,27 @@ export function ReceiptScanFlow({ categories, products = [], receipts, onSave, o
 
   async function saveDraft(draft: ReceiptDraft) {
     if (saveInFlightRef.current) return;
-    const duplicate = findLikelyDuplicateReceipt(draft, receipts, { currency: displayCurrency, ...(tripName ? { tripName } : {}) });
-    if (duplicate && !window.confirm(`Ten paragon wygląda na już zapisany (${duplicate.merchant}, ${duplicate.date}). Zapisać go ponownie?`)) {
-      setError('Zapis anulowany - taki sam paragon jest już w historii.');
-      return;
-    }
     saveInFlightRef.current = true;
     setSaving(true);
     setError('');
     try {
-      await onSave(draft);
+      const sourceFingerprint = file ? await createReceiptSourceFingerprint(file) : undefined;
+      const draftWithSource: ReceiptDraft = sourceFingerprint ? { ...draft, sourceFingerprint } : draft;
+      const duplicate = findReceiptDuplicateMatch(draftWithSource, receipts, { currency: displayCurrency, ...(tripName ? { tripName } : {}) });
+      if (duplicate?.confidence === 'exact') {
+        setError(`Ten sam plik paragonu jest już zapisany (${duplicate.receipt.merchant}, ${duplicate.receipt.date}). Nie utworzono duplikatu - edytuj albo usuń istniejący zapis, jeśli chcesz go zastąpić.`);
+        return;
+      }
+      if (duplicate && !window.confirm(`Ten paragon jest podobny do już zapisanego (${duplicate.receipt.merchant}, ${duplicate.receipt.date}). Czy to na pewno osobny zakup?`)) {
+        setError('Zapis anulowany - podobny paragon jest już w historii.');
+        return;
+      }
+      await onSave(draftWithSource);
       // Persistence succeeded. Only now release transient receipt/OCR resources.
       setDiagnosticOcrText('');
       setDiagnosticOcrMeta(null);
       setDiagnosticOcrQuality(null);
+      setJsonFeedbackContext(null);
       if (import.meta.env.DEV) {
         const debugWindow = window as Window & { __IK_PRIVATE_RECEIPT_GEOMETRY__?: unknown };
         delete debugWindow.__IK_PRIVATE_RECEIPT_GEOMETRY__;
@@ -852,14 +953,14 @@ export function ReceiptScanFlow({ categories, products = [], receipts, onSave, o
 
         {phase === 'select' ? (
           <div className="receipt-scan-select">
-            <div className="receipt-scan-select-mark" aria-hidden="true">OCR</div>
-            <h2>Dodaj zdjęcie lub PDF paragonu</h2>
-            <p>Zdjęcie lub PDF paragonu (do 6 stron) jest przetwarzany lokalnie i nie jest zapisywany po zakończeniu skanowania.</p>
+            <div className="receipt-scan-select-mark" aria-hidden="true">SCAN</div>
+            <h2>Dodaj zdjęcie, PDF lub JSON paragonu</h2>
+            <p>Zdjęcie i PDF są odczytywane lokalnym OCR. Strukturalny JSON e-paragonu jest czytany bez OCR, bezpośrednio z zapisanych pozycji, rabatów, kaucji i sum.</p>
             <div className="receipt-scan-source-actions" role="group" aria-label="Źródło paragonu">
               <input ref={cameraInputRef} className="visually-hidden" type="file" accept="image/*" capture="environment" onChange={selectFile} />
-              <input ref={galleryInputRef} className="visually-hidden" type="file" accept="image/*,application/pdf,.pdf" onChange={selectFile} />
+              <input ref={galleryInputRef} className="visually-hidden" type="file" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp,application/pdf,.pdf,application/json,.json" onChange={selectFile} />
               <button type="button" className="button button-primary" onClick={() => cameraInputRef.current?.click()}>Zrób zdjęcie</button>
-              <button type="button" className="button button-secondary" onClick={() => galleryInputRef.current?.click()}>Wybierz zdjęcie / PDF</button>
+              <button type="button" className="button button-secondary" onClick={() => galleryInputRef.current?.click()}>Wybierz zdjęcie / PDF / JSON</button>
             </div>
             <button type="button" className="text-button" onClick={onManualAdd}>Dodaj paragon ręcznie</button>
           </div>
@@ -871,7 +972,7 @@ export function ReceiptScanFlow({ categories, products = [], receipts, onSave, o
             <div className="receipt-scan-processing-copy">
               <strong>{progress.label}</strong>
               {progressPercent !== null ? <><progress max="100" value={progressPercent}>{progressPercent}%</progress><span>{progressPercent}%</span></> : null}
-              <p>Rozpoznawanie działa na tym urządzeniu.</p>
+              <p>Przetwarzanie działa lokalnie na tym urządzeniu.</p>
               <button type="button" className="button button-secondary" onClick={closeFlow}>Anuluj</button>
             </div>
           </div>
@@ -883,15 +984,15 @@ export function ReceiptScanFlow({ categories, products = [], receipts, onSave, o
             <p>{error || 'Możesz spróbować ponownie, obrócić podgląd albo dodać paragon ręcznie.'}</p>
             <div className="receipt-scan-error-actions">
               {file ? <button type="button" className="button button-primary" onClick={() => void runOcr(file, rotation)}>Spróbuj ponownie</button> : null}
-              {file ? <button type="button" className="button button-secondary" onClick={() => rotateAndRetry('left')}>Obróć w lewo</button> : null}
-              {file ? <button type="button" className="button button-secondary" onClick={() => rotateAndRetry('right')}>Obróć w prawo</button> : null}
+              {file && !isReceiptJsonFile(file) ? <button type="button" className="button button-secondary" onClick={() => rotateAndRetry('left')}>Obróć w lewo</button> : null}
+              {file && !isReceiptJsonFile(file) ? <button type="button" className="button button-secondary" onClick={() => rotateAndRetry('right')}>Obróć w prawo</button> : null}
               {!file ? <button type="button" className="button button-primary" onClick={() => cameraInputRef.current?.click()}>Zrób zdjęcie</button> : null}
-              {!file ? <button type="button" className="button button-secondary" onClick={() => galleryInputRef.current?.click()}>Wybierz zdjęcie / PDF</button> : null}
+              {!file ? <button type="button" className="button button-secondary" onClick={() => galleryInputRef.current?.click()}>Wybierz zdjęcie / PDF / JSON</button> : null}
               <button type="button" className="text-button" onClick={onManualAdd}>Dodaj ręcznie</button>
               <button type="button" className="text-button" onClick={closeFlow}>Anuluj</button>
             </div>
             <input ref={cameraInputRef} className="visually-hidden" type="file" accept="image/*" capture="environment" onChange={selectFile} />
-            <input ref={galleryInputRef} className="visually-hidden" type="file" accept="image/*,application/pdf,.pdf" onChange={selectFile} />
+            <input ref={galleryInputRef} className="visually-hidden" type="file" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp,application/pdf,.pdf,application/json,.json" onChange={selectFile} />
           </div>
         ) : null}
 
@@ -906,12 +1007,14 @@ export function ReceiptScanFlow({ categories, products = [], receipts, onSave, o
             diagnosticOcrText={diagnosticOcrText}
             diagnosticOcrMeta={diagnosticOcrMeta}
             diagnosticOcrQuality={diagnosticOcrQuality}
+            jsonFeedbackContext={jsonFeedbackContext}
             onChange={(next) => { setReview(next); setDirty(true); }}
             onRotate={rotate}
             onRerun={() => file && void runOcr(file, rotation)}
             onCancel={closeFlow}
             onSave={saveDraft}
             displayCurrency={displayCurrency}
+            sourceKind={sourceKind}
           />
         ) : null}
       </section>

@@ -98,19 +98,20 @@ const rootPrivateNotes = projectRootEntries.filter((name) => /^PRIVATE(?:_.*)?\.
 // RC package identity must be visible in-app and synchronized with build metadata.
 const appVersion = /APP_VERSION\s*=\s*'([^']+)'/u.exec(version)?.[1];
 const appBuild = /APP_BUILD\s*=\s*'([^']+)'/u.exec(buildMeta)?.[1];
-assert(appVersion === '1.2.0.145', 'APP_VERSION drifted');
-assert(appBuild === '145', 'APP_BUILD drifted');
+assert(typeof appVersion === 'string' && typeof appBuild === 'string', 'APP_VERSION/APP_BUILD missing');
 const versionParts = appVersion?.split('.') ?? [];
 assert(versionParts.length === 4 && versionParts.every((part) => /^\d+$/u.test(part)), 'APP_VERSION must use MAJOR.MINOR.STAGE.BUILD');
 const expectedReleaseVersion = versionParts.slice(0, 3).join('.');
 const expectedPrivatePackageVersion = `${expectedReleaseVersion}-private.${appBuild}`;
 assert(versionParts[3] === appBuild, 'APP_VERSION build suffix differs from src/core/build.ts');
+assert(/export const BUILD_NUMBER\s*=\s*APP_BUILD;/u.test(buildMeta), 'runtime BUILD_NUMBER alias missing from src/core/build.ts');
+assert(/import\s*\{\s*BUILD_NUMBER\s*\}\s*from\s*['"]\.\.\/core\/build['"]/u.test(settingsView), 'SettingsView no longer imports the runtime BUILD_NUMBER alias');
 assert(!version.includes('APP_BUILD') && !version.includes('APP_STAGE'), 'technical build/stage metadata leaked back into app version module');
 assert(version.includes('DATABASE_SCHEMA_VERSION = 14'), 'database schema changed unexpectedly');
 if (buildInfo) {
   assert(buildInfo.appVersion === appVersion && buildInfo.build === appBuild, 'BUILD_INFO.json app/build identity differs from source metadata');
   assert(buildInfo.versionScheme === 'MAJOR.MINOR.STAGE.BUILD' && buildInfo.releaseVersion === expectedReleaseVersion, 'BUILD_INFO.json version scheme/release metadata drifted');
-  assert(buildInfo.channel === 'private' && buildInfo.packageVersion === expectedPrivatePackageVersion && buildInfo.date === '2026-09-19', 'BUILD_INFO.json is not synchronized with PRIVATE 1.2.0.145 metadata');
+  assert(buildInfo.channel === 'private' && buildInfo.packageVersion === expectedPrivatePackageVersion && /^\d{4}-\d{2}-\d{2}$/u.test(buildInfo.date), 'BUILD_INFO.json is not synchronized with PRIVATE metadata');
 }
 if (currentState) {
   assert(currentState.version === appVersion && String(currentState.build) === appBuild, 'CURRENT_STATE.json app/build identity differs from source metadata');
@@ -123,8 +124,8 @@ assert(packageJson.version === expectedPrivatePackageVersion, 'package.json vers
 if (buildInfo?.channel === 'private') {
   assert(rootHandoffs.length === 1 && rootHandoffs[0] === 'HANDOFF_NEW_CHAT.md', 'root must contain exactly one fixed-name current handoff');
   assert(rootPrivateNotes.length === 1 && rootPrivateNotes[0] === 'PRIVATE.md', 'root must contain exactly one fixed-name current PRIVATE note');
-  assert(source('HANDOFF_NEW_CHAT.md').includes('1.2.0 Build 145'), 'HANDOFF_NEW_CHAT.md content is not synchronized with Build 145');
-  assert(source('PRIVATE.md').includes('Build 145'), 'PRIVATE.md content is not synchronized with Build 145');
+  assert(source('HANDOFF_NEW_CHAT.md').includes(`${expectedReleaseVersion} Build ${appBuild}`), 'HANDOFF_NEW_CHAT.md content is not synchronized with current build');
+  assert(source('PRIVATE.md').includes(`Build ${appBuild}`), 'PRIVATE.md content is not synchronized with current build');
 }
 for (const obsolete of [
   'public/icon-192.png', 'public/icon-512.png', 'public/apple-touch-icon.png',
@@ -217,7 +218,7 @@ assert(financeDashboard.includes('!isEmptyMonth ? <button type="button" classNam
 assert(financeDashboard.includes('activeTripName && !isEmptyActiveTrip ? ('), 'empty active Trip can render a duplicated header action group');
 assert(!financeDashboard.includes(`{financeScope === 'MONTH' || activeTripName ? <div className="finance-dashboard-actions finance-core-actions">`), 'obsolete unconditional Finance header action group returned');
 assert(financeDashboard.includes('<div><button type="button" className="button button-primary" onClick={openQuickExpense}>+ Wydatek</button></div>'), 'empty Month lost its single primary + Wydatek CTA');
-assert(financeDashboard.includes('className="button button-secondary finance-scan-receipt" onClick={openReceiptScan}>Skanuj paragon</button>'), 'Finance receipt scanner action missing');
+assert(financeDashboard.includes('className="button button-secondary finance-scan-receipt" onClick={openReceiptScan}') && financeDashboard.includes('finance-scan-receipt-long'), 'Finance receipt scanner action missing');
 assert(financeDashboard.includes("type FinanceScope = 'MONTH' | 'TRIPS'") && financeDashboard.includes('finance-trip-summary') && financeDashboard.includes('finance-trip-expense-list'), 'Finance trip summaries are missing');
 assert(financeDashboard.includes("financeScope === 'TRIPS' ? normalizeTripName(activeTripName) : ''") && db.includes("const tripName = normalizeExpenseText(draft.tripName ?? '')"), 'Trip expense assignment or receipt persistence is missing');
 assert(db.includes("FINANCE_TRIPS_META_KEY = 'financeTrips.v1'") && db.includes('export async function listFinanceTrips') && db.includes('export async function createFinanceTrip') && financeDashboard.includes('tripDefinitions'), 'Persistent empty Finance trips are missing');
@@ -241,10 +242,10 @@ assert(tokensCss.includes('--category-study: #b95d84') && tokensCss.includes('--
 assert(interfaceConsistency.includes('/* 1.2.0.85 - one hierarchy and stronger semantic event categories. */') && interfaceConsistency.includes('.study-view > .view-header h1') && interfaceConsistency.includes('.work-view > .view-header h1') && interfaceConsistency.includes('.settings-minimal-view > .view-header h1'), '1.2.0.85 cross-module hierarchy is missing');
 assert(interfaceConsistency.includes('.calendar-week-event.category-study') && interfaceConsistency.includes('.calendar-week-event.category-work') && interfaceConsistency.includes('.calendar-week-event.category-personal') && interfaceConsistency.includes('.selected-day-panel .event-card.category-work'), 'semantic event contrast does not cover calendar and selected-day surfaces');
 assert(calendarView.includes('filter-${item.id.toLowerCase()}') && calendarView.includes('category-${event.category.toLowerCase()}'), 'calendar filters or mobile day preview lost semantic category classes');
-assert(studyViewSource.includes('Wczytaj Excel. Przed zapisem zobaczysz zmiany i wybierzesz tylko potrzebne grupy.'), 'Study intro was not simplified');
+assert(studyViewSource.includes('<h1>Studia</h1>') && studyViewSource.includes('study-current-plan-line') && studyViewSource.includes('study-groups-primary') && studyViewSource.includes('study-history-details'), 'Study default surface simplification is missing');
 assert(styleIndex.trimEnd().endsWith("@import './interface-consistency.css';"), 'shared interface consistency stylesheet must load last');
 assert(privacyDoc.includes('## Lokalne kursy walut 1.2.0.85') && privacyDoc.includes('wbudowanych lokalnie') && privacyDoc.includes('nie wysyła kwoty wydatku'), 'simplified FX privacy boundary is not documented');
-assert(financeDashboard.includes('activeTripOriginalTotals') && financeDashboard.includes('finance-trip-currency-button'), 'Trip original-currency summary or currency settings entry is missing');
+assert(financeDashboard.includes('completeTripOriginalTotal') && financeDashboard.includes('activeTripOriginalTotalMinor') && financeDashboard.includes('finance-trip-currency-button'), 'Trip original-currency summary or currency settings entry is missing');
 assert(calendarCss.includes('/* 1.2.0.58 - lightweight trip expense summaries */') && mobileResponsiveCss.includes('/* 1.2.0.58 - trip finances on mobile */'), 'Finance trip summary styling missing');
 assert(financeDashboard.includes("type FinanceExpenseListMode = 'TRANSACTIONS' | 'ITEMS'") && financeDashboard.includes("useState<FinanceExpenseListMode>('TRANSACTIONS')") && financeDashboard.includes('finance-month-transaction-list'), 'Finance monthly view is no longer transaction-first');
 assert(financeDashboard.includes('>Transakcje</button>') && financeDashboard.includes('>Pozycje</button>') && financeDashboard.includes("setExpenseListMode('ITEMS')"), 'Finance transaction/item drill-down switch is missing');
@@ -263,7 +264,7 @@ assert(calendarCss.includes('/* 1.2.0.89 - travel-ready category cues') && mobil
 assert(financeDashboard.includes('finance-overview-summary-card') && financeDashboard.includes('finance-overview-category-strip') && financeDashboard.includes('finance-expense-row finance-month-transaction-row') && financeDashboard.includes('finance-expense-row finance-trip-expense-row'), '1.2.0.90 Month/Trip shared Finance structure is missing');
 assert(financeDashboard.includes('finance-month-transaction-icon') && financeDashboard.includes('finance-trip-expense-icon') && financeDashboard.includes("const secondary = [receipt.tripName, formatExpenseMerchantDisplayName(receipt.merchant), categoryLabel]"), '1.2.0.90 transaction category cues are not shared between Month and Trip');
 assert(calendarCss.includes('/* 1.2.0.90 - Month and Trip Finance share one compact visual grammar. */') && mobileResponsiveCss.includes('/* 1.2.0.90 - Month and Trip keep the same Finance hierarchy on phones. */'), '1.2.0.90 shared Finance styling missing');
-assert(settingsView.includes('settings-essential-grid') && settingsView.includes('settings-build-line') && settingsView.includes('Backup i przenoszenie') && settingsView.includes('Dane i historia') && !settingsView.includes('settings-advanced-collapsible'), 'Settings is no longer essentials-first');
+assert(settingsView.includes('settings-core') && settingsView.includes('settings-essential-grid') && settingsView.includes('settings-build-line') && settingsView.includes('Backup i przenoszenie') && settingsView.includes('Historia i bezpieczeństwo') && settingsView.includes('settings-collapsible-section'), 'Settings minimal default surface is missing');
 assert(!safety.includes("tab === 'backup'") && !safety.includes('Utwórz kopię zapasową'), 'duplicate backup controls returned to Safety Center');
 assert(workView.includes("activeWorkEvents.length ? 'Aktualizuj PDF' : 'Importuj PDF'") && mobileResponsiveCss.includes('.work-header-actions .work-import-button'), 'travel-ready Work header hardening missing');
 assert(calendarCss.includes('/* 1.2.0.54 - global clarity pass') && mobileResponsiveCss.includes('/* 1.2.0.54 - real-device mobile clarity pass */'), '1.2.0.54 clarity styles missing');
@@ -426,8 +427,9 @@ assert(db.includes("entry.operationType === 'DELETE_RECEIPT'") && db.includes("e
 
 // Production audit and service worker must agree on the current RC cache contract.
 assert(sw.includes("const CACHE_PREFIX = 'inteligentny-kalendarz-shell-'"), 'current service worker cache prefix missing');
-assert(sw.includes("const CACHE_NAME = `${CACHE_PREFIX}v1.2.0.145`"), 'current service worker cache version missing');
-assert(audit.includes("const CACHE_NAME = `${CACHE_PREFIX}v1.2.0.145`"), 'production audit still expects an obsolete service worker revision');
+const expectedCacheMarker = `const CACHE_NAME = ` + '`' + `\${CACHE_PREFIX}v${appVersion}` + '`' + `;`;
+assert(sw.includes(expectedCacheMarker), 'current service worker cache version missing');
+assert(audit.includes('APP_VERSION') && audit.includes('CACHE_NAME'), 'production audit no longer derives/checks the current service worker revision');
 assert(!/\bcaches\.match\s*\(/u.test(sw), 'service worker can read foreign origin caches');
 assert(sw.includes('key.startsWith(CACHE_PREFIX)'), 'service worker can delete unrelated caches');
 assert(sw.includes('await caches.delete(CACHE_NAME)'), 'partial current cache cleanup missing');
@@ -498,7 +500,7 @@ assert(calendarView.indexOf('calendar-side-study-context') > calendarView.indexO
 assert(calendarView.includes('const WEEK_DESKTOP_VERTICAL_CHROME = 225;'), 'adaptive week density did not reclaim the vertical space freed by moving Study context');
 assert(calendarCss.includes('/* 1.2.0.50 - move Study context out of the main calendar vertical flow */'), '1.2.0.50 compact calendar side-context styles missing');
 assert(mobileResponsiveCss.includes('/* 1.2.0.50 - compact side Study context */'), '1.2.0.50 responsive side-context styles missing');
-assert(studyProfile.includes('study-profile-heading-status') && studyProfile.includes('activeGroups.length'), 'Study profile does not expose active-plan group status');
+assert(studyProfile.includes('study-future-groups-note') && studyProfile.includes('Aktualny plan: {formatStudyGroupList(activeGroups)}'), 'Study profile does not distinguish active groups when future groups differ');
 assert(studyProfile.includes('study-future-groups-note'), 'Study profile does not distinguish future-only group selection');
 assert(studyProfile.includes('study-profile-settings-always-open') && studyProfile.includes('Wybór grup') && studyProfile.includes('StudyGroupChoiceFields') && !studyProfile.includes('Zmień grupy') && !studyProfile.includes('setEditing'), 'Study group controls are no longer permanently visible through the shared chooser');
 assert(source('src/study/StudyGroupPreviewPanel.tsx').includes('<section className="study-preview-sandbox">') && !source('src/study/StudyGroupPreviewPanel.tsx').includes('<section className="panel study-preview-sandbox">'), '1.2.0.101 Study preview returned to a nested panel');
@@ -506,12 +508,12 @@ assert(transfer.includes('data-transfer-privacy-details') && transfer.includes('
 assert(!safety.includes('<section className="panel safety-center">') && safety.includes('settings-section-intro'), '1.2.0.101 Settings safety hierarchy returned to a nested panel');
 assert(interfaceConsistency.includes('/* 1.2.0.101 - compact Studies and Settings without hiding primary controls. */') && interfaceConsistency.includes('.study-profile-group-picker .group-chip { min-height: 42px;'), '1.2.0.101 compact UI or mobile touch-size guard missing');
 assert(studyGroupChoice.includes('STUDY_GROUP_PARTITIONS') && studyGroupChoice.includes('study-group-choice-card') && studyGroupChoice.includes('<select value={current}') && studyGroupChoice.includes('setPartitionGroup'), 'Shared Study group selector missing');
-assert(workView.includes('className="work-overview-dashboard"'), '1.2.0.102 Work overview is no longer grouped as a dashboard');
-assert(settingsView.includes('className="settings-dashboard-grid"'), '1.2.0.102 Settings top modules are no longer grouped as a dashboard');
+assert(workView.includes('work-overview-simple') && workView.includes('work-summary-line') && workView.includes('work-shift-row-minimal'), '1.2.0.174 Work minimal default surface is missing');
+assert(settingsView.includes('settings-core') && settingsView.includes('settings-collapsible-section'), '1.2.0.174 Settings minimal default surface is missing');
 assert(interfaceConsistency.includes('/* 1.2.0.102 - dashboard density: compact Studies, Work overview and Settings. */') && interfaceConsistency.includes('.study-group-choice-card select') && interfaceConsistency.includes('.work-overview-dashboard') && interfaceConsistency.includes('.settings-dashboard-grid'), 'dashboard density styles missing');
 assert(studyViewSource.includes('study-upload-dashboard') && interfaceConsistency.includes('.study-view .study-upload-dashboard'), '1.2.0.102 compact Study import dashboard missing');
 // 1.2.0.103 continues dashboard density without hiding primary actions and adds optional calendar information layers.
-assert(todayView.includes('today-add-row') && todayView.includes('+ Dodaj wydarzenie') && todayView.includes('<div className="today-header-actions" />'), '1.2.0.103 Today add action is no longer centered below the agenda');
+assert(todayView.includes('today-add-row') && todayView.includes('+ Dodaj wydarzenie'), 'Today add action is no longer kept below the agenda');
 assert(financeDashboard.includes('!newTripOpen && tripSummaries.length') && financeDashboard.includes('Utwórz pierwszy wyjazd, a jego wydatki będą zebrane w jednym miejscu.'), '1.2.0.103 empty Trips returned to duplicated header/empty-state actions');
 assert(settingsView.includes('showPolishHolidays') && settingsView.includes('showWumAcademicCalendar') && db.includes('showPolishHolidays: settings?.showPolishHolidays ?? true') && db.includes('showWumAcademicCalendar: settings?.showWumAcademicCalendar ?? true'), '1.2.0.103 optional calendar layers are not persisted safely');
 assert(calendarView.includes('calendarOverlayMarkersForDate') && calendarView.includes('calendar-selected-day-overlays') && calendarView.includes('calendar-overlay-dots'), '1.2.0.103 calendar overlay rendering missing');
@@ -521,7 +523,7 @@ assert(interfaceConsistency.includes('/* 1.2.0.103 - dashboard continuation: com
 assert(availabilityView.includes('availability-week-days') && workSummaryView.includes('work-summary-view'), '1.2.0.103 Work dashboard sources missing');
 // 1.2.0.104 finishes desktop compaction without hiding data or shrinking touch targets.
 assert(availabilityView.includes('availability-dashboard-layout') && interfaceConsistency.includes('grid-template-columns: minmax(0, 2fr) minmax(320px, 1fr)'), '1.2.0.104 Availability 2/3 + 1/3 dashboard missing');
-assert(studyProfile.includes('study-profile-plan-summary') && !studyProfile.includes('Grupy aktywnego planu'), '1.2.0.104 Study profile duplicates active group chips above selectors');
+assert(!studyProfile.includes('study-profile-plan-summary') && !studyProfile.includes('Grupy aktywnego planu') && studyViewSource.includes('study-current-plan-line'), 'Study profile reintroduced a duplicate active-plan summary above selectors');
 assert(calendarView.includes('calendar-study-context-details') && interfaceConsistency.includes('.calendar-side-column.is-empty .selected-day-panel .empty-state'), '1.2.0.104 Calendar compact context or empty-day density guard missing');
 assert(settingsView.includes('Święta PL') && settingsView.includes('WUM 26/27') && interfaceConsistency.includes('.settings-layer-switch input:checked'), '1.2.0.104 compact calendar layer switches missing');
 
@@ -551,17 +553,17 @@ assert(studySourceAudit.includes('auditSelectedStudyProfile') && studySourceAudi
 assert(studySourceAuditOptionalTest.includes('activeStudyQaProfile') && studySourceAuditOptionalTest.includes('activeStudySourceFingerprint'), '1.2.0.137 active-source regression baseline is not enforced by private audit');
 if (currentState) assert(Array.isArray(currentState.activeStudyQaProfile?.selectedGroups) && currentState.activeStudyQaProfile.importableCount === 72 && currentState.activeStudyQaProfile.incompleteCount === 3, '1.2.0.137 active Study QA profile drifted');
 
-// 1.2.0.145 makes the release-blocking Study mobile import smoke repeatable on both phone widths.
-assert(packageJson.scripts?.['study:mobile-smoke'] === 'node scripts/study-mobile-smoke.mjs', '1.2.0.145 Study mobile smoke package command missing');
-assert(studyMobileSmoke.includes('runStudySmoke(cdp, 390, 844)') && studyMobileSmoke.includes('runStudySmoke(cdp, 360, 800)'), '1.2.0.145 Study mobile smoke viewports missing');
-assert(studyMobileSmoke.includes("DOM.setFileInputFiles") && studyMobileSmoke.includes("args.get('main')") && studyMobileSmoke.includes("args.get('g12')") && studyMobileSmoke.includes("args.get('g4')"), '1.2.0.145 Study mobile smoke does not exercise a parameterized real-source group flow');
-assert(!studyMobileSmoke.includes("'MAIN:10'") && !studyMobileSmoke.includes("'G12:10A'") && !studyMobileSmoke.includes("'G4:10B2'"), '1.2.0.145 public-capable Study smoke leaked the private QA profile as source defaults');
-assert(studyMobileSmoke.includes("event?.source === 'UNIVERSITY_XLSX'") && studyMobileSmoke.includes("clickMobileNav(cdp, 'Kalendarz')") && studyMobileSmoke.includes('STUDY_MOBILE_SMOKE_ALL_OK'), '1.2.0.145 Study mobile smoke does not prove commit-to-calendar handoff');
-assert(studyMobileSmoke.includes('async function waitForAppShell') && studyMobileSmoke.includes("document.querySelector('.app-shell')") && studyMobileSmoke.includes("document.querySelector('.startup-screen .error-card p')") && studyMobileSmoke.includes("new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })"), '1.2.0.145 Study smoke does not prove app bootstrap before navigation');
+// 1.2.0.146 makes the release-blocking Study mobile import smoke repeatable on both phone widths.
+assert(packageJson.scripts?.['study:mobile-smoke'] === 'node scripts/study-mobile-smoke.mjs', '1.2.0.146 Study mobile smoke package command missing');
+assert(studyMobileSmoke.includes('runStudySmoke(cdp, 390, 844)') && studyMobileSmoke.includes('runStudySmoke(cdp, 360, 800)'), '1.2.0.146 Study mobile smoke viewports missing');
+assert(studyMobileSmoke.includes("DOM.setFileInputFiles") && studyMobileSmoke.includes("args.get('main')") && studyMobileSmoke.includes("args.get('g12')") && studyMobileSmoke.includes("args.get('g4')"), '1.2.0.146 Study mobile smoke does not exercise a parameterized real-source group flow');
+assert(!studyMobileSmoke.includes("'MAIN:10'") && !studyMobileSmoke.includes("'G12:10A'") && !studyMobileSmoke.includes("'G4:10B2'"), '1.2.0.146 public-capable Study smoke leaked the private QA profile as source defaults');
+assert(studyMobileSmoke.includes("event?.source === 'UNIVERSITY_XLSX'") && studyMobileSmoke.includes("clickMobileNav(cdp, 'Kalendarz')") && studyMobileSmoke.includes('STUDY_MOBILE_SMOKE_ALL_OK'), '1.2.0.146 Study mobile smoke does not prove commit-to-calendar handoff');
+assert(studyMobileSmoke.includes('async function waitForAppShell') && studyMobileSmoke.includes("document.querySelector('.app-shell')") && studyMobileSmoke.includes("document.querySelector('.startup-screen .error-card p')") && studyMobileSmoke.includes("new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })"), '1.2.0.146 Study smoke does not prove app bootstrap before navigation');
 
-// 1.2.0.145 preserves Windows-safe Chromium cleanup without masking the actual Study smoke result.
-assert(studyMobileSmoke.includes("await cdp.send('Browser.close')") && studyMobileSmoke.includes("spawnSync('taskkill', ['/PID', String(browserProcess.pid), '/T', '/F']") && studyMobileSmoke.includes('maxRetries: 12'), '1.2.0.145 Windows-safe Chromium shutdown/cleanup guard missing');
-assert(studyMobileSmoke.includes('STUDY_MOBILE_SMOKE_CLEANUP_WARN') && studyMobileSmoke.includes('await shutdownBrowser(browserProcess, cdp, profile)'), '1.2.0.145 cleanup can still mask the functional Study smoke result');
+// 1.2.0.146 preserves Windows-safe Chromium cleanup without masking the actual Study smoke result.
+assert(studyMobileSmoke.includes("await cdp.send('Browser.close')") && studyMobileSmoke.includes("spawnSync('taskkill', ['/PID', String(browserProcess.pid), '/T', '/F']") && studyMobileSmoke.includes('maxRetries: 12'), '1.2.0.146 Windows-safe Chromium shutdown/cleanup guard missing');
+assert(studyMobileSmoke.includes('STUDY_MOBILE_SMOKE_CLEANUP_WARN') && studyMobileSmoke.includes('await shutdownBrowser(browserProcess, cdp, profile)'), '1.2.0.146 cleanup can still mask the functional Study smoke result');
 
 // 1.2.0.107 removes redundant month-counter dots and enables safe receipt scanning inside foreign-currency trips.
 assert(!calendarView.includes('<i aria-hidden="true" />{counts[category]}'), '1.2.0.107 redundant calendar counter dot returned');
@@ -575,8 +577,42 @@ assert(receiptScanReview.includes('reviewAmountMinor(value: number, currency: Fi
 assert(receiptDuplicate.includes('receipt.originalCurrency !== foreignCurrency') && receiptDuplicate.includes('receipt.originalAmountMinor !== totalMinor') && receiptDuplicate.includes("normalizeExpenseProductKey(receipt.tripName ?? '') !== tripKey"), '1.2.0.108 foreign duplicate detector does not use original trip-currency metadata');
 
 // 1.2.0.109 returns Trips to manual expense entry and adds focused daily usability without another broad redesign.
-assert((financeDashboard.match(/Skanuj paragon/g) ?? []).length === 1 && financeDashboard.includes("financeScope === 'MONTH'"), '1.2.0.109 receipt scanner is exposed outside the Month finance flow');
-assert(todayView.includes('today-glance-grid') && todayView.includes('Najbliższe zajęcia') && todayView.includes('Najbliższa praca') && todayView.includes('calendarOverlayMarkersForDate'), '1.2.0.109 Today glance dashboard or day context missing');
+assert((financeDashboard.match(/className="button button-secondary finance-scan-receipt"/g) ?? []).length === 1 && financeDashboard.includes("financeScope === 'MONTH'"), '1.2.0.109 receipt scanner is exposed outside the Month finance flow');
+assert(todayView.includes('today-next-strip') && todayView.includes('Następne') && !todayView.includes('today-glance-grid') && todayView.includes('calendarOverlayMarkersForDate'), 'Build176 minimal Today next-event cue or day context missing');
+
+// 1.2.0.177 keeps Finance transaction-first while restoring the scanner on phones and lowering default density.
+assert(financeDashboard.includes('finance-month-dashboard-v177') && financeDashboard.includes("expenseListMode === 'ITEMS' && categoryReviewRows.length") && financeDashboard.includes("expenseListMode === 'ITEMS' && necessityReviewRows.length"), 'Build177 Finance default-surface hierarchy missing');
+assert(mobileResponsiveCss.includes('/* 1.2.0.177 - Finance mobile: keep both primary actions') && mobileResponsiveCss.includes('.finance-month-dashboard-v177 .finance-month-category-grid > .finance-month-category-row:nth-child(n+3)') && mobileResponsiveCss.includes('display: inline-flex;'), 'Build177 Finance mobile compaction or scanner restore missing');
+
+// 1.2.0.178 follows real screenshots: empty states must not return to dashboard-sized cards and Work team detail stays below the summary.
+assert(todayView.includes('today-empty-panel') && interfaceConsistency.includes('/* 1.2.0.178 - real-screen density polish') && interfaceConsistency.includes('.today-view.is-empty .today-empty-panel {') && interfaceConsistency.includes('grid-template-columns: 42px minmax(0, 1fr) auto;'), 'Build178 compact empty Today surface missing');
+assert(calendarView.includes('<EmptyState title="Brak wydarzeń" description="" actionLabel="+ Dodaj"') && interfaceConsistency.includes('.calendar-side-column.is-empty .selected-day-panel .empty-orbit { display: none; }'), 'Build178 compact empty selected-day Calendar surface missing');
+assert(workView.includes('className="work-next-strip"') && interfaceConsistency.includes('.work-next-team-static {') && interfaceConsistency.includes('grid-column: 1 / -1;'), 'Build178 compact Work next-shift/team second-row layout missing');
+// 1.2.0.179 keeps the nearest/current shift team always visible, without another interaction.
+assert(workView.includes('className="work-next-team-static"') && workView.includes('nearestCoworkers.map((person)') && !workView.includes('<details className="work-next-team-details"'), 'Build179 nearest/current Work team must remain fully visible without expand/collapse');
+assert(interfaceConsistency.includes('/* 1.2.0.179 - nearest/current Work team is always visible; no expand control. */') && mobileResponsiveCss.includes('.work-next-team-static { justify-self: stretch; width: 100%; }'), 'Build179 persistent Work team desktop/mobile styles missing');
+// 1.2.0.180 softens the Calendar selected-day event treatment without hiding actions or coworkers.
+assert(interfaceConsistency.includes('/* 1.2.0.180 - selected-day panel: no hard accent rail, softer category glow and calmer Study spacing. */') && interfaceConsistency.includes('.calendar-view-shell .selected-day-panel .event-card::before { display: none; }'), 'Build180 selected-day hard accent rail returned');
+assert(interfaceConsistency.includes('.calendar-view-shell .selected-day-panel .event-card.category-work { background: linear-gradient(135deg') && interfaceConsistency.includes('margin: 3px 0 15px;') && interfaceConsistency.includes('gap: 9px;'), 'Build180 selected-day gradient or Study spacing missing');
+assert(calendarView.includes('>Dodaj wydarzenie</button>') && calendarView.includes('showAllWorkCoworkers compactTimeRange'), 'Build180 selected-day panel must keep Add event and full coworkers visible');
+// 1.2.0.181 gives the always-visible coworker list only a hairline row separation, not chips/cards.
+assert(interfaceConsistency.includes('/* 1.2.0.181 - selected-day coworkers stay fully visible but get only a hairline separation for scanability. */') && interfaceConsistency.includes('.calendar-view-shell .selected-day-panel .event-coworker-line + .event-coworker-line {') && interfaceConsistency.includes('border-top: 1px solid color-mix(in srgb, var(--line) 26%, transparent);'), 'Build181 subtle selected-day coworker separation missing');
+
+// 1.2.0.182 keeps the mobile Calendar filter and explicit Add together and prevents compact Work duration wrapping.
+assert(calendarView.includes('className="calendar-mobile-filter-actions"') && calendarView.indexOf('calendar-filter-select') < calendarView.indexOf('calendar-mobile-explicit-add'), 'Build182 mobile Calendar filter/Add grouping missing');
+assert(interfaceConsistency.includes('/* 1.2.0.182 - mobile Calendar keeps filter and explicit Add on one row; compact Work duration never wraps. */') && interfaceConsistency.includes('grid-template-columns: minmax(100px, 1fr) auto;') && interfaceConsistency.includes('min-width: 2.35rem;'), 'Build182 mobile Calendar/Work detail styles missing');
+// 1.2.0.183 gives the mobile day sheet exclusive scroll ownership while it is open.
+assert(calendarView.includes("body.classList.add('calendar-day-sheet-open')") && calendarView.includes("body.style.position = 'fixed'") && calendarView.includes('window.scrollTo(0, scrollY)'), 'Build183 mobile Calendar background scroll lock missing');
+assert(responsiveCss.includes('/* 1.2.0.183 - mobile selected-day sheet owns scrolling; background and nested coworker scroll stay locked. */') && responsiveCss.includes('max-height: min(72dvh, 640px);') && responsiveCss.includes('max-height: none;\n    overflow: visible;'), 'Build183 single-sheet mobile overflow contract missing');
+// 1.2.0.184 improves phone Finance readability and resets view scroll without changing data logic.
+assert(interfaceConsistency.includes('/* 1.2.0.184 - Finance gets clearer phone spacing and typography. */'), 'Build184 Finance readability marker missing');
+assert(app.includes('function changeView(nextView: AppView)') && app.includes("window.scrollTo({ top: 0, left: 0, behavior: 'auto' })") && app.includes('<Navigation activeView={view} onChange={changeView} />'), 'Build184 main-view scroll reset missing');
+assert(financeDashboard.includes('finance-scan-receipt-short') && financeDashboard.includes('finance-scan-receipt-long') && interfaceConsistency.includes('.finance-scan-receipt-long { display: none; }') && interfaceConsistency.includes('-webkit-line-clamp: 2;'), 'Build184 Finance phone readability contract missing');
+// Build185 runtime viewport lift was reverted after a real-device startup regression.
+// 1.2.0.186 keeps Navigation startup-safe and returns bottom-nav geometry to the proven CSS-only contract.
+assert(!navigation.includes('window.visualViewport') && !navigation.includes('getBoundingClientRect') && !navigation.includes('useEffect') && !navigation.includes('useRef'), 'Build186 Navigation must not restore runtime viewport measurement');
+assert(!interfaceConsistency.includes('--mobile-nav-viewport-lift') && interfaceConsistency.includes('/* 1.2.0.186 - startup-safe mobile nav rollback: no runtime viewport measurement.'), 'Build186 startup-safe mobile nav rollback missing');
+assert(responsiveCss.includes('bottom: max(8px, env(safe-area-inset-bottom));') && responsiveCss.includes('grid-template-columns: repeat(6, minmax(0, 1fr));'), 'Build186 proven CSS-only mobile navigation contract missing');
 assert(app.includes('calendarEvents={events}') && eventForm.includes('event-conflict-warning') && eventForm.includes('findEventConflicts') && eventConflicts.includes("event.availabilityImpact !== 'NON_BLOCKING'"), '1.2.0.109 non-blocking event collision warning is not wired safely');
 assert(calendarView.includes('className="calendar-overlay-dots" role="img"') && calendarView.includes('aria-label={overlayMarkers.map((marker) => marker.label)'), '1.2.0.109 calendar overlay meaning is hidden from assistive technology');
 assert(interfaceConsistency.includes('/* 1.2.0.109 - focused usability: Today glance dashboard, non-blocking collision warning and manual-only trip expenses. */'), '1.2.0.109 focused usability styles missing');
@@ -587,7 +623,7 @@ assert(responsiveCss.includes('1.2.0.110 - mobile calendar overlay meaning is vi
 
 // 1.2.0.111 keeps Study plan freshness factual and makes update diffs easier to scan.
 assert(db.includes('getLatestAppliedScheduleUpdateSession') && db.includes("item.status === 'APPLIED'"), '1.2.0.111 latest applied Study update lookup missing');
-assert(studyView.includes('study-plan-freshness') && studyView.includes('Ostatnie porównanie') && studyView.includes('latestAppliedUpdate?.newFileHash === activeImport.fileHash'), '1.2.0.111 active Study plan freshness status missing or not tied to the active file');
+assert(studyView.includes('study-current-plan-line') && studyView.includes('const activePlanUpdate = activeImport && latestAppliedUpdate?.newFileHash === activeImport.fileHash') && studyView.includes('formatUpdateSummary(activePlanUpdate.summary)'), '1.2.0.174 compact Study plan freshness status missing or not tied to the active file');
 assert(studyDiff.includes('summarizeScheduleDiffChangeTypes') && studyDiff.includes('W zmienionych zajęciach:') && studyDiff.includes('Lokalizacje') && studyDiff.includes('Grupy'), '1.2.0.111 Study update change-type breakdown missing');
 assert(interfaceConsistency.includes('/* 1.2.0.111 - compact study plan freshness and readable update breakdown. */'), '1.2.0.111 Study freshness styles missing');
 

@@ -8,11 +8,12 @@ function source(path: string): string {
 describe('finance dashboard foundation regression', () => {
   it('keeps the main finance surface focused on current essentials', () => {
     const dashboard = source('../finance/FinanceDashboardView.tsx');
-    expect(dashboard).toContain('Wydano');
-    expect(dashboard).toContain('vs poprzedni miesiąc');
-    expect(dashboard).toContain('Kategorie');
+    expect(dashboard).toContain('Wydatki w miesiącu');
+    expect(dashboard).toContain('poprzednio');
+    expect(dashboard).toContain('Największe kategorie');
     expect(dashboard).toContain('Wydatki');
-    expect(dashboard).toContain('Skanuj paragon');
+    expect(dashboard).toContain('finance-scan-receipt-short">Skanuj');
+    expect(dashboard).toContain('finance-scan-receipt-long">paragon');
     expect(dashboard).toContain('finance-manual-expense');
     expect(dashboard).not.toContain('Ostatnie 6 miesięcy');
   });
@@ -22,14 +23,15 @@ describe('finance dashboard foundation regression', () => {
     const version = source('../core/version.ts');
     expect(dashboard).toContain('await createReceipt({');
     expect(dashboard).toContain('items: [{');
-    expect(version).toContain("APP_VERSION = '1.2.0.145'");
+    expect(version).toMatch(/APP_VERSION\s*=\s*'\d+\.\d+\.\d+\.\d+'/u);
     expect(version).toContain('DATABASE_SCHEMA_VERSION = 14');
   });
 
   it('wires the protected receipt OCR flow into Finance without restoring legacy analytics clutter', () => {
     const dashboard = source('../finance/FinanceDashboardView.tsx');
     expect(dashboard).toContain('ReceiptScanFlow');
-    expect(dashboard).toContain('Skanuj paragon');
+    expect(dashboard).toContain('finance-scan-receipt-short">Skanuj');
+    expect(dashboard).toContain('finance-scan-receipt-long">paragon');
     expect(dashboard).not.toContain('aggregateExpensesByProduct');
     expect(dashboard).not.toContain('aggregateExpensesByMerchant');
   });

@@ -1,6 +1,6 @@
 import type { ExpenseCategory, ReceiptDraft } from '../expenses.types';
 import { moneyMinorToInput, parseMoneyToMinor, parseReceiptQuantity, receiptQuantityToInput } from '../expenses.utils';
-import type { ParsedReceiptDraft, ReceiptReviewDraft } from './receipt-ocr.types';
+import type { ParsedReceiptDraft, ReceiptReviewDraft, ReceiptReviewItem } from './receipt-ocr.types';
 
 export function createReceiptReviewDraft(parsed: ParsedReceiptDraft, categories: ExpenseCategory[]): ReceiptReviewDraft {
   const fallbackCategoryId = categories.find((category) => category.name.trim().toLocaleLowerCase('pl-PL') === 'inne')?.id ?? categories[0]?.id ?? '';
@@ -32,6 +32,27 @@ export function createReceiptReviewDraft(parsed: ParsedReceiptDraft, categories:
     parserWarnings: [...parsed.warnings],
     adjustments: [...parsed.adjustments],
   };
+}
+
+export function receiptReviewItemNeedsReview(item: ReceiptReviewItem): boolean {
+  if (item.warnings.length > 0 || item.confidence === 'low') return true;
+  if (item.confidence === 'high') return false;
+
+  const amountMinor = parseMoneyToMinor(item.amountText);
+  if (amountMinor === null || amountMinor <= 0) return true;
+
+  if (item.baseAmountMinor !== undefined && item.discountMinor !== undefined) {
+    if (Math.abs(item.baseAmountMinor - item.discountMinor - amountMinor) <= 1) return false;
+  }
+
+  const quantity = parseReceiptQuantity(item.quantityText?.trim() ?? '');
+  const unitPriceMinor = parseMoneyToMinor(item.unitPriceText?.trim() ?? '');
+  if (quantity !== null && quantity > 0 && unitPriceMinor !== null && unitPriceMinor > 0) {
+    const expectedAmountMinor = Math.round(quantity * unitPriceMinor);
+    if (Math.abs(expectedAmountMinor - amountMinor) <= 1) return false;
+  }
+
+  return true;
 }
 
 export function receiptReviewItemsTotalMinor(review: ReceiptReviewDraft): number {
@@ -73,7 +94,10 @@ export function receiptReviewPaymentDifferenceMinor(review: ReceiptReviewDraft):
 
 export function isSignificantReceiptMismatch(review: ReceiptReviewDraft): boolean {
   const difference = receiptReviewDifferenceMinor(review);
-  return difference !== undefined && Math.abs(difference) >= 100;
+  // One grosz of tolerance covers ordinary receipt rounding. Any larger
+  // unexplained difference must require an explicit second confirmation -
+  // even a sub-zloty OCR error is still a real accounting mismatch.
+  return difference !== undefined && Math.abs(difference) > 1;
 }
 
 
@@ -122,29 +146,55 @@ export function validateReceiptReviewForSave(
   return { valid: true, message: '' };
 }
 
-export function receiptReviewToDraft(review: ReceiptReviewDraft): ReceiptDraft {
+export interface ReceiptReviewToDraftOptions {
+  depositCategoryId?: string;
+}
+
+export function receiptReviewToDraft(review: ReceiptReviewDraft, options: ReceiptReviewToDraftOptions = {}): ReceiptDraft {
   const validation = validateReceiptReviewForSave(review);
   if (!validation.valid) throw new Error(validation.message);
+
+  const items = review.items.map((item) => {
+    const quantityText = item.quantityText?.trim() ?? '';
+    const unitPriceText = item.unitPriceText?.trim() ?? '';
+    const quantity = quantityText ? parseReceiptQuantity(quantityText) : null;
+    const unitPriceMinor = unitPriceText ? parseMoneyToMinor(unitPriceText) : null;
+    const hasUnitDetails = quantity !== null && unitPriceMinor !== null && unitPriceMinor > 0;
+    return {
+      name: item.name.trim(),
+      categoryId: item.categoryId,
+      amountMinor: parseMoneyToMinor(item.amountText)!,
+      ...(hasUnitDetails ? {
+        quantity,
+        unitPriceMinor,
+        ...(item.unit ? { unit: item.unit } : {}),
+      } : {}),
+    };
+  });
+
+  const depositTotalMinor = review.depositTotalMinor ?? 0;
+  if (depositTotalMinor > 0) {
+    const depositCategoryId = options.depositCategoryId?.trim();
+    if (!depositCategoryId) {
+      throw new Error('Brakuje kategorii „Kaucja / opakowania zwrotne”. Nie zapisano paragonu, aby nie zaniżyć sumy.');
+    }
+    const representedDepositMinor = items
+      .filter((item) => item.categoryId === depositCategoryId)
+      .reduce((sum, item) => sum + item.amountMinor, 0);
+    if (representedDepositMinor === 0) {
+      items.push({
+        name: 'Kaucja / opakowania zwrotne',
+        categoryId: depositCategoryId,
+        amountMinor: depositTotalMinor,
+      });
+    } else if (Math.abs(representedDepositMinor - depositTotalMinor) > 1) {
+      throw new Error('Kaucja w pozycjach nie zgadza się z sumą kaucji z paragonu. Popraw dane przed zapisem.');
+    }
+  }
 
   return {
     merchant: review.merchant.trim(),
     date: review.date,
-    items: review.items.map((item) => {
-      const quantityText = item.quantityText?.trim() ?? '';
-      const unitPriceText = item.unitPriceText?.trim() ?? '';
-      const quantity = quantityText ? parseReceiptQuantity(quantityText) : null;
-      const unitPriceMinor = unitPriceText ? parseMoneyToMinor(unitPriceText) : null;
-      const hasUnitDetails = quantity !== null && unitPriceMinor !== null && unitPriceMinor > 0;
-      return {
-        name: item.name.trim(),
-        categoryId: item.categoryId,
-        amountMinor: parseMoneyToMinor(item.amountText)!,
-        ...(hasUnitDetails ? {
-          quantity,
-          unitPriceMinor,
-          ...(item.unit ? { unit: item.unit } : {}),
-        } : {}),
-      };
-    }),
+    items,
   };
 }

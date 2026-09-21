@@ -33,6 +33,7 @@ if (!failures.length) {
 
   assert(Boolean(appVersion), 'cannot determine APP_VERSION');
   assert(Boolean(appBuild), 'cannot determine APP_BUILD');
+  assert(/export const BUILD_NUMBER\s*=\s*APP_BUILD;/u.test(buildSource), 'src/core/build.ts must export BUILD_NUMBER = APP_BUILD for runtime UI imports');
   assert(numericVersion, 'APP_VERSION must use numeric MAJOR.MINOR.STAGE.BUILD');
   assert(versionParts[3] === appBuild, 'APP_VERSION build suffix differs from APP_BUILD');
   assert(buildInfo.appVersion === appVersion && buildInfo.build === appBuild, 'BUILD_INFO identity differs from source');
@@ -51,6 +52,13 @@ if (!failures.length) {
   assert(state.versionPolicy?.minorUpdate === 'increment-minor-reset-stage-build-0', 'CURRENT_STATE minor version policy missing');
   assert(state.versionPolicy?.majorUpdate === 'increment-major-reset-minor-stage-build-0', 'CURRENT_STATE major version policy missing');
   assert(state.versionPolicy?.noFileChange === 'keep-version', 'CURRENT_STATE no-file-change version policy missing');
+  assert(state.workflowPolicy?.developmentSource === 'private-only', 'CURRENT_STATE workflowPolicy developmentSource missing');
+  assert(state.workflowPolicy?.testCadence === 'impact-based-during-development-full-once-before-release', 'CURRENT_STATE workflowPolicy testCadence missing');
+  assert(state.workflowPolicy?.publicGeneration === 'clean-from-frozen-private', 'CURRENT_STATE workflowPolicy publicGeneration missing');
+  assert(state.workflowPolicy?.publicHandoff === 'final-only-after-fresh-public-validation', 'CURRENT_STATE workflowPolicy publicHandoff missing');
+  assert(state.workflowPolicy?.userPublish === 'fetch-sync-copy-stage-commit-push', 'CURRENT_STATE workflowPolicy userPublish missing');
+  assert(state.workflowPolicy?.repeatLocalFullPublicCheck === 'skip-if-exact-validated-public-unchanged', 'CURRENT_STATE workflowPolicy repeatLocalFullPublicCheck missing');
+  assert(state.workflowPolicy?.githubCi === 'independent-final-validation', 'CURRENT_STATE workflowPolicy githubCi missing');
   assert(Number(state.schema) === schema, 'CURRENT_STATE schema differs from source');
   assert(state.channel === 'private', 'CURRENT_STATE channel must be private');
   assert(state.continuationArtifact === expectedZip, `CURRENT_STATE continuationArtifact must be ${expectedZip}`);

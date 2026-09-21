@@ -7,7 +7,7 @@ const choiceFields = readFileSync(new URL('../study/StudyGroupChoiceFields.tsx',
 const normalizer = readFileSync(new URL('../imports/xlsx/group-normalizer.ts', import.meta.url), 'utf8');
 const styles = readFileSync(new URL('../styles/interface-consistency.css', import.meta.url), 'utf8');
 
-describe('1.2.0.145 shared Study group choice', () => {
+describe('1.2.0.146 shared Study group choice', () => {
   it('uses one shared compact group chooser in import and profile settings', () => {
     expect(studyView).not.toContain('study-import-group-grid-desktop');
     expect(studyView).toContain('<StudyGroupChoiceFields');

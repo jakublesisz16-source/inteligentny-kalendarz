@@ -27,7 +27,7 @@ describe('1.2.0.78 transaction-first monthly Finance view', () => {
   it('uses a compact responsive transaction list without changing the database schema', () => {
     expect(css).toContain('/* 1.2.0.78 - Finance month defaults to a lightweight transaction list */');
     expect(responsive).toContain('/* 1.2.0.78 - transaction-first Finance remains readable on mobile */');
-    expect(version).toContain("APP_VERSION = '1.2.0.145'");
+    expect(version).toMatch(/APP_VERSION\s*=\s*'\d+\.\d+\.\d+\.\d+'/u);
     expect(version).toContain('DATABASE_SCHEMA_VERSION = 14');
   });
 });

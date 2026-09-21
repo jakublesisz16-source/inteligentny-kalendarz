@@ -24,19 +24,31 @@ interface TodayViewProps {
   coworkersByEvent?: Record<string, CoworkerOverlap[]>;
 }
 
-function upcomingCategoryEvent(events: CalendarEvent[], category: 'STUDY' | 'WORK', now: Date): CalendarEvent | undefined {
+function upcomingEvent(events: CalendarEvent[], now: Date): CalendarEvent | undefined {
   const nowMs = now.getTime();
   return [...events]
-    .filter((event) => event.category === category && Date.parse(event.endDateTime) >= nowMs)
+    .filter((event) => Date.parse(event.endDateTime) >= nowMs)
     .sort((a, b) => a.startDateTime.localeCompare(b.startDateTime))[0];
 }
 
-function upcomingWhenLabel(event: CalendarEvent, todayKey: string, timeFormat: TimeFormat): string {
+function upcomingWhenLabel(event: CalendarEvent, todayKey: string, timeFormat: TimeFormat, now: Date): string {
   const eventKey = toLocalDateKey(event.startDateTime);
   const tomorrowKey = addDaysToDateKey(todayKey, 1);
+  const startsAt = Date.parse(event.startDateTime);
+  const endsAt = Date.parse(event.endDateTime);
+  if (!event.allDay && eventKey === todayKey && startsAt <= now.getTime() && endsAt >= now.getTime()) {
+    return `Teraz · do ${formatTime(event.endDateTime, timeFormat)}`;
+  }
   const dayLabel = eventKey === todayKey ? 'Dzisiaj' : eventKey === tomorrowKey ? 'Jutro' : formatShortDateKey(eventKey);
   return `${dayLabel} · ${event.allDay ? 'cały dzień' : formatTime(event.startDateTime, timeFormat)}`;
 }
+
+const nextCategoryLabels: Record<CalendarEvent['category'], string> = {
+  STUDY: 'Studia',
+  WORK: 'Praca',
+  PERSONAL: 'Prywatne',
+  OTHER: 'Inne',
+};
 
 export function TodayView({ events, locations, timeFormat, showPolishHolidays = true, showWumAcademicCalendar = true, onAdd, onEdit, onStudyCorrect, consistencyIssues = [], onOpenConsistencyCenter, availabilityPlans = [], coworkersByEvent = {} }: TodayViewProps) {
   const today = new Date();
@@ -47,46 +59,25 @@ export function TodayView({ events, locations, timeFormat, showPolishHolidays = 
   events.forEach((event) => {
     if (event.seriesId && event.seriesType === 'MANUAL_MULTI_DATE') seriesCountById.set(event.seriesId, (seriesCountById.get(event.seriesId) ?? 0) + 1);
   });
-  const firstEvent = todayEvents[0];
   const blockingToday = consistencyIssues.filter((issue) => !issue.acknowledged && issue.planningImpact === 'BLOCKING' && issue.endDateTime.slice(0, 10) >= todayKey && issue.startDateTime.slice(0, 10) <= todayKey);
   const todayAvailability = availabilityPlans.flatMap((plan) => plan.blocks.filter((block) => block.date === todayKey && block.status !== 'REJECTED').map((block) => ({ ...block, planStatus: plan.status }))).sort((a, b) => a.startTime.localeCompare(b.startTime));
   const hasPlan = todayEvents.length > 0 || todayAvailability.length > 0;
-  const nextStudy = upcomingCategoryEvent(events, 'STUDY', today);
-  const nextWork = upcomingCategoryEvent(events, 'WORK', today);
+  const nextEvent = upcomingEvent(events, today);
   const todayMarkers = calendarOverlayMarkersForDate(todayKey, { showPolishHolidays, showWumAcademicCalendar });
-  const eventCountLabel = todayEvents.length === 1
-    ? '1 wydarzenie'
-    : todayEvents.length % 10 >= 2 && todayEvents.length % 10 <= 4 && (todayEvents.length % 100 < 12 || todayEvents.length % 100 > 14)
-      ? `${todayEvents.length} wydarzenia`
-      : `${todayEvents.length} wydarzeń`;
-  const firstPlanLabel = firstEvent
-    ? firstEvent.allDay
-      ? 'cały dzień'
-      : toLocalDateKey(firstEvent.startDateTime) < todayKey
-        ? 'w toku'
-        : formatTime(firstEvent.startDateTime, timeFormat)
-    : '';
-  const subtitle = todayEvents.length
-    ? `${eventCountLabel} - najbliższe: ${firstPlanLabel}`
-    : todayAvailability.length
-      ? 'Nie masz dziś wydarzeń w kalendarzu. Masz zapisaną dyspozycyjność.'
-      : 'Nie masz dziś zaplanowanych wydarzeń.';
 
   return (
     <section className={`view-shell today-view${hasPlan ? ' has-plan' : ' is-empty'}`}>
-      <header className="view-header hero-header today-header">
+      <header className="view-header hero-header today-header today-header-minimal">
         <div>
-          <p className="eyebrow">Dzisiaj</p>
           <h1>{formatLongDate(today)}</h1>
-          {hasPlan ? <p className="view-subtitle">{subtitle}</p> : null}
           {todayMarkers.length ? <div className="today-calendar-context" aria-label="Informacje o dzisiejszym dniu">{todayMarkers.map((marker) => <span key={marker.kind}>{marker.label}</span>)}</div> : null}
         </div>
-        <div className="today-header-actions" />
       </header>
 
-      {(nextStudy || nextWork) ? <section className="today-glance-grid" aria-label="Najbliższe zajęcia i praca">
-        {nextStudy ? <article className="today-glance-card category-study"><span className="section-kicker">Najbliższe zajęcia</span><strong>{nextStudy.title}</strong><small>{upcomingWhenLabel(nextStudy, todayKey, timeFormat)}{nextStudy.locationId && locationMap.get(nextStudy.locationId)?.name ? ` · ${locationMap.get(nextStudy.locationId)?.name}` : nextStudy.locationText ? ` · ${nextStudy.locationText}` : ''}</small></article> : <article className="today-glance-card is-empty"><span className="section-kicker">Najbliższe zajęcia</span><strong>Brak zaplanowanych</strong><small>Nie ma kolejnych zajęć w aktualnym kalendarzu.</small></article>}
-        {nextWork ? <article className="today-glance-card category-work"><span className="section-kicker">Najbliższa praca</span><strong>{nextWork.allDay ? nextWork.title : `${formatTime(nextWork.startDateTime, timeFormat)}-${formatTime(nextWork.endDateTime, timeFormat)}`}</strong><small>{upcomingWhenLabel(nextWork, todayKey, timeFormat)}{nextWork.locationId && locationMap.get(nextWork.locationId)?.name ? ` · ${locationMap.get(nextWork.locationId)?.name}` : nextWork.locationText ? ` · ${nextWork.locationText}` : ''}{(coworkersByEvent[nextWork.id]?.length ?? 0) ? ` · ${coworkersByEvent[nextWork.id]?.length} os. z Tobą` : ''}</small></article> : <article className="today-glance-card is-empty"><span className="section-kicker">Najbliższa praca</span><strong>Brak zaplanowanej zmiany</strong><small>Nie ma kolejnej zmiany w aktualnym grafiku.</small></article>}
+      {nextEvent ? <section className={`today-next-strip category-${nextEvent.category.toLowerCase()}`} aria-label="Następne wydarzenie">
+        <span className="today-next-label">Następne</span>
+        <strong>{nextEvent.title}</strong>
+        <small>{nextCategoryLabels[nextEvent.category]} · {upcomingWhenLabel(nextEvent, todayKey, timeFormat, today)}{nextEvent.locationId && locationMap.get(nextEvent.locationId)?.name ? ` · ${locationMap.get(nextEvent.locationId)?.name}` : nextEvent.locationText ? ` · ${nextEvent.locationText}` : ''}</small>
       </section> : null}
 
       {blockingToday.length ? <div className="today-conflict-banner" role="alert"><div><strong>Plan na dziś zawiera {blockingToday.length === 1 ? 'konflikt' : `${blockingToday.length} konflikty`}</strong><span>Sprawdź niespójności przed automatycznym planowaniem pracy.</span></div>{onOpenConsistencyCenter ? <button type="button" className="button button-secondary button-small" onClick={onOpenConsistencyCenter}>Sprawdź</button> : null}</div> : null}

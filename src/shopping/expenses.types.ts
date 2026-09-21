@@ -57,6 +57,7 @@ export interface Receipt {
   items: ReceiptItem[];
   totalMinor: number;
   source?: ReceiptSource;
+  sourceFingerprint?: string;
   tripName?: string;
   originalCurrency?: FinanceCurrencyCode;
   originalAmountMinor?: number;
@@ -81,6 +82,7 @@ export interface ReceiptDraft {
   merchant: string;
   items: ReceiptItemDraft[];
   source?: ReceiptSource;
+  sourceFingerprint?: string;
   tripName?: string;
   originalCurrency?: FinanceCurrencyCode;
   originalAmountMinor?: number;

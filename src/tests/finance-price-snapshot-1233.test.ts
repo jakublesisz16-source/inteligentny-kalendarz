@@ -67,7 +67,7 @@ describe('1.2.0.35 Finance simple trusted price snapshot', () => {
 
   it('adds the price insight inside the existing product modal instead of a new screen', () => {
     const dashboard = source('../finance/FinanceDashboardView.tsx');
-    expect(dashboard).toContain('Cena jednostkowa');
+    expect(dashboard).toContain('Historia ceny jednostkowej');
     expect(dashboard).toContain('Najniżej zapisane');
     expect(dashboard).toContain('Po kolejnym zakupie');
     expect(dashboard).toContain('buildExpenseUnitPriceSummaries');
@@ -78,7 +78,7 @@ describe('1.2.0.35 Finance simple trusted price snapshot', () => {
   it('does not add a database migration for derived price history', () => {
     const version = source('../core/version.ts');
     const types = source('../shopping/expenses.types.ts');
-    expect(version).toContain("APP_VERSION = '1.2.0.145'");
+    expect(version).toMatch(/APP_VERSION\s*=\s*'\d+\.\d+\.\d+\.\d+'/u);
     expect(version).toContain('DATABASE_SCHEMA_VERSION = 14');
     expect(types).toContain('unitPriceMinor?: number;');
   });

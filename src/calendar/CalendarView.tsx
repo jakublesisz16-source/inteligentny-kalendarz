@@ -363,6 +363,38 @@ export function CalendarView({ events, locations, timeFormat, showPolishHolidays
     });
   }, [displayMode]);
 
+  useEffect(() => {
+    if (!mobileDayPanelOpen || typeof window === 'undefined' || typeof document === 'undefined') return undefined;
+    const body = document.body;
+    const scrollY = window.scrollY;
+    const previous = {
+      position: body.style.position,
+      top: body.style.top,
+      left: body.style.left,
+      right: body.style.right,
+      width: body.style.width,
+      overflow: body.style.overflow,
+    };
+    body.classList.add('calendar-day-sheet-open');
+    body.style.position = 'fixed';
+    body.style.top = `-${scrollY}px`;
+    body.style.left = '0';
+    body.style.right = '0';
+    body.style.width = '100%';
+    body.style.overflow = 'hidden';
+
+    return () => {
+      body.classList.remove('calendar-day-sheet-open');
+      body.style.position = previous.position;
+      body.style.top = previous.top;
+      body.style.left = previous.left;
+      body.style.right = previous.right;
+      body.style.width = previous.width;
+      body.style.overflow = previous.overflow;
+      window.scrollTo(0, scrollY);
+    };
+  }, [mobileDayPanelOpen]);
+
 
   useEffect(() => {
     if (!selectionMode) return;
@@ -1002,14 +1034,23 @@ export function CalendarView({ events, locations, timeFormat, showPolishHolidays
   return (
     <section className="view-shell calendar-view-shell">
       <header className="view-header calendar-view-header">
-        <div className="calendar-header-title-row"><h1>Kalendarz</h1>{displayMode === 'MONTH' ? <button type="button" className="button button-primary button-small calendar-mobile-explicit-add" onClick={() => onAdd(selectedDate)}>+ Dodaj</button> : null}</div>
-        <div className="calendar-primary-controls">
+        <div className="calendar-header-title-row"><h1>Kalendarz</h1></div>
+        <div className="calendar-primary-controls calendar-primary-controls-minimal">
           <div className="calendar-view-switch" aria-label="Widok kalendarza">
             <button type="button" className={displayMode === 'MONTH' ? 'active' : ''} onClick={() => setDisplayMode('MONTH')}>Miesiąc</button>
             <button type="button" className={displayMode === 'WEEK' ? 'active' : ''} onClick={() => setDisplayMode('WEEK')}>Tydzień</button>
           </div>
-          <div className="calendar-filter-row" aria-label="Filtr wydarzeń">
+          <div className="calendar-filter-row calendar-filter-desktop" aria-label="Filtr wydarzeń">
             {calendarFilters.map((item) => <button type="button" key={item.id} className={`calendar-filter-chip filter-${item.id.toLowerCase()}${filter === item.id ? ' active' : ''}`} onClick={() => setFilter(item.id)}>{item.label}</button>)}
+          </div>
+          <div className="calendar-mobile-filter-actions">
+            <label className="calendar-filter-select">
+              <span className="visually-hidden">Filtr wydarzeń</span>
+              <select value={filter} onChange={(event) => setFilter(event.target.value as CalendarFilter)} aria-label="Filtr wydarzeń">
+                {calendarFilters.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
+              </select>
+            </label>
+            {displayMode === 'MONTH' ? <button type="button" className="button button-primary button-small calendar-mobile-explicit-add" onClick={() => onAdd(selectedDate)}>+ Dodaj</button> : null}
           </div>
         </div>
       </header>
@@ -1200,7 +1241,7 @@ export function CalendarView({ events, locations, timeFormat, showPolishHolidays
             {!selectionMode && selectedDayOverlayMarkers.length ? <div className="calendar-selected-day-overlays" aria-label="Informacje o dniu">{selectedDayOverlayMarkers.map((marker) => <span key={marker.kind} className={`overlay-${marker.kind.toLowerCase()}`}>{marker.label}</span>)}</div> : null}
             {!selectionMode && selectedDayIssues.length ? <div className="calendar-day-alerts">{selectedDayIssues.slice(0, 2).map((issue) => <div key={issue.id} className="calendar-day-alert"><strong>{issue.title}</strong><span>{issue.description}</span></div>)}</div> : null}
             <div className="calendar-selected-day-content">
-              {selectionMode ? <div className="selection-help"><p>Zaznacz dni w siatce po lewej, a potem utwórz jedno wydarzenie wielodniowe albo serię na wybranych datach.</p><button type="button" className="button button-primary" disabled={!selectedDateKeys.length} onClick={addSelectedDates}>Dodaj dla wybranych dni</button></div> : <>{selectedEvents.length ? <div className="event-list compact-event-list">{selectedEvents.map((event) => quickEditEventId === event.id && canQuickEdit(event) ? <QuickEventEditor key={event.id} event={event} locations={locations} onSave={async (draft) => { await onQuickEdit(event, draft); setQuickEditEventId(null); }} onMore={() => openFullEditor(event)} onCancel={() => setQuickEditEventId(null)} /> : <EventCard key={event.id} event={event} location={event.locationId ? locationMap.get(event.locationId) : undefined} timeFormat={timeFormat} seriesCount={event.seriesId ? seriesCountById.get(event.seriesId) : undefined} onEdit={canQuickEdit(event) ? () => setQuickEditEventId(event.id) : onEdit} onDelete={event.source === 'MANUAL' && !event.seriesId ? () => { void onQuickDelete(event); } : undefined} onStudyCorrect={onStudyCorrect} workCoworkers={coworkersByEvent[event.id] ?? []} showAllWorkCoworkers compactTimeRange />)}</div> : null}{selectedIncompleteStudyEntries.length ? <div className="selected-day-study-incomplete"><span className="section-kicker">Niepełne dane z planu studiów</span>{selectedIncompleteStudyEntries.map((entry) => <article key={entry.id} className="study-incomplete-card"><div><strong>{entry.subject || 'Zajęcia studiów'}</strong><span>{entry.date ? 'Godzina nie została podana w planie źródłowym.' : 'Plan przypisuje zajęcia do tego tygodnia, ale nie podaje jednoznacznego dnia i pełnych godzin.'}</span></div><small>{incompleteEntryRangeLabel(entry)}</small></article>)}</div> : null}{!selectedEvents.length && !selectedIncompleteStudyEntries.length ? <EmptyState title="Brak wydarzeń" description="Ten dzień jest jeszcze pusty." actionLabel="Dodaj wydarzenie" onAction={() => onAdd(selectedDate)} /> : null}</>}
+              {selectionMode ? <div className="selection-help"><p>Zaznacz dni w siatce po lewej, a potem utwórz jedno wydarzenie wielodniowe albo serię na wybranych datach.</p><button type="button" className="button button-primary" disabled={!selectedDateKeys.length} onClick={addSelectedDates}>Dodaj dla wybranych dni</button></div> : <>{selectedEvents.length ? <div className="event-list compact-event-list">{selectedEvents.map((event) => quickEditEventId === event.id && canQuickEdit(event) ? <QuickEventEditor key={event.id} event={event} locations={locations} onSave={async (draft) => { await onQuickEdit(event, draft); setQuickEditEventId(null); }} onMore={() => openFullEditor(event)} onCancel={() => setQuickEditEventId(null)} /> : <EventCard key={event.id} event={event} location={event.locationId ? locationMap.get(event.locationId) : undefined} timeFormat={timeFormat} seriesCount={event.seriesId ? seriesCountById.get(event.seriesId) : undefined} onEdit={canQuickEdit(event) ? () => setQuickEditEventId(event.id) : onEdit} onDelete={event.source === 'MANUAL' && !event.seriesId ? () => { void onQuickDelete(event); } : undefined} onStudyCorrect={onStudyCorrect} workCoworkers={coworkersByEvent[event.id] ?? []} showAllWorkCoworkers compactTimeRange />)}</div> : null}{selectedIncompleteStudyEntries.length ? <div className="selected-day-study-incomplete"><span className="section-kicker">Niepełne dane z planu studiów</span>{selectedIncompleteStudyEntries.map((entry) => <article key={entry.id} className="study-incomplete-card"><div><strong>{entry.subject || 'Zajęcia studiów'}</strong><span>{entry.date ? 'Godzina nie została podana w planie źródłowym.' : 'Plan przypisuje zajęcia do tego tygodnia, ale nie podaje jednoznacznego dnia i pełnych godzin.'}</span></div><small>{incompleteEntryRangeLabel(entry)}</small></article>)}</div> : null}{!selectedEvents.length && !selectedIncompleteStudyEntries.length ? <EmptyState title="Brak wydarzeń" description="" actionLabel="+ Dodaj" onAction={() => onAdd(selectedDate)} /> : null}</>}
             </div>
           </aside>
         </div>

@@ -22,12 +22,15 @@ import { ExpenseCategoryIcon } from '../shopping/ExpenseCategoryIcon';
 import type { ExpenseCategory, ExpenseNecessity, ExpenseProduct, FinanceCurrencyCode, FinanceTrip, Receipt, ReceiptDraft, ReceiptItemUnit, ReceiptSource } from '../shopping/expenses.types';
 import {
   aggregateExpensesByCategoryTree,
+  buildExpenseProductIndex,
   compareMonthExpenses,
   convertForeignMinorToPlnMinor,
   expenseCategoryChildren,
   expenseCategoryDescendantIds,
   expenseCategoryPath,
   expenseNecessityLabel,
+  expenseItemNeedsCategoryReview,
+  expenseItemNeedsNecessityReview,
   expenseCategoryRoots,
   FINANCE_CURRENCIES,
   formatCurrencyAmountMinor,
@@ -39,10 +42,10 @@ import {
   formatReceiptQuantity,
   getMonthExpenseSummary,
   moneyMinorToInput,
-  normalizeExpenseProductKey,
   parseCurrencyAmountToMinor,
   parseMoneyToMinor,
   receiptItemUnitLabel,
+  resolveExpenseItemClassification,
   receiptsForMonth,
   shiftMonthKey,
   sortReceiptsNewestFirst,
@@ -63,6 +66,8 @@ interface ReceiptEditItemForm {
   id?: string;
   name: string;
   categoryId: string;
+  originalCategoryId?: string;
+  originalEffectiveCategoryId?: string;
   amountText: string;
   originalAmountMinor?: number;
   quantity?: number;
@@ -76,6 +81,9 @@ interface ReceiptEditForm {
   merchant: string;
   source?: ReceiptSource;
   tripName?: string;
+  originalTripName?: string;
+  originalCurrency?: FinanceCurrencyCode;
+  originalAmountMinor?: number;
   items: ReceiptEditItemForm[];
 }
 
@@ -113,23 +121,30 @@ function emptyQuickExpense(
   };
 }
 
-function receiptEditForm(receipt: Receipt): ReceiptEditForm {
+function receiptEditForm(receipt: Receipt, productByKey: ReadonlyMap<string, ExpenseProduct>): ReceiptEditForm {
   return {
     id: receipt.id,
     date: receipt.date,
     merchant: receipt.merchant,
     ...(receipt.source ? { source: receipt.source } : {}),
-    ...(receipt.tripName ? { tripName: receipt.tripName } : {}),
-    items: receipt.items.map((item) => ({
-      id: item.id,
-      name: item.name,
-      categoryId: item.categoryId,
-      amountText: moneyMinorToInput(item.amountMinor),
-      originalAmountMinor: item.amountMinor,
-      ...(item.quantity === undefined ? {} : { quantity: item.quantity }),
-      ...(item.unit === undefined ? {} : { unit: item.unit }),
-      ...(item.unitPriceMinor === undefined ? {} : { unitPriceMinor: item.unitPriceMinor }),
-    })),
+    ...(receipt.tripName ? { tripName: receipt.tripName, originalTripName: receipt.tripName } : {}),
+    ...(receipt.originalCurrency ? { originalCurrency: receipt.originalCurrency } : {}),
+    ...(receipt.originalAmountMinor === undefined ? {} : { originalAmountMinor: receipt.originalAmountMinor }),
+    items: receipt.items.map((item) => {
+      const classification = resolveExpenseItemClassification(item, productByKey);
+      return {
+        id: item.id,
+        name: item.name,
+        categoryId: classification.categoryId,
+        originalCategoryId: item.categoryId,
+        originalEffectiveCategoryId: classification.categoryId,
+        amountText: moneyMinorToInput(item.amountMinor),
+        originalAmountMinor: item.amountMinor,
+        ...(item.quantity === undefined ? {} : { quantity: item.quantity }),
+        ...(item.unit === undefined ? {} : { unit: item.unit }),
+        ...(item.unitPriceMinor === undefined ? {} : { unitPriceMinor: item.unitPriceMinor }),
+      };
+    }),
   };
 }
 
@@ -195,6 +210,17 @@ function tripIdentity(value: string | undefined): string {
 
 function tripCurrency(trip: FinanceTrip | null | undefined): FinanceCurrencyCode {
   return trip?.currency ?? 'PLN';
+}
+
+
+function completeTripOriginalTotal(receipts: Receipt[], currency: FinanceCurrencyCode): number | null {
+  if (currency === 'PLN' || receipts.length === 0) return null;
+  let totalMinor = 0;
+  for (const receipt of receipts) {
+    if (receipt.originalCurrency !== currency || receipt.originalAmountMinor === undefined) return null;
+    totalMinor += receipt.originalAmountMinor;
+  }
+  return totalMinor;
 }
 
 function receiptOriginalAmount(receipt: Receipt): string {
@@ -268,6 +294,7 @@ export function FinanceDashboardView() {
   const [financeScope, setFinanceScope] = useState<FinanceScope>('MONTH');
   const [expenseListMode, setExpenseListMode] = useState<FinanceExpenseListMode>('TRANSACTIONS');
   const [activeTripName, setActiveTripName] = useState('');
+  const [activeTripCategoryId, setActiveTripCategoryId] = useState('');
   const [newTripOpen, setNewTripOpen] = useState(false);
   const [newTripName, setNewTripName] = useState('');
   const [newTripCurrency, setNewTripCurrency] = useState<FinanceCurrencyCode>('PLN');
@@ -294,6 +321,7 @@ export function FinanceDashboardView() {
   const [bulkCategoryId, setBulkCategoryId] = useState('');
   const [autoReviewReceiptId, setAutoReviewReceiptId] = useState<string | null>(null);
   const [editProduct, setEditProduct] = useState<ProductEditForm | null>(null);
+  const [productHistoryExpanded, setProductHistoryExpanded] = useState(false);
   const [deletedReceipt, setDeletedReceipt] = useState<{ receipt: Receipt; expiresAt: number } | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -383,6 +411,10 @@ export function FinanceDashboardView() {
     setMessage('');
   }
 
+  function scrollFinanceTop() {
+    window.requestAnimationFrame(() => window.scrollTo({ top: 0, left: 0, behavior: 'auto' }));
+  }
+
   function openCategoryOverview() {
     clearFeedback();
     setCategoryEditMode(false);
@@ -399,14 +431,14 @@ export function FinanceDashboardView() {
   const monthSummary = useMemo(() => getMonthExpenseSummary(receipts, monthKey), [receipts, monthKey]);
   const comparison = useMemo(() => compareMonthExpenses(receipts, monthKey), [receipts, monthKey]);
   const comparisonText = useMemo(() => comparisonCopy(comparison), [comparison]);
-  const productCategoryByKey = useMemo(() => new Map(products.map((product) => [product.normalizedKey, product.categoryId])), [products]);
+  const productByKey = useMemo(() => buildExpenseProductIndex(products), [products]);
   const categorizedReceipts = useMemo(() => receipts.map((receipt) => ({
     ...receipt,
     items: receipt.items.map((item) => ({
       ...item,
-      categoryId: productCategoryByKey.get(normalizeExpenseProductKey(item.name)) ?? item.categoryId,
+      categoryId: resolveExpenseItemClassification(item, productByKey).categoryId,
     })),
-  })), [receipts, productCategoryByKey]);
+  })), [receipts, productByKey]);
   const categoryAnalytics = useMemo(
     () => aggregateExpensesByCategoryTree(categorizedReceipts, categories, monthKey),
     [categorizedReceipts, categories, monthKey],
@@ -441,7 +473,6 @@ export function FinanceDashboardView() {
     [categories, activeCategoryId],
   );
   const productAnalytics = useMemo(() => buildExpenseProductAnalytics(receipts, products), [receipts, products]);
-  const productByKey = useMemo(() => new Map(products.map((product) => [product.normalizedKey, product])), [products]);
   const tripSummaries = useMemo(() => {
     const grouped = new Map<string, { name: string; definitionId?: string; currency?: FinanceCurrencyCode; receipts: Receipt[]; totalMinor: number; firstDate?: string; lastDate?: string; sortKey: string }>();
     for (const trip of tripDefinitions) {
@@ -471,31 +502,62 @@ export function FinanceDashboardView() {
     return key ? sortReceiptsNewestFirst(receipts.filter((receipt) => tripIdentity(receipt.tripName) === key)) : [];
   }, [receipts, activeTripName]);
   const activeTripTotalMinor = useMemo(() => activeTripReceipts.reduce((sum, receipt) => sum + receipt.totalMinor, 0), [activeTripReceipts]);
-  const activeTripOriginalTotals = useMemo(() => {
-    const totals = new Map<FinanceCurrencyCode, number>();
-    for (const receipt of activeTripReceipts) {
-      if (!receipt.originalCurrency || receipt.originalAmountMinor === undefined) continue;
-      totals.set(receipt.originalCurrency, (totals.get(receipt.originalCurrency) ?? 0) + receipt.originalAmountMinor);
-    }
-    return [...totals.entries()].map(([currency, amountMinor]) => ({ currency, amountMinor }));
-  }, [activeTripReceipts]);
-  const activeTripCategoryTotals = useMemo(() => {
+  const activeTripCurrency = tripCurrency(activeTripDefinition);
+  const activeTripOriginalTotalMinor = useMemo(
+    () => completeTripOriginalTotal(activeTripReceipts, activeTripCurrency),
+    [activeTripReceipts, activeTripCurrency],
+  );
+  const activeTripAverageMinor = activeTripReceipts.length ? Math.round(activeTripTotalMinor / activeTripReceipts.length) : 0;
+  const activeTripOriginalAverageMinor = activeTripOriginalTotalMinor !== null && activeTripReceipts.length
+    ? Math.round(activeTripOriginalTotalMinor / activeTripReceipts.length)
+    : null;
+  const activeTripDateRange = activeTripReceipts.length
+    ? formatTripDateRange(activeTripReceipts[activeTripReceipts.length - 1]!.date, activeTripReceipts[0]!.date)
+    : '';
+  const activeTripCategorySummary = useMemo(() => {
     const totals = new Map<string, number>();
     for (const receipt of activeTripReceipts) {
       for (const item of receipt.items) {
-        const categoryId = productCategoryByKey.get(normalizeExpenseProductKey(item.name)) ?? item.categoryId;
+        const categoryId = resolveExpenseItemClassification(item, productByKey).categoryId;
         totals.set(categoryId, (totals.get(categoryId) ?? 0) + item.amountMinor);
       }
     }
-    return [...totals.entries()]
+    const entries = [...totals.entries()]
       .map(([categoryId, totalMinor]) => ({
         categoryId,
         category: categories.find((category) => category.id === categoryId) ?? { id: categoryId, name: 'Inne', sortOrder: 999, createdAt: '', updatedAt: '' },
         totalMinor,
+        sharePercent: activeTripTotalMinor > 0 ? (totalMinor / activeTripTotalMinor) * 100 : 0,
       }))
-      .sort((left, right) => right.totalMinor - left.totalMinor || left.category.name.localeCompare(right.category.name, 'pl-PL'))
-      .slice(0, 4);
-  }, [activeTripReceipts, categories, productCategoryByKey]);
+      .sort((left, right) => right.totalMinor - left.totalMinor || left.category.name.localeCompare(right.category.name, 'pl-PL'));
+    return { count: entries.length, top: entries.slice(0, 4) };
+  }, [activeTripReceipts, activeTripTotalMinor, categories, productByKey]);
+  const activeTripCategoryTotals = activeTripCategorySummary.top;
+  const activeTripCategoryCount = activeTripCategorySummary.count;
+  const activeTripCategoryContext = activeTripCurrency === 'PLN' ? 'udział w kosztach wyjazdu' : 'udział liczony w PLN';
+  const activeTripCategoryFilterIds = useMemo(
+    () => activeTripCategoryId ? expenseCategoryDescendantIds(categories, activeTripCategoryId) : [],
+    [categories, activeTripCategoryId],
+  );
+  const activeTripItemRows = useMemo(() => activeTripReceipts.flatMap((receipt) => receipt.items.map((item) => {
+    const classification = resolveExpenseItemClassification(item, productByKey);
+    return {
+      key: `${receipt.id}-${item.id}`,
+      receipt,
+      item,
+      canonicalName: classification.canonicalName,
+      categoryId: classification.categoryId,
+      categoryPath: expenseCategoryPath(categories, classification.categoryId),
+      necessity: classification.necessity,
+    };
+  })), [activeTripReceipts, productByKey, categories]);
+  const activeTripFilteredItemRows = useMemo(
+    () => activeTripCategoryId
+      ? activeTripItemRows.filter((row) => activeTripCategoryFilterIds.includes(row.categoryId))
+      : [],
+    [activeTripCategoryId, activeTripCategoryFilterIds, activeTripItemRows],
+  );
+  const activeTripCategoryFilterLabel = activeTripCategoryId ? expenseCategoryPath(categories, activeTripCategoryId) : '';
   const productAnalyticsById = useMemo(() => new Map(productAnalytics.map((entry) => [entry.product.id, entry])), [productAnalytics]);
   const editedProductAnalytics = useMemo(
     () => editProduct ? productAnalyticsById.get(editProduct.id) ?? null : null,
@@ -506,25 +568,34 @@ export function FinanceDashboardView() {
     [editedProductAnalytics],
   );
   const editedProductPriceSummary = editedProductPriceSummaries[0] ?? null;
+  const editedProductCategoryPath = editProduct ? expenseCategoryPath(categories, editProduct.categoryId) : '';
+  const editedProductNecessity = editProduct ? expenseNecessityLabel(editProduct.necessity) : '';
+  const editedProductHistory = editedProductAnalytics
+    ? editedProductAnalytics.occurrences.slice(0, productHistoryExpanded ? 20 : 6)
+    : [];
+  const editedProductHistoryHasMore = Boolean(editedProductAnalytics && editedProductAnalytics.occurrences.length > 6);
   const editedProductPriceChange = editedProductPriceSummary?.previous?.unitPriceMinor !== undefined
     && editedProductPriceSummary.latest.unitPriceMinor !== undefined
     ? unitPriceChangeCopy(editedProductPriceSummary.latest.unitPriceMinor, editedProductPriceSummary.previous.unitPriceMinor, editedProductPriceSummary.unit)
     : null;
 
   const monthPurchaseRows = useMemo(() => monthReceipts.flatMap((receipt) => receipt.items.map((item) => {
-    const product = productByKey.get(normalizeExpenseProductKey(item.name));
+    const classification = resolveExpenseItemClassification(item, productByKey);
+    const product = classification.product;
     return {
       key: `${receipt.id}-${item.id}`,
       receipt,
       item,
       product,
-      canonicalName: product?.name ?? item.name,
-      effectiveCategoryId: product?.categoryId ?? item.categoryId,
-      categoryPath: expenseCategoryPath(categories, product?.categoryId ?? item.categoryId),
-      necessity: product?.necessity ?? 'unknown',
+      canonicalName: classification.canonicalName,
+      effectiveCategoryId: classification.categoryId,
+      categoryPath: expenseCategoryPath(categories, classification.categoryId),
+      necessity: classification.necessity,
+      categoryNeedsReview: expenseItemNeedsCategoryReview(classification, otherCategoryId),
+      necessityNeedsReview: expenseItemNeedsNecessityReview(classification),
       productAnalytics: product ? productAnalyticsById.get(product.id) ?? null : null,
     };
-  })), [monthReceipts, productByKey, categories, productAnalyticsById]);
+  })), [monthReceipts, productByKey, categories, productAnalyticsById, otherCategoryId]);
 
   const hasQuantityData = useMemo(
     () => monthPurchaseRows.some((row) => row.item.quantity !== undefined && row.item.unitPriceMinor !== undefined),
@@ -536,27 +607,25 @@ export function FinanceDashboardView() {
     return totals;
   }, { essential: 0, nonessential: 0, unknown: 0 }), [monthPurchaseRows]);
 
-  const reviewPurchaseRows = useMemo(
-    () => monthPurchaseRows.filter((row) => (otherCategoryId && row.effectiveCategoryId === otherCategoryId) || row.necessity === 'unknown'),
-    [monthPurchaseRows, otherCategoryId],
-  );
-  const reviewTotalMinor = useMemo(
-    () => reviewPurchaseRows.reduce((sum, row) => sum + row.item.amountMinor, 0),
-    [reviewPurchaseRows],
-  );
-  const otherReviewCount = useMemo(
-    () => otherCategoryId ? monthPurchaseRows.filter((row) => row.effectiveCategoryId === otherCategoryId).length : 0,
-    [monthPurchaseRows, otherCategoryId],
-  );
-  const unknownReviewCount = useMemo(
-    () => monthPurchaseRows.filter((row) => row.necessity === 'unknown').length,
+  const categoryReviewRows = useMemo(
+    () => monthPurchaseRows.filter((row) => row.categoryNeedsReview),
     [monthPurchaseRows],
   );
+  const necessityReviewRows = useMemo(
+    () => monthPurchaseRows.filter((row) => row.necessityNeedsReview),
+    [monthPurchaseRows],
+  );
+  const reviewTotalMinor = useMemo(
+    () => categoryReviewRows.reduce((sum, row) => sum + row.item.amountMinor, 0),
+    [categoryReviewRows],
+  );
+  const otherReviewCount = categoryReviewRows.length;
+  const unknownReviewCount = necessityReviewRows.length;
 
   const filteredPurchaseRows = useMemo(() => {
     const query = searchQuery.trim().toLocaleLowerCase('pl-PL');
     return monthPurchaseRows.filter((row) => {
-      if (reviewOnly && !((otherCategoryId && row.effectiveCategoryId === otherCategoryId) || row.necessity === 'unknown')) return false;
+      if (reviewOnly && !row.categoryNeedsReview) return false;
       if (activeCategoryId && !activeCategoryIds.includes(row.effectiveCategoryId)) return false;
       if (activeNecessity && row.necessity !== activeNecessity) return false;
       if (!query) return true;
@@ -596,7 +665,7 @@ export function FinanceDashboardView() {
     if (!autoReviewReceiptId) return;
     const savedRows = monthPurchaseRows.filter((row) => row.receipt.id === autoReviewReceiptId);
     if (!savedRows.length) return;
-    const rowsToReview = savedRows.filter((row) => (otherCategoryId && row.effectiveCategoryId === otherCategoryId) || row.necessity === 'unknown');
+    const rowsToReview = savedRows.filter((row) => row.categoryNeedsReview);
     setAutoReviewReceiptId(null);
     if (rowsToReview.length) {
       setExpenseListMode('ITEMS');
@@ -608,16 +677,18 @@ export function FinanceDashboardView() {
     } else {
       setMessage('Paragon zapisany. Wszystkie pozycje są przypisane.');
     }
-  }, [autoReviewReceiptId, monthPurchaseRows, otherCategoryId]);
+  }, [autoReviewReceiptId, monthPurchaseRows]);
 
   function selectTrip(name: string) {
     clearFeedback();
     setFinanceScope('TRIPS');
     setActiveTripName(normalizeTripName(name));
+    setActiveTripCategoryId('');
     setNewTripOpen(false);
     setNewTripName('');
     setNewTripCurrency('PLN');
     setTripCurrencyEdit(null);
+    scrollFinanceTop();
   }
 
   async function createTrip(event: FormEvent<HTMLFormElement>) {
@@ -648,6 +719,7 @@ export function FinanceDashboardView() {
       await deleteFinanceTrip(activeTripDefinition.id);
       setTripDefinitions((current) => current.filter((trip) => trip.id !== activeTripDefinition.id));
       setActiveTripName('');
+      setActiveTripCategoryId('');
       setNewTripOpen(false);
       setNewTripName('');
       setNewTripCurrency('PLN');
@@ -664,10 +736,12 @@ export function FinanceDashboardView() {
     clearFeedback();
     setFinanceScope('TRIPS');
     setActiveTripName('');
+    setActiveTripCategoryId('');
     setNewTripOpen(false);
     setNewTripName('');
     setNewTripCurrency('PLN');
     setTripCurrencyEdit(null);
+    scrollFinanceTop();
   }
 
   function openQuickExpense() {
@@ -844,6 +918,14 @@ export function FinanceDashboardView() {
   }
 
 
+  function filterActiveTripByCategory(categoryId: string) {
+    setActiveTripCategoryId((current) => current === categoryId ? '' : categoryId);
+  }
+
+  function clearActiveTripCategoryFilter() {
+    setActiveTripCategoryId('');
+  }
+
   function scrollToPurchases() {
     window.requestAnimationFrame(() => purchasesRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
   }
@@ -946,7 +1028,11 @@ export function FinanceDashboardView() {
   function openReceiptEditor(receipt: Receipt) {
     clearFeedback();
     setDetailReceipt(null);
-    setEditReceipt(receiptEditForm(receipt));
+    const form = receiptEditForm(receipt, productByKey);
+    const persistedTrip = receipt.tripName
+      ? tripDefinitions.find((trip) => tripIdentity(trip.name) === tripIdentity(receipt.tripName))
+      : undefined;
+    setEditReceipt(persistedTrip ? { ...form, tripName: persistedTrip.name } : form);
   }
 
   function updateEditItem(index: number, patch: Partial<ReceiptEditItemForm>) {
@@ -984,13 +1070,22 @@ export function FinanceDashboardView() {
       setError('Uzupełnij nazwę, kategorię i prawidłową kwotę każdej pozycji.');
       return;
     }
+    const targetTripName = normalizeTripName(editReceipt.tripName);
+    const originalTripName = normalizeTripName(editReceipt.originalTripName);
+    const targetTripIsKnown = !targetTripName
+      || tripDefinitions.some((trip) => tripIdentity(trip.name) === tripIdentity(targetTripName))
+      || Boolean(originalTripName && tripIdentity(originalTripName) === tripIdentity(targetTripName));
+    if (!targetTripIsKnown) {
+      setError('Wybierz istniejący wyjazd albo ustaw „Bez wyjazdu”.');
+      return;
+    }
     setBusy(true);
     try {
-      await updateReceipt(editReceipt.id, {
+      const savedReceipt = await updateReceipt(editReceipt.id, {
         date: editReceipt.date,
         merchant: editReceipt.merchant,
         ...(editReceipt.source ? { source: editReceipt.source } : {}),
-        ...(normalizeTripName(editReceipt.tripName) ? { tripName: normalizeTripName(editReceipt.tripName) } : {}),
+        ...(targetTripName ? { tripName: targetTripName } : {}),
         items: parsed.map((item) => {
           const preserveUnitDetails = item.amountMinor === item.originalAmountMinor
             && item.quantity !== undefined
@@ -998,7 +1093,9 @@ export function FinanceDashboardView() {
           return {
             ...(item.id ? { id: item.id } : {}),
             name: item.name,
-            categoryId: item.categoryId,
+            categoryId: item.originalEffectiveCategoryId && item.categoryId === item.originalEffectiveCategoryId
+              ? item.originalCategoryId ?? item.categoryId
+              : item.categoryId,
             amountMinor: item.amountMinor!,
             ...(preserveUnitDetails ? {
               quantity: item.quantity,
@@ -1008,6 +1105,11 @@ export function FinanceDashboardView() {
           };
         }),
       });
+      for (const [index, item] of savedReceipt.items.entries()) {
+        const editedItem = parsed[index];
+        const categoryChanged = editedItem && (!editedItem.originalEffectiveCategoryId || editedItem.categoryId !== editedItem.originalEffectiveCategoryId);
+        if (categoryChanged) await updateReceiptItemCategory(savedReceipt.id, item.id, editedItem.categoryId);
+      }
       const savedMonth = editReceipt.date.slice(0, 7);
       setEditReceipt(null);
       setMonthKey(savedMonth);
@@ -1135,6 +1237,7 @@ export function FinanceDashboardView() {
 
   function openProductEditor(entry: ExpenseProductAnalytics) {
     clearFeedback();
+    setProductHistoryExpanded(false);
     setEditProduct({ id: entry.product.id, name: entry.product.name, categoryId: entry.product.categoryId, necessity: entry.product.necessity ?? 'unknown' });
   }
 
@@ -1192,7 +1295,7 @@ export function FinanceDashboardView() {
     <div className={`finance-dashboard-v2 finance-core-flow${isEmptyMonth ? ' finance-month-is-empty' : ''}${isEmptyActiveTrip ? ' finance-trip-is-empty' : ''}`}>
       <div className="finance-dashboard-controls finance-core-controls finance-dashboard-controls-v1258">
         <div className="finance-scope-switch" aria-label="Widok finansów">
-          <button type="button" className={financeScope === 'MONTH' ? 'is-active' : ''} onClick={() => { setFinanceScope('MONTH'); setActiveTripName(''); }}>Miesiąc</button>
+          <button type="button" className={financeScope === 'MONTH' ? 'is-active' : ''} onClick={() => { setFinanceScope('MONTH'); setActiveTripName(''); setActiveTripCategoryId(''); scrollFinanceTop(); }}>Miesiąc</button>
           <button type="button" className={financeScope === 'TRIPS' ? 'is-active' : ''} onClick={openTripList}>Wyjazdy</button>
         </div>
         {financeScope === 'MONTH' ? (
@@ -1207,7 +1310,7 @@ export function FinanceDashboardView() {
         {financeScope === 'MONTH' ? (
           <div className="finance-dashboard-actions finance-core-actions">
             {!isEmptyMonth ? <button type="button" className="button button-primary finance-manual-expense" onClick={openQuickExpense}>+ Wydatek</button> : null}
-            <button type="button" className="button button-secondary finance-scan-receipt" onClick={openReceiptScan}>Skanuj paragon</button>
+            <button type="button" className="button button-secondary finance-scan-receipt" onClick={openReceiptScan}><span className="finance-scan-receipt-short">Skanuj</span><span className="finance-scan-receipt-long">paragon</span></button>
           </div>
         ) : activeTripName && !isEmptyActiveTrip ? (
           <div className="finance-dashboard-actions finance-core-actions">
@@ -1228,57 +1331,116 @@ export function FinanceDashboardView() {
       {financeScope === 'TRIPS' ? (
         activeTripName ? (
           <div className="finance-trip-view">
-            <section className="panel finance-overview-summary-card finance-trip-summary finance-trip-summary-simple" aria-label={`Podsumowanie wyjazdu ${activeTripName}`}>
-              <div className="finance-overview-summary-main finance-trip-summary-main">
-                <div className="finance-overview-summary-copy finance-trip-summary-copy">
-                  <span className="section-kicker">Wyjazd</span>
-                  <h2>{activeTripName}</h2>
-                  <div className="finance-overview-summary-meta finance-trip-summary-meta">
-                    {activeTripReceipts.length ? <span>{formatTripDateRange(activeTripReceipts[activeTripReceipts.length - 1]!.date, activeTripReceipts[0]!.date)}</span> : <span>Brak wydatków</span>}
-                    <span>{activeTripReceipts.length} {polishCountLabel(activeTripReceipts.length, 'wydatek', 'wydatki', 'wydatków')}</span>
-                    <button type="button" className="finance-trip-currency-button" onClick={() => void openTripCurrencySettings()} disabled={busy} aria-label={`Waluta wyjazdu ${tripCurrency(activeTripDefinition)} - edytuj`}>{tripCurrency(activeTripDefinition)}</button>
-                  </div>
+            <section className="panel finance-overview-summary-card finance-trip-summary finance-trip-summary-simple finance-trip-dashboard-v148 finance-trip-dashboard-v150" aria-label={`Podsumowanie wyjazdu ${activeTripName}`}>
+              <div className="finance-overview-summary-main finance-trip-summary-main finance-trip-dashboard-head">
+                <div className="finance-trip-hero-total">
+                  <span className="section-kicker">Wydatki na wyjeździe</span>
+                  <strong>{activeTripOriginalTotalMinor !== null ? formatCurrencyAmountMinor(activeTripOriginalTotalMinor, activeTripCurrency) : formatMoneyMinor(activeTripTotalMinor)}</strong>
+                  <small className="finance-trip-hero-context"><strong>{activeTripName}</strong>{activeTripDateRange ? <span>{activeTripDateRange}</span> : null}</small>
+                  {activeTripOriginalTotalMinor !== null ? <span className="finance-trip-original-total">≈ {formatMoneyMinor(activeTripTotalMinor)} po przeliczeniu</span> : null}
                 </div>
-                <div className="finance-overview-summary-total finance-trip-summary-total">
-                  <strong>{formatMoneyMinor(activeTripTotalMinor)}</strong>
-                  {activeTripOriginalTotals.map((entry) => <small key={entry.currency}>{formatCurrencyAmountMinor(entry.amountMinor, entry.currency)}</small>)}
+
+                <div className="finance-overview-summary-meta finance-trip-summary-meta finance-trip-metric-grid" aria-label="Statystyki wyjazdu">
+                  <div>
+                    <span>Transakcje</span>
+                    <strong>{activeTripReceipts.length}</strong>
+                  </div>
+                  <div>
+                    <span>Średnio</span>
+                    <strong>{activeTripOriginalAverageMinor !== null ? formatCurrencyAmountMinor(activeTripOriginalAverageMinor, activeTripCurrency) : formatMoneyMinor(activeTripAverageMinor)}</strong>
+                  </div>
+                  <div>
+                    <span>Kategorie</span>
+                    <strong>{activeTripCategoryCount}</strong>
+                  </div>
+                  <button type="button" className="finance-trip-currency-button finance-trip-metric-action" onClick={() => void openTripCurrencySettings()} disabled={busy} aria-label={`Waluta wyjazdu ${activeTripCurrency} - edytuj`}>
+                    <span>Waluta</span>
+                    <strong>{activeTripCurrency}</strong>
+                  </button>
                 </div>
               </div>
-              {activeTripCategoryTotals.length ? <div className="finance-overview-category-strip finance-trip-category-strip" aria-label="Kategorie wydatków wyjazdu">
-                <span className="finance-overview-category-manage finance-trip-category-label">Kategorie</span>
-                {activeTripCategoryTotals.map((entry) => <span className="finance-overview-category-chip finance-trip-category-chip" key={entry.categoryId}>
-                  <ExpenseCategoryIcon category={entry.category} />
-                  <span>{entry.category.name}</span>
-                  <strong>{formatMoneyMinor(entry.totalMinor)}</strong>
-                </span>)}
+
+              {activeTripCategoryTotals.length ? <div className="finance-overview-category-strip finance-trip-category-strip finance-trip-category-ranking" aria-label="Największe kategorie wydatków wyjazdu">
+                <div className="finance-trip-category-heading">
+                  <div>
+                    <span className="section-kicker">Największe kategorie</span>
+                    <strong>{activeTripCategoryContext}</strong>
+                  </div>
+                </div>
+                <div className="finance-trip-category-grid" aria-label={activeTripCurrency === 'PLN' ? 'Kategorie wyjazdu' : 'Kategorie wyjazdu - kwoty w PLN'}>
+                  {activeTripCategoryTotals.map((entry) => <button
+                    type="button"
+                    className={`finance-overview-category-chip finance-trip-category-chip finance-trip-category-row${activeTripCategoryId === entry.categoryId ? ' is-active' : ''}`}
+                    key={entry.categoryId}
+                    onClick={() => filterActiveTripByCategory(entry.categoryId)}
+                    aria-pressed={activeTripCategoryId === entry.categoryId}
+                    aria-label={`Pokaż pozycje kategorii ${entry.category.name} na wyjeździe`}
+                  >
+                    <ExpenseCategoryIcon category={entry.category} />
+                    <span className="finance-trip-category-copy">
+                      <strong>{entry.category.name}</strong>
+                      <span className="finance-trip-category-bar" aria-hidden="true"><span style={{ width: `${Math.max(4, Math.min(100, entry.sharePercent))}%` }} /></span>
+                    </span>
+                    <span className="finance-trip-category-value">
+                      <small>{entry.sharePercent.toFixed(1).replace('.', ',')}%</small>
+                      <strong>{formatMoneyMinor(entry.totalMinor)}</strong>
+                    </span>
+                  </button>)}
+                </div>
               </div> : null}
             </section>
 
             {activeTripReceipts.length ? (
-              <section className="panel finance-expense-list-card finance-trip-expenses" aria-label={`Wydatki - ${activeTripName}`}>
-                <div className="finance-section-heading finance-section-heading-row finance-core-section-heading finance-expense-list-heading"><div><h2>Wydatki</h2></div><span>{activeTripReceipts.length} {polishCountLabel(activeTripReceipts.length, 'wydatek', 'wydatki', 'wydatków')}</span></div>
-                <div className="finance-expense-list finance-trip-expense-list">
-                  {activeTripReceipts.map((receipt) => {
-                    const firstItem = receipt.items[0];
-                    const firstProduct = firstItem ? productByKey.get(normalizeExpenseProductKey(firstItem.name)) : undefined;
-                    const categoryId = firstItem ? firstProduct?.categoryId ?? firstItem.categoryId : '';
-                    const category = categoryId ? categories.find((entry) => entry.id === categoryId) : undefined;
-                    const categoryLabel = categoryId ? expenseCategoryPath(categories, categoryId) : '';
-                    const secondary = [formatExpenseMerchantDisplayName(receipt.merchant), categoryLabel].filter(Boolean).join(' · ');
-                    return <button type="button" key={receipt.id} className="finance-expense-row finance-trip-expense-row" onClick={() => setDetailReceipt(receipt)}>
-                      <span className="finance-expense-date finance-trip-expense-date">{formatShortDate(receipt.date)}</span>
-                      <span className="finance-expense-icon finance-trip-expense-icon">{categoryId ? <ExpenseCategoryIcon category={category ?? { id: categoryId }} /> : null}</span>
-                      <span className="finance-expense-copy finance-trip-expense-copy"><strong>{receiptExpenseTitle(receipt)}</strong><small>{secondary}</small></span>
-                      <span className="finance-expense-total finance-trip-expense-total">
-                        {receiptOriginalAmount(receipt) ? <>
-                          <strong>{receiptOriginalAmount(receipt)}</strong>
-                          <small>{formatMoneyMinor(receipt.totalMinor)}</small>
-                        </> : <strong>{formatMoneyMinor(receipt.totalMinor)}</strong>}
-                      </span>
-                      <span className="finance-expense-arrow" aria-hidden="true">›</span>
-                    </button>;
-                  })}
+              <section className="panel finance-expense-list-card finance-trip-expenses finance-trip-drilldown-v172" aria-label={`Wydatki - ${activeTripName}`}>
+                <div className="finance-section-heading finance-section-heading-row finance-core-section-heading finance-expense-list-heading finance-trip-expense-heading">
+                  <div>
+                    <h2>{activeTripCategoryId ? 'Pozycje' : 'Wydatki'}</h2>
+                    {activeTripCategoryFilterLabel ? <small>{activeTripCategoryFilterLabel}</small> : null}
+                  </div>
+                  <div className="finance-trip-expense-heading-actions">
+                    {activeTripCategoryId ? <button type="button" className="text-button finance-trip-drilldown-reset" onClick={clearActiveTripCategoryFilter}>Wszystkie transakcje</button> : null}
+                    <span>{activeTripCategoryId
+                      ? `${activeTripFilteredItemRows.length} ${polishCountLabel(activeTripFilteredItemRows.length, 'pozycja', 'pozycje', 'pozycji')}`
+                      : `${activeTripReceipts.length} ${polishCountLabel(activeTripReceipts.length, 'wydatek', 'wydatki', 'wydatków')}`}</span>
+                  </div>
                 </div>
+                {activeTripCategoryId ? (
+                  activeTripFilteredItemRows.length ? <div className="finance-expense-list finance-trip-expense-list finance-trip-item-drilldown" aria-label={`Pozycje kategorii ${activeTripCategoryFilterLabel}`}>
+                    {activeTripFilteredItemRows.map((row) => {
+                      const category = categories.find((entry) => entry.id === row.categoryId);
+                      const secondary = [formatExpenseMerchantDisplayName(row.receipt.merchant), row.categoryPath, expenseNecessityLabel(row.necessity)].filter(Boolean).join(' · ');
+                      return <button type="button" key={row.key} className="finance-expense-row finance-trip-expense-row finance-trip-item-row" onClick={() => setDetailReceipt(row.receipt)}>
+                        <span className="finance-expense-date finance-trip-expense-date">{formatShortDate(row.receipt.date)}</span>
+                        <span className="finance-expense-icon finance-trip-expense-icon"><ExpenseCategoryIcon category={category ?? { id: row.categoryId }} /></span>
+                        <span className="finance-expense-copy finance-trip-expense-copy"><strong>{formatExpenseProductDisplayName(row.canonicalName)}</strong><small>{secondary}</small></span>
+                        <span className="finance-expense-total finance-trip-expense-total"><strong>{formatMoneyMinor(row.item.amountMinor)}</strong></span>
+                        <span className="finance-expense-arrow" aria-hidden="true">›</span>
+                      </button>;
+                    })}
+                  </div> : <div className="finance-empty-state finance-trip-drilldown-empty"><strong>Brak pozycji w tej kategorii.</strong><button type="button" className="text-button" onClick={clearActiveTripCategoryFilter}>Pokaż wszystkie transakcje</button></div>
+                ) : (
+                  <div className="finance-expense-list finance-trip-expense-list">
+                    {activeTripReceipts.map((receipt) => {
+                      const firstItem = receipt.items[0];
+                      const categoryId = firstItem ? resolveExpenseItemClassification(firstItem, productByKey).categoryId : '';
+                      const category = categoryId ? categories.find((entry) => entry.id === categoryId) : undefined;
+                      const categoryLabel = categoryId ? expenseCategoryPath(categories, categoryId) : '';
+                      const secondary = [formatExpenseMerchantDisplayName(receipt.merchant), categoryLabel].filter(Boolean).join(' · ');
+                      return <button type="button" key={receipt.id} className="finance-expense-row finance-trip-expense-row" onClick={() => setDetailReceipt(receipt)}>
+                        <span className="finance-expense-date finance-trip-expense-date">{formatShortDate(receipt.date)}</span>
+                        <span className="finance-expense-icon finance-trip-expense-icon">{categoryId ? <ExpenseCategoryIcon category={category ?? { id: categoryId }} /> : null}</span>
+                        <span className="finance-expense-copy finance-trip-expense-copy"><strong>{receiptExpenseTitle(receipt)}</strong><small>{secondary}</small></span>
+                        <span className="finance-expense-total finance-trip-expense-total">
+                          {receiptOriginalAmount(receipt) ? <>
+                            <strong>{receiptOriginalAmount(receipt)}</strong>
+                            <small className="finance-trip-converted-total">≈ {formatMoneyMinor(receipt.totalMinor)}</small>
+                          </> : <strong>{formatMoneyMinor(receipt.totalMinor)}</strong>}
+                        </span>
+                        <span className="finance-expense-arrow" aria-hidden="true">›</span>
+                      </button>;
+                    })}
+                  </div>
+                )}
               </section>
             ) : (
               <section className="panel finance-trip-empty"><h2>Dodaj pierwszy wydatek</h2><p>Wyjazd jest już zapisany. Wszystko dodane z tego widoku trafi do „{activeTripName}”.</p><div><button type="button" className="button button-primary" onClick={openQuickExpense}>+ Wydatek</button></div>{activeTripDefinition ? <button type="button" className="text-button finance-trip-delete-empty" disabled={busy} onClick={() => void deleteEmptyActiveTrip()}>Usuń pusty wyjazd</button> : null}</section>
@@ -1294,7 +1456,19 @@ export function FinanceDashboardView() {
               </div>
             </div>
             {newTripOpen ? <form className="finance-new-trip-form" onSubmit={createTrip}><label className="field"><span>Nazwa wyjazdu</span><input data-modal-autofocus="true" value={newTripName} onChange={(event) => setNewTripName(event.target.value)} placeholder="Np. Budapeszt" autoFocus /></label><label className="field finance-new-trip-currency"><span>Waluta</span><select value={newTripCurrency} onChange={(event) => setNewTripCurrency(event.target.value as FinanceCurrencyCode)}>{FINANCE_CURRENCIES.map((currency) => <option key={currency} value={currency}>{currency}</option>)}</select></label><div><button type="button" className="button button-secondary" onClick={() => { setNewTripOpen(false); setNewTripName(''); setNewTripCurrency('PLN'); }}>Anuluj</button><button type="submit" className="button button-primary" disabled={busy}>{busy ? 'Zapisywanie...' : 'Utwórz'}</button></div></form> : null}
-            {tripSummaries.length ? <div className="finance-trip-card-list">{tripSummaries.map((trip) => <button type="button" className="finance-trip-card" key={tripIdentity(trip.name)} onClick={() => selectTrip(trip.name)}><span><strong>{trip.name}</strong><small>{trip.receipts.length && trip.firstDate && trip.lastDate ? `${formatTripDateRange(trip.firstDate, trip.lastDate)} · ${trip.receipts.length} ${polishCountLabel(trip.receipts.length, 'wydatek', 'wydatki', 'wydatków')} · ${trip.currency ?? 'PLN'}` : `Brak wydatków · ${trip.currency ?? 'PLN'}`}</small></span><strong>{formatMoneyMinor(trip.totalMinor)}</strong><span aria-hidden="true">›</span></button>)}</div> : !newTripOpen ? <div className="finance-trip-empty-list"><h2>Brak wyjazdów</h2><p>Utwórz pierwszy wyjazd, a jego wydatki będą zebrane w jednym miejscu.</p><button type="button" className="button button-primary button-small" onClick={() => { clearFeedback(); setNewTripOpen(true); }}>+ Wyjazd</button></div> : null}
+            {tripSummaries.length ? <div className="finance-trip-card-list">{tripSummaries.map((trip) => {
+              const currency = trip.currency ?? 'PLN';
+              const originalTotalMinor = completeTripOriginalTotal(trip.receipts, currency);
+              return <button type="button" className="finance-trip-card finance-trip-card-v148 finance-trip-card-v149" key={tripIdentity(trip.name)} onClick={() => selectTrip(trip.name)}>
+                <span className="finance-trip-card-copy"><strong>{trip.name}</strong><small>{trip.receipts.length && trip.firstDate && trip.lastDate ? formatTripDateRange(trip.firstDate, trip.lastDate) : 'Brak wydatków'}</small></span>
+                <span className="finance-trip-card-facts"><small>{trip.receipts.length} {polishCountLabel(trip.receipts.length, 'wydatek', 'wydatki', 'wydatków')}</small><span>{currency}</span></span>
+                <span className="finance-trip-card-total">
+                  <strong>{originalTotalMinor !== null ? formatCurrencyAmountMinor(originalTotalMinor, currency) : formatMoneyMinor(trip.totalMinor)}</strong>
+                  {originalTotalMinor !== null ? <small>≈ {formatMoneyMinor(trip.totalMinor)}</small> : null}
+                </span>
+                <span aria-hidden="true">›</span>
+              </button>;
+            })}</div> : !newTripOpen ? <div className="finance-trip-empty-list"><h2>Brak wyjazdów</h2><p>Utwórz pierwszy wyjazd, a jego wydatki będą zebrane w jednym miejscu.</p><button type="button" className="button button-primary button-small" onClick={() => { clearFeedback(); setNewTripOpen(true); }}>+ Wyjazd</button></div> : null}
           </section>
         )
       ) : monthSummary.receiptCount === 0 ? (
@@ -1317,53 +1491,92 @@ export function FinanceDashboardView() {
         </div>
       ) : (
         <>
-          <section className="panel finance-overview-summary-card finance-month-summary-compact" aria-label="Podsumowanie miesiąca">
-            <div className="finance-overview-summary-main finance-month-summary-main">
-              <div className="finance-overview-summary-copy finance-month-summary-copy">
-                <span className="section-kicker">Miesiąc</span>
-                <h2>{formatMonthLabel(monthKey)}</h2>
-                <div className="finance-overview-summary-meta finance-month-summary-meta" aria-label="Skróty podsumowania miesiąca">
-                  <span>{monthReceipts.length} {polishCountLabel(monthReceipts.length, 'wydatek', 'wydatki', 'wydatków')}</span>
-                  <button type="button" className={activeNecessity === 'essential' ? 'is-active' : ''} onClick={() => filterByNecessity('essential')} aria-pressed={activeNecessity === 'essential'}>
-                    Niezbędne <strong>{formatMoneyMinor(necessityTotals.essential)}</strong>
-                  </button>
-                  <button type="button" className={activeNecessity === 'nonessential' ? 'is-active' : ''} onClick={() => filterByNecessity('nonessential')} aria-pressed={activeNecessity === 'nonessential'}>
-                    Zbędne <strong>{formatMoneyMinor(necessityTotals.nonessential)}</strong>
-                  </button>
-                  <button type="button" className={`${reviewOnly ? 'is-active ' : ''}${reviewPurchaseRows.length ? 'has-review' : ''}`.trim()} onClick={reviewPurchaseRows.length ? showReviewPurchases : showAllPurchases} aria-pressed={reviewOnly}>
-                    Do poprawy <strong>{reviewPurchaseRows.length}</strong>
-                  </button>
-                </div>
-              </div>
-              <button type="button" className="finance-overview-summary-total finance-month-summary-total" onClick={showTransactions} aria-label="Pokaż wszystkie transakcje miesiąca">
+          <section className="panel finance-overview-summary-card finance-month-summary-compact finance-month-dashboard-v147 finance-month-dashboard-v177" aria-label="Podsumowanie miesiąca">
+            <div className="finance-overview-summary-main finance-month-summary-main finance-month-dashboard-head">
+              <button type="button" className="finance-month-hero-total" onClick={showTransactions} aria-label="Pokaż wszystkie transakcje miesiąca">
+                <span className="section-kicker">Wydatki w miesiącu</span>
                 <strong>{formatMoneyMinor(monthSummary.totalMinor)}</strong>
-                <small>{comparison.state === 'comparable' ? `${comparison.differenceMinor > 0 ? '+' : comparison.differenceMinor < 0 ? '-' : ''}${formatMoneyMinor(Math.abs(comparison.differenceMinor))} vs poprzedni miesiąc` : comparisonText.detail}</small>
+                <small className={comparison.state === 'comparable' ? comparison.differenceMinor < 0 ? 'is-lower' : comparison.differenceMinor > 0 ? 'is-higher' : '' : ''}>
+                  {comparison.state === 'comparable'
+                    ? comparison.differenceMinor === 0
+                      ? comparisonText.detail
+                      : `${comparison.differenceMinor < 0 ? '↓' : '↑'} ${formatMoneyMinor(Math.abs(comparison.differenceMinor))} · ${comparisonText.detail} niż poprzednio`
+                    : comparisonText.detail}
+                </small>
               </button>
-            </div>
-            <div className="finance-overview-category-strip finance-month-category-chips" aria-label="Najważniejsze kategorie miesiąca">
-              <button type="button" className="finance-overview-category-manage finance-month-category-all" onClick={openCategoryOverview}>Kategorie</button>
-              {categoryAnalytics.slice(0, 4).map((entry) => (
-                <button
-                  type="button"
-                  className={`finance-overview-category-chip finance-month-category-chip${activeCategoryId === entry.categoryId ? ' is-active' : ''}`}
-                  key={entry.categoryId}
-                  onClick={() => filterByCategory(entry.categoryId)}
-                  aria-pressed={activeCategoryId === entry.categoryId}
-                >
-                  <ExpenseCategoryIcon category={categories.find((category) => category.id === entry.categoryId) ?? { id: entry.categoryId }} />
-                  <span>{entry.name}</span>
-                  <strong>{formatMoneyMinor(entry.totalMinor)}</strong>
+
+              <div className="finance-overview-summary-meta finance-month-summary-meta finance-month-metric-grid" aria-label="Statystyki miesiąca">
+                <button type="button" onClick={showTransactions}>
+                  <span>Transakcje</span>
+                  <strong>{monthSummary.receiptCount}</strong>
                 </button>
-              ))}
+                <button type="button" onClick={showTransactions}>
+                  <span>Średnio</span>
+                  <strong>{formatMoneyMinor(monthSummary.averageReceiptMinor)}</strong>
+                </button>
+                <button type="button" className={activeNecessity === 'essential' ? 'is-active' : ''} onClick={() => filterByNecessity('essential')} aria-pressed={activeNecessity === 'essential'}>
+                  <span>Niezbędne</span>
+                  <strong>{formatMoneyMinor(necessityTotals.essential)}</strong>
+                </button>
+                <button type="button" className={activeNecessity === 'nonessential' ? 'is-active' : ''} onClick={() => filterByNecessity('nonessential')} aria-pressed={activeNecessity === 'nonessential'}>
+                  <span>Zbędne</span>
+                  <strong>{formatMoneyMinor(necessityTotals.nonessential)}</strong>
+                </button>
+              </div>
+            </div>
+
+            <div className="finance-overview-category-strip finance-month-category-chips finance-month-category-ranking" aria-label="Największe kategorie miesiąca">
+              <div className="finance-month-category-heading">
+                <div>
+                  <span className="section-kicker">Największe kategorie</span>
+                </div>
+                <button type="button" className="text-button finance-month-category-all" onClick={openCategoryOverview}>Wszystkie kategorie</button>
+              </div>
+              <div className="finance-month-category-grid">
+                {categoryAnalytics.slice(0, 4).map((entry) => (
+                  <button
+                    type="button"
+                    className={`finance-overview-category-chip finance-month-category-chip finance-month-category-row${activeCategoryId === entry.categoryId ? ' is-active' : ''}`}
+                    key={entry.categoryId}
+                    onClick={() => filterByCategory(entry.categoryId)}
+                    aria-pressed={activeCategoryId === entry.categoryId}
+                  >
+                    <ExpenseCategoryIcon category={categories.find((category) => category.id === entry.categoryId) ?? { id: entry.categoryId }} />
+                    <span className="finance-month-category-copy">
+                      <strong>{entry.name}</strong>
+                      <span className="finance-month-category-bar" aria-hidden="true"><span style={{ width: `${Math.max(4, Math.min(100, entry.sharePercent))}%` }} /></span>
+                    </span>
+                    <span className="finance-month-category-value">
+                      <small>{entry.sharePercent.toFixed(1).replace('.', ',')}%</small>
+                      <strong>{formatMoneyMinor(entry.totalMinor)}</strong>
+                    </span>
+                  </button>
+                ))}
+              </div>
             </div>
           </section>
 
-          <section ref={purchasesRef} className="panel finance-expense-list-card finance-purchases-section" aria-labelledby="finance-purchases-heading">
+          <section ref={purchasesRef} className="panel finance-expense-list-card finance-purchases-section finance-expense-section-v177" aria-labelledby="finance-purchases-heading">
             <div className="finance-section-heading finance-section-heading-row finance-core-section-heading finance-expense-list-heading finance-expense-section-heading">
               <div>
                 <h2 id="finance-purchases-heading">Wydatki</h2>
               </div>
               <div className="finance-expense-heading-tools">
+                {expenseListMode === 'ITEMS' && categoryReviewRows.length ? (
+                  <button type="button" className={`finance-expense-review-link${reviewOnly ? ' is-active' : ''}`} onClick={showReviewPurchases} aria-pressed={reviewOnly}>
+                    Do poprawy <strong>{categoryReviewRows.length}</strong>
+                  </button>
+                ) : null}
+                {expenseListMode === 'ITEMS' && necessityReviewRows.length ? (
+                  <button
+                    type="button"
+                    className={`finance-expense-assessment-link${activeNecessity === 'unknown' ? ' is-active' : ''}`}
+                    onClick={() => filterByNecessity('unknown')}
+                    aria-pressed={activeNecessity === 'unknown'}
+                  >
+                    Do oceny <strong>{necessityReviewRows.length}</strong>
+                  </button>
+                ) : null}
                 <div className="finance-expense-mode-switch" role="group" aria-label="Sposób wyświetlania wydatków">
                   <button type="button" className={expenseListMode === 'TRANSACTIONS' ? 'is-active' : ''} aria-pressed={expenseListMode === 'TRANSACTIONS'} onClick={showTransactions}>Transakcje</button>
                   <button type="button" className={expenseListMode === 'ITEMS' ? 'is-active' : ''} aria-pressed={expenseListMode === 'ITEMS'} onClick={() => setExpenseListMode('ITEMS')}>Pozycje</button>
@@ -1376,8 +1589,7 @@ export function FinanceDashboardView() {
               <div className="finance-expense-list finance-month-transaction-list" aria-label="Transakcje w wybranym miesiącu">
                 {monthReceipts.map((receipt) => {
                   const firstItem = receipt.items[0];
-                  const firstProduct = firstItem ? productByKey.get(normalizeExpenseProductKey(firstItem.name)) : undefined;
-                  const categoryId = firstItem ? firstProduct?.categoryId ?? firstItem.categoryId : '';
+                  const categoryId = firstItem ? resolveExpenseItemClassification(firstItem, productByKey).categoryId : '';
                   const category = categoryId ? categories.find((entry) => entry.id === categoryId) : undefined;
                   const categoryLabel = categoryId ? expenseCategoryPath(categories, categoryId) : '';
                   const secondary = [receipt.tripName, formatExpenseMerchantDisplayName(receipt.merchant), categoryLabel].filter(Boolean).join(' · ');
@@ -1400,11 +1612,11 @@ export function FinanceDashboardView() {
               </div>
             ) : (
               <>
-                {reviewPurchaseRows.length ? (
+                {categoryReviewRows.length ? (
                   <div className="finance-review-strip" role="status">
                     <div>
-                      <strong>Do poprawy: {reviewPurchaseRows.length} {polishCountLabel(reviewPurchaseRows.length, 'pozycja', 'pozycje', 'pozycji')}</strong>
-                      <span>{otherReviewCount} {polishCountLabel(otherReviewCount, 'pozycja', 'pozycje', 'pozycji')} w Inne · {unknownReviewCount} do oceny · {formatMoneyMinor(reviewTotalMinor)}</span>
+                      <strong>Do poprawy: {categoryReviewRows.length} {polishCountLabel(categoryReviewRows.length, 'pozycja', 'pozycje', 'pozycji')}</strong>
+                      <span>{otherReviewCount} {polishCountLabel(otherReviewCount, 'pozycja', 'pozycje', 'pozycji')} w Inne · {formatMoneyMinor(reviewTotalMinor)}</span>
                     </div>
                     <button type="button" className="text-button" onClick={showReviewPurchases}>Przejrzyj</button>
                   </div>
@@ -1420,15 +1632,13 @@ export function FinanceDashboardView() {
 
                 <div className="finance-quick-filters" role="toolbar" aria-label="Szybkie filtry wydatków">
                   <button type="button" className={!hasTableFilters ? 'is-active' : ''} aria-pressed={!hasTableFilters} onClick={showAllPurchases}>Wszystkie</button>
-                  <button type="button" className={reviewOnly ? 'is-active is-review' : 'is-review'} aria-pressed={reviewOnly} onClick={showReviewPurchases}>Do poprawy <span>{reviewPurchaseRows.length}</span></button>
+                  <button type="button" className={reviewOnly ? 'is-active is-review' : 'is-review'} aria-pressed={reviewOnly} onClick={showReviewPurchases}>Do poprawy <span>{categoryReviewRows.length}</span></button>
                   {otherCategoryId ? <button type="button" className={activeCategoryId === otherCategoryId ? 'is-active' : ''} aria-pressed={activeCategoryId === otherCategoryId} onClick={() => filterByCategory(otherCategoryId)}>Inne <span>{otherReviewCount}</span></button> : null}
                   <button type="button" className={activeNecessity === 'essential' ? 'is-active' : ''} aria-pressed={activeNecessity === 'essential'} onClick={() => filterByNecessity('essential')}>Niezbędne</button>
                   <button type="button" className={activeNecessity === 'nonessential' ? 'is-active' : ''} aria-pressed={activeNecessity === 'nonessential'} onClick={() => filterByNecessity('nonessential')}>Zbędne</button>
+                  <button type="button" className={activeNecessity === 'unknown' ? 'is-active is-assessment' : 'is-assessment'} aria-pressed={activeNecessity === 'unknown'} onClick={() => filterByNecessity('unknown')}>Do oceny <span>{unknownReviewCount}</span></button>
                   {activeCategoryId && activeCategoryId !== otherCategoryId ? (
                     <button type="button" className="is-active finance-filter-chip-dynamic" onClick={() => setActiveCategoryId('')}>{expenseCategoryPath(categories, activeCategoryId)} ×</button>
-                  ) : null}
-                  {activeNecessity === 'unknown' ? (
-                    <button type="button" className="is-active finance-filter-chip-dynamic" onClick={() => setActiveNecessity('')}>Do oceny ×</button>
                   ) : null}
                 </div>
 
@@ -1493,7 +1703,13 @@ export function FinanceDashboardView() {
                       </thead>
                       <tbody>
                         {filteredPurchaseRows.map((row) => (
-                          <tr key={row.key} className={(otherCategoryId && row.effectiveCategoryId === otherCategoryId) || row.necessity === 'unknown' ? 'is-review-row' : undefined}>
+                          <tr
+                            key={row.key}
+                            className={[
+                              row.categoryNeedsReview ? 'is-category-review-row' : '',
+                              row.necessityNeedsReview ? 'is-necessity-review-row' : '',
+                            ].filter(Boolean).join(' ') || undefined}
+                          >
                             <td>
                               <div className="finance-purchase-product-cell">
                                 {bulkReviewMode ? (
@@ -1505,13 +1721,13 @@ export function FinanceDashboardView() {
                                   />
                                 ) : null}
                                 {row.productAnalytics ? (
-                                  <button type="button" className="finance-purchase-product-button" onClick={() => openProductEditor(row.productAnalytics!)}>{formatExpenseProductDisplayName(row.canonicalName)}</button>
+                                  <button type="button" className="finance-purchase-product-button" aria-label={`Otwórz produkt: ${formatExpenseProductDisplayName(row.canonicalName)}`} onClick={() => openProductEditor(row.productAnalytics!)}>{formatExpenseProductDisplayName(row.canonicalName)}</button>
                                 ) : <strong>{formatExpenseProductDisplayName(row.canonicalName)}</strong>}
                               </div>
                             </td>
                             <td>
                               <select
-                                className={`finance-category-select${otherCategoryId && row.effectiveCategoryId === otherCategoryId ? ' is-review' : ''}`}
+                                className={`finance-category-select${row.categoryNeedsReview ? ' is-review' : ''}`}
                                 value={row.effectiveCategoryId}
                                 aria-label={`Kategoria: ${row.canonicalName}`}
                                 onChange={(event) => void changePurchaseCategory(row.receipt.id, row.item.id, event.target.value)}
@@ -1522,7 +1738,7 @@ export function FinanceDashboardView() {
                             <td>
                               {row.product ? (
                                 <select
-                                  className={`finance-necessity-select is-${row.necessity}${row.necessity === 'unknown' ? ' is-review' : ''}`}
+                                  className={`finance-necessity-select is-${row.necessity}${row.necessityNeedsReview ? ' is-assessment' : ''}`}
                                   value={row.necessity}
                                   aria-label={`Typ wydatku: ${row.canonicalName}`}
                                   onChange={(event) => void changeProductNecessity(row.product!, event.target.value as ExpenseNecessity)}
@@ -1625,16 +1841,19 @@ export function FinanceDashboardView() {
               <strong>{formatExchangeRate(detailReceipt.exchangeRatePlnPerUnit, detailReceipt.originalCurrency)}</strong>
             </div> : null}
             <div className="finance-transaction-detail-items">
-              {detailReceipt.items.map((item) => (
-                <div key={item.id}>
-                  <div>
-                    <strong>{item.name}</strong>
-                    <span>{expenseCategoryPath(categories, item.categoryId)}</span>
-                    {receiptUnitDetails(item) ? <small>{receiptUnitDetails(item)}</small> : null}
+              {detailReceipt.items.map((item) => {
+                const classification = resolveExpenseItemClassification(item, productByKey);
+                return (
+                  <div key={item.id}>
+                    <div>
+                      <strong>{formatExpenseProductDisplayName(classification.canonicalName)}</strong>
+                      <span>{expenseCategoryPath(categories, classification.categoryId)} · {expenseNecessityLabel(classification.necessity)}</span>
+                      {receiptUnitDetails(item) ? <small>{receiptUnitDetails(item)}</small> : null}
+                    </div>
+                    <strong>{formatMoneyMinor(item.amountMinor)}</strong>
                   </div>
-                  <strong>{formatMoneyMinor(item.amountMinor)}</strong>
-                </div>
-              ))}
+                );
+              })}
             </div>
             <div className="modal-actions split-actions finance-detail-actions">
               <button type="button" className="button button-danger-ghost" disabled={busy} onClick={() => void removeReceipt(detailReceipt)}>Usuń</button>
@@ -1665,13 +1884,32 @@ export function FinanceDashboardView() {
                 <span>Data</span>
                 <input type="date" value={editReceipt.date} onChange={(event) => setEditReceipt((current) => current ? { ...current, date: event.target.value } : current)} />
               </label>
-              <label className="field">
+              <label className="field finance-receipt-edit-trip">
                 <span>Wyjazd <small>opcjonalnie</small></span>
-                <input list="finance-trip-suggestions" value={editReceipt.tripName ?? ''} onChange={(event) => setEditReceipt((current) => current ? { ...current, tripName: event.target.value } : current)} placeholder="Np. Budapeszt" />
-                <datalist id="finance-trip-suggestions">{tripSummaries.map((trip) => <option key={tripIdentity(trip.name)} value={trip.name} />)}</datalist>
+                <select value={editReceipt.tripName ?? ''} onChange={(event) => {
+                  const nextTripName = event.target.value;
+                  setEditReceipt((current) => {
+                    if (!current) return current;
+                    if (nextTripName) return { ...current, tripName: nextTripName };
+                    const next = { ...current };
+                    delete next.tripName;
+                    return next;
+                  });
+                }}>
+                  <option value="">Bez wyjazdu</option>
+                  {editReceipt.originalTripName && !tripDefinitions.some((trip) => tripIdentity(trip.name) === tripIdentity(editReceipt.originalTripName))
+                    ? <option value={editReceipt.originalTripName}>{editReceipt.originalTripName} · starsze przypisanie</option>
+                    : null}
+                  {tripDefinitions.map((trip) => <option key={trip.id} value={trip.name}>{trip.name} · {trip.currency ?? 'PLN'}</option>)}
+                </select>
+                <small className="finance-receipt-edit-trip-note">Przypisanie grupuje transakcję. Nie zmienia zapisanej waluty ani kwoty źródłowej.</small>
               </label>
             </div>
             <div className="finance-receipt-edit-source">Źródło: <strong>{receiptSourceLabel(editReceipt)}</strong></div>
+            {editReceipt.originalCurrency && editReceipt.originalAmountMinor !== undefined ? <div className="finance-receipt-edit-currency-context">
+              <div><span>Kwota źródłowa</span><strong>{formatCurrencyAmountMinor(editReceipt.originalAmountMinor, editReceipt.originalCurrency)}</strong></div>
+              <p>Pozycje poniżej edytujesz w PLN. Kwota i waluta źródłowa pozostają bez zmian; jeśli zmienisz sumę PLN, aplikacja przeliczy efektywny kurs tej transakcji.</p>
+            </div> : null}
             <div className="finance-receipt-edit-items">
               {editReceipt.items.map((item, index) => (
                 <div className="finance-receipt-edit-item" key={item.id ?? `new-${index}`}>
@@ -1686,7 +1924,7 @@ export function FinanceDashboardView() {
                     </select>
                   </label>
                   <label className="field finance-receipt-edit-amount">
-                    <span>Kwota</span>
+                    <span>Kwota (PLN)</span>
                     <input inputMode="decimal" value={item.amountText} onChange={(event) => updateEditItem(index, { amountText: event.target.value })} />
                   </label>
                   <button type="button" className="icon-button finance-receipt-item-remove" disabled={busy || editReceipt.items.length <= 1} onClick={() => removeEditItem(index)} aria-label={`Usuń pozycję ${index + 1}`}>×</button>
@@ -1712,7 +1950,7 @@ export function FinanceDashboardView() {
           <form id="finance-product-editor-form" className="finance-product-editor" onSubmit={(event) => void saveProduct(event)}>
             {error ? <div className="study-message error-message finance-form-message" role="alert">{error}</div> : null}
             <div className="finance-product-editor-fields">
-              <label className="field">
+              <label className="field finance-product-editor-name">
                 <span>Nazwa ujednolicona</span>
                 <input data-modal-autofocus="true" value={editProduct.name} onChange={(event) => setEditProduct((current) => current ? { ...current, name: event.target.value } : current)} />
               </label>
@@ -1731,6 +1969,17 @@ export function FinanceDashboardView() {
                 </select>
               </label>
             </div>
+            <div className={`finance-product-classification-preview${editProduct.necessity === 'unknown' ? ' is-assessment' : ''}`} aria-live="polite">
+              <div>
+                <span>Kategoria</span>
+                <strong>{editedProductCategoryPath || 'Bez kategorii'}</strong>
+              </div>
+              <div>
+                <span>Typ wydatku</span>
+                <strong>{editedProductNecessity}</strong>
+                {editProduct.necessity === 'unknown' ? <small>Wymaga decyzji</small> : <small>Używane w Miesiącu, Wyjeździe i eksporcie</small>}
+              </div>
+            </div>
             <div className="finance-product-original">
               <span>Oryginalna nazwa z historii</span>
               <strong>{editedProductAnalytics.product.originalName}</strong>
@@ -1745,7 +1994,7 @@ export function FinanceDashboardView() {
             {editedProductPriceSummary && editedProductPriceSummary.latest.unitPriceMinor !== undefined ? (
               <div className="finance-product-price-snapshot">
                 <div className="finance-product-price-heading">
-                  <strong>Cena jednostkowa</strong>
+                  <strong>Historia ceny jednostkowej</strong>
                   <span>Porównanie tylko dla {receiptItemUnitLabel(editedProductPriceSummary.unit)}</span>
                 </div>
                 <div className="finance-product-price-cells">
@@ -1781,15 +2030,20 @@ export function FinanceDashboardView() {
             <div className="finance-product-history">
               <div className="finance-product-history-heading">
                 <strong>Historia zakupu</strong>
-                <span>{editedProductAnalytics.merchantCount} {editedProductAnalytics.merchantCount === 1 ? 'miejsce' : 'miejsc'}</span>
+                <span>{editedProductAnalytics.occurrenceCount} {polishCountLabel(editedProductAnalytics.occurrenceCount, 'zakup', 'zakupy', 'zakupów')} · {editedProductAnalytics.merchantCount} {editedProductAnalytics.merchantCount === 1 ? 'miejsce' : 'miejsc'}</span>
               </div>
-              {editedProductAnalytics.occurrences.slice(0, 20).map((occurrence) => (
+              {editedProductHistory.map((occurrence) => (
                 <div className="finance-product-history-row" key={`${occurrence.receiptId}-${occurrence.itemId}`}>
                   <span>{formatDate(occurrence.date)}</span>
                   <div><strong>{occurrence.merchant}</strong><small>{occurrence.rawName}{receiptUnitDetails(occurrence) ? ` · ${receiptUnitDetails(occurrence)}` : ''}</small></div>
                   <strong>{formatMoneyMinor(occurrence.amountMinor)}</strong>
                 </div>
               ))}
+              {editedProductHistoryHasMore ? (
+                <button type="button" className="finance-product-history-toggle" onClick={() => setProductHistoryExpanded((current) => !current)}>
+                  {productHistoryExpanded ? 'Pokaż mniej' : editedProductAnalytics.occurrences.length > 20 ? 'Pokaż 20 ostatnich zakupów' : `Pokaż całą historię (${editedProductAnalytics.occurrences.length})`}
+                </button>
+              ) : null}
             </div>
             <div className="modal-actions split-actions">
               <button type="button" className="button button-secondary" onClick={() => setEditProduct(null)} disabled={busy}>Anuluj</button>

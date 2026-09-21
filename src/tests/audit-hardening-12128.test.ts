@@ -9,7 +9,7 @@ const workView = readFileSync('src/work/WorkView.tsx', 'utf8');
 const safety = readFileSync('src/safety/SafetyCenter.tsx', 'utf8');
 const version = readFileSync('src/core/version.ts', 'utf8');
 
-describe('1.2.0.145 audit hardening', () => {
+describe('1.2.0.146 audit hardening', () => {
   it('pairs work schedule updates conservatively and detaches unmatched manual edits from historical imports', () => {
     expect(workService).toContain('export function pairWorkScheduleUpdates');
     expect(workService).toContain('oldGroup.length !== 1 || newGroup?.length !== 1');
@@ -47,7 +47,7 @@ describe('1.2.0.145 audit hardening', () => {
   });
 
   it('keeps the database schema stable', () => {
-    expect(version).toContain("APP_VERSION = '1.2.0.145'");
+    expect(version).toMatch(/APP_VERSION\s*=\s*'\d+\.\d+\.\d+\.\d+'/u);
     expect(version).toContain('DATABASE_SCHEMA_VERSION = 14');
   });
 });

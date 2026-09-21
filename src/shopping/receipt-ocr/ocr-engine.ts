@@ -63,7 +63,7 @@ const OCR_VERSION = '7.0.0';
 const OCR_LANGUAGE = 'pol';
 
 function assetBase(): string {
-  const viteBase = import.meta.env.BASE_URL || '/';
+  const viteBase = import.meta.env?.BASE_URL || '/';
   return `${viteBase.endsWith('/') ? viteBase : `${viteBase}/`}ocr/tesseract`;
 }
 
@@ -159,15 +159,76 @@ function normalizeGeometryTokenText(value: string): string {
   return value.trim().replace(/\s+/gu, ' ');
 }
 
-function geometryTokenKey(token: ReceiptOcrToken): string {
-  return [
-    token.page,
-    normalizeGeometryTokenText(token.text).toLocaleLowerCase('pl-PL'),
-    Math.round(token.bbox.x0 / 2),
-    Math.round(token.bbox.y0 / 2),
-    Math.round(token.bbox.x1 / 2),
-    Math.round(token.bbox.y1 / 2),
-  ].join('|');
+function tokenArea(token: ReceiptOcrToken): number {
+  return Math.max(0, token.bbox.x1 - token.bbox.x0) * Math.max(0, token.bbox.y1 - token.bbox.y0);
+}
+
+function tokenOverlapRatio(left: ReceiptOcrToken, right: ReceiptOcrToken): number {
+  const x0 = Math.max(left.bbox.x0, right.bbox.x0);
+  const y0 = Math.max(left.bbox.y0, right.bbox.y0);
+  const x1 = Math.min(left.bbox.x1, right.bbox.x1);
+  const y1 = Math.min(left.bbox.y1, right.bbox.y1);
+  if (x1 <= x0 || y1 <= y0) return 0;
+  const intersection = (x1 - x0) * (y1 - y0);
+  const denominator = Math.min(tokenArea(left), tokenArea(right));
+  return denominator > 0 ? intersection / denominator : 0;
+}
+
+function normalizedGeometryTokenText(token: ReceiptOcrToken): string {
+  return normalizeGeometryTokenText(token.text).toLocaleLowerCase('pl-PL');
+}
+
+function tokenLooksIdentifierLike(token: ReceiptOcrToken): boolean {
+  const text = normalizedGeometryTokenText(token).replace(/\s+/gu, '');
+  if (text.length < 4) return false;
+  const digits = [...text].filter((character) => /\d/u.test(character)).length;
+  return digits >= 4 && digits / text.length >= 0.55;
+}
+
+function isSpatialDuplicateToken(left: ReceiptOcrToken, right: ReceiptOcrToken): boolean {
+  if (left.page !== right.page) return false;
+  if (left.source !== right.source) return false;
+  if (left.chunkIndex !== undefined && right.chunkIndex !== undefined && left.chunkIndex === right.chunkIndex) return false;
+  const overlap = tokenOverlapRatio(left, right);
+  if (overlap < 0.82) return false;
+  const leftText = normalizedGeometryTokenText(left);
+  const rightText = normalizedGeometryTokenText(right);
+  if (leftText === rightText) return true;
+  // Overlapping OCR chunks can emit two incompatible readings for the exact same
+  // long identifier. Collapse only identifier-like tokens with almost identical
+  // geometry; ordinary words and money cells remain separate unless text agrees.
+  return overlap >= 0.92 && tokenLooksIdentifierLike(left) && tokenLooksIdentifierLike(right);
+}
+
+function preferredDuplicateToken(left: ReceiptOcrToken, right: ReceiptOcrToken): ReceiptOcrToken {
+  const leftConfidence = left.confidence ?? -1;
+  const rightConfidence = right.confidence ?? -1;
+  if (rightConfidence !== leftConfidence) return rightConfidence > leftConfidence ? right : left;
+  const leftText = normalizedGeometryTokenText(left);
+  const rightText = normalizedGeometryTokenText(right);
+  if (rightText.length !== leftText.length) return rightText.length > leftText.length ? right : left;
+  return left;
+}
+
+export function dedupeReceiptOcrTokens(tokens: readonly ReceiptOcrToken[]): ReceiptOcrToken[] {
+  const result: ReceiptOcrToken[] = [];
+  for (const token of tokens) {
+    let duplicateIndex = -1;
+    for (let index = result.length - 1; index >= 0; index -= 1) {
+      const existing = result[index]!;
+      if (existing.page < token.page) break;
+      // Merged geometry is y-sorted by chunk/page in normal use. Once the boxes
+      // are well above the current token there is no plausible overlap left.
+      if (existing.page === token.page && existing.bbox.y1 < token.bbox.y0 - 8) break;
+      if (isSpatialDuplicateToken(existing, token)) {
+        duplicateIndex = index;
+        break;
+      }
+    }
+    if (duplicateIndex < 0) result.push(token);
+    else result[duplicateIndex] = preferredDuplicateToken(result[duplicateIndex]!, token);
+  }
+  return result;
 }
 
 function extractReceiptOcrTokens(
@@ -218,16 +279,11 @@ function mergeReceiptOcrGeometry(
   source: ReceiptOcrGeometrySource,
 ): ReceiptOcrGeometry | undefined {
   if (!geometries.length) return undefined;
-  const seen = new Set<string>();
-  const tokens: ReceiptOcrToken[] = [];
-  for (const geometry of geometries) {
-    for (const token of geometry.tokens) {
-      const key = geometryTokenKey(token);
-      if (seen.has(key)) continue;
-      seen.add(key);
-      tokens.push(token);
-    }
-  }
+  const tokens = dedupeReceiptOcrTokens(geometries.flatMap((geometry) => geometry.tokens)
+    .sort((left, right) => left.page - right.page
+      || left.bbox.y0 - right.bbox.y0
+      || left.bbox.x0 - right.bbox.x0
+      || left.text.localeCompare(right.text, 'pl')));
   tokens.sort((left, right) => left.page - right.page
     || left.bbox.y0 - right.bbox.y0
     || left.bbox.x0 - right.bbox.x0

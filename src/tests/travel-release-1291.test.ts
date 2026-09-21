@@ -18,10 +18,10 @@ describe('1.2.0.92 travel-ready hardening', () => {
     expect(quickExpense).toContain('<span>Waluta</span>');
   });
 
-  it('keeps Settings direct and avoids a second backup UI', () => {
+  it('keeps Settings direct while moving infrequent data tools one level deeper', () => {
     expect(settings).toContain('Backup i przenoszenie');
-    expect(settings).toContain('Dane i historia');
-    expect(settings).not.toContain('<details');
+    expect(settings).toContain('Historia i bezpieczeństwo');
+    expect(settings).toContain('<details className="settings-collapsible-section">');
     expect(safety).not.toContain("tab === 'backup'");
     expect(safety).not.toContain('Utwórz kopię zapasową');
   });
@@ -32,8 +32,8 @@ describe('1.2.0.92 travel-ready hardening', () => {
   });
 
   it('keeps Study copy short while preserving direct access', () => {
-    expect(study).toContain('Wczytaj Excel. Przed zapisem zobaczysz zmiany i wybierzesz tylko potrzebne grupy.');
-    expect(study).toContain('Grupy i podgląd');
-    expect(study).not.toContain('Grupy i dodatkowe opcje');
+    expect(study).toContain('Plan, grupy i aktualizacje.');
+    expect(study).toContain('study-groups-primary');
+    expect(study).toContain('StudyProfileSettings');
   });
 });

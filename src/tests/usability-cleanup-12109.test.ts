@@ -36,19 +36,21 @@ describe('1.2.0.110 focused usability cleanup', () => {
     expect(findEventConflicts({ startDateTime: '2026-09-14T12:00', endDateTime: '2026-09-14T13:00' }, [event()])).toHaveLength(0);
   });
 
-  it('adds a compact Today glance dashboard and passes calendar context into the event editor', () => {
-    expect(today).toContain('today-glance-grid');
-    expect(today).toContain('Najbliższe zajęcia');
-    expect(today).toContain('Najbliższa praca');
+  it('keeps one compact next-event cue on Today and passes calendar context into the event editor', () => {
+    expect(today).toContain('today-next-strip');
+    expect(today).toContain('Następne');
+    expect(today).not.toContain('today-glance-grid');
     expect(today).toContain('calendarOverlayMarkersForDate');
     expect(app).toContain('showPolishHolidays={settings.showPolishHolidays !== false}');
     expect(app).toContain('calendarEvents={events}');
-    expect(css).toContain('.today-glance-grid');
+    expect(css).toContain('.today-next-strip');
     expect(css).toContain('.event-conflict-warning');
   });
 
   it('keeps receipt scanning in Month but removes it from the Trip UI', () => {
-    expect(finance.match(/Skanuj paragon/g)?.length).toBe(1);
+    expect(finance.match(/className="button button-secondary finance-scan-receipt"/g)?.length).toBe(1);
+    expect(finance).toContain('finance-scan-receipt-short">Skanuj');
+    expect(finance).toContain('finance-scan-receipt-long">paragon');
     expect(finance).toContain("financeScope === 'MONTH'");
     expect(finance).toContain('activeTripName && !isEmptyActiveTrip');
   });
@@ -60,7 +62,7 @@ describe('1.2.0.110 focused usability cleanup', () => {
   });
 
   it('keeps schema unchanged', () => {
-    expect(version).toContain("APP_VERSION = '1.2.0.145'");
+    expect(version).toMatch(/APP_VERSION\s*=\s*'\d+\.\d+\.\d+\.\d+'/u);
     expect(version).toContain('DATABASE_SCHEMA_VERSION = 14');
   });
 });

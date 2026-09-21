@@ -23,8 +23,9 @@ describe('1.2.0.111 study plan freshness and diff summary', () => {
   it('shows the active plan import time and latest persisted comparison summary', () => {
     expect(database).toContain('getLatestAppliedScheduleUpdateSession');
     expect(studyView).toContain('Status aktualnego planu studiów');
-    expect(studyView).toContain('Zaimportowano');
-    expect(studyView).toContain('Ostatnie porównanie');
+    expect(studyView).toContain('study-current-plan-line');
+    expect(studyView).toContain('activeImport.importedEventCount');
+    expect(studyView).toContain('formatUpdateSummary(activePlanUpdate.summary)');
     expect(studyView).toContain('latestAppliedUpdate?.newFileHash === activeImport.fileHash');
   });
 
@@ -42,8 +43,8 @@ describe('1.2.0.111 study plan freshness and diff summary', () => {
 
   it('keeps the status compact on desktop and mobile without a schema migration', () => {
     expect(styles).toContain('1.2.0.111 - compact study plan freshness and readable update breakdown.');
-    expect(styles).toContain('.study-plan-freshness');
-    expect(version).toContain("APP_VERSION = '1.2.0.145'");
+    expect(styles).toContain('.study-current-plan-line');
+    expect(version).toMatch(/APP_VERSION\s*=\s*'\d+\.\d+\.\d+\.\d+'/u);
     expect(version).toContain('DATABASE_SCHEMA_VERSION = 14');
   });
 });

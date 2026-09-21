@@ -6,7 +6,7 @@ const consistency = readFileSync('src/styles/interface-consistency.css', 'utf8')
 const responsive = readFileSync('src/styles/responsive.css', 'utf8');
 const version = readFileSync('src/core/version.ts', 'utf8');
 
-describe('1.2.0.145 selected day panel polish', () => {
+describe('1.2.0.146 selected day panel polish', () => {
   it('keeps the study context inside the selected day panel hierarchy', () => {
     expect(calendar).toContain('calendar-selected-day-heading');
     expect(calendar).toContain('calendar-selected-day-heading-actions');
@@ -38,7 +38,7 @@ describe('1.2.0.145 selected day panel polish', () => {
   });
 
   it('keeps database schema stable', () => {
-    expect(version).toContain("APP_VERSION = '1.2.0.145'");
+    expect(version).toMatch(/APP_VERSION\s*=\s*'\d+\.\d+\.\d+\.\d+'/u);
     expect(version).toContain('DATABASE_SCHEMA_VERSION = 14');
   });
 });

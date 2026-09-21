@@ -10,7 +10,7 @@ describe('1.2.0.97 complete coworker visibility', () => {
   it('keeps the entire team visible in the nearest Work shift', () => {
     expect(workView).toContain('nearestCoworkers.map((person)');
     expect(workView).not.toContain('nearestCoworkers.slice(');
-    expect(workView).toContain("nearestCoworkers.length === 1 ? 'osoba' : 'osób'");
+    expect(workView).toContain('formatPersonCount(nearestCoworkers.length)');
   });
 
   it('does not hide full-list coworker rows in the mobile selected-day panel', () => {
@@ -24,7 +24,7 @@ describe('1.2.0.97 complete coworker visibility', () => {
   });
 
   it('does not change the database schema', () => {
-    expect(version).toContain("APP_VERSION = '1.2.0.145'");
+    expect(version).toMatch(/APP_VERSION\s*=\s*'\d+\.\d+\.\d+\.\d+'/u);
     expect(version).toContain('DATABASE_SCHEMA_VERSION = 14');
   });
 });

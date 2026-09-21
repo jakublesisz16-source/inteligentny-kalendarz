@@ -15,12 +15,12 @@ export interface NavigationItem {
 }
 
 export const NAVIGATION_ITEMS: NavigationItem[] = [
-  { id: 'today', label: 'Dzisiaj', short: 'Dzisiaj', icon: 'today' },
+  { id: 'today', label: 'Dzisiaj', short: 'Dziś', icon: 'today' },
   { id: 'calendar', label: 'Kalendarz', short: 'Kalendarz', icon: 'calendar' },
   { id: 'finance', label: 'Finanse', short: 'Finanse', icon: 'finance' },
   { id: 'study', label: 'Studia', short: 'Studia', icon: 'study' },
   { id: 'work', label: 'Praca', short: 'Praca', icon: 'work' },
-  { id: 'settings', label: 'Ustawienia', short: 'Ustawienia', icon: 'settings' },
+  { id: 'settings', label: 'Ustawienia', short: 'Opcje', icon: 'settings' },
 ];
 
 export function Navigation({ activeView, onChange }: NavigationProps) {
@@ -39,6 +39,7 @@ export function Navigation({ activeView, onChange }: NavigationProps) {
             <button
               type="button"
               key={item.id}
+              data-view={item.id}
               className={activeView === item.id ? 'nav-item active' : 'nav-item'}
               onClick={() => onChange(item.id)}
               aria-current={activeView === item.id ? 'page' : undefined}
@@ -55,8 +56,10 @@ export function Navigation({ activeView, onChange }: NavigationProps) {
           <button
             type="button"
             key={item.id}
+            data-view={item.id}
             className={activeView === item.id ? 'bottom-nav-item active' : 'bottom-nav-item'}
             onClick={() => onChange(item.id)}
+            aria-label={item.label}
             aria-current={activeView === item.id ? 'page' : undefined}
           >
             <span className="bottom-nav-icon-shell" aria-hidden="true"><AppIcon name={item.icon} className="bottom-nav-icon" size={19} /></span>

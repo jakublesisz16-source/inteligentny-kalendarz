@@ -93,6 +93,42 @@ describe('1.1.0-dev.3 DEV3-B027 photo memory safety', () => {
     }
   });
 
+
+  it('rejects renamed non-image bytes before browser decode', async () => {
+    const file = new File([new Uint8Array([0x47, 0x49, 0x46, 0x38, 0x39, 0x61])], 'fake.png', { type: '' });
+    let called = false;
+    vi.stubGlobal('createImageBitmap', async () => {
+      called = true;
+      throw new Error('decoder should not run');
+    });
+    try {
+      await expect(preprocessReceiptImage(file, 0, 'photo')).rejects.toThrow('Nie udało się odczytać wymiarów zdjęcia');
+      expect(called).toBe(false);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it('recognizes encoded PNG dimensions even when File.type is empty and reaches bounded decode', async () => {
+    const bytes = new Uint8Array(24);
+    [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a].forEach((value, index) => { bytes[index] = value; });
+    const view = new DataView(bytes.buffer);
+    view.setUint32(16, 1200);
+    view.setUint32(20, 2400);
+    const file = new File([bytes], 'receipt.png', { type: '' });
+    let called = false;
+    vi.stubGlobal('createImageBitmap', async () => {
+      called = true;
+      throw new Error('stop after decode request');
+    });
+    try {
+      await expect(preprocessReceiptImage(file, 0, 'photo')).rejects.toThrow('Nie udało się odczytać zdjęcia');
+      expect(called).toBe(true);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it('probes encoded dimensions before decoding and requests bounded ImageBitmap resize only above the limit', () => {
     const implementation = source('../shopping/receipt-ocr/image-preprocess.ts');
     expect(implementation).toContain('readEncodedReceiptImageDimensions(file)');
@@ -100,6 +136,9 @@ describe('1.1.0-dev.3 DEV3-B027 photo memory safety', () => {
     expect(implementation).toContain('resizeWidth: safeDimensions.width');
     expect(implementation).toContain('resizeHeight: safeDimensions.height');
     expect(implementation).toContain("resizeQuality: 'high'");
+    expect(implementation).toContain('calculateSafeReceiptImageDimensions(bitmapWidth, bitmapHeight)');
+    expect(implementation).toContain('decodedSafeDimensions.width');
+    expect(implementation).toContain('decodedSafeDimensions.height');
     expect(implementation).toContain('bitmap.close();');
     expect(implementation).toContain('bitmap = null;');
   });

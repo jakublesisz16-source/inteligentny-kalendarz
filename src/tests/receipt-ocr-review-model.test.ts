@@ -33,6 +33,14 @@ describe('1.1.0-dev.3 receipt review model', () => {
     const changed = review(); changed.items[1]!.amountText = '4,00';
     expect(receiptReviewDifferenceMinor(changed)).toBe(100);
     expect(isSignificantReceiptMismatch(changed)).toBe(true);
+
+    const subZlotyOcrError = review(); subZlotyOcrError.items[1]!.amountText = '3,60';
+    expect(receiptReviewDifferenceMinor(subZlotyOcrError)).toBe(60);
+    expect(isSignificantReceiptMismatch(subZlotyOcrError)).toBe(true);
+
+    const roundingTolerance = review(); roundingTolerance.items[1]!.amountText = '3,01';
+    expect(receiptReviewDifferenceMinor(roundingTolerance)).toBe(1);
+    expect(isSignificantReceiptMismatch(roundingTolerance)).toBe(false);
   });
 
   it('does not invent a receipt total when OCR did not find one', () => {

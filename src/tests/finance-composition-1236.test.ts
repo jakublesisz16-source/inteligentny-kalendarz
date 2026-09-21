@@ -18,7 +18,7 @@ describe('1.2.0.37 Finance composition polish', () => {
     const dashboard = source('../finance/FinanceDashboardView.tsx');
     expect(dashboard).not.toContain('finance-review-overview');
     expect(dashboard).toContain('finance-review-strip');
-    expect(dashboard).toContain('Do poprawy <strong>{reviewPurchaseRows.length}</strong>');
+    expect(dashboard).toContain('Do poprawy <strong>{categoryReviewRows.length}</strong>');
     expect(dashboard).toContain('formatExpenseProductDisplayName(row.canonicalName)');
     expect(dashboard).toContain('formatExpenseMerchantDisplayName(row.receipt.merchant)');
   });

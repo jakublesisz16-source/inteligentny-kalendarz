@@ -16,6 +16,8 @@ describe('1.1.0-dev.3 DEV3-B020 FIX1M integration contracts', () => {
     ['NapGaz Test 1,25l', 'expense-category-drinks'],
     ['Mle bez lakt 2 1l', 'expense-category-food'],
     ['Fil Z Piersi K kg', 'expense-category-food'],
+    ['FilKurChoB Anty kg', 'expense-category-food'],
+    ['Olej Kujawski 1l', 'expense-category-food'],
     ['Śliwka Domowa Luz', 'expense-category-food'],
     ['Pesto Zielone', 'expense-category-food'],
     ['CzekOrzechMix100g', 'expense-category-food'],

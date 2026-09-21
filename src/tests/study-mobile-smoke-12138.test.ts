@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 const smoke = readFileSync('scripts/study-mobile-smoke.mjs', 'utf8');
 const packageJson = JSON.parse(readFileSync('package.json', 'utf8')) as { scripts?: Record<string, string> };
 
-describe('1.2.0.145 Study mobile release smoke', () => {
+describe('1.2.0.146 Study mobile release smoke', () => {
   it('runs the active study import on both release mobile viewports', () => {
     expect(smoke).toContain('runStudySmoke(cdp, 390, 844)');
     expect(smoke).toContain('runStudySmoke(cdp, 360, 800)');

@@ -18,23 +18,29 @@ import { receiptReviewToDraft } from '../shopping/receipt-ocr/receipt-review.mod
 
 beforeEach(async () => { await deleteDatabaseForTests(); });
 
-async function buildReview(): Promise<ReceiptReviewDraft> {
+const SCAN_SOURCE_FINGERPRINT = `sha256:${'c'.repeat(64)}`;
+
+async function buildReview(): Promise<{ review: ReceiptReviewDraft; depositCategoryId: string }> {
   const categories = await listExpenseCategories();
   const other = categories.find((category) => category.name === 'Inne') ?? categories[0]!;
-  const deposit = categories.find((category) => category.name === 'Kaucja / opakowania zwrotne') ?? other;
+  const deposit = categories.find((category) => category.name === 'Kaucja / opakowania zwrotne') ?? categories.find((category) => category.id === 'expense-category-deposit');
+  if (!deposit) throw new Error('Missing deposit category fixture.');
   return {
-    merchant: 'Sklep Testowy',
-    merchantConfidence: 'high',
-    date: '2026-08-18',
-    dateConfidence: 'high',
-    declaredTotalMinor: 709,
-    parserWarnings: [],
-    adjustments: [],
-    items: [
-      { localId: 'discounted', name: 'Produkt promocyjny', categoryId: other.id, amountText: '4,49', baseAmountMinor: 899, discountMinor: 450, confidence: 'high', warnings: [] },
-      { localId: 'weighted', name: 'Produkt ważony', categoryId: other.id, amountText: '1,10', confidence: 'medium', warnings: ['Kwota potwierdzona matematycznie.'] },
-      { localId: 'deposit', name: 'Opakowanie zwrotne', categoryId: deposit.id, amountText: '1,50', confidence: 'high', warnings: [] },
-    ],
+    depositCategoryId: deposit.id,
+    review: {
+      merchant: 'Sklep Testowy',
+      merchantConfidence: 'high',
+      date: '2026-08-18',
+      dateConfidence: 'high',
+      declaredTotalMinor: 709,
+      depositTotalMinor: 150,
+      parserWarnings: [],
+      adjustments: [],
+      items: [
+        { localId: 'discounted', name: 'Produkt promocyjny', categoryId: other.id, amountText: '4,49', baseAmountMinor: 899, discountMinor: 450, confidence: 'high', warnings: [] },
+        { localId: 'weighted', name: 'Produkt ważony', categoryId: other.id, amountText: '1,10', confidence: 'medium', warnings: ['Kwota potwierdzona matematycznie.'] },
+      ],
+    },
   };
 }
 
@@ -46,20 +52,22 @@ async function loadWorkbook(buffer: ArrayBuffer): Promise<ExcelJS.Workbook> {
 
 describe('DEV3-B025 final receipt save, persistence and transfer gate', () => {
   it('persists final item amounts only and survives a database connection restart', async () => {
-    const review = await buildReview();
-    const created = await createReceipt(receiptReviewToDraft(review));
+    const { review, depositCategoryId } = await buildReview();
+    const created = await createReceipt({ ...receiptReviewToDraft(review, { depositCategoryId }), sourceFingerprint: SCAN_SOURCE_FINGERPRINT });
     expect(created.totalMinor).toBe(709);
+    expect(created.sourceFingerprint).toBe(SCAN_SOURCE_FINGERPRINT);
     expect(created.items.map((item) => item.amountMinor)).toEqual([449, 110, 150]);
 
     resetDatabaseConnectionForTests();
     const afterRestart = await listReceipts();
     expect(afterRestart).toHaveLength(1);
     expect(afterRestart[0]?.items.map((item) => item.amountMinor)).toEqual([449, 110, 150]);
+    expect(afterRestart[0]?.sourceFingerprint).toBe(SCAN_SOURCE_FINGERPRINT);
   });
 
   it('round-trips the saved receipt through JSON backup/restore without transient OCR fields', async () => {
-    const review = await buildReview();
-    const original = await createReceipt(receiptReviewToDraft(review));
+    const { review, depositCategoryId } = await buildReview();
+    const original = await createReceipt({ ...receiptReviewToDraft(review, { depositCategoryId }), sourceFingerprint: SCAN_SOURCE_FINGERPRINT });
     const backup = await createBackupFile();
     const inspection = await inspectBackupText(backup.text);
 
@@ -76,10 +84,12 @@ describe('DEV3-B025 final receipt save, persistence and transfer gate', () => {
     expect(restored).toHaveLength(1);
     expect(restored[0]?.id).toBe(original.id);
     expect(restored[0]?.items.map((item) => item.amountMinor)).toEqual([449, 110, 150]);
+    expect(restored[0]?.sourceFingerprint).toBe(SCAN_SOURCE_FINGERPRINT);
   });
 
   it('exports final persisted amounts and the deposit category to Excel without OCR diagnostics', async () => {
-    await createReceipt(receiptReviewToDraft(await buildReview()));
+    const { review, depositCategoryId } = await buildReview();
+    await createReceipt(receiptReviewToDraft(review, { depositCategoryId }));
     const canonical = await createCanonicalDataTransferDocument();
     const file = await createExcelExportFile(canonical, new Date(2026, 7, 18, 12, 0));
     const workbook = await loadWorkbook(file.buffer);

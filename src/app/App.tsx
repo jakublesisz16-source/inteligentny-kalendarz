@@ -287,6 +287,12 @@ export function App() {
     setToast({ message: 'Ustawienia zapisane lokalnie.' });
   }
 
+  function changeView(nextView: AppView) {
+    if (nextView === view) return;
+    setView(nextView);
+    window.requestAnimationFrame(() => window.scrollTo({ top: 0, left: 0, behavior: 'auto' }));
+  }
+
   if (splashVisible) {
     return <AppSplash ready={!loading} onComplete={() => setSplashVisible(false)} />;
   }
@@ -306,7 +312,7 @@ export function App() {
 
   return (
     <div className="app-shell">
-      <Navigation activeView={view} onChange={setView} />
+      <Navigation activeView={view} onChange={changeView} />
       <main className="app-main">
         {view === 'today' ? (
           <TodayView events={events} locations={locations} timeFormat={settings.timeFormat} showPolishHolidays={settings.showPolishHolidays !== false} showWumAcademicCalendar={settings.showWumAcademicCalendar !== false} consistencyIssues={consistencyIssues} onOpenConsistencyCenter={openConsistencyCenter} onAdd={(date) => setEventEditor(date ? { initialDate: date } : {})} onEdit={(event) => { void openEventEditor(event); }} onStudyCorrect={setStudyCorrectionEvent} availabilityPlans={availabilityPlans} coworkersByEvent={coworkersByEvent} />

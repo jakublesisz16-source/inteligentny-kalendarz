@@ -15,12 +15,13 @@ const buildInfo = existsSync('BUILD_INFO.json')
 const appVersion = /APP_VERSION\s*=\s*'([^']+)'/u.exec(versionSource)?.[1];
 const appBuild = /APP_BUILD\s*=\s*'([^']+)'/u.exec(buildSource)?.[1];
 
-describe('1.2.0.145 build metadata synchronization', () => {
+describe('build metadata synchronization', () => {
   it('keeps visible build number synchronized across source and package metadata', () => {
-    expect(appVersion).toBe('1.2.0.145');
-    expect(appBuild).toBe('145');
-    expect(appVersion?.split('.').at(-1)).toBe(appBuild);
-    const expectedPackageVersion = `1.2.0-private.${appBuild}`;
+    expect(appVersion).toMatch(/^\d+\.\d+\.\d+\.\d+$/u);
+    const parts = appVersion!.split('.');
+    expect(appBuild).toBe(parts[3]);
+    const releaseVersion = parts.slice(0, 3).join('.');
+    const expectedPackageVersion = `${releaseVersion}-private.${appBuild}`;
     expect(packageJson.version).toBe(expectedPackageVersion);
 
     if (buildInfo) {

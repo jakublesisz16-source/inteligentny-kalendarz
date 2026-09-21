@@ -6,6 +6,7 @@ import { reconstructColumnarReceiptText } from './receipt-columnar-reconstructio
 const META_LINE = /(?:\[\[RECEIPT_PAGE_BREAK\]\]|PARAGON\s+(?:NIE)?FISKALNY|\bNIP\b|\bREGON\b|\bKASA\b|\bKASJER\b|NUMER\s+PARAGONU|\bPTU\b|\bVAT\b|SPRZEDA[ŻZ]\s+OPODATKOWANA|SUMA\s+PTU|\bKARTA\b|GOT[ÓO]WKA|RESZTA|AUTORYZACJA|TERMINAL|P[ŁL]ATNO[ŚS][ĆC])/iu;
 const TOTAL_LINE = /(?:DO\s+ZAP[ŁL]ATY|RAZEM|SUMA(?:\s+PLN)?)/iu;
 const DISCOUNT_LABEL = /\b(?:RAB[AO]T|OPUST|BONUS|KUPON|PROMOCJ(?:A|E|I)?|OBNI[ŻZ]K(?:A|I)?|DISCOUNT)\b/iu;
+const ITEM_DISCOUNT_LABEL = /\b(?:RAB[AO]T|OPUST|BONUS|KUPON|PROMOCJ(?:A|E|I)?|OBNI[ŻZ]K(?:A|I)?|DISCOUNT|TANIEJ)\b/iu;
 const ADDRESS_LINE = /(?:\bul\.|\bal\.|\bpl\.|\bos\.|\d{2}-\d{3}\b)/iu;
 const DATE_TOKEN = /\b(?:(\d{2})[.\-/](\d{2})[.\-/](\d{4})|(\d{4})-(\d{2})-(\d{2}))\b/g;
 const DATE_PRESENT = /\b(?:\d{2}[.\-/]\d{2}[.\-/]\d{4}|\d{4}-\d{2}-\d{2})\b/;
@@ -72,7 +73,7 @@ export function normalizeReceiptStructuralLine(line: string): string {
 
 function hasDiscountLabel(line: string): boolean {
   const normalized = normalizeForMatch(collapse(line));
-  return !/[ŁL]ACZNIE/u.test(normalized) && DISCOUNT_LABEL.test(normalized);
+  return !/[ŁL]ACZNIE/u.test(normalized) && ITEM_DISCOUNT_LABEL.test(normalized);
 }
 
 function isDiscountCandidateLine(line: string): boolean {
@@ -87,7 +88,8 @@ function isDiscountCandidateLine(line: string): boolean {
   // printed final amount. Neither path invents a monetary value by itself.
   if (/\b\d{1,3}\s*%\s*$/u.test(normalized)) return true;
   if (/[-−]\s*[0-9OIL]+(?:[,.][0-9OIL\/]{1,4}|\/[0-9OIL]{1,4})(?:[ABCĆX€%IL|])?\s*$/u.test(normalized)) return true;
-  return /(?:RAB[AO]T|OPUST|BONUS|KUPON|PROMOCJ(?:A|E|I)?|OBNIZK(?:A|I)?|DISCOUNT)[:;.\-]*$/u.test(normalized);
+  return /(?:RAB[AO]T|OPUST|BONUS|KUPON|PROMOCJ(?:A|E|I)?|OBNIZK(?:A|I)?|DISCOUNT)[:;.\-]*$/u.test(normalized)
+    || /^TANIEJ(?:\s+ZA\s+\d+)?[:;.\-]*$/u.test(normalized);
 }
 
 function calendarDate(year: number, month: number, day: number): string | undefined {
@@ -685,6 +687,45 @@ function cleanMerchantContextBrand(value: string): string {
   return display;
 }
 
+
+function merchantTradeBrandFromSloganLine(value: string): string | undefined {
+  const original = cleanMerchantDisplay(value);
+  if (!original || original.length > 100) return undefined;
+
+  // A common receipt header shape is: TRADE BRAND + marketing slogan + optional
+  // branch/store number. Treat the leading trade name as stronger customer-facing
+  // evidence than a later legal operator, but only when the remainder is clearly
+  // slogan-like. This is generic and does not depend on any merchant allow-list.
+  const withoutBranchNumber = cleanMerchantDisplay(original.replace(/\s+(?:NR\.?\s*)?\d{1,6}\s*$/iu, ''));
+  if (!withoutBranchNumber) return undefined;
+
+  const normalizedQuotes = withoutBranchNumber.replace(/[„“”]/gu, '"');
+  const quoted = /^(.+?)\s+["'](.{3,80})["']$/u.exec(normalizedQuotes);
+  if (quoted?.[1] && quoted[2] && merchantLooksLikeSlogan(quoted[2])) {
+    const display = cleanMerchantDisplay(quoted[1]);
+    const key = normalizeForMatch(display);
+    if (display.length >= 3
+      && !merchantReject(display)
+      && !merchantLooksLikeSlogan(display)
+      && !/^(?:SKLEP|SKLEPIK|SUPERMARKET|HIPERMARKET|CODZIENNIE|CENY|CENA|NISKIE|DOBRE|NAJTANSZE|PROMOCJE|PROMOCJA|ZAPRASZAMY|DZIEKUJEMY|TANIEJ|JAKOSC|NAJWYZSZA)$/u.test(key)) {
+      return display;
+    }
+  }
+
+  const words = normalizedQuotes.replace(/["']/gu, ' ').split(/\s+/u).filter(Boolean);
+  for (let prefixWords = 1; prefixWords <= Math.min(3, words.length - 2); prefixWords += 1) {
+    const display = cleanMerchantDisplay(words.slice(0, prefixWords).join(' '));
+    const slogan = cleanMerchantDisplay(words.slice(prefixWords).join(' '));
+    const key = normalizeForMatch(display);
+    if (!merchantLooksLikeSlogan(slogan)) continue;
+    if (display.length < 3 || merchantReject(display) || merchantLooksLikeSlogan(display)) continue;
+    if (/^(?:SKLEP|SKLEPIK|SUPERMARKET|HIPERMARKET|CODZIENNIE|CENY|CENA|NISKIE|DOBRE|NAJTANSZE|PROMOCJE|PROMOCJA|ZAPRASZAMY|DZIEKUJEMY|TANIEJ|JAKOSC|NAJWYZSZA)$/u.test(key)) continue;
+    return display;
+  }
+
+  return undefined;
+}
+
 function merchantContextCandidates(lines: readonly string[]): MerchantCandidate[] {
   const candidates: MerchantCandidate[] = [];
   const regions = analyzeReceiptStructuralRegions(lines);
@@ -755,6 +796,17 @@ function merchantConsensusCandidate(candidates: readonly MerchantCandidate[]): M
 
 function merchantCandidateFromLine(line: string, index: number): MerchantCandidate | undefined {
   let original = cleanMerchantAnchoredNoise(collapse(line));
+  const tradeBrand = merchantTradeBrandFromSloganLine(original);
+  if (tradeBrand) {
+    return {
+      sourceLine: collapse(line),
+      display: tradeBrand,
+      score: 76 - index * 2,
+      index,
+      kind: 'descriptor',
+      brandKey: merchantBrandKey(tradeBrand),
+    };
+  }
   const searchable = normalizeForMatch(original);
   const embeddedDomain = /(?:WWW\.)?([A-Z0-9-]{2,})\.(?:PL|EU|COM|NET|ORG)(?:\.[A-Z]{2})?/iu.exec(searchable);
   if (embeddedDomain?.[1]) {
@@ -972,9 +1024,44 @@ function stripSkuPrefix(value: string): string {
   return withoutSecondaryCode && /[\p{L}]{3}/u.test(withoutSecondaryCode) ? withoutSecondaryCode : rest;
 }
 
+export function normalizeReceiptItemDisplayName(value: string): string {
+  let collapsed = collapse(value);
+
+  // Keep obvious PTU-column OCR debris out of the user-facing product label.
+  // The raw line remains untouched in `rawText`; this is deliberately limited to
+  // a standalone separator plus copyright-like glyph at the end of a name.
+  collapsed = collapsed.replace(/\s+[|¦]\s*[©®]\s*;?$/u, '').trim();
+
+  // OCR frequently confuses a final lowercase `l` unit with the two-glyph `|!`
+  // sequence. Repair only a terminal digit+`|!` after a strong alphabetic product
+  // prefix.
+  const damagedLitre = /^(.*[\p{L}].*\d)\|!$/u.exec(collapsed);
+  if (damagedLitre) {
+    const prefix = damagedLitre[1] ?? '';
+    const letters = [...prefix].filter((character) => /\p{L}/u.test(character)).length;
+    if (letters >= 4) return `${prefix}l`;
+  }
+
+  // A single `I`/`!` is weaker evidence than `|!`, so only repair it when the
+  // would-be litre quantity is visually separated from the product name or is a
+  // decimal quantity (for example ` 1I`, ` 1!`, `1,25I`). Compact codes such as
+  // `MODEL1I` remain unchanged.
+  const weakLitre = /^(.*?)(\d+(?:[.,]\d{1,3})?)([I!])$/u.exec(collapsed);
+  if (weakLitre) {
+    const prefix = weakLitre[1] ?? '';
+    const amount = weakLitre[2] ?? '';
+    const letters = [...prefix].filter((character) => /\p{L}/u.test(character)).length;
+    const separated = /\s$/u.test(prefix);
+    const decimalQuantity = /[.,]/u.test(amount);
+    if (letters >= 4 && (separated || decimalQuantity)) return `${prefix}${amount}l`;
+  }
+
+  return collapsed;
+}
+
 function cleanItemName(value: string): string {
   const cleaned = collapse(value.replace(/[|_]{2,}/g, ' ').replace(/^[*#.:;\-\s]+|[*#.:;\-\s]+$/g, ''));
-  return collapse(stripSkuPrefix(cleaned));
+  return normalizeReceiptItemDisplayName(collapse(stripSkuPrefix(cleaned)));
 }
 
 function itemNameLooksLikeOcrGarbage(value: string): boolean {
@@ -1050,7 +1137,7 @@ function quantityTimesUnitMinor(quantity: number, unitPriceMinor: number): numbe
 }
 
 function parsedQuantityPrefix(prefix: string): ParsedQuantityPrefix | undefined {
-  const strict = /^(.*?)(?:\s+([A-GĆ]))?\s+([0-9OIl]+(?:[,.][0-9OIl]+)?)\s*(?:(?:kg|mg|g|ml|cl|dl|l|SZT\.?|OP\.?|OPAK(?:OWANIE)?)\s*)?[xX×*]\s*$/iu.exec(prefix);
+  const strict = /^(.*?)(?:\s+([A-GĆ]))?\s+([0-9OIl]+(?:[,.][0-9OIl]+)?)\s*(?:(?:kg|mg|g|ml|cl|dl|l|SZT\.?|OP\.?|OPAK(?:OWANIE)?)\s*)?[xX×*%]\s*$/iu.exec(prefix);
   if (strict) {
     const name = cleanItemName(strict[1] ?? '');
     const quantityText = (strict[3] ?? '').replace(/[Oo]/gu, '0').replace(/[Il]/gu, '1').replace(',', '.');
@@ -1063,7 +1150,7 @@ function parsedQuantityPrefix(prefix: string): ParsedQuantityPrefix | undefined 
     } : undefined;
   }
 
-  const loose = /^(.*?)(?:\s+([A-GĆ]))?\s+([^\s]{1,5}[xX×*])\s*$/iu.exec(prefix);
+  const loose = /^(.*?)(?:\s+([A-GĆ]))?\s+([^\s]{1,5}[xX×*%])\s*$/iu.exec(prefix);
   if (!loose) return undefined;
   const quantityToken = loose[3] ?? '';
   if (!/[0-9OIlŁÓ.,]/iu.test(quantityToken)) return undefined;
@@ -1246,10 +1333,11 @@ function damagedUnitPriceStructure(line: string): QuantityStructure | undefined 
 
 function quantityOnlyLine(line: string): { amountMinor: number; finalTaxMarker?: string; quantity?: number; unit?: ReceiptItemUnit; unitPriceMinor?: number; quantityAnomaly?: boolean; financialResolution: NonNullable<ParsedReceiptItem['financialResolution']> } | undefined {
   const normalized = line.replace(/×/g, 'x').trim();
-  const prefix = /^(\d+(?:[,.]\d+)?)\s*(?:(?:kg|g|mg|l|ml|cl|dl)\s*)?(?:(?:SZT\.?|OP\.?|OPAK(?:OWANIE)?)\s*)?[xX*="”]\s*/iu.exec(normalized);
+  const prefix = /^(\d+(?:[,.]\d+)?)\s*(?:(?:kg|g|mg|l|ml|cl|dl)\s*)?(?:(?:SZT\.?|OP\.?|OPAK(?:OWANIE)?)\s*)?([xX*="”%])\s*/iu.exec(normalized);
   const damagedPiecePrefix = /^[^\s]{1,8}\s+(?:T?SZT|TSZT|SZT)\s*[*xX]\s*/iu.test(normalized);
   if (!prefix && !damagedPiecePrefix) return undefined;
   const quantity = prefix ? Number((prefix[1] ?? '').replace(',', '.')) : Number.NaN;
+  const damagedPercentSeparator = prefix?.[2] === '%';
   const prices = findStructuredPrices(normalized);
   if (!prices.length) return undefined;
   const finalPrice = prices[prices.length - 1]!;
@@ -1258,6 +1346,7 @@ function quantityOnlyLine(line: string): { amountMinor: number; finalTaxMarker?:
   const quantityAnomaly = unitPrice && Number.isFinite(quantity) && quantity > 0
     ? Math.abs(quantityTimesUnitMinor(quantity, unitPrice.amountMinor) - finalPrice.amountMinor) > 1
     : false;
+  if (damagedPercentSeparator && (!unitPrice || quantityAnomaly)) return undefined;
   const trustedQuantity = Boolean(unitPrice && Number.isFinite(quantity) && quantity > 0 && !quantityAnomaly);
   const explicitUnit = trustedQuantity ? explicitReceiptQuantityUnit(normalized) : undefined;
   return {
@@ -1397,7 +1486,8 @@ const DISCOUNT_LOOKAHEAD_LINES = 3;
 function isBareDiscountLabel(line: string): boolean {
   const normalized = normalizeForMatch(collapse(line));
   if (!hasDiscountLabel(line) || findPrices(line).length > 0) return false;
-  return /(?:RAB[AO]T|OPUST|BONUS|KUPON|PROMOCJ(?:A|E|I)?|OBNIZK(?:A|I)?|DISCOUNT)[:;.\-]*$/u.test(normalized);
+  return /(?:RAB[AO]T|OPUST|BONUS|KUPON|PROMOCJ(?:A|E|I)?|OBNIZK(?:A|I)?|DISCOUNT)[:;.\-]*$/u.test(normalized)
+    || /^TANIEJ(?:\s+ZA\s+\d+)?[:;.\-]*$/u.test(normalized);
 }
 
 function isDiscountBridgeLine(line: string): boolean {

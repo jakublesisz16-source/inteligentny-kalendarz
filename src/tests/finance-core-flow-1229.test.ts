@@ -9,7 +9,8 @@ describe('1.2.0.30 Finance core flow', () => {
   it('makes receipt scanning the primary finance action', () => {
     const dashboard = source('../finance/FinanceDashboardView.tsx');
     expect(dashboard).toContain('className="button button-secondary finance-scan-receipt"');
-    expect(dashboard).toContain('Skanuj paragon');
+    expect(dashboard).toContain('finance-scan-receipt-short">Skanuj');
+    expect(dashboard).toContain('finance-scan-receipt-long">paragon');
     expect(dashboard).toContain('finance-manual-expense');
     expect(dashboard).toContain('<ReceiptScanFlow');
     expect(dashboard).toContain('onSave={saveScannedReceipt}');
@@ -41,7 +42,7 @@ describe('1.2.0.30 Finance core flow', () => {
     const parser = source('../shopping/receipt-ocr/receipt-parser.ts');
     const settings = source('../settings/settings.types.ts');
     const database = source('../storage/database.ts');
-    expect(version).toContain("APP_VERSION = '1.2.0.145'");
+    expect(version).toMatch(/APP_VERSION\s*=\s*'\d+\.\d+\.\d+\.\d+'/u);
     expect(version).toContain('DATABASE_SCHEMA_VERSION = 14');
     expect(settings).not.toContain('financeBudgets');
     expect(database).not.toContain('normalizeFinanceBudgets');

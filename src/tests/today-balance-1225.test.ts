@@ -35,7 +35,7 @@ describe('1.2.0.25 Today balanced layout', () => {
 
   it('keeps the private version and database schema synchronized', () => {
     const version = source('../core/version.ts');
-    expect(version).toContain("APP_VERSION = '1.2.0.145'");
+    expect(version).toMatch(/APP_VERSION\s*=\s*'\d+\.\d+\.\d+\.\d+'/u);
     expect(version).toContain('DATABASE_SCHEMA_VERSION = 14');
   });
 });

@@ -73,7 +73,8 @@ describe('study import readability contract', () => {
     expect(calendar).toContain('Plan studiów aktywny');
     expect(calendar).toContain('Wybrane grupy aktywnego planu');
     expect(profile).not.toContain('Grupy aktywnego planu');
-    expect(profile).toContain('study-profile-plan-summary');
+    expect(profile).not.toContain('study-profile-plan-summary');
+    expect(profile).toContain('Aktualny plan: {formatStudyGroupList(activeGroups)}');
     expect(profile).toContain('study-future-groups-note');
     expect(view).toContain('className="import-history-group-list"');
     expect(css).toContain('.calendar-study-context');

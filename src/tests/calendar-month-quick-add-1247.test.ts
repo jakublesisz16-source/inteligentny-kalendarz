@@ -26,7 +26,7 @@ describe('1.2.0.48 compact quick add in month view', () => {
     expect(css).toContain('/* 1.2.0.48 - compact quick add also available in month view */');
     expect(css).toContain('.calendar-day-quick-add-trigger');
     expect(responsive).toContain('/* 1.2.0.48 - month quick add stays usable on mobile */');
-    expect(version).toContain("APP_VERSION = '1.2.0.145'");
+    expect(version).toMatch(/APP_VERSION\s*=\s*'\d+\.\d+\.\d+\.\d+'/u);
     expect(version).toContain('DATABASE_SCHEMA_VERSION = 14');
   });
 });

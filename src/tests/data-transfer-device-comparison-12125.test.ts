@@ -7,7 +7,7 @@ const components = readFileSync('src/styles/components.css', 'utf8');
 const responsive = readFileSync('src/styles/responsive.css', 'utf8');
 const version = readFileSync('src/core/version.ts', 'utf8');
 
-describe('1.2.0.145 safer data-transfer decision preview', () => {
+describe('1.2.0.146 safer data-transfer decision preview', () => {
   it('captures the current device summary before allowing import confirmation', () => {
     expect(database).toContain('export async function getCurrentDataTransferSummary(): Promise<BackupSummary>');
     expect(panel).toContain('getCurrentDataTransferSummary()');
@@ -28,7 +28,7 @@ describe('1.2.0.145 safer data-transfer decision preview', () => {
   });
 
   it('keeps schema stable', () => {
-    expect(version).toContain("APP_VERSION = '1.2.0.145'");
+    expect(version).toMatch(/APP_VERSION\s*=\s*'\d+\.\d+\.\d+\.\d+'/u);
     expect(version).toContain('DATABASE_SCHEMA_VERSION = 14');
   });
 });

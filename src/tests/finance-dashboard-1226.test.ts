@@ -9,7 +9,8 @@ describe('Finance products foundation regression', () => {
   it('keeps category management directly accessible and avoids a duplicate heading action', () => {
     const dashboard = source('../finance/FinanceDashboardView.tsx');
     expect(dashboard).toContain('finance-core-actions');
-    expect(dashboard).toContain('>Kategorie</button>');
+    expect(dashboard).toContain('Wszystkie kategorie');
+    expect(dashboard).toContain('<Modal title="Kategorie"');
     expect(dashboard).not.toContain('>Zarządzaj</button>');
   });
 
@@ -27,7 +28,7 @@ describe('Finance products foundation regression', () => {
     const version = source('../core/version.ts');
     expect(database).toContain("const STORE_EXPENSE_PRODUCTS = 'expenseProducts'");
     expect(database).toContain('syncExpenseProductsFromReceipts');
-    expect(version).toContain("APP_VERSION = '1.2.0.145'");
+    expect(version).toMatch(/APP_VERSION\s*=\s*'\d+\.\d+\.\d+\.\d+'/u);
     expect(version).toContain('DATABASE_SCHEMA_VERSION = 14');
   });
 });

@@ -31,6 +31,12 @@ describe('1.1.0-dev.3 FIX1G preprocessing contract', () => {
     expect((width * scale) / (height * scale)).toBeCloseTo(width / height, 8);
   });
 
+
+  it('audits deskew through the full conservative -5 to +5 degree range', () => {
+    const implementation = source('../shopping/receipt-ocr/image-preprocess.ts');
+    expect(implementation).toContain('[-5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5]');
+  });
+
   it('detects a predominantly dark receipt background', () => {
     expect(shouldInvertReceiptLuminance([18, 22, 25, 30, 35, 40, 210])).toBe(true);
   });
@@ -144,7 +150,7 @@ describe('1.1.0-dev.3 FIX1G preprocessing contract', () => {
   it('updates only the shell revision while retaining mandatory local OCR runtime', () => {
     const worker = source('../../public/service-worker.js');
     expect(worker).toContain("const CACHE_PREFIX = 'inteligentny-kalendarz-shell-'");
-    expect(worker).toContain("const CACHE_NAME = `${CACHE_PREFIX}v1.2.0.145`");
+    expect(worker).toMatch(/const CACHE_NAME = `\$\{CACHE_PREFIX\}v\d+\.\d+\.\d+\.\d+`/u);
     expect(worker).toContain('MANDATORY_OCR_ASSET_PATHS');
     expect(worker).toContain("'ocr/tesseract/tesseract.min.js'");
     expect(worker).toContain("'ocr/tesseract/worker.min.js'");

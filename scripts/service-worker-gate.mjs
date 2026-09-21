@@ -4,7 +4,10 @@ import vm from 'node:vm';
 
 const SOURCE = await fs.readFile(new URL('../public/service-worker.js', import.meta.url), 'utf8');
 const SCOPE = 'https://calendar.test/app/';
-const CURRENT_CACHE = 'inteligentny-kalendarz-shell-v1.2.0.145';
+const versionSource = await fs.readFile(new URL('../src/core/version.ts', import.meta.url), 'utf8');
+const appVersion = /APP_VERSION\s*=\s*'([^']+)'/u.exec(versionSource)?.[1];
+assert.ok(appVersion, 'APP_VERSION missing');
+const CURRENT_CACHE = `inteligentny-kalendarz-shell-v${appVersion}`;
 
 function requestKey(input) {
   if (typeof input === 'string') return input;

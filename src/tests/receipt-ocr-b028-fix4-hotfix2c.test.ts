@@ -143,7 +143,10 @@ describe('DEV3-B028-FIX4-HOTFIX2C strict merchant/date/fiscal gating', () => {
     expect(engine).toContain("profile === 'primary' ? '3' : '6'");
     expect(flow).toContain("'fiscal-threshold-recovery'");
     expect(flow).toContain("'header-recovery'");
-    expect(flow.match(/fullOcrPasses \+= 1/gu)).toHaveLength(2);
+    const photoBranchStart = flow.indexOf('const processed = await preprocessReceiptImage(targetFile, targetRotation, sourceType);');
+    const photoBranchEnd = flow.indexOf('if (shouldRecoverReceiptFiscalRegion(', photoBranchStart);
+    const photoFullPassBlock = flow.slice(photoBranchStart, photoBranchEnd);
+    expect(photoFullPassBlock.match(/fullOcrPasses \+= 1/gu)).toHaveLength(2);
     expect(flow.match(/fiscalOcrPasses \+= 1/gu)).toHaveLength(2);
     expect(preprocessing).toContain('applyReceiptOtsuThreshold');
     expect(preprocessing).toContain('fiscalThresholdRecoveryChunk');

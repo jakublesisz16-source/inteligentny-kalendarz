@@ -82,3 +82,29 @@ export function reconcileReceiptFinancials(evidence: ReceiptFinancialEvidence): 
       && !closeEnough(ocrSubtotalMinor, reconciledSubtotalMinor),
   };
 }
+
+export interface ParsedReceiptFinancialView {
+  detectedItemsTotalMinor: number;
+  ocrSubtotalMinor?: number;
+  depositTotalMinor?: number;
+  finalPayableMinor?: number;
+  declaredTotalMinor?: number;
+  paymentTotalMinor?: number;
+}
+
+/**
+ * Single production-facing financial consistency view for an already selected
+ * receipt draft. Geometry candidate selection may use stricter independent
+ * evidence internally, but diagnostics and downstream review should always
+ * describe the financial state of the draft that production actually selected.
+ */
+export function reconcileParsedReceiptFinancials(parsed: ParsedReceiptFinancialView): ReceiptFinancialReconciliation {
+  const finalTotalMinor = parsed.finalPayableMinor ?? parsed.declaredTotalMinor;
+  return reconcileReceiptFinancials({
+    itemsTotalMinor: parsed.detectedItemsTotalMinor,
+    ...(parsed.ocrSubtotalMinor === undefined ? {} : { ocrSubtotalMinor: parsed.ocrSubtotalMinor }),
+    ...(parsed.depositTotalMinor === undefined ? {} : { depositTotalMinor: parsed.depositTotalMinor }),
+    ...(finalTotalMinor === undefined ? {} : { finalTotalMinor }),
+    ...(parsed.paymentTotalMinor === undefined ? {} : { paymentTotalMinor: parsed.paymentTotalMinor }),
+  });
+}

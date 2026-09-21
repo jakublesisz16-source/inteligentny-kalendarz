@@ -14,7 +14,7 @@ describe('1.2.0.104 dashboard compaction', () => {
 
   it('does not duplicate active Study group chips above the permanent selectors', () => {
     const profile = source('../study/StudyProfileSettings.tsx');
-    expect(profile).toContain('study-profile-plan-summary');
+    expect(profile).not.toContain('study-profile-plan-summary');
     expect(profile).not.toContain('Grupy aktywnego planu');
     expect(profile).toContain('StudyGroupChoiceFields');
   });

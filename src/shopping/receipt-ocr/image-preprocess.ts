@@ -13,8 +13,36 @@ import { analyzeReceiptSourceQuality } from './receipt-source-quality';
 export const MAX_RECEIPT_IMAGE_BYTES = 32 * 1024 * 1024;
 export const MAX_RECEIPT_IMAGE_PIXELS = 8_000_000;
 export const SUPPORTED_RECEIPT_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'] as const;
+export type SupportedReceiptImageType = typeof SUPPORTED_RECEIPT_IMAGE_TYPES[number];
+
+const RECEIPT_IMAGE_TYPE_ALIASES: Readonly<Record<string, SupportedReceiptImageType>> = {
+  'image/jpg': 'image/jpeg',
+  'image/pjpeg': 'image/jpeg',
+};
+
+const RECEIPT_IMAGE_EXTENSION_TYPES: Readonly<Record<string, SupportedReceiptImageType>> = {
+  jpg: 'image/jpeg',
+  jpeg: 'image/jpeg',
+  png: 'image/png',
+  webp: 'image/webp',
+};
 
 export class ReceiptImageError extends Error {}
+
+export function resolveReceiptImageType(file: Pick<File, 'name' | 'type'>): SupportedReceiptImageType | undefined {
+  const mime = file.type.trim().toLocaleLowerCase('en-US');
+  if (SUPPORTED_RECEIPT_IMAGE_TYPES.includes(mime as SupportedReceiptImageType)) return mime as SupportedReceiptImageType;
+  const alias = RECEIPT_IMAGE_TYPE_ALIASES[mime];
+  if (alias) return alias;
+
+  const extension = file.name.trim().toLocaleLowerCase('en-US').match(/\.([a-z0-9]+)$/u)?.[1] ?? '';
+  const extensionType = RECEIPT_IMAGE_EXTENSION_TYPES[extension];
+  if (!extensionType) return undefined;
+  // Some browsers/filesystems omit MIME or expose only a generic binary type.
+  // Explicitly unsupported image MIME types (for example HEIC) still fail closed.
+  if (!mime || mime === 'application/octet-stream') return extensionType;
+  return undefined;
+}
 
 export interface SafeReceiptImageDimensions {
   width: number;
@@ -151,13 +179,11 @@ async function readEncodedReceiptImageDimensions(file: File): Promise<EncodedRec
   } catch {
     throw new ReceiptImageError('Nie udało się odczytać zdjęcia.');
   }
-  const dimensions = file.type === 'image/png'
-    ? readPngDimensions(bytes)
-    : file.type === 'image/jpeg'
-      ? readJpegDimensions(bytes)
-      : file.type === 'image/webp'
-        ? readWebpDimensions(bytes)
-        : null;
+  // Trust file signatures for dimensions instead of File.type. Mobile/browser
+  // pickers may provide an empty or generic MIME even for a valid local image.
+  const dimensions = readPngDimensions(bytes)
+    ?? readJpegDimensions(bytes)
+    ?? readWebpDimensions(bytes);
   if (!dimensions) throw new ReceiptImageError('Nie udało się odczytać wymiarów zdjęcia. Spróbuj innego pliku JPEG, PNG lub WEBP.');
   assertValidImageDimensions(dimensions.width, dimensions.height);
   return dimensions;
@@ -165,7 +191,7 @@ async function readEncodedReceiptImageDimensions(file: File): Promise<EncodedRec
 
 export function validateReceiptImageFile(file: File): void {
   if (!file) throw new ReceiptImageError('Nie wybrano zdjęcia paragonu.');
-  if (!SUPPORTED_RECEIPT_IMAGE_TYPES.includes(file.type as typeof SUPPORTED_RECEIPT_IMAGE_TYPES[number])) {
+  if (!resolveReceiptImageType(file)) {
     throw new ReceiptImageError('Nieobsługiwany format zdjęcia. Użyj JPEG, PNG lub WEBP.');
   }
   if (file.size > MAX_RECEIPT_IMAGE_BYTES) {
@@ -430,7 +456,7 @@ function estimateReceiptDeskew(source: HTMLCanvasElement, inverted: boolean): nu
   baseContext.imageSmoothingQuality = 'high';
   baseContext.drawImage(source, 0, 0, width, height);
 
-  const candidates = [-3, -2, -1, 0, 1, 2, 3].map((angle) => {
+  const candidates = [-5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5].map((angle) => {
     const candidate = document.createElement('canvas');
     candidate.width = width;
     candidate.height = height;
@@ -622,9 +648,12 @@ export async function preprocessReceiptImage(
     const sourceQuality = analyzeReceiptSourceQuality(sourceType, sourceWidth, sourceHeight);
     const bitmapWidth = bitmap.width;
     const bitmapHeight = bitmap.height;
+    // Re-check the actual decoded bitmap. This protects the canvas allocation if
+    // a browser ignores ImageBitmap resize hints or EXIF orientation swaps axes.
+    const decodedSafeDimensions = calculateSafeReceiptImageDimensions(bitmapWidth, bitmapHeight);
     const rotated = rotation === 90 || rotation === 270;
-    const orientedWidth = rotated ? bitmapHeight : bitmapWidth;
-    const orientedHeight = rotated ? bitmapWidth : bitmapHeight;
+    const orientedWidth = rotated ? decodedSafeDimensions.height : decodedSafeDimensions.width;
+    const orientedHeight = rotated ? decodedSafeDimensions.width : decodedSafeDimensions.height;
 
     orientedCanvas = document.createElement('canvas');
     orientedCanvas.width = orientedWidth;

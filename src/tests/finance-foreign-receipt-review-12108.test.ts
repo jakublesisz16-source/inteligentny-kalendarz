@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import type { Receipt, ReceiptDraft } from '../shopping/expenses.types';
-import { findLikelyDuplicateReceipt } from '../shopping/receipt-ocr/receipt-duplicate';
+import { findLikelyDuplicateReceipt, findReceiptDuplicateMatch } from '../shopping/receipt-ocr/receipt-duplicate';
 
 const review = readFileSync(new URL('../shopping/receipt-ocr/ReceiptScanReview.tsx', import.meta.url), 'utf8');
 const flow = readFileSync(new URL('../shopping/receipt-ocr/ReceiptScanFlow.tsx', import.meta.url), 'utf8');
@@ -49,6 +49,26 @@ describe('1.2.0.108 foreign receipt review and duplicate guard', () => {
   it('detects a re-scan of a foreign receipt using preserved original amount metadata', () => {
     const duplicate = findLikelyDuplicateReceipt(foreignDraft(), [savedForeignReceipt()], { currency: 'HUF', tripName: 'Budapeszt' });
     expect(duplicate?.id).toBe('receipt-1');
+
+    const exact = findReceiptDuplicateMatch(foreignDraft(), [savedForeignReceipt()], { currency: 'HUF', tripName: 'Budapeszt' });
+    expect(exact?.confidence).toBe('likely');
+    expect(exact?.reason).toBe('foreign-same-items');
+
+    const likely = findReceiptDuplicateMatch({
+      ...foreignDraft(),
+      items: [
+        { name: 'inne danie A', categoryId: 'food', amountMinor: 150_000 },
+        { name: 'inne danie B', categoryId: 'food', amountMinor: 150_000 },
+      ],
+    }, [{
+      ...savedForeignReceipt(),
+      items: [
+        { id: 'item-a', name: 'stare A', categoryId: 'food', amountMinor: 1_782 },
+        { id: 'item-b', name: 'stare B', categoryId: 'food', amountMinor: 1_782 },
+      ],
+    }], { currency: 'HUF', tripName: 'Budapeszt' });
+    expect(likely?.confidence).toBe('likely');
+    expect(likely?.reason).toBe('foreign-same-total');
   });
 
   it('does not confuse the same raw amount in another trip or currency with a duplicate', () => {
@@ -57,7 +77,7 @@ describe('1.2.0.108 foreign receipt review and duplicate guard', () => {
   });
 
   it('keeps database schema 14', () => {
-    expect(version).toContain("APP_VERSION = '1.2.0.145'");
+    expect(version).toMatch(/APP_VERSION\s*=\s*'\d+\.\d+\.\d+\.\d+'/u);
     expect(version).toContain('DATABASE_SCHEMA_VERSION = 14');
   });
 });

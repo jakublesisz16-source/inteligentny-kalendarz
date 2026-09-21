@@ -23,11 +23,11 @@ describe('1.1.0-dev.3 DEV3-B015 receipt PDF OCR source contract', () => {
     expect(plan.width * plan.height).toBeLessThanOrEqual(RECEIPT_PDF_MAX_RENDER_PIXELS + plan.width);
   });
 
-  it('keeps the camera image-only but allows PDF from the gallery/file picker', () => {
+  it('keeps the camera image-only but allows PDF and structured JSON from the gallery/file picker', () => {
     const flow = source('../shopping/receipt-ocr/ReceiptScanFlow.tsx');
     expect(flow).toContain('accept="image/*" capture="environment"');
-    expect(flow).toContain('accept="image/*,application/pdf,.pdf"');
-    expect(flow).toContain('Wybierz zdjęcie / PDF');
+    expect(flow).toContain('application/pdf,.pdf,application/json,.json');
+    expect(flow).toContain('Wybierz zdjęcie / PDF / JSON');
   });
 
   it('renders PDF locally through the pinned pdfjs-dist worker and first page canvas', () => {
@@ -70,7 +70,10 @@ describe('1.1.0-dev.3 DEV3-B015 receipt PDF OCR source contract', () => {
     expect(flow).toContain('renderReceiptPdfPages(targetFile');
     expect(flow).toContain("preprocessReceiptImage(rendered.file, targetRotation, 'pdf')");
     expect(flow).toContain('combineReceiptPdfPageTexts(pageTexts)');
-    expect(flow).toContain('recognizeReceiptImageChunks(processed.chunks');
+    expect(flow).toContain("runPageOcr('primary')");
+    expect(flow).toContain('shouldRetryReceiptPdfOcr(primaryAssessment)');
+    expect(flow).toContain("runPageOcr('single-block-recovery')");
+    expect(flow).toContain('chooseReceiptOcrCandidate(primaryAssessment, recoveryAssessment)');
     expect(flow).toMatch(/parseReceiptText\(\s*[A-Za-z_$][\w$]*\s*\)/u);
     expect(flow).not.toContain('parseReceiptText(result.text)');
   });

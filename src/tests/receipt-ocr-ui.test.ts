@@ -22,9 +22,9 @@ describe('1.1.0-dev.3 receipt OCR review contract', () => {
     expect(flow).toContain('cameraInputRef');
     expect(flow).toContain('galleryInputRef');
     expect(flow).toContain('ref={cameraInputRef} className="visually-hidden" type="file" accept="image/*" capture="environment"');
-    expect(flow).toContain('ref={galleryInputRef} className="visually-hidden" type="file" accept="image/*,application/pdf,.pdf" onChange={selectFile}');
+    expect(flow).toContain('ref={galleryInputRef} className="visually-hidden" type="file" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp,application/pdf,.pdf,application/json,.json" onChange={selectFile}');
     expect(flow).toContain('>Zrób zdjęcie</button>');
-    expect(flow).toContain('>Wybierz zdjęcie / PDF</button>');
+    expect(flow).toContain('>Wybierz zdjęcie / PDF / JSON</button>');
     expect(flow).not.toContain('Zrób lub wybierz zdjęcie');
   });
 
@@ -49,12 +49,19 @@ describe('1.1.0-dev.3 receipt OCR review contract', () => {
     expect(review).toContain('Kategoria');
     expect(review).toContain('Kwota');
     expect(review).toContain('+ Dodaj');
+    expect(review).toContain('Do sprawdzenia');
+    expect(review).toContain('Wszystkie');
+    expect(review).toContain('Rozwiń wszystkie');
+    expect(review).toContain('Zwiń poprawne');
+    expect(review).toContain('Sprawdzone');
+    expect(review).toContain("patchItem(index, { confidence: 'high', warnings: [] })");
     expect(review).toContain('Usuń');
     expect(review).toContain('Suma pozycji');
     expect(review).toContain('Oszczędność');
     expect(review).toContain('Suma paragonu');
     expect(review).toContain('Kopiuj tekst OCR');
-    expect(review).toContain('Tekst OCR jest tylko w pamięci tej sesji i nie jest zapisywany.');
+    expect(review).toContain('Tekst OCR i dane preprocessingu pozostają tylko w pamięci tej sesji.');
+    expect(review).toContain('open={diagnosticOpen}');
     expect(flow).toContain('diagnosticOcrText');
     expect(flow).toMatch(/setDiagnosticOcrText\(\s*[A-Za-z_$][\w$]*\s*\)/u);
     expect(flow).toContain('diagnosticOcrText={diagnosticOcrText}');
@@ -64,9 +71,15 @@ describe('1.1.0-dev.3 receipt OCR review contract', () => {
     const components = source('../styles/components.css');
     const responsive = source('../styles/responsive.css');
     expect(components).toContain('.receipt-scan-review-grid');
+    expect(components).toContain('.receipt-review-priority');
+    expect(components).toContain('.receipt-review-item-filters');
     expect(components).toContain('.receipt-review-item-bottom');
     expect(responsive).toContain('@media (max-width: 760px)');
     expect(responsive).toContain('@media (max-width: 370px)');
     expect(responsive).toContain('.receipt-scan-mobile-tabs');
+    expect(responsive).toContain('.receipt-scan-mobile-tabs button { min-height: 40px;');
+    expect(responsive).toContain('.receipt-review-item-filters button { min-height: 40px;');
+    expect(responsive).toContain('.receipt-review-item-topline .text-button { min-height: 40px;');
+    expect(responsive).toContain('.receipt-review-item-compact-actions > .text-button { min-height: 40px;');
   });
 });

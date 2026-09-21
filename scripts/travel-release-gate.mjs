@@ -19,7 +19,8 @@ const responsive = source('src/styles/responsive.css');
 const modal = source('src/ui/Modal.tsx');
 const indexHtml = source('index.html');
 
-assert(version.includes("APP_VERSION = '1.2.0.145'"), 'wrong app version');
+const appVersion = /APP_VERSION\s*=\s*'([^']+)'/u.exec(version)?.[1];
+assert(typeof appVersion === 'string' && /^\d+\.\d+\.\d+\.\d+$/u.test(appVersion), 'wrong app version');
 assert(rates.includes('LOCAL_CURRENT_PLN_RATES'), 'local FX table missing');
 assert(!rates.includes('fetch(') && !rates.includes('XMLHttpRequest') && !/https?:\/\//u.test(rates), 'Finance FX must not use network');
 assert(quickExpense.includes('inputMode="decimal"'), 'amount field must request numeric keyboard');
@@ -31,15 +32,16 @@ assert(responsive.includes('body.modal-open .bottom-nav') && responsive.includes
 assert(indexHtml.includes('interactive-widget=resizes-content'), 'mobile keyboard viewport resize hint missing');
 assert(finance.includes('finance-overview-summary-card') && finance.includes('finance-expense-row finance-month-transaction-row') && finance.includes('finance-expense-row finance-trip-expense-row'), 'Month/Trip Finance structure drifted');
 assert(calendar.includes('setSelectedDate(day)') && calendar.includes('setMobileDayPanelOpen(false)'), 'mobile Month day selection invariant missing');
-assert(settings.includes('Backup i przenoszenie') && settings.includes('Dane i historia'), 'Settings core sections missing');
-assert(!settings.includes('<details') && !settings.includes('settings-advanced-collapsible'), 'Settings must not hide primary options in accordions');
+assert(settings.includes('settings-core') && settings.includes('Backup i przenoszenie') && settings.includes('Historia i bezpieczeństwo'), 'Settings core sections missing');
+assert(settings.includes('settings-collapsible-section') && settings.includes('<details'), 'Settings secondary tools must stay one click below the default surface');
 assert(!safety.includes("tab === 'backup'") && !safety.includes('Utwórz kopię zapasową'), 'duplicate backup UI returned to Safety Center');
 assert(transfer.includes('createDataTransferFile') && transfer.includes('importDataTransfer') && transfer.includes('MAX_TRANSFER_FILE_BYTES'), 'portable backup/restore path missing');
 assert(db.includes('export async function createBackupFile') && db.includes('export async function restoreBackup') && db.includes('replaceSnapshotVerified'), 'verified backup/restore core missing');
 assert(work.includes("activeWorkEvents.length ? 'Aktualizuj PDF' : 'Importuj PDF'"), 'Work should keep import secondary after schedule exists');
 assert(responsive.includes('.work-header-actions .work-import-button'), 'mobile Work import placement hardening missing');
-assert(study.includes('Wczytaj Excel. Przed zapisem zobaczysz zmiany i wybierzesz tylko potrzebne grupy.') && study.includes('Grupy i podgląd'), 'Study simplicity pass missing');
-assert(sw.includes("const CACHE_NAME = `${CACHE_PREFIX}v1.2.0.145`"), 'offline shell revision missing');
+assert(study.includes('study-current-plan-line') && study.includes('study-groups-primary') && study.includes('Historia planów'), 'Study minimal default surface missing');
+const expectedCacheMarker = `const CACHE_NAME = ` + '`' + `\${CACHE_PREFIX}v${appVersion}` + '`' + `;`;
+assert(sw.includes(expectedCacheMarker), 'offline shell revision missing');
 assert(sw.includes('MANDATORY_SHELL_ASSET_PATHS') && sw.includes("request.mode === 'navigate'") && sw.includes('cache.match(self.registration.scope)'), 'offline shell/navigation handling missing');
 
 console.log('TRAVEL_RELEASE_GATE PASS');

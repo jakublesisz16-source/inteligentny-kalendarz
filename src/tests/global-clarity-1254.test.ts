@@ -35,22 +35,23 @@ describe('1.2.0.54 global clarity pass', () => {
     expect(work).not.toContain('nearestCoworkers.slice(0, 5)');
   });
 
-  it('keeps Settings simple: essentials, visible install/backup tools and a compact build line', () => {
+  it('keeps Settings simple: essentials first, infrequent data tools collapsed and a compact build line', () => {
     expect(settings).toContain('settings-essential-grid');
     expect(settings).toContain('settings-build-line');
     expect(settings).toContain('Backup i przenoszenie');
-    expect(settings).toContain('Dane i historia');
-    expect(settings).not.toContain('settings-advanced-collapsible');
-    expect(settings).toContain('Wersja {APP_RELEASE_VERSION}');
+    expect(settings).toContain('Historia i bezpieczeństwo');
+    expect(settings).toContain('settings-collapsible-section');
+    expect(settings).toContain('<span>{APP_RELEASE_VERSION}</span>');
     expect(settings).toContain('Build {BUILD_NUMBER}');
     expect(css).toContain('/* 1.2.0.54 - global clarity pass');
     expect(responsive).toContain('/* 1.2.0.54 - real-device mobile clarity pass */');
   });
 
   it('keeps the database schema stable and build metadata separated', () => {
-    expect(version).toContain("APP_VERSION = '1.2.0.145'");
+    expect(version).toMatch(/APP_VERSION\s*=\s*'\d+\.\d+\.\d+\.\d+'/u);
     expect(version).not.toContain('APP_BUILD');
-    expect(build).toContain("APP_BUILD = '145'");
+    expect(build).toMatch(/APP_BUILD\s*=\s*'\d+'/u);
+    expect(build).toContain('BUILD_NUMBER = APP_BUILD');
     expect(version).toContain('DATABASE_SCHEMA_VERSION = 14');
   });
 });

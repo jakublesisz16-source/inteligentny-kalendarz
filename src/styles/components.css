@@ -1429,6 +1429,8 @@
 .receipt-scan-review-heading h2 { margin: 0; font-size: .96rem; outline: none; }
 .receipt-scan-mobile-tabs { display: none; }
 .receipt-scan-review-grid { min-height: 0; flex: 1; display: grid; grid-template-columns: minmax(300px,.82fr) minmax(0,1.35fr); }
+.receipt-scan-review-grid.no-image { grid-template-columns: minmax(0,1fr); }
+.receipt-scan-review-grid.no-image .receipt-scan-data-pane { max-width: 980px; width: 100%; justify-self: center; }
 .receipt-scan-image-pane { min-width: 0; min-height: 0; display: flex; flex-direction: column; gap: 10px; padding: 12px; border-right: 1px solid var(--line); background: var(--surface-soft); }
 .receipt-scan-image-frame { min-height: 0; flex: 1; overflow: hidden; display: grid; place-items: center; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); }
 .receipt-scan-image-frame img { display: block; max-width: 92%; max-height: 92%; object-fit: contain; transition: transform .15s ease; }
@@ -1438,33 +1440,55 @@
 .receipt-scan-empty { display: grid; gap: 2px; padding: 10px 11px; border-radius: 11px; background: var(--warning-soft); }
 .receipt-scan-empty strong { font-size: .8rem; }
 .receipt-scan-empty span { font-size: .72rem; }
+.receipt-scan-empty-compact { padding-block: 8px; background: var(--surface-soft); }
+.receipt-review-priority { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 8px 12px; padding: 10px 11px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface-soft); }
+.receipt-review-priority.needs-review { border-color: color-mix(in srgb,var(--warning) 26%,var(--line)); background: color-mix(in srgb,var(--warning-soft) 56%,var(--surface)); }
+.receipt-review-priority-copy { min-width: 0; display: grid; gap: 2px; }
+.receipt-review-priority-copy strong { font-size: .77rem; }
+.receipt-review-priority-copy span { color: var(--text-muted); font-size: .67rem; line-height: 1.35; }
+.receipt-review-priority-chips { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: flex-end; gap: 6px; }
+.receipt-review-chip { display: inline-flex; align-items: center; min-height: 24px; padding: 0 8px; border-radius: 999px; background: var(--surface); color: var(--text-muted); font-size: .63rem; font-weight: 800; white-space: nowrap; }
+.receipt-review-chip.is-warning { background: var(--warning-soft); color: var(--warning); }
 .receipt-review-main-fields { display: grid; grid-template-columns: minmax(0,1.35fr) minmax(155px,.65fr); gap: 9px; }
 .receipt-review-field, .receipt-review-item .field { gap: 4px; min-width: 0; }
 .receipt-review-field > span, .receipt-review-item .field > span { display: flex; align-items: center; gap: 6px; font-size: .68rem; }
 .receipt-review-field > span small { padding: 2px 5px; border-radius: 999px; background: var(--surface-soft); color: var(--text-muted); font-size: .57rem; font-weight: 800; text-transform: uppercase; }
 .receipt-review-field.needs-review > span small, .receipt-review-item.needs-review .receipt-review-item-topline small { background: var(--warning-soft); color: var(--warning); }
 .receipt-review-field input, .receipt-review-item input, .receipt-review-item select { width: 100%; min-width: 0; }
+.receipt-review-items-toolbar { display: grid; gap: 7px; }
 .receipt-review-items-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding-top: 1px; }
 .receipt-review-items-heading strong { display: flex; align-items: center; gap: 5px; font-size: .78rem; }
 .receipt-review-items-heading strong span { color: var(--text-muted); font-size: .66rem; }
+.receipt-review-item-filters { display: inline-grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 2px; width: fit-content; max-width: 100%; padding: 2px; border-radius: 10px; background: var(--surface-soft); }
+.receipt-review-item-filters button { min-height: 30px; border: 0; border-radius: 8px; padding: 4px 10px; background: transparent; color: var(--text-muted); font: inherit; font-size: .67rem; font-weight: 800; }
+.receipt-review-item-filters button.is-active { background: var(--surface); color: var(--text); box-shadow: var(--shadow-sm); }
+.receipt-review-item-filters button:disabled { opacity: .55; }
+.receipt-review-item-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.receipt-review-item-tools .text-button { min-height: 26px; padding-inline: 2px; font-size: .66rem; }
 .receipt-review-items { display: grid; gap: 7px; }
 .receipt-review-item { min-width: 0; display: grid; grid-template-columns: minmax(0,1fr); gap: 6px; padding: 8px 9px 9px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
 .receipt-review-item.needs-review { border-color: color-mix(in srgb,var(--warning) 32%,var(--line)); }
 .receipt-review-item-topline { min-width: 0; display: flex; align-items: center; gap: 6px; min-height: 17px; }
 .receipt-review-item-topline > span { color: var(--text-muted); font-size: .62rem; font-weight: 800; }
 .receipt-review-item-topline small { padding: 1px 5px; border-radius: 999px; font-size: .56rem; font-weight: 800; text-transform: uppercase; }
-.receipt-review-item-topline .text-button { margin-left: auto; min-height: 24px; padding: 0 2px; font-size: .65rem; }
+.receipt-review-item-topline .text-button { min-height: 24px; padding: 0 2px; font-size: .65rem; }
+.receipt-review-item-topline .receipt-review-mark-done { margin-left: auto; color: var(--success); font-weight: 800; }
+.receipt-review-item-topline .receipt-review-mark-done + .text-button { margin-left: 2px; }
+.receipt-review-item-topline > .text-button:first-of-type:not(.receipt-review-mark-done) { margin-left: auto; }
 .receipt-review-item-bottom { min-width: 0; display: grid; grid-template-columns: minmax(0,1fr) 112px; gap: 7px; }
 .receipt-review-item-amount input { text-align: right; font-variant-numeric: tabular-nums; }
 .receipt-review-inline-warning { margin: 0; color: var(--warning); font-size: .65rem; line-height: 1.35; }
 .receipt-ocr-quality-warning { display: grid; gap: 2px; padding: 8px 10px; border-radius: 10px; background: var(--surface-soft); border: 1px solid var(--line); }
 .receipt-ocr-quality-warning strong { font-size: .72rem; }
 .receipt-ocr-quality-warning span { color: var(--text-muted); font-size: .65rem; line-height: 1.35; }
-.receipt-ocr-diagnostic { display: grid; grid-template-columns: minmax(0,1fr) auto; align-items: center; gap: 5px 10px; padding: 8px 9px; border: 1px dashed var(--line); border-radius: 10px; background: var(--surface-soft); }
+.receipt-ocr-diagnostic { display: grid; gap: 8px; padding: 8px 9px; border: 1px dashed var(--line); border-radius: 10px; background: var(--surface-soft); }
+.receipt-ocr-diagnostic summary { display: grid; gap: 1px; cursor: pointer; list-style: none; }
+.receipt-ocr-diagnostic summary::-webkit-details-marker { display: none; }
+.receipt-ocr-diagnostic[open] summary { padding-bottom: 2px; border-bottom: 1px dashed color-mix(in srgb,var(--line) 88%,transparent); }
 .receipt-ocr-diagnostic > div { min-width: 0; display: grid; gap: 1px; }
 .receipt-ocr-diagnostic strong { font-size: .7rem; }
 .receipt-ocr-diagnostic span, .receipt-ocr-diagnostic small { color: var(--text-muted); font-size: .63rem; line-height: 1.35; }
-.receipt-ocr-diagnostic > small, .receipt-ocr-diagnostic textarea { grid-column: 1 / -1; }
+.receipt-ocr-diagnostic > small, .receipt-ocr-diagnostic textarea, .receipt-ocr-diagnostic > dl { grid-column: 1 / -1; }
 .receipt-ocr-diagnostic-meta { grid-column: 1 / -1; margin: 2px 0 0; display: flex; flex-wrap: wrap; gap: 4px 10px; }
 .receipt-ocr-diagnostic-meta > div { display: flex; align-items: baseline; gap: 4px; }
 .receipt-ocr-diagnostic-meta dt { color: var(--text-muted); font-size: .6rem; font-weight: 700; }
@@ -2605,7 +2629,9 @@
 .receipt-review-item-compact-main > small { color: var(--text-muted); font-size: .61rem; }
 .receipt-review-item-compact-main:focus-visible { outline: 3px solid var(--accent-soft); outline-offset: 2px; border-radius: 6px; }
 .receipt-review-item-compact-amount { white-space: nowrap; font-size: .72rem; }
-.receipt-review-item-compact > .text-button { min-height: 28px; padding-inline: 2px; font-size: .65rem; }
+.receipt-review-item-compact-actions { display: grid; justify-items: end; gap: 2px; }
+.receipt-review-item-compact-flag { color: var(--warning); font-size: .6rem; font-weight: 800; text-transform: uppercase; }
+.receipt-review-item-compact-actions > .text-button { min-height: 28px; padding-inline: 2px; font-size: .65rem; }
 
 /* 1.2.0.33 - Finance simple trusted unit-price snapshot */
 .finance-product-price-snapshot {
@@ -2729,6 +2755,8 @@
 .finance-quick-filters > button:focus-visible { outline: 3px solid var(--accent-soft); outline-offset: 1px; }
 .finance-quick-filters > button.is-active { border-color: color-mix(in srgb,var(--accent) 44%,var(--line)); background: var(--accent-surface); color: var(--accent-strong); }
 .finance-quick-filters > button.is-review:not(.is-active) { border-color: color-mix(in srgb,var(--accent) 26%,var(--line)); }
+.finance-quick-filters > button.is-assessment:not(.is-active) { border-color: var(--line); background: var(--surface-soft); color: var(--text-muted); }
+.finance-quick-filters > button.is-assessment.is-active { border-color: color-mix(in srgb,var(--accent) 24%,var(--line)); background: color-mix(in srgb,var(--surface-soft) 72%,var(--accent-surface)); color: var(--text); }
 .finance-quick-filters > button span { min-width: 18px; height: 18px; display: grid; place-items: center; padding-inline: 4px; border-radius: 999px; background: var(--surface-soft); color: var(--text); font-size: .58rem; }
 .finance-filter-chip-dynamic { max-width: 220px; overflow: hidden; text-overflow: ellipsis; }
 .finance-bulk-review-bar { display: grid; grid-template-columns: auto minmax(120px,1fr) minmax(170px,240px) auto; align-items: center; gap: 8px 10px; padding: 7px 12px; border-bottom: 1px solid color-mix(in srgb,var(--accent) 28%,var(--line)); background: var(--accent-surface); }
@@ -2739,15 +2767,17 @@
 .finance-purchase-table thead th { position: sticky; top: 0; z-index: 3; background: color-mix(in srgb,var(--surface) 96%,var(--surface-soft)); box-shadow: 0 1px 0 var(--line); }
 .finance-purchase-table th { padding-block: 7px; }
 .finance-purchase-table td { padding-block: 8px; }
-.finance-purchase-table tbody tr.is-review-row { background: color-mix(in srgb,var(--accent-surface) 38%,transparent); }
-.finance-purchase-table tbody tr.is-review-row:hover { background: color-mix(in srgb,var(--accent-surface) 62%,var(--surface)); }
+.finance-purchase-table tbody tr.is-category-review-row { background: color-mix(in srgb,var(--accent-surface) 38%,transparent); }
+.finance-purchase-table tbody tr.is-category-review-row:hover { background: color-mix(in srgb,var(--accent-surface) 62%,var(--surface)); }
+.finance-purchase-table tbody tr.is-necessity-review-row:not(.is-category-review-row) { background: color-mix(in srgb,var(--surface-soft) 70%,transparent); }
+.finance-purchase-table tbody tr.is-necessity-review-row:not(.is-category-review-row):hover { background: var(--surface-soft); }
 .finance-purchase-product-cell { min-width: 0; display: flex; align-items: center; gap: 7px; }
 .finance-purchase-product-cell > input { flex: 0 0 auto; }
 .finance-purchase-product-cell > strong { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .finance-table-select-all { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
 .finance-category-select { border-color: color-mix(in srgb,var(--line) 72%,transparent); background: color-mix(in srgb,var(--surface-soft) 54%,var(--surface)); }
 .finance-category-select:hover,.finance-category-select:focus-visible { border-color: color-mix(in srgb,var(--accent) 35%,var(--line)); background: var(--surface); }
-.finance-necessity-select.is-review { border-color: color-mix(in srgb,var(--accent) 40%,var(--line)); background: var(--accent-surface); color: var(--accent-strong); }
+.finance-necessity-select.is-assessment { border-color: color-mix(in srgb,var(--text-muted) 22%,var(--line)); background: var(--surface-soft); color: var(--text); }
 /* 1.2.0.37 - Finance composition polish and fast correction */
 .finance-view-header { margin-bottom: 7px; }
 .finance-view-header h1 { font-size: clamp(1.9rem,3vw,2.3rem); }
@@ -4193,3 +4223,582 @@ button.finance-overview-category-chip.is-active { background: var(--surface-soft
 .data-transfer-comparison-grid strong i { color: var(--text-muted); font-style: normal; font-weight: 500; }
 .data-transfer-comparison-grid .is-reduction strong b:last-child { color: var(--warning); }
 .data-transfer-reduction-warning { margin: 0; padding: 9px 10px; border-radius: 10px; background: var(--warning-soft); color: color-mix(in srgb, var(--warning) 84%, var(--text)); font-size: .68rem; line-height: 1.45; }
+
+/* 1.2.0.147 - Finance month dashboard hierarchy: total first, lightweight metrics, ranked categories. */
+.finance-month-dashboard-v147 .finance-month-dashboard-head {
+  display: grid;
+  grid-template-columns: minmax(230px,.78fr) minmax(0,1.42fr);
+  align-items: stretch;
+  gap: 0;
+  padding: 0;
+}
+.finance-month-hero-total {
+  min-width: 0;
+  display: grid;
+  align-content: center;
+  justify-items: start;
+  gap: 5px;
+  padding: 16px 18px;
+  border: 0;
+  border-right: 1px solid var(--line);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.finance-month-hero-total:hover,
+.finance-month-hero-total:focus-visible { background: var(--surface-soft); }
+.finance-month-hero-total:focus-visible { outline: 3px solid var(--accent-soft); outline-offset: -3px; }
+.finance-month-hero-total > strong {
+  font-size: clamp(1.55rem,2.8vw,2rem);
+  line-height: 1;
+  letter-spacing: -.035em;
+}
+.finance-month-hero-total > small {
+  color: var(--text-muted);
+  font-size: .65rem;
+  line-height: 1.4;
+  font-weight: 720;
+}
+.finance-month-hero-total > small.is-lower { color: var(--success); }
+.finance-month-hero-total > small.is-higher { color: var(--accent-strong); }
+.finance-month-metric-grid {
+  display: grid;
+  grid-template-columns: repeat(4,minmax(0,1fr));
+  align-items: stretch;
+  gap: 0;
+  max-width: none;
+  color: inherit;
+}
+.finance-month-metric-grid button {
+  min-width: 0;
+  min-height: 78px;
+  display: grid;
+  align-content: center;
+  justify-items: start;
+  gap: 4px;
+  padding: 12px 14px;
+  border: 0;
+  border-left: 1px solid var(--line);
+  border-radius: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.finance-month-metric-grid button:first-child { border-left: 0; }
+.finance-month-metric-grid button:hover,
+.finance-month-metric-grid button:focus-visible,
+.finance-month-metric-grid button.is-active {
+  background: var(--surface-soft);
+  color: inherit;
+}
+.finance-month-metric-grid button:focus-visible { outline: 3px solid var(--accent-soft); outline-offset: -3px; }
+.finance-month-metric-grid button > span {
+  color: var(--text-muted);
+  font-size: .61rem;
+  font-weight: 720;
+}
+.finance-month-metric-grid button > strong {
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+  color: var(--text);
+  font-size: .82rem;
+  line-height: 1.2;
+}
+.finance-month-category-ranking {
+  min-height: 0;
+  display: block;
+  overflow: hidden;
+  border-top: 1px solid var(--line);
+}
+.finance-month-category-heading {
+  min-height: 39px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 7px 12px 6px 14px;
+  border-bottom: 1px solid color-mix(in srgb,var(--line) 72%,transparent);
+}
+.finance-month-category-heading > div { min-width: 0; display: flex; align-items: baseline; gap: 8px; }
+.finance-month-category-heading > div > strong { min-width: 0; color: var(--text-muted); font-size: .62rem; font-weight: 720; }
+.finance-month-category-heading .section-kicker { margin: 0; }
+.finance-month-category-heading .finance-month-category-all {
+  min-height: 30px;
+  padding: 4px 2px;
+  color: var(--accent-strong) !important;
+  font-size: .65rem !important;
+  white-space: nowrap;
+}
+.finance-month-category-grid {
+  display: grid;
+  grid-template-columns: repeat(4,minmax(0,1fr));
+}
+.finance-month-category-row {
+  min-width: 0;
+  min-height: 62px;
+  display: grid;
+  grid-template-columns: auto minmax(0,1fr) auto;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 11px;
+  border: 0;
+  border-left: 1px solid var(--line);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.finance-month-category-row:first-child { border-left: 0; }
+.finance-month-category-row:hover,
+.finance-month-category-row:focus-visible,
+.finance-month-category-row.is-active { background: var(--surface-soft); }
+.finance-month-category-row:focus-visible { outline: 3px solid var(--accent-soft); outline-offset: -3px; }
+.finance-month-category-row .expense-category-icon {
+  width: 26px;
+  height: 26px;
+  flex-basis: 26px;
+  border-radius: 8px;
+}
+.finance-month-category-row .expense-category-icon svg { width: 14px; height: 14px; }
+.finance-month-category-copy { min-width: 0; display: grid; gap: 5px; }
+.finance-month-category-copy > strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: .68rem;
+}
+.finance-month-category-bar {
+  width: 100%;
+  height: 3px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: color-mix(in srgb,var(--line) 70%,transparent);
+}
+.finance-month-category-bar > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent);
+}
+.finance-month-category-value {
+  display: grid;
+  justify-items: end;
+  gap: 2px;
+  white-space: nowrap;
+}
+.finance-month-category-value small { color: var(--text-muted); font-size: .56rem; }
+.finance-month-category-value strong { font-size: .67rem; }
+.finance-expense-review-link {
+  min-height: 28px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px;
+  border: 1px solid color-mix(in srgb,var(--accent) 34%,var(--line));
+  border-radius: 999px;
+  background: var(--accent-surface);
+  color: var(--accent-strong);
+  font: inherit;
+  font-size: .61rem;
+  font-weight: 760;
+  cursor: pointer;
+}
+.finance-expense-review-link strong { font-size: .64rem; }
+.finance-expense-review-link:hover,
+.finance-expense-review-link:focus-visible,
+.finance-expense-review-link.is-active { background: var(--accent-soft); }
+.finance-expense-review-link:focus-visible { outline: 3px solid var(--accent-soft); outline-offset: 1px; }
+.finance-expense-assessment-link {
+  min-height: 28px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface-soft);
+  color: var(--text-muted);
+  font: inherit;
+  font-size: .61rem;
+  font-weight: 760;
+  cursor: pointer;
+}
+.finance-expense-assessment-link strong { color: var(--text); font-size: .64rem; }
+.finance-expense-assessment-link:hover,
+.finance-expense-assessment-link:focus-visible,
+.finance-expense-assessment-link.is-active { border-color: color-mix(in srgb,var(--accent) 24%,var(--line)); background: color-mix(in srgb,var(--surface-soft) 74%,var(--accent-surface)); color: var(--text); }
+.finance-expense-assessment-link:focus-visible { outline: 3px solid var(--accent-soft); outline-offset: 1px; }
+
+/* 1.2.0.148 - Trip Finance mirrors the month dashboard without adding another workflow. */
+.finance-trip-dashboard-v148.finance-trip-summary-simple {
+  padding: 0;
+  overflow: hidden;
+}
+.finance-trip-dashboard-v148 .finance-trip-dashboard-head {
+  display: grid;
+  grid-template-columns: minmax(230px,.78fr) minmax(0,1.42fr);
+  align-items: stretch;
+  gap: 0;
+  padding: 0;
+}
+.finance-trip-hero-total {
+  min-width: 0;
+  display: grid;
+  align-content: center;
+  justify-items: start;
+  gap: 5px;
+  padding: 16px 18px;
+  border-right: 1px solid var(--line);
+}
+.finance-trip-hero-total > strong {
+  font-size: clamp(1.55rem,2.8vw,2rem);
+  line-height: 1;
+  letter-spacing: -.035em;
+}
+.finance-trip-hero-total > small {
+  min-width: 0;
+  color: var(--text-muted);
+  font-size: .65rem;
+  line-height: 1.35;
+  font-weight: 720;
+}
+.finance-trip-original-total {
+  color: var(--accent-strong);
+  font-size: .62rem;
+  line-height: 1.3;
+  font-weight: 820;
+}
+.finance-trip-metric-grid {
+  display: grid;
+  grid-template-columns: repeat(4,minmax(0,1fr));
+  align-items: stretch;
+  gap: 0;
+  max-width: none;
+  color: inherit;
+}
+.finance-trip-metric-grid > div,
+.finance-trip-metric-grid > button {
+  min-width: 0;
+  min-height: 78px;
+  display: grid;
+  align-content: center;
+  justify-items: start;
+  gap: 4px;
+  padding: 12px 14px;
+  border: 0;
+  border-left: 1px solid var(--line);
+  border-radius: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+}
+.finance-trip-metric-grid > :first-child { border-left: 0; }
+.finance-trip-metric-grid > div > span,
+.finance-trip-metric-grid > button > span {
+  color: var(--text-muted);
+  font-size: .61rem;
+  font-weight: 720;
+}
+.finance-trip-metric-grid > div > strong,
+.finance-trip-metric-grid > button > strong {
+  min-width: 0;
+  color: var(--text);
+  font-size: .82rem;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+.finance-trip-metric-grid > button {
+  cursor: pointer;
+  box-shadow: none;
+}
+.finance-trip-metric-grid > button:hover,
+.finance-trip-metric-grid > button:focus-visible { background: var(--surface-soft); }
+.finance-trip-metric-grid > button:focus-visible { outline: 3px solid var(--accent-soft); outline-offset: -3px; }
+.finance-trip-metric-grid .finance-trip-metric-action {
+  min-height: 78px;
+  padding: 12px 14px;
+}
+.finance-trip-category-ranking {
+  min-height: 0;
+  display: block;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  border-top: 1px solid var(--line);
+}
+.finance-trip-category-heading {
+  min-height: 39px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 7px 12px 6px 14px;
+  border-bottom: 1px solid color-mix(in srgb,var(--line) 72%,transparent);
+}
+.finance-trip-category-heading > div {
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+.finance-trip-category-heading > div > strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-muted);
+  font-size: .62rem;
+  font-weight: 720;
+}
+.finance-trip-category-heading .section-kicker { margin: 0; }
+.finance-trip-category-grid {
+  display: grid;
+  grid-template-columns: repeat(4,minmax(0,1fr));
+}
+.finance-trip-category-row.finance-trip-category-chip {
+  min-width: 0;
+  min-height: 62px;
+  display: grid;
+  grid-template-columns: auto minmax(0,1fr) auto;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 11px;
+  border: 0;
+  border-left: 1px solid var(--line);
+  border-radius: 0;
+  background: transparent;
+  white-space: normal;
+}
+.finance-trip-category-row:first-child { border-left: 0; }
+.finance-trip-category-row .expense-category-icon {
+  width: 26px;
+  height: 26px;
+  flex-basis: 26px;
+  border-radius: 8px;
+}
+.finance-trip-category-row .expense-category-icon svg { width: 14px; height: 14px; }
+.finance-trip-category-copy {
+  min-width: 0;
+  display: grid;
+  gap: 5px;
+}
+.finance-trip-category-copy > strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text);
+  font-size: .68rem;
+}
+.finance-trip-category-bar {
+  width: 100%;
+  height: 3px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: color-mix(in srgb,var(--line) 70%,transparent);
+}
+.finance-trip-category-bar > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent);
+}
+.finance-trip-category-value {
+  display: grid;
+  justify-items: end;
+  gap: 2px;
+  white-space: nowrap;
+}
+.finance-trip-category-value small { color: var(--text-muted); font-size: .56rem; }
+.finance-trip-category-value strong { color: var(--text); font-size: .67rem; }
+.finance-trip-card-v148 {
+  grid-template-columns: minmax(0,1fr) auto minmax(88px,auto) 14px;
+  gap: 12px;
+}
+.finance-trip-card-copy { min-width: 0; display: grid; gap: 3px; }
+.finance-trip-card-copy > strong,
+.finance-trip-card-copy > small { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.finance-trip-card-facts {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 7px;
+  white-space: nowrap;
+}
+.finance-trip-card-facts > small { color: var(--text-muted); font-size: .62rem; }
+.finance-trip-card-facts > span {
+  min-height: 23px;
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 7px;
+  border: 1px solid color-mix(in srgb,var(--accent) 28%,var(--line));
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+  font-size: .59rem;
+  font-weight: 850;
+}
+.finance-trip-card-total {
+  justify-self: end;
+  white-space: nowrap;
+  font-size: .78rem !important;
+}
+
+
+/* 1.2.0.149 - Trip currency clarity without changing stored amounts or conversion logic. */
+.finance-trip-hero-context {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+}
+.finance-trip-hero-context > strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text);
+  font-size: .69rem;
+}
+.finance-trip-hero-context > span {
+  color: var(--text-muted);
+  font-size: .61rem;
+  font-weight: 650;
+  white-space: nowrap;
+}
+.finance-trip-card-v149 .finance-trip-card-total {
+  display: grid;
+  justify-items: end;
+  gap: 2px;
+  font-size: inherit !important;
+}
+.finance-trip-card-v149 .finance-trip-card-total > strong {
+  font-size: .78rem;
+  line-height: 1.15;
+}
+.finance-trip-card-v149 .finance-trip-card-total > small {
+  color: var(--text-muted);
+  font-size: .56rem;
+  font-weight: 700;
+  line-height: 1.15;
+}
+
+/* 1.2.0.150 - Foreign-trip details keep native amounts primary and PLN conversion context explicit. */
+.finance-trip-converted-total {
+  color: var(--text-muted);
+  font-weight: 720;
+}
+
+/* 1.2.0.168 - Finance product editor classification and history clarity */
+.finance-product-editor-name { grid-column: 1 / -1; }
+.finance-product-classification-preview {
+  display: grid;
+  grid-template-columns: minmax(0,1fr) minmax(0,1fr);
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface-soft);
+}
+.finance-product-classification-preview > div {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+  padding: 8px 9px;
+  border-radius: 9px;
+  background: var(--surface);
+}
+.finance-product-classification-preview span {
+  color: var(--text-muted);
+  font-size: .62rem;
+  font-weight: 750;
+}
+.finance-product-classification-preview strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-size: .78rem;
+}
+.finance-product-classification-preview small {
+  color: var(--text-muted);
+  font-size: .61rem;
+  line-height: 1.35;
+}
+.finance-product-classification-preview.is-assessment > div:last-child {
+  outline: 1px solid color-mix(in srgb,var(--text-muted) 22%,var(--line));
+  outline-offset: -1px;
+}
+.finance-product-history-toggle {
+  width: 100%;
+  min-height: 40px;
+  border: 0;
+  border-top: 1px solid var(--line);
+  background: var(--surface-soft);
+  color: var(--text);
+  font: inherit;
+  font-size: .68rem;
+  font-weight: 750;
+  cursor: pointer;
+}
+.finance-product-history-toggle:hover,
+.finance-product-history-toggle:focus-visible { background: var(--accent-surface); }
+.finance-product-history-toggle:focus-visible { outline: 3px solid var(--accent-soft); outline-offset: -3px; }
+
+/* 1.2.0.172 - Trip categories become a lightweight item drill-down without replacing transaction-first navigation. */
+.finance-trip-category-row:focus-visible {
+  outline: 3px solid var(--accent-soft);
+  outline-offset: -3px;
+}
+.finance-trip-expense-heading > div:first-child {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+.finance-trip-expense-heading > div:first-child > small {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-muted);
+  font-size: .62rem;
+  font-weight: 720;
+}
+.finance-trip-expense-heading-actions {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+}
+.finance-trip-expense-heading-actions > span {
+  color: var(--text-muted);
+  font-size: .64rem;
+  white-space: nowrap;
+}
+.finance-trip-drilldown-reset {
+  min-height: 32px;
+  padding-inline: 5px;
+  font-size: .64rem;
+  white-space: nowrap;
+}
+.finance-trip-item-row .finance-trip-expense-total { color: var(--text); }
+.finance-trip-drilldown-empty {
+  min-height: 96px;
+  border-top: 1px solid var(--line);
+}
+
+/* 1.2.0.173 - Transaction edit keeps trip assignment and foreign-currency context explicit. */
+.finance-receipt-edit-head { grid-template-columns: minmax(0,1fr) 160px minmax(220px,.8fr); }
+.finance-receipt-edit-trip-note { color: var(--text-muted); font-size: .62rem; line-height: 1.35; }
+.finance-receipt-edit-currency-context { display: grid; grid-template-columns: minmax(145px,.45fr) minmax(0,1.55fr); align-items: center; gap: 10px 16px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 11px; background: var(--surface-soft); }
+.finance-receipt-edit-currency-context > div { min-width: 0; display: grid; gap: 3px; }
+.finance-receipt-edit-currency-context span { color: var(--text-muted); font-size: .63rem; }
+.finance-receipt-edit-currency-context strong { font-size: .82rem; overflow-wrap: anywhere; }
+.finance-receipt-edit-currency-context p { margin: 0; color: var(--text-muted); font-size: .66rem; line-height: 1.45; }

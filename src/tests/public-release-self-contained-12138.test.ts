@@ -6,7 +6,7 @@ const sourceAudit = readFileSync('src/tests/study-source-audit.optional.test.ts'
 const buildMetadataSync = readFileSync('src/tests/build-metadata-sync-12129.test.ts', 'utf8');
 const versioningWorkflow = readFileSync('src/tests/versioning-workflow-12133.test.ts', 'utf8');
 
-describe('1.2.0.145 public release self-containment', () => {
+describe('public release self-containment', () => {
   it('does not require private CURRENT_STATE metadata in the sanitized public tree', () => {
     expect(releaseSafety).toContain('if (currentState) assert(Array.isArray(currentState.activeStudyQaProfile?.selectedGroups)');
     expect(releaseSafety).not.toContain('assert(Array.isArray(currentState?.activeStudyQaProfile?.selectedGroups)');

@@ -15,13 +15,14 @@ describe('1.2.0.35 Finance compact workflow', () => {
     expect(styles).toContain('.finance-overview-category-strip');
   });
 
-  it('treats Other or an unknown necessity as one quick review queue', () => {
+  it('keeps category correction separate from the subjective necessity assessment queue', () => {
     const dashboard = source('../finance/FinanceDashboardView.tsx');
-    expect(dashboard).toContain('reviewPurchaseRows');
-    expect(dashboard).toContain("row.necessity === 'unknown'");
-    expect(dashboard).toContain('row.effectiveCategoryId === otherCategoryId');
+    expect(dashboard).toContain('categoryReviewRows');
+    expect(dashboard).toContain('necessityReviewRows');
+    expect(dashboard).toContain('row.categoryNeedsReview');
+    expect(dashboard).toContain('row.necessityNeedsReview');
     expect(dashboard).toContain('showReviewPurchases');
-    expect(dashboard).toContain('setReviewOnly(true)');
+    expect(dashboard).toContain("filterByNecessity('unknown')");
   });
 
   it('jumps to review automatically only after the newly saved receipt is present in derived rows', () => {
@@ -50,13 +51,14 @@ describe('1.2.0.35 Finance compact workflow', () => {
     expect(dashboard).toContain('finance-category-select');
     expect(dashboard).toContain('finance-necessity-select');
     expect(styles).toContain('.finance-purchase-table thead th { position: sticky;');
-    expect(styles).toContain('.finance-purchase-table tbody tr.is-review-row');
+    expect(styles).toContain('.finance-purchase-table tbody tr.is-category-review-row');
+    expect(styles).toContain('.finance-purchase-table tbody tr.is-necessity-review-row');
   });
 
   it('stays on schema 14 and does not add a finance budget or rule-engine store', () => {
     const version = source('../core/version.ts');
     const database = source('../storage/database.ts');
-    expect(version).toContain("APP_VERSION = '1.2.0.145'");
+    expect(version).toMatch(/APP_VERSION\s*=\s*'\d+\.\d+\.\d+\.\d+'/u);
     expect(version).toContain('DATABASE_SCHEMA_VERSION = 14');
     expect(database).not.toContain('STORE_FINANCE_RULES');
     expect(database).not.toContain('STORE_FINANCE_BUDGETS');

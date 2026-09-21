@@ -37,6 +37,14 @@ export function formatWorkMinutes(minutes: number): string {
   return rest ? `${hours} h ${rest} min` : `${hours} h`;
 }
 
+export function formatPersonCount(count: number): string {
+  const value = Math.max(0, Math.trunc(count));
+  const lastTwo = value % 100;
+  const last = value % 10;
+  const noun = value === 1 ? 'osoba' : last >= 2 && last <= 4 && !(lastTwo >= 12 && lastTwo <= 14) ? 'osoby' : 'osób';
+  return `${value} ${noun}`;
+}
+
 function stableText(value: string): string {
   return value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
 }

@@ -54,8 +54,10 @@ describe('1.2.0.30 Finance necessity classification', () => {
 
   it('keeps the main finance screen simple and makes type editable inline', () => {
     const dashboard = source('../finance/FinanceDashboardView.tsx');
-    expect(dashboard).toContain('Niezbędne <strong>{formatMoneyMinor(necessityTotals.essential)}</strong>');
-    expect(dashboard).toContain('Zbędne <strong>{formatMoneyMinor(necessityTotals.nonessential)}</strong>');
+    expect(dashboard).toContain('<span>Niezbędne</span>');
+    expect(dashboard).toContain('<strong>{formatMoneyMinor(necessityTotals.essential)}</strong>');
+    expect(dashboard).toContain('<span>Zbędne</span>');
+    expect(dashboard).toContain('<strong>{formatMoneyMinor(necessityTotals.nonessential)}</strong>');
     expect(dashboard).toContain('finance-necessity-select');
     expect(dashboard).toContain('changeProductNecessity');
     expect(dashboard).toContain('<span>Typ</span>');
@@ -70,7 +72,7 @@ describe('1.2.0.30 Finance necessity classification', () => {
     expect(types).toContain("export type ExpenseNecessity = 'essential' | 'nonessential' | 'unknown';");
     expect(types).toContain('necessity?: ExpenseNecessity;');
     expect(parser).not.toContain('ExpenseNecessity');
-    expect(version).toContain("APP_VERSION = '1.2.0.145'");
+    expect(version).toMatch(/APP_VERSION\s*=\s*'\d+\.\d+\.\d+\.\d+'/u);
     expect(version).toContain('DATABASE_SCHEMA_VERSION = 14');
   });
 });

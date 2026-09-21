@@ -35,7 +35,7 @@ describe('1.2.0.43 selected-day quick edit', () => {
     expect(app).toContain('await updateEvent(event.id, draft)');
     expect(app).toContain('onQuickEdit={quickEditEvent}');
     expect(css).toContain('/* 1.2.0.43 - quick editing from the selected-day panel */');
-    expect(version).toContain("APP_VERSION = '1.2.0.145'");
+    expect(version).toMatch(/APP_VERSION\s*=\s*'\d+\.\d+\.\d+\.\d+'/u);
     expect(version).toContain('DATABASE_SCHEMA_VERSION = 14');
   });
 });

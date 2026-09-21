@@ -19,21 +19,24 @@ describe('1.2.0.102 dashboard density', () => {
     expect(studyView).toContain('study-upload-dashboard');
   });
 
-  it('groups the compact Work and Settings overview modules into responsive dashboards', () => {
-    expect(work).toContain('className="work-overview-dashboard"');
-    expect(settings).toContain('className="settings-dashboard-grid"');
-    expect(styles).toContain('.work-overview-dashboard');
-    expect(styles).toContain('.settings-dashboard-grid');
+  it('keeps Work and Settings default surfaces flat and compact', () => {
+    expect(work).toContain('className="work-overview-simple"');
+    expect(work).toContain('work-shift-row-minimal');
+    expect(settings).toContain('className="settings-core"');
+    expect(settings).toContain('settings-collapsible-section');
+    expect(styles).toContain('.work-overview-simple');
+    expect(styles).toContain('.settings-collapsible-section');
   });
 
-  it('keeps readable mobile controls while collapsing dashboard columns', () => {
+  it('keeps readable mobile controls while reducing visible information', () => {
     expect(styles).toContain('.study-group-choice-card select { min-height: 44px; }');
-    expect(styles).toContain('.work-overview-dashboard { grid-template-columns: 1fr; }');
-    expect(styles).toContain('.settings-minimal-view .settings-dashboard-grid .settings-essential-grid { grid-template-columns: 1fr; }');
+    expect(styles).toContain('.work-shift-row-minimal { gap: 6px; padding-block: 10px; }');
+    expect(styles).toContain('.settings-core .settings-essential-grid {');
+    expect(styles).toContain('grid-template-columns: minmax(0, 1fr);');
   });
 
   it('does not require a database migration', () => {
-    expect(version).toContain("APP_VERSION = '1.2.0.145'");
+    expect(version).toMatch(/APP_VERSION\s*=\s*'\d+\.\d+\.\d+\.\d+'/u);
     expect(version).toContain('DATABASE_SCHEMA_VERSION = 14');
   });
 });
