@@ -1,7 +1,7 @@
 {
   "name": "inteligentny-kalendarz",
   "private": true,
-  "version": "1.2.0-private.192",
+  "version": "1.2.0-private.194",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -51,7 +51,9 @@
     "ui:mobile-polish:qa": "node scripts/ui-mobile-polish-build188-proof.mjs",
     "ui:work-copy:qa": "node scripts/ui-work-copy-build189-proof.mjs",
     "finance:trip-optional:qa": "node scripts/finance-trip-optional-build190-proof.mjs",
-    "release:parser-freeze:qa": "node scripts/build192-production-audit-freeze-proof.mjs"
+    "release:parser-freeze:qa": "node scripts/build192-production-audit-freeze-proof.mjs",
+    "ui:today-work:qa": "node scripts/ui-today-work-stability-build193-proof.mjs",
+    "ui:today-rail:qa": "node scripts/ui-today-rail-cleanup-build194-proof.mjs"
   },
   "dependencies": {
     "react": "^19.1.1",

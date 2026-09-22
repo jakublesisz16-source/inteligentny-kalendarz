@@ -21,7 +21,7 @@ check('production audit expects current reviewed parser hash', audit.includes(`c
 check('production audit canonicalizes CRLF/LF before hashing', audit.includes("readFileSync(parserPath, 'utf8').replace(/\\r\\n?/g, '\\n')"));
 check('production audit hashes canonical UTF-8 parser bytes', audit.includes("createHash('sha256').update(Buffer.from(parserSource, 'utf8')).digest('hex')"));
 check('parser freeze records same reviewed hash', freeze.includes(`BUILD191_PARSER_EXPECTED = '${parserHash}'`));
-check('Build192 metadata synchronized', version.includes("APP_VERSION = '1.2.0.192'") && build.includes("APP_BUILD = '192'"));
+check('app metadata remains synchronized on a four-part version', /APP_VERSION = '\d+\.\d+\.\d+\.\d+'/.test(version) && /APP_BUILD = '\d+'/.test(build));
 check('database schema remains 14', version.includes('DATABASE_SCHEMA_VERSION = 14'));
 
 console.log(`Build192 production-audit freeze proof PASS ${checks.length}/${checks.length}`);

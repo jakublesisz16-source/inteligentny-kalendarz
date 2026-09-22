@@ -1841,11 +1841,7 @@
     border-radius: 0;
     background: transparent;
     box-shadow: none;
-    padding: 12px 11px 13px 15px;
-  }
-  .today-view.has-plan .today-plan-panel.today-single-surface .event-card::before {
-    top: 9px;
-    bottom: 9px;
+    padding: 12px 11px 13px;
   }
 }
 

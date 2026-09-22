@@ -24,10 +24,11 @@ interface TodayViewProps {
   coworkersByEvent?: Record<string, CoworkerOverlap[]>;
 }
 
-function upcomingEvent(events: CalendarEvent[], now: Date): CalendarEvent | undefined {
+export function upcomingEvent(events: CalendarEvent[], now: Date, excludedDateKey?: string): CalendarEvent | undefined {
   const nowMs = now.getTime();
   return [...events]
     .filter((event) => Date.parse(event.endDateTime) >= nowMs)
+    .filter((event) => !excludedDateKey || !eventOccursOnDate(event, excludedDateKey))
     .sort((a, b) => a.startDateTime.localeCompare(b.startDateTime))[0];
 }
 
@@ -62,7 +63,7 @@ export function TodayView({ events, locations, timeFormat, showPolishHolidays = 
   const blockingToday = consistencyIssues.filter((issue) => !issue.acknowledged && issue.planningImpact === 'BLOCKING' && issue.endDateTime.slice(0, 10) >= todayKey && issue.startDateTime.slice(0, 10) <= todayKey);
   const todayAvailability = availabilityPlans.flatMap((plan) => plan.blocks.filter((block) => block.date === todayKey && block.status !== 'REJECTED').map((block) => ({ ...block, planStatus: plan.status }))).sort((a, b) => a.startTime.localeCompare(b.startTime));
   const hasPlan = todayEvents.length > 0 || todayAvailability.length > 0;
-  const nextEvent = upcomingEvent(events, today);
+  const nextEvent = upcomingEvent(events, today, todayEvents.length ? todayKey : undefined);
   const todayMarkers = calendarOverlayMarkersForDate(todayKey, { showPolishHolidays, showWumAcademicCalendar });
 
   return (
