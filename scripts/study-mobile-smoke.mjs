@@ -405,28 +405,25 @@ async function runStudySmoke(cdp, width, height) {
   const preview = await evaluate(cdp, `(() => {
     const panel = document.querySelector('.study-import-summary');
     if (!panel) return null;
-    const stats = {};
-    panel.querySelectorAll('.study-import-summary-grid > div').forEach((item) => {
-      const label = item.querySelector('span')?.textContent?.trim();
-      const value = item.querySelector('strong')?.textContent?.trim();
-      if (label) stats[label] = value || '';
-    });
+    const summaryText = panel.querySelector('.study-import-summary-line-v207')?.textContent?.replace(/\s+/g, ' ').trim() || '';
+    const noteText = [...panel.querySelectorAll('.study-summary-note-v207')].map((item) => item.textContent?.replace(/\s+/g, ' ').trim() || '').join(' ');
     const action = [...panel.querySelectorAll('button')].find((item) => item.textContent?.trim().startsWith('Dodaj '));
     return {
       heading: panel.querySelector('h2')?.textContent?.trim() || '',
-      stats,
+      summaryText,
+      noteText,
       actionText: action?.textContent?.trim() || '',
       actionDisabled: action?.disabled ?? true,
     };
   })()`);
   if (!preview) fail('brak danych podsumowania planu');
-  if (Number(preview.stats?.['Do kalendarza']) !== expectedImportable) fail(`podgląd pokazuje ${preview.stats?.['Do kalendarza'] ?? 'brak'} zamiast ${expectedImportable} wydarzeń`);
-  if (Number(preview.stats?.['Niepełne']) !== expectedIncomplete) fail(`podgląd pokazuje ${preview.stats?.['Niepełne'] ?? 'brak'} zamiast ${expectedIncomplete} niepełnych wpisów`);
-  if (preview.actionDisabled || preview.actionText !== `Dodaj ${expectedImportable} do kalendarza`) fail(`nieprawidłowe CTA importu: ${preview.actionText || 'brak'}`);
+  if (!preview.summaryText.includes(`${expectedImportable} wydarzeń`)) fail(`podgląd nie pokazuje ${expectedImportable} wydarzeń: ${preview.summaryText || 'brak'}`);
+  if (expectedIncomplete > 0 && !preview.noteText.includes(`${expectedIncomplete} niepełne`)) fail(`podgląd nie pokazuje ${expectedIncomplete} niepełnych wpisów: ${preview.noteText || 'brak'}`);
+  if (preview.actionDisabled || preview.actionText !== `Dodaj ${expectedImportable}`) fail(`nieprawidłowe CTA importu: ${preview.actionText || 'brak'}`);
   await capture(cdp, `study-preview-mobile-${width}x${height}.png`);
 
   const importClicked = await evaluate(cdp, `(() => {
-    const button = [...document.querySelectorAll('.study-import-summary button')].find((item) => item.textContent?.trim() === ${JSON.stringify(`Dodaj ${expectedImportable} do kalendarza`)});
+    const button = [...document.querySelectorAll('.study-import-summary button')].find((item) => item.textContent?.trim() === ${JSON.stringify(`Dodaj ${expectedImportable}`)});
     if (!button || button.disabled) return false;
     button.click();
     return true;

@@ -16,10 +16,11 @@ describe('1.2.0.2 Today simplification', () => {
 
   it('uses only one add-event action when the day is empty', () => {
     const today = source('../calendar/TodayView.tsx');
-    expect(today).toContain('{hasPlan ? <div className="today-add-row"><button');
-    expect(today).toContain('actionLabel="+ Dodaj"');
+    expect(today).toContain('today-header-add');
+    expect(today).not.toContain('today-add-row');
     expect(today).toContain('title="Wolny dzień"');
     expect(today).toContain('description=""');
+    expect(today).not.toContain('actionLabel="+ Dodaj"');
   });
 
   it('keeps the existing calendar and work/availability data flows intact', () => {

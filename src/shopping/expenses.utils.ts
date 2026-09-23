@@ -204,6 +204,7 @@ export function normalizeExpenseProductKey(value: string): string {
  */
 export function formatExpenseProductDisplayName(value: string): string {
   return normalizeExpenseText(value)
+    .replace(/\s*(?:[|¦]\s*)?[©®]\s*;?\s*$/gu, '')
     .replace(/[!|]+$/gu, '')
     .replace(/[_]+/gu, ' ')
     .replace(/([a-ząćęłńóśźż])([A-ZĄĆĘŁŃÓŚŹŻ])/gu, '$1 $2')

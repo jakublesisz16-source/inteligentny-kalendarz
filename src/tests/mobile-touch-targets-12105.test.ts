@@ -2,12 +2,13 @@ import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 
 const css = readFileSync(new URL('../styles/interface-consistency.css', import.meta.url), 'utf8');
+const refinement = readFileSync(new URL('../styles/interface-refinement.css', import.meta.url), 'utf8');
 const version = readFileSync(new URL('../core/version.ts', import.meta.url), 'utf8');
 
 describe('1.2.0.106 mobile touch targets', () => {
   it('keeps the Today primary add action comfortably tappable', () => {
-    expect(css).toContain('.today-plan-panel .today-add-row .today-add-button');
-    expect(css).toContain('min-height: 44px !important;');
+    expect(refinement).toContain('.today-header-add');
+    expect(refinement).toContain('min-height: 44px;');
   });
 
   it('hardens interactive availability chips and day rules without changing desktop density', () => {

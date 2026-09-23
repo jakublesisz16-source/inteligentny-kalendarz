@@ -160,8 +160,7 @@ export function AvailabilityView({ onDataChanged, onOpenSettings }: Availability
     {error ? <div className="study-message error-message" role="alert">{error}</div> : null}{message ? <div className="study-message success-message availability-flash-message" role="status">{message}</div> : null}
 
     <div className="availability-dashboard-layout">
-    <section className="panel availability-week-editor" aria-label="Dyspozycyjność na dni tygodnia">
-      <div className="panel-heading compact-heading"><div><h3>Plan tygodnia</h3></div></div>
+    <section className="panel availability-week-editor availability-week-editor-clean" aria-label="Dyspozycyjność na dni tygodnia">
       <div className="availability-week-days">
         {weekDates.map((date) => {
           const dayBlocks = acceptedByDate.get(date) ?? [];
@@ -171,14 +170,14 @@ export function AvailabilityView({ onDataChanged, onOpenSettings }: Availability
           const hasAny = dayBlocks.length > 0 || dayProposals.length > 0 || dayWork.length > 0;
           const totalShown = dayBlocks.reduce((sum, block) => sum + block.minutes, 0) + dayWork.reduce((sum, block) => sum + block.minutes, 0);
           return <article key={date} className={`availability-week-day${hasAny ? ' has-hours' : ''}`}>
-            <div className="availability-week-day-date"><strong>{dateLabel(date)}</strong>{totalShown ? <span>{minutesLabel(totalShown)} stałe</span> : rule?.excluded ? <span>Automat: wyłączony</span> : null}</div>
+            <div className="availability-week-day-date"><strong>{dateLabel(date)}</strong>{totalShown ? <span className="availability-day-total">{minutesLabel(totalShown)}</span> : rule?.excluded ? <span>Automat: wyłączony</span> : null}</div>
             <div className="availability-week-day-times">
-              {dayWork.map((block) => <span key={block.eventId} className="availability-fixed-work-chip">Praca {block.startDateTime.slice(11, 16)}-{block.endDateTime.slice(11, 16)}</span>)}
+              {dayWork.map((block) => <span key={block.eventId} className="availability-fixed-work-chip"><span className="availability-fixed-work-label">Praca</span><span>{block.startDateTime.slice(11, 16)}-{block.endDateTime.slice(11, 16)}</span></span>)}
               {dayBlocks.map((block) => <button key={block.id} type="button" className="availability-time-chip" onClick={() => setDayEditor({ date, blockId: block.id, mode: 'manual' })}>{block.startTime}-{block.endTime}</button>)}
               {dayProposals.map((block) => <button key={block.id} type="button" className="availability-proposal-chip" aria-label={`Akceptuj propozycję ${block.startTime}-${block.endTime}`} onClick={() => void blockAction(block, 'ACCEPT')}>Propozycja {block.startTime}-{block.endTime}</button>)}
               {!hasAny ? <span className="availability-empty-hours">Wolne</span> : null}
             </div>
-            <button type="button" className="button button-secondary button-small" onClick={() => setDayEditor({ date, mode: 'manual' })}>{dayBlocks.length ? '+ Dodaj zakres' : 'Ustaw ręcznie'}</button>
+            <button type="button" className="text-button availability-day-action" onClick={() => setDayEditor({ date, mode: 'manual' })}>{dayBlocks.length ? 'Dodaj' : 'Ustaw'}</button>
           </article>;
         })}
       </div>
@@ -189,10 +188,10 @@ export function AvailabilityView({ onDataChanged, onOpenSettings }: Availability
     <section className="panel availability-automation-panel" aria-label="Automatyczne propozycje dyspozycyjności">
       <div className="availability-automation-heading">
         <div><h3>Automat</h3></div>
-        <button type="button" className="button button-secondary button-small" onClick={onOpenSettings}>Ustawienia automatu</button>
+        {configured ? <button type="button" className="text-button" onClick={onOpenSettings}>Ustawienia</button> : null}
       </div>
 
-      {!configured ? <div className="availability-config-note availability-config-note-inline"><div><strong>Automat nie jest jeszcze skonfigurowany</strong><span>{missingConfiguration === 'target' ? 'Ustaw tygodniowy cel pracy, jeśli chcesz otrzymywać propozycje brakujących godzin.' : 'Ustaw standardowe ramy pracy, jeśli chcesz otrzymywać automatyczne propozycje.'}</span></div><button type="button" className="button button-secondary button-small" onClick={onOpenSettings}>{missingConfiguration === 'target' ? 'Ustaw cel' : 'Ustaw ramy'}</button></div> : <>
+      {!configured ? <div className="availability-config-note availability-config-note-inline availability-config-note-compact"><div><strong>{missingConfiguration === 'target' ? 'Brak celu tygodnia' : 'Brak ram pracy'}</strong></div><button type="button" className="button button-secondary button-small" onClick={onOpenSettings}>Ustaw</button></div> : <>
         <div className="availability-summary-grid minimal-summary automation-summary-grid"><div><span>Cel tygodnia</span><strong>{minutesLabel(targetMinutes)}</strong></div><div><span>Zaplanowana praca</span><strong>{minutesLabel(confirmedMinutes)}</strong></div><div><span>Twoja dyspozycyjność</span><strong>{minutesLabel(acceptedMinutes)}</strong></div><div><span>{overMinutes ? 'Ponad potrzebę' : 'Do uzupełnienia'}</span><strong>{minutesLabel(overMinutes || remainingMinutes)}</strong></div></div>
 
         <div className="availability-day-rules">

@@ -10,7 +10,8 @@ const service = fs.readFileSync(path.join(root, 'src/availability/availability.s
 describe('1.2.0.6 work availability repair', () => {
   it('exposes direct weekly manual availability inside Work', () => {
     expect(availabilityView).toContain('availability-week-editor');
-    expect(availabilityView).toContain('Ustaw ręcznie');
+    expect(availabilityView).toContain('availability-day-action');
+    expect(availabilityView).toContain(">Ustaw</button>");
     expect(availabilityView).toContain('<DayAvailabilityEditor');
     expect(dayEditor).toContain('Dodaj godziny');
   });

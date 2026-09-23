@@ -1,7 +1,7 @@
 {
   "name": "inteligentny-kalendarz",
   "private": true,
-  "version": "1.2.0-private.201",
+  "version": "1.2.0-private.211",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -60,7 +60,17 @@
     "ui:information-reduction:qa": "node scripts/ui-information-reduction-build198-proof.mjs",
     "ui:work-person-count:qa": "node scripts/ui-work-person-count-build199-proof.mjs",
     "ui:global-cleanup:qa": "node scripts/ui-global-cleanup-build200-proof.mjs",
-    "release:contract-sync:qa": "node scripts/release-contract-sync-build201-proof.mjs"
+    "release:contract-sync:qa": "node scripts/release-contract-sync-build201-proof.mjs",
+    "ui:work-daily-compaction:qa": "node scripts/ui-work-daily-compaction-build202-proof.mjs",
+    "ui:today-clarity:qa": "node scripts/ui-today-clarity-build203-proof.mjs",
+    "ui:today-clean:qa": "node scripts/ui-today-clean-build204-proof.mjs",
+    "ui:work-streamline:qa": "node scripts/ui-work-streamline-build205-proof.mjs",
+    "ui:study-streamline:qa": "node scripts/ui-study-streamline-build206-proof.mjs",
+    "import:review-quality:qa": "node scripts/import-review-quality-build207-proof.mjs",
+    "ui:final-polish:qa": "node scripts/ui-final-polish-build208-proof.mjs",
+    "ui:phone-polish:qa": "node scripts/ui-phone-polish-build209-proof.mjs",
+    "ui:mobile-readability-final:qa": "node scripts/ui-mobile-readability-build210-proof.mjs",
+    "release:contract-sync-211:qa": "node scripts/release-contract-sync-build211-proof.mjs"
   },
   "dependencies": {
     "react": "^19.1.1",

@@ -25,7 +25,8 @@ describe('1.2.0.53 mobile density pass', () => {
     expect(responsive).toContain('position: sticky');
     expect(responsive).toContain('.calendar-side-column.is-empty { display: none; }');
     expect(calendar).toContain('weekScrollRef');
-    expect(today).toContain('actionLabel="+ Dodaj"');
+    expect(today).toContain('today-header-add');
+    expect(today).toContain('>+ Dodaj</button>');
     expect(settings).toContain('<h1>Ustawienia</h1>');
     expect(work).toContain('work-settings-button-label');
   });

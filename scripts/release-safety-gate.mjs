@@ -39,6 +39,7 @@ const studyMatrixAdapter = source('src/imports/xlsx/adapters/nursing-week-matrix
 const studyRegistry = source('src/imports/xlsx/adapter-registry.ts');
 const workPdfFile = source('src/imports/pdf/work-pdf-file.ts');
 const workView = source('src/work/WorkView.tsx');
+const coworkerList = source('src/work/CoworkerOverlapList.tsx');
 const viteConfig = source('vite.config.ts');
 const calendarView = source('src/calendar/CalendarView.tsx');
 const eventForm = source('src/events/EventForm.tsx');
@@ -67,6 +68,7 @@ const receiptScanFlow = source('src/shopping/receipt-ocr/ReceiptScanFlow.tsx');
 const receiptScanReview = source('src/shopping/receipt-ocr/ReceiptScanReview.tsx');
 const receiptDuplicate = source('src/shopping/receipt-ocr/receipt-duplicate.ts');
 const interfaceConsistency = source('src/styles/interface-consistency.css');
+const interfaceRefinement = source('src/styles/interface-refinement.css');
 const tokensCss = source('src/styles/tokens.css');
 const studyViewSource = source('src/study/StudyView.tsx');
 const studyGroupChoice = source('src/study/StudyGroupChoiceFields.tsx');
@@ -187,8 +189,17 @@ const visualQaScript = source('scripts/visual-qa-capture.mjs');
 const projectRules = sourceIfExists('CURRENT_PROJECT_RULES.md');
 assert(mobileResponsiveCss.includes('/* 1.2.0.45 - mobile-first weekly planner'), '1.2.0.45 mobile planner responsive marker missing');
 assert(mobileResponsiveCss.includes('/* 1.2.0.48 - touch-friendly editable quick-add time range */'), '1.2.0.48 mobile quick-add time controls missing');
-assert(mobileResponsiveCss.includes('.calendar-week-column { display: none; }') && mobileResponsiveCss.includes('.calendar-week-column.selected'), 'mobile week timeline is not reduced to the selected day');
-assert(mobileResponsiveCss.includes('grid-template-columns: repeat(7, minmax(0, 1fr));'), 'mobile seven-day selector is missing');
+const interfaceRefinementCss = source('src/styles/interface-refinement.css');
+assert(interfaceRefinementCss.includes('/* Build208 - final UI polish for Today, full mobile week, Finance navigation and Work expansion. */'), 'Build208 full-week mobile override missing');
+assert(interfaceRefinementCss.includes('grid-template-columns: 38px repeat(7, minmax(0, 1fr));') && interfaceRefinementCss.includes('.calendar-week-column,'), 'mobile week timeline does not expose all seven day columns');
+assert(calendarView.includes('WEEK_MOBILE_VERTICAL_CHROME') && calendarView.includes('if (weekHourHeight <= 32)'), 'Build209 full mobile week-height fit missing');
+assert(interfaceRefinementCss.includes('Calendar week: the whole 06:00-23:00 range fits in one phone viewport') && interfaceRefinementCss.includes('overflow-y: hidden'), 'Build209 mobile week still requires internal vertical scrolling');
+assert(financeDashboard.includes('finance-trip-currency-compact') && interfaceRefinementCss.includes('.finance-trip-dashboard-v148 .finance-trip-metric-grid'), 'Build209 compact trip summary missing');
+assert(workView.includes('<summary>{formatPersonCount(coworkers.length)}</summary>') && coworkerList.includes('coworker-compact-time'), 'Build209 compact Work teammate expansion missing');
+assert(interfaceRefinementCss.includes('Build210 - final mobile readability polish for Week, Availability and Work Summary') && interfaceRefinementCss.includes("content: attr(data-mobile-time) !important"), 'Build210 concise mobile week event labels missing');
+assert(availabilityView.includes('availability-day-total') && availabilityView.includes('availability-fixed-work-label') && interfaceRefinementCss.includes('grid-template-columns: minmax(92px, .9fr) minmax(0, 1.2fr) auto !important'), 'Build210 compact Availability rows missing');
+assert(workSummaryView.includes('work-summary-no-comparison') && !workSummaryView.includes('<strong>Brak porównania</strong>'), 'Build210 compact Work Summary comparison state missing');
+assert(mobileResponsiveCss.includes('grid-template-columns: repeat(7, minmax(0, 1fr));'), 'mobile seven-day selector baseline is missing');
 assert(packageJson.scripts?.['visual:qa']?.includes('visual-qa-capture.mjs'), 'visual QA capture script is not exposed through package.json');
 assert(visualQaScript.includes('calendar-week-desktop-1440x1000.png') && visualQaScript.includes('calendar-week-mobile-390x844.png'), 'visual QA desktop/mobile capture presets missing');
 assert(visualQaScript.includes('calendar-month-day-sheet-mobile-390x844.png'), 'mobile month day-sheet visual QA capture missing');
@@ -206,7 +217,7 @@ assert(workView.includes('work-settings-header-save') && workView.includes('save
 assert(mobileResponsiveCss.includes('/* 1.2.0.53 - keep the primary work-settings action visible without scrolling */') && mobileResponsiveCss.includes('.work-settings-header-save { display: inline-flex;'), 'mobile work settings save action is not visible in modal header');
 assert(mobileResponsiveCss.includes('.work-settings-modal .work-settings-save-footer { display: none; }'), 'redundant mobile work settings footer is still visible');
 assert(!app.includes('className="global-search-utility"') && !navigation.includes('nav-search-item'), 'obsolete visible search utility leaked back into the primary interface');
-assert(todayView.includes('today-add-button') && todayView.includes('showAllWorkCoworkers') && todayView.includes('compactTimeRange'), 'Today full coworker context or compact hierarchy drifted');
+assert(todayView.includes('today-header-add') && todayView.includes('showAllWorkCoworkers') && todayView.includes('compactTimeRange'), 'Today full coworker context or compact hierarchy drifted');
 assert(!eventCard.includes('event-coworker-mobile-more'), 'Calendar/Today must not claim a hidden coworker list when full-list mode is active');
 assert(workView.includes('nearestCoworkers.map((person)') && !workView.includes('nearestCoworkers.slice('), 'Work nearest-shift teammate list must remain complete');
 assert(!mobileResponsiveCss.includes('.selected-day-panel .event-coworker-line:nth-child(n+5)'), 'mobile selected-day panel must not hide coworkers after the fourth row');
@@ -315,7 +326,7 @@ assert(calendarCss.includes('width: 32px;') && calendarCss.includes('width: 40px
 assert(calendarCss.includes('/* 1.2.0.70 - resize handle no longer reserves content space in short events */') && !calendarCss.includes('.calendar-week-event.resizable { padding-bottom:'), 'desktop resize is stealing vertical space from short event labels');
 assert(calendarCss.includes('.calendar-week-shell.compact-density .calendar-week-event span { font-size: .55rem;') && calendarCss.includes('font-size: .64rem;') && calendarCss.includes('text-overflow: ellipsis;'), 'compact week event text readability regression');
 assert(mobileResponsiveCss.includes('.event-form-create:not(.event-form-multi-create) .modal-actions { display: none; }'), 'mobile event create sheet still duplicates the save action in the footer');
-assert(todayView.includes("today-view${hasPlan ? ' has-plan' : ' is-empty'}") && todayView.includes('actionLabel="+ Dodaj"'), 'Today empty state is still unnecessarily large or verbose');
+assert(todayView.includes("today-view${hasPlan ? ' has-plan' : ' is-empty'}") && todayView.includes('<EmptyState icon="calendar" title="Wolny dzień" description="" />') && !todayView.includes('actionLabel="+ Dodaj"'), 'Today empty state must stay concise and must not duplicate the header add action');
 assert(todayView.includes('today-plan-panel today-single-surface') && calendarCss.includes('/* 1.2.0.58 - Today uses one visual surface instead of cards inside a card */') && mobileResponsiveCss.includes('/* 1.2.0.58 - keep the single-surface Today hierarchy on phones too */'), 'Today reverted to nested visual cards');
 assert(mobileResponsiveCss.includes('/* 1.2.0.71 - mobile Today work-card readability */') && mobileResponsiveCss.includes('grid-template-columns: 72px minmax(0, 1fr);') && mobileResponsiveCss.includes('column-gap: 12px;') && mobileResponsiveCss.includes('border-top-color: rgba(63,130,146,.07);'), 'mobile Today event hierarchy became cramped or coworker separators became too heavy');
 assert(sha256.includes('globalThis.crypto?.subtle') && sha256.includes('fallbackSha256'), 'SHA-256 fallback for insecure LAN origins is missing');
@@ -328,7 +339,7 @@ assert(availabilityService.includes('return sha256Hex(value);'), 'availability f
 assert(db.includes('return sha256Hex(value);'), 'database backup/checksum hashing does not use the SHA-256 fallback helper');
 assert(calendarView.includes('function calculateWeekHourHeight(): number'), 'adaptive desktop week density calculation missing');
 assert(calendarView.includes('window.innerHeight - WEEK_DESKTOP_VERTICAL_CHROME'), 'week density does not react to available viewport height');
-assert(calendarView.includes("window.innerWidth <= 820) return WEEK_HOUR_HEIGHT"), 'mobile week spacing is no longer protected from desktop compaction');
+assert(calendarView.includes('if (window.innerWidth <= 620)') && calendarView.includes('if (window.innerWidth <= 820) return 40;'), 'mobile week spacing is no longer protected from desktop compaction');
 assert(calendarView.includes("weekHourHeight < 40 ? ' compact-density' : ''"), 'compact week density visual mode missing');
 assert(calendarCss.includes('/* 1.2.0.48 - adaptive desktop week density, without changing the selected-day panel */'), 'adaptive week density styles missing');
 
@@ -490,7 +501,7 @@ assert(responsiveCss.includes('.study-conflict-list li { grid-template-columns: 
 assert(studyImportReview.includes('const hasSourceWeek = Boolean(candidate.sourceWeekStart && candidate.sourceWeekEnd)'), 'weekly source-only Study entries can regress to hard date blockers');
 assert(studyImportReview.includes("severity: 'INCOMPLETE'"), 'source-week missing date is no longer represented as incomplete');
 assert(studyCompleteness.includes("status = 'SOURCE_INCONSISTENT'"), 'advisory seminar hour inconsistencies are no longer surfaced');
-assert(studyView.includes('deklaracji godzin seminariów nie zgadza się z datowanymi terminami'), 'Study UI hides advisory seminar-hour inconsistencies');
+assert(studyView.includes('deklaracji godzin nie zgadza się z terminami'), 'Study UI hides advisory seminar-hour inconsistencies');
 assert(app.includes('getActiveUniversityImport()'), 'App no longer loads active Study import metadata');
 assert(!calendarView.includes('Plan studiów aktywny'), 'Calendar default day panel reintroduced redundant Study-plan status copy');
 assert(!calendarView.includes('calendar-selected-day-study-context'), 'Calendar default day panel reintroduced redundant Study group context');
@@ -509,7 +520,7 @@ assert(settingsView.includes('settings-core') && settingsView.includes('settings
 assert(interfaceConsistency.includes('/* 1.2.0.102 - dashboard density: compact Studies, Work overview and Settings. */') && interfaceConsistency.includes('.study-group-choice-card select') && interfaceConsistency.includes('.work-overview-dashboard') && interfaceConsistency.includes('.settings-dashboard-grid'), 'dashboard density styles missing');
 assert(studyViewSource.includes('study-upload-dashboard') && interfaceConsistency.includes('.study-view .study-upload-dashboard'), '1.2.0.102 compact Study import dashboard missing');
 // 1.2.0.103 continues dashboard density without hiding primary actions and adds optional calendar information layers.
-assert(todayView.includes('today-add-row') && todayView.includes('today-add-button') && todayView.includes('>+ Dodaj</button>'), 'Today add action is no longer kept below the agenda');
+assert(todayView.includes('today-header-actions') && todayView.includes('today-header-add') && todayView.includes('>+ Dodaj</button>') && !todayView.includes('today-add-row'), 'Today must keep one concise add action in the header');
 assert(financeDashboard.includes('!newTripOpen && tripSummaries.length') && financeDashboard.includes('Utwórz pierwszy wyjazd, a jego wydatki będą zebrane w jednym miejscu.'), '1.2.0.103 empty Trips returned to duplicated header/empty-state actions');
 assert(settingsView.includes('showPolishHolidays') && settingsView.includes('showWumAcademicCalendar') && db.includes('showPolishHolidays: settings?.showPolishHolidays ?? true') && db.includes('showWumAcademicCalendar: settings?.showWumAcademicCalendar ?? true'), '1.2.0.103 optional calendar layers are not persisted safely');
 assert(calendarView.includes('calendarOverlayMarkersForDate') && calendarView.includes('calendar-selected-day-overlays') && calendarView.includes('calendar-overlay-dots'), '1.2.0.103 calendar overlay rendering missing');
@@ -526,7 +537,7 @@ assert(settingsView.includes('Święta PL') && settingsView.includes('WUM 26/27'
 // 1.2.0.105 mobile touch targets after dashboard compaction.
 assert(interfaceConsistency.includes('/* 1.2.0.105 - mobile touch-target hardening after dashboard compaction. */'), '1.2.0.105 mobile touch-target block missing');
 assert(interfaceConsistency.includes('.availability-time-chip,') && interfaceConsistency.includes('.availability-proposal-chip,') && interfaceConsistency.includes('.availability-day-rule-button') && interfaceConsistency.includes('min-height: 42px;'), '1.2.0.105 Availability touch targets missing');
-assert(interfaceConsistency.includes('.today-plan-panel .today-add-row .today-add-button') && interfaceConsistency.includes('min-height: 44px !important;'), '1.2.0.105 Today primary CTA touch target missing');
+assert(interfaceRefinement.includes('.today-header-add') && interfaceRefinement.includes('min-height: 44px;'), 'Today primary CTA touch target missing');
 
 // 1.2.0.106 real-device phone screenshots: restore Finance scan and compact the longest mobile flows.
 assert(interfaceConsistency.includes('/* 1.2.0.106 - real-phone compaction based on 1.2.0.105 screenshots. */'), '1.2.0.106 real-phone compaction block missing');
@@ -670,8 +681,8 @@ assert(componentCss.includes('.calendar-week-study-group'), 'calendar Study even
 assert(app.includes('incompleteStudyEntries={incompleteStudyEntries}'), 'Calendar does not receive source-incomplete Study entries');
 assert(calendarView.includes('study-incomplete-marker'), 'Calendar hides source-incomplete Study blocks');
 assert(calendarView.includes('to nie jest potwierdzone wydarzenie'), 'Calendar does not distinguish source-incomplete blocks from confirmed events');
-assert(studyView.includes('Bloki i godziny źródłowe'), 'Study preview lacks source completeness summary');
-assert(componentCss.includes('.study-completeness-panel') && componentCss.includes('.study-incomplete-marker'), 'source completeness UI styles missing');
+assert(studyView.includes('Kontrola źródła') && studyView.includes('study-source-audit-v207'), 'Study preview lacks progressive source completeness access');
+assert(interfaceRefinement.includes('.study-source-audit-v207') && componentCss.includes('.study-incomplete-marker'), 'source completeness UI styles missing');
 
 // 1.2.0.98 keeps bottom navigation, toasts and PWA content clear of device safe areas.
 assert(mobileResponsiveCss.includes('/* 1.2.0.98 - shared safe-area clearance for bottom navigation and mobile PWA edges. */'), '1.2.0.98 mobile safe-area marker missing');

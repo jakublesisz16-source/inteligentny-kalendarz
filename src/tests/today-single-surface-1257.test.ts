@@ -8,7 +8,7 @@ const version = readFileSync('src/core/version.ts', 'utf8');
 
 describe('1.2.0.58 Today single-surface agenda', () => {
   it('marks the populated Today panel as one visual surface', () => {
-    expect(today).toContain("hasPlan ? ' today-plan-panel today-single-surface' : ' today-empty-panel'");
+    expect(today).toContain("hasAgenda ? ' today-plan-panel today-single-surface' : ' today-empty-panel'");
     expect(today).toContain('showAllWorkCoworkers');
   });
 

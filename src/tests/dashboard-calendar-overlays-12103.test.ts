@@ -5,12 +5,13 @@ import { calendarOverlayMarkersForDate, polishHolidayForDate, wumAcademicMarkerF
 const source = (path: string) => readFileSync(new URL(path, import.meta.url), 'utf8');
 
 describe('1.2.0.103 dashboard continuation and calendar overlays', () => {
-  it('moves Today add action below existing agenda instead of keeping it in the header', () => {
+  it('keeps one concise Today add action in the header', () => {
     const today = source('../calendar/TodayView.tsx');
-    expect(today).toContain('today-add-row');
-    expect(today).toContain('+ Dodaj');
+    expect(today).toContain('today-header-actions');
+    expect(today).toContain('today-header-add');
+    expect(today).toContain('>+ Dodaj</button>');
+    expect(today).not.toContain('today-add-row');
     expect(today).not.toContain('+ Dodaj wydarzenie');
-    expect(today).not.toContain('today-header-actions');
   });
 
   it('keeps empty trips to one central create action', () => {

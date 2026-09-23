@@ -9,7 +9,8 @@ describe('1.2.0.20 work summary UX', () => {
     expect(view).toContain('względem {formatMonthLabel(previousMonthDate)}');
     expect(view).toContain('dni wolnych');
     expect(view).toContain('Ostatnie miesiące');
-    expect(view).toContain('najdłuższa seria dni pracy');
+    expect(view).toContain('work-summary-rhythm-inline');
+    expect(view).toContain('dni z rzędu');
   });
 
   it('pokazuje procent zgodności z wysłaną dyspozycyjnością', () => {

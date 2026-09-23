@@ -21,7 +21,9 @@ check('old Availability helper copy stays removed', !availability.includes('Ręc
 check('trip summary leads with the trip itself', finance.includes('finance-trip-hero-total') && finance.includes('<strong>{activeTripName}</strong>') && !finance.includes('Wydatki na wyjeździe'));
 check('Calendar does not repeat passive Study profile context', !calendar.includes('calendar-selected-day-study-context'));
 check('Work settings expose one save surface', work.includes('work-settings-header-save') && !work.includes('work-settings-save-footer'));
-check('Build201 metadata is synchronized', version.includes("APP_VERSION = '1.2.0.201'") && build.includes("APP_BUILD = '201'") && sw.includes('v1.2.0.201'));
+const versionBuild = Number(version.match(/APP_VERSION = '1\.2\.0\.(\d+)'/)?.[1] ?? 0);
+const buildNumber = Number(build.match(/APP_BUILD = '(\d+)'/)?.[1] ?? 0);
+check('Build201-or-newer metadata remains synchronized', versionBuild >= 201 && buildNumber === versionBuild && sw.includes(`v1.2.0.${versionBuild}`));
 check('database schema remains 14', version.includes('DATABASE_SCHEMA_VERSION = 14'));
 
 console.log(`Build201 release contract sync proof PASS ${checks.length}/${checks.length}`);

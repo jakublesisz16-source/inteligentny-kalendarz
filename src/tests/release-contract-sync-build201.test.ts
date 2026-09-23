@@ -20,10 +20,15 @@ describe('Build201 release contract synchronization', () => {
     expect(work).not.toContain('work-settings-save-footer');
   });
 
-  it('synchronizes Build201 without changing schema', () => {
-    expect(read('src/core/version.ts')).toContain("APP_VERSION = '1.2.0.201'");
-    expect(read('src/core/build.ts')).toContain("APP_BUILD = '201'");
-    expect(read('src/core/version.ts')).toContain('DATABASE_SCHEMA_VERSION = 14');
-    expect(read('public/service-worker.js')).toContain('v1.2.0.201');
+  it('keeps Build201-or-newer metadata synchronized without changing schema', () => {
+    const version = read('src/core/version.ts');
+    const build = read('src/core/build.ts');
+    const sw = read('public/service-worker.js');
+    const versionBuild = Number(version.match(/APP_VERSION = '1\.2\.0\.(\d+)'/)?.[1] ?? 0);
+    const buildNumber = Number(build.match(/APP_BUILD = '(\d+)'/)?.[1] ?? 0);
+    expect(versionBuild).toBeGreaterThanOrEqual(201);
+    expect(buildNumber).toBe(versionBuild);
+    expect(version).toContain('DATABASE_SCHEMA_VERSION = 14');
+    expect(sw).toContain(`v1.2.0.${versionBuild}`);
   });
 });

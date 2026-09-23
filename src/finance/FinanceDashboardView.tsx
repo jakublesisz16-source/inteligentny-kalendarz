@@ -1337,6 +1337,7 @@ export function FinanceDashboardView() {
                   <strong>{activeTripOriginalTotalMinor !== null ? formatCurrencyAmountMinor(activeTripOriginalTotalMinor, activeTripCurrency) : formatMoneyMinor(activeTripTotalMinor)}</strong>
                   <small className="finance-trip-hero-context"><strong>{activeTripName}</strong>{activeTripDateRange ? <span>{activeTripDateRange}</span> : null}</small>
                   {activeTripOriginalTotalMinor !== null ? <span className="finance-trip-original-total">≈ {formatMoneyMinor(activeTripTotalMinor)} po przeliczeniu</span> : null}
+                  <button type="button" className="text-button finance-trip-currency-compact" onClick={() => void openTripCurrencySettings()} disabled={busy} aria-label={`Edytuj walutę wyjazdu ${activeTripCurrency}`}>Waluta</button>
                 </div>
 
                 <div className="finance-overview-summary-meta finance-trip-summary-meta finance-trip-metric-grid" aria-label="Statystyki wyjazdu">
@@ -1493,13 +1494,11 @@ export function FinanceDashboardView() {
             <div className="finance-overview-summary-main finance-month-summary-main finance-month-dashboard-head">
               <button type="button" className="finance-month-hero-total" onClick={showTransactions} aria-label="Pokaż wszystkie transakcje miesiąca">
                 <strong>{formatMoneyMinor(monthSummary.totalMinor)}</strong>
-                <small className={comparison.state === 'comparable' ? comparison.differenceMinor < 0 ? 'is-lower' : comparison.differenceMinor > 0 ? 'is-higher' : '' : ''}>
-                  {comparison.state === 'comparable'
-                    ? comparison.differenceMinor === 0
-                      ? comparisonText.detail
-                      : `${comparison.differenceMinor < 0 ? '↓' : '↑'} ${formatMoneyMinor(Math.abs(comparison.differenceMinor))} · ${comparisonText.detail} niż poprzednio`
-                    : comparisonText.detail}
-                </small>
+                {comparison.state === 'comparable' ? <small className={comparison.differenceMinor < 0 ? 'is-lower' : comparison.differenceMinor > 0 ? 'is-higher' : ''}>
+                  {comparison.differenceMinor === 0
+                    ? comparisonText.detail
+                    : `${comparison.differenceMinor < 0 ? '↓' : '↑'} ${formatMoneyMinor(Math.abs(comparison.differenceMinor))} · ${comparisonText.detail} niż poprzednio`}
+                </small> : null}
               </button>
 
               <div className="finance-overview-summary-meta finance-month-summary-meta finance-month-metric-grid" aria-label="Statystyki miesiąca">

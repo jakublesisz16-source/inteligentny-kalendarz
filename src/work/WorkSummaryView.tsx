@@ -109,17 +109,15 @@ export function WorkSummaryView({ workEvents, workImports, availabilityPlans, on
   return <section className="work-summary-view" aria-label={`Podsumowanie pracy - ${formatMonthLabel(monthDate)}`}>
     <div className="work-summary-month-nav">
       <button type="button" className="icon-button" aria-label="Poprzedni miesiąc" onClick={() => setMonthKey((value) => shiftMonth(value, -1))}>‹</button>
-      <div><span className="section-kicker">Podsumowanie</span><h2>{formatMonthLabel(monthDate)}</h2></div>
+      <div><h2>{formatMonthLabel(monthDate)}</h2></div>
       <button type="button" className="icon-button" aria-label="Następny miesiąc" onClick={() => setMonthKey((value) => shiftMonth(value, 1))}>›</button>
     </div>
 
     {!summary.shiftCount ? <section className="panel work-summary-empty"><h3>Brak danych o pracy w tym miesiącu</h3><p className="muted-copy">Zaimportuj grafik albo dodaj potwierdzoną zmianę pracy, a podsumowanie policzy się automatycznie.</p><button type="button" className="button button-primary" onClick={onImportClick}>Importuj grafik</button></section> : <>
       <section className="work-summary-hero" aria-label="Najważniejsze statystyki miesiąca">
         <div className="work-summary-hero-top">
-          <div className="work-summary-total"><strong>{formatWorkSummaryMinutes(summary.totalMinutes)}</strong><span>przepracowano</span></div>
-          <div className={`work-summary-delta${monthDeltaMinutes > 0 ? ' up' : monthDeltaMinutes < 0 ? ' down' : ''}`}>
-            {previousSummary.shiftCount ? <><strong>{monthDeltaMinutes > 0 ? '+' : monthDeltaMinutes < 0 ? '-' : ''}{formatWorkSummaryMinutes(Math.abs(monthDeltaMinutes))}</strong><span>względem {formatMonthLabel(previousMonthDate)}</span></> : <><strong>Brak porównania</strong><span>brak danych z {formatMonthLabel(previousMonthDate)}</span></>}
-          </div>
+          <div className="work-summary-total"><strong>{formatWorkSummaryMinutes(summary.totalMinutes)}</strong><span>przepracowano</span>{!previousSummary.shiftCount ? <small className="work-summary-no-comparison">Bez danych z {formatMonthLabel(previousMonthDate)}</small> : null}</div>
+          {previousSummary.shiftCount ? <div className={`work-summary-delta${monthDeltaMinutes > 0 ? ' up' : monthDeltaMinutes < 0 ? ' down' : ''}`}><strong>{monthDeltaMinutes > 0 ? '+' : monthDeltaMinutes < 0 ? '-' : ''}{formatWorkSummaryMinutes(Math.abs(monthDeltaMinutes))}</strong><span>względem {formatMonthLabel(previousMonthDate)}</span></div> : null}
         </div>
         <div className="work-summary-facts work-summary-facts-grid">
           <span><strong>{summary.shiftCount}</strong><small>{summary.shiftCount === 1 ? 'zmiana' : 'zmian'}</small></span>
@@ -127,10 +125,15 @@ export function WorkSummaryView({ workEvents, workImports, availabilityPlans, on
           <span><strong>{summary.averageShiftMinutes !== undefined ? formatWorkSummaryMinutes(summary.averageShiftMinutes) : 'Brak'}</strong><small>średnia zmiana</small></span>
           <span><strong>{summary.daysOffCount}</strong><small>dni wolnych</small></span>
         </div>
+        <div className="work-summary-rhythm-inline" aria-label="Rytm pracy">
+          <span><strong>{summary.longestWorkStreakDays}</strong> dni z rzędu</span>
+          <span><strong>{summary.saturdayCount}</strong> soboty</span>
+          <span><strong>{summary.sundayCount}</strong> niedziele</span>
+        </div>
       </section>
 
       <section className="panel work-summary-section">
-        <div className="panel-heading compact-heading"><div><span className="section-kicker">Godziny w tygodniach</span><h3>Jak rozłożyła się praca</h3></div></div>
+        <div className="panel-heading compact-heading"><div><h3>Godziny w tygodniach</h3></div></div>
         <div className="work-week-bars" role="img" aria-label={summary.weeklyBuckets.map((bucket) => `${formatWeekRange(bucket.startDate, bucket.endDate)}: ${formatWorkSummaryMinutes(bucket.minutes)}`).join('; ')}>
           {summary.weeklyBuckets.map((bucket) => <div className="work-week-bar-row" key={bucket.startDate}>
             <span>{formatWeekRange(bucket.startDate, bucket.endDate)}</span>
@@ -140,9 +143,9 @@ export function WorkSummaryView({ workEvents, workImports, availabilityPlans, on
         </div>
       </section>
 
-      <section className="panel work-summary-section work-summary-insights">
+      <section className="panel work-summary-section work-summary-insights work-summary-recent-only">
         <div className="work-summary-recent">
-          <div className="panel-heading compact-heading"><div><span className="section-kicker">Ostatnie miesiące</span><h3>Jak zmieniały się godziny</h3></div></div>
+          <div className="panel-heading compact-heading"><div><h3>Ostatnie miesiące</h3></div></div>
           <div className="work-month-bars" role="img" aria-label={recentSummaries.map((item) => `${formatMonthLabel(localDateFromKey(`${item.monthKey}-01`))}: ${formatWorkSummaryMinutes(item.totalMinutes)}`).join('; ')}>
             {recentSummaries.map((item) => <div className={`work-month-bar${item.monthKey === monthKey ? ' current' : ''}`} key={item.monthKey}>
               <strong>{formatWorkSummaryMinutes(item.totalMinutes)}</strong>
@@ -151,19 +154,11 @@ export function WorkSummaryView({ workEvents, workImports, availabilityPlans, on
             </div>)}
           </div>
         </div>
-        <div className="work-summary-rhythm">
-          <div className="panel-heading compact-heading"><div><span className="section-kicker">Rytm pracy</span><h3>Jak wyglądał miesiąc</h3></div></div>
-          <div className="work-rhythm-stats">
-            <div><strong>{summary.longestWorkStreakDays}</strong><span>najdłuższa seria dni pracy</span></div>
-            <div><strong>{summary.saturdayCount}</strong><span>pracujące soboty</span></div>
-            <div><strong>{summary.sundayCount}</strong><span>pracujące niedziele</span></div>
-          </div>
-        </div>
       </section>
 
       <section className="panel work-summary-section work-summary-comparison">
-        <div className="panel-heading compact-heading"><div><span className="section-kicker">Zgodność z dyspozycyjnością</span><h3>Grafik a wysłane godziny</h3></div></div>
-        {!comparisonData.totalPdfShiftCount ? <p className="muted-copy">Porównanie dotyczy zmian z zaimportowanego grafiku PDF. W tym miesiącu nie ma takich zmian.</p> : !comparisonData.sentPlanCount || !comparisonSummary.comparedShiftCount ? <div className="work-summary-comparison-empty"><p>Brak wysłanej dyspozycyjności do porównania.</p><button type="button" className="button button-secondary button-small" onClick={onOpenAvailability}>Przejdź do Dyspozycyjności</button></div> : <>
+        <div className="panel-heading compact-heading"><div><h3>Dyspozycyjność</h3></div></div>
+        {!comparisonData.totalPdfShiftCount ? <p className="muted-copy">Brak zmian z PDF do porównania.</p> : !comparisonData.sentPlanCount || !comparisonSummary.comparedShiftCount ? <div className="work-summary-comparison-empty"><p>Brak wysłanej dyspozycyjności.</p><button type="button" className="button button-secondary button-small" onClick={onOpenAvailability}>Dyspozycyjność</button></div> : <>
           <div className="work-summary-compliance-head"><strong>{compliancePercent}%</strong><span>{comparisonSummary.fullyWithinCount} z {comparisonSummary.comparedShiftCount} zmian w pełni zgodnych</span></div>
           <div className="work-summary-comparison-metrics" aria-label="Miesięczne podsumowanie zgodności">
             <div><strong>{comparisonSummary.fullyWithinCount}</strong><span>zgodnych</span></div>
@@ -178,11 +173,10 @@ export function WorkSummaryView({ workEvents, workImports, availabilityPlans, on
             </> : null}
           </div>
           {comparisonSummary.comparedShiftCount < comparisonData.totalPdfShiftCount ? <p className="work-summary-source-note">Porównano {comparisonSummary.comparedShiftCount} z {comparisonData.totalPdfShiftCount} zmian z grafiku. Dla części miesiąca brakuje wysłanej dyspozycyjności.</p> : null}
-          <button type="button" className="button button-secondary button-small" onClick={onOpenComparison}>Zobacz szczegóły w Grafiku</button>
+          <button type="button" className="button button-secondary button-small" onClick={onOpenComparison}>Szczegóły</button>
         </>}
       </section>
 
-      <p className="work-summary-source-note">Na podstawie aktualnie zapisanych potwierdzonych zmian. Dyspozycyjność nie jest liczona jako praca.</p>
     </>}
   </section>;
 }

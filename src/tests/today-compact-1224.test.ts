@@ -9,7 +9,7 @@ describe('1.2.0.24 Today compact layout', () => {
   it('lets the populated plan panel size to its content instead of the generic timeline minimum', () => {
     const today = source('../calendar/TodayView.tsx');
     const components = source('../styles/components.css');
-    expect(today).toContain("hasPlan ? ' today-plan-panel today-single-surface' : ' today-empty-panel'");
+    expect(today).toContain("hasAgenda ? ' today-plan-panel today-single-surface' : ' today-empty-panel'");
     expect(components).toContain('.today-plan-panel {');
     expect(components).toContain('min-height: 0;');
   });

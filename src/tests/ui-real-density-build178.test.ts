@@ -9,7 +9,8 @@ const consistency = readFileSync(new URL('../styles/interface-consistency.css', 
 describe('Build 178 real-screen density polish', () => {
   it('keeps an empty Today directly actionable without a dashboard-sized surface', () => {
     expect(today).toContain('title="Wolny dzień"');
-    expect(today).toContain('actionLabel="+ Dodaj"');
+    expect(today).toContain('today-header-add');
+    expect(today).toContain('>+ Dodaj</button>');
     expect(consistency).toContain('.today-view.is-empty .today-empty-panel {');
     expect(consistency).toContain('grid-template-columns: 42px minmax(0, 1fr) auto;');
   });

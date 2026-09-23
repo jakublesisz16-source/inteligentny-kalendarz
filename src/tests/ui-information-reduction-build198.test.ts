@@ -10,7 +10,7 @@ const refinement = readFileSync(new URL('../styles/interface-refinement.css', im
 
 describe('Build198 information reduction', () => {
   it('removes redundant Today metadata while keeping the next-event strip', () => {
-    expect(today).toContain('<section className="today-next-strip"');
+    expect(today).toContain('<section className="today-next-strip today-future-preview"');
     expect(today).not.toContain('nextCategoryLabels');
     expect(refinement).toContain('.today-view .event-category');
     expect(refinement).toContain('.today-view .event-source { display: none; }');
@@ -31,7 +31,6 @@ describe('Build198 information reduction', () => {
 
   it('trims generic tutorial-style copy', () => {
     expect(work).not.toContain('workHeaderSubtitle');
-    expect(availability).toContain('<h3>Plan tygodnia</h3>');
     expect(availability).toContain('<h3>Automat</h3>');
     expect(availability).toContain('>Wolne</span>');
   });

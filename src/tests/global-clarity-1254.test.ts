@@ -21,7 +21,7 @@ describe('1.2.0.54 global clarity pass', () => {
   });
 
   it('keeps Today concise while preserving the complete coworker context', () => {
-    expect(today).toContain('today-add-button');
+    expect(today).toContain('today-header-add');
     expect(today).toContain('showAllWorkCoworkers');
     expect(today).toContain('compactTimeRange');
     expect(today).not.toContain('<h2>Plan dnia</h2>');

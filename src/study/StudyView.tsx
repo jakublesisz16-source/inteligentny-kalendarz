@@ -18,7 +18,6 @@ import {
 import {
   applyManualCorrection,
   defaultIncludeForCandidate,
-  deselectAllCandidates,
   reviewCandidate,
   selectAllImportable,
   toggleCandidateSelection,
@@ -53,11 +52,6 @@ interface SelectedFileMeta {
   hash: string;
 }
 
-function formatBytes(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
 
 function formatImportDate(value: string): string {
   return new Intl.DateTimeFormat('pl-PL', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value));
@@ -365,11 +359,9 @@ export function StudyView({ onDataChanged }: StudyViewProps) {
   const incompleteHourAudits = useMemo(() => strictHourAudits.filter((audit) => audit.status === 'SOURCE_INCOMPLETE'), [strictHourAudits]);
   const advisoryHourInconsistencies = useMemo(() => selectedCompleteness?.hourAudits.filter((audit) => audit.enforcement === 'ADVISORY' && audit.status === 'SOURCE_INCONSISTENT') ?? [], [selectedCompleteness]);
   const invalidIncluded = useMemo(() => importable.filter((candidate) => !validateCandidateForImport(candidate).valid), [importable]);
-  const readyPreviewCount = useMemo(() => workingCandidates.filter((candidate) => reviewCandidate(candidate).state === 'READY').length, [workingCandidates]);
   const warningPreviewCount = useMemo(() => workingCandidates.filter((candidate) => reviewCandidate(candidate).state === 'WARNING').length, [workingCandidates]);
   const incompletePreviewCount = useMemo(() => workingCandidates.filter((candidate) => reviewCandidate(candidate).state === 'INCOMPLETE').length, [workingCandidates]);
   const blockingPreviewCount = useMemo(() => workingCandidates.filter((candidate) => reviewCandidate(candidate).state === 'BLOCKING').length, [workingCandidates]);
-  const possibleCount = readyPreviewCount + warningPreviewCount;
   const selectedWarningCount = useMemo(() => workingCandidates.filter((candidate) => candidate.include && reviewCandidate(candidate).state === 'WARNING').length, [workingCandidates]);
   const manuallyExcludedCount = useMemo(() => workingCandidates.filter((candidate) => !candidate.include && reviewCandidate(candidate).canImport).length, [workingCandidates]);
   const reviewedCount = workingCandidates.filter((candidate) => candidate.manuallyReviewed && candidate.include).length;
@@ -529,7 +521,7 @@ export function StudyView({ onDataChanged }: StudyViewProps) {
                 {activePlanUpdate ? <span className="study-current-plan-change" title={activePlanUpdate.appliedAt ? formatImportDate(activePlanUpdate.appliedAt) : undefined}>{formatUpdateSummary(activePlanUpdate.summary)}</span> : null}
               </div>
             ) : null}
-            <span className="upload-hint">Możesz też przeciągnąć plik tutaj.</span>
+            {!activeImport ? <span className="upload-hint">Możesz też przeciągnąć plik tutaj.</span> : null}
           </div>
           <div className="study-upload-action">
             <input ref={fileInputRef} className="visually-hidden" type="file" accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" onChange={(event) => { const file = event.target.files?.[0]; if (file) void processFile(file); }} />
@@ -556,33 +548,30 @@ export function StudyView({ onDataChanged }: StudyViewProps) {
 
       {phase === 'preview' && analysis && fileMeta ? (
         <div className="study-stack">
-          <section className="panel study-import-summary">
+          <section className="panel study-import-summary study-import-summary-v207">
             <div className="study-import-summary-heading">
-              <div><p className="section-kicker">Podsumowanie</p><h2>{importBlocked ? 'Plan wymaga sprawdzenia' : 'Plan jest gotowy do dodania'}</h2><p>{fileMeta.file.name} <span>·</span> {formatBytes(fileMeta.file.size)}</p></div>
-              <span className={importBlocked ? 'study-summary-state blocking' : attentionCount ? 'study-summary-state attention' : 'study-summary-state ready'}>{importBlocked ? 'WYMAGA UWAGI' : attentionCount ? 'SPRAWDŹ UWAGI' : 'GOTOWY'}</span>
+              <div><h2>{importBlocked ? 'Plan wymaga sprawdzenia' : 'Plan gotowy'}</h2><p>{fileMeta.file.name}</p></div>
+              {importBlocked ? <span className="study-summary-state blocking">WYMAGA POPRAWY</span> : null}
             </div>
-            <div className="study-import-summary-grid">
-              <div><span>Do kalendarza</span><strong>{importable.length}</strong></div>
-              <div><span>Okres</span><strong>{schedulePeriod}</strong></div>
-              <div><span>Grupy</span><strong>{selectedGroupSummary}</strong></div>
-              <div><span>Niepełne</span><strong>{incompletePreviewCount}</strong></div>
-              <div><span>Do sprawdzenia</span><strong>{warningPreviewCount + blockingPreviewCount}</strong></div>
+            <div className="study-import-summary-line-v207" aria-label="Podsumowanie importu">
+              <strong>{importable.length} wydarzeń</strong>
+              <span>{schedulePeriod}</span>
+              <span>{selectedGroupSummary}</span>
             </div>
-            {selectedCompleteness && !selectedCompleteness.safe ? <div className="study-summary-alert blocking"><strong>Nie zapiszę jeszcze tego planu.</strong><span>{selectedCompleteness.reasons.join(' ')}</span></div> : null}
-            {incompletePreviewCount ? <div className="study-summary-alert"><strong>{incompletePreviewCount} wpisów jest niepełnych.</strong><span>Pozostaną do wglądu. Aplikacja nie zgaduje brakujących dni ani godzin.</span></div> : null}
-            {scheduleConflicts.length ? <div className="study-summary-alert"><strong>Wykryto {scheduleConflicts.length} nakładających się terminów.</strong><span>To informacja - możesz sprawdzić je w szczegółach przed zapisem.</span></div> : null}
-            <footer className="study-import-summary-actions"><button type="button" className="button button-secondary" onClick={() => resetFlow()}>Wybierz inny plik</button><button type="button" className="button button-primary" disabled={importBlocked || saving} onClick={() => activeImport ? void continueAfterPreview() : void confirmImport()}>{saving ? 'Przygotowuję...' : activeImport ? 'Porównaj zmiany' : `Dodaj ${importable.length} do kalendarza`}</button></footer>
+            {selectedCompleteness && !selectedCompleteness.safe ? <div className="study-summary-alert blocking"><strong>Nie można jeszcze dodać planu.</strong><span>{selectedCompleteness.reasons.join(' ')}</span></div> : null}
+            {!importBlocked && incompletePreviewCount ? <div className="study-summary-note-v207"><strong>{incompletePreviewCount} niepełne</strong><span>Nie zostaną dodane.</span></div> : null}
+            {!importBlocked && (warningPreviewCount || scheduleConflicts.length) ? <div className="study-summary-note-v207"><strong>{warningPreviewCount + scheduleConflicts.length} do sprawdzenia</strong><span>Szczegóły są poniżej.</span></div> : null}
+            <footer className="study-import-summary-actions"><button type="button" className="button button-primary" disabled={importBlocked || saving} onClick={() => activeImport ? void continueAfterPreview() : void confirmImport()}>{saving ? 'Przygotowuję...' : activeImport ? 'Porównaj zmiany' : `Dodaj ${importable.length}`}</button></footer>
           </section>
 
-          <section className="panel study-review-details study-static-section">
-            <div className="study-static-section-heading"><span><strong>Szczegóły i korekty</strong><small>Tu możesz sprawdzić pojedyncze zajęcia, wykluczyć wpis albo uzupełnić brakujące dane.</small></span><span className="study-review-count">{workingCandidates.length} wpisów</span></div>
+          <details className="panel study-review-details study-review-details-v207" open={importBlocked ? true : undefined}>
+            <summary><span><strong>Szczegóły</strong><small>{attentionCount ? `${attentionCount} uwag` : `${workingCandidates.length} wpisów`}</small></span><span className="study-details-action">Pokaż</span></summary>
             <div className="study-review-details-body">
-              {analysis.information.map((item) => <div key={item.id} className="study-information"><strong>{item.title}</strong><span>{item.message}</span></div>)}
-              {analysis.warnings.map((warning) => <div key={warning} className="study-information warning-info">{warning}</div>)}
-              {selectedCompleteness ? <section className="study-completeness-panel" aria-label="Kontrola kompletności planu źródłowego"><div className="study-completeness-heading"><div><p className="section-kicker">Kontrola kompletności</p><h3>Bloki i godziny źródłowe</h3></div><span className={selectedCompleteness.safe ? 'completeness-state safe' : 'completeness-state blocking'}>{selectedCompleteness.safe ? 'SPÓJNE' : 'BLOKADA'}</span></div><div className="study-completeness-stats"><div><span>Bloki źródłowe</span><strong>{selectedCompleteness.sourceBlockCount}</strong></div><div><span>Kompletne</span><strong>{selectedCompleteness.completeBlockCount}</strong></div><div><span>Niepełne w źródle</span><strong>{selectedCompleteness.incompleteSourceBlockCount}</strong></div><div><span>Bilans godzin</span><strong>{strictHourAudits.filter((audit) => audit.status === 'MATCH').length}/{strictHourAudits.length}</strong></div></div>{incompleteHourAudits.length ? <div className="study-completeness-note"><strong>{incompleteHourAudits.length} bilansów godzin nie da się zamknąć bez zgadywania.</strong><span>Źródło ma przypisanie grupy/bloku, ale nie podaje wszystkich dni lub pełnych godzin. Takie pozycje pozostają jako NIEPEŁNE i nie są zamieniane na fikcyjne wydarzenia.</span></div> : null}{advisoryHourInconsistencies.length ? <div className="study-completeness-note advisory"><strong>{advisoryHourInconsistencies.length} deklaracji godzin seminariów nie zgadza się z datowanymi terminami.</strong><span>To informacja o niespójności planu źródłowego. Aplikacja zachowuje konkretne daty i godziny z Excela i nie dopisuje brakujących zajęć.</span></div> : null}{selectedCompleteness.reasons.length ? <div className="inline-error">{selectedCompleteness.reasons.join(' ')}</div> : null}</section> : null}
+              {analysis.information.length || analysis.warnings.length ? <details className="study-source-notes-v207"><summary><strong>Informacje z planu</strong><span>{analysis.information.length + analysis.warnings.length}</span></summary><div>{analysis.information.map((item) => <div key={item.id} className="study-information"><strong>{item.title}</strong><span>{item.message}</span></div>)}{analysis.warnings.map((warning) => <div key={warning} className="study-information warning-info">{warning}</div>)}</div></details> : null}
+              {selectedCompleteness ? <details className="study-source-audit-v207" open={!selectedCompleteness.safe}><summary><strong>Kontrola źródła</strong><span>{selectedCompleteness.completeBlockCount}/{selectedCompleteness.sourceBlockCount} bloków · {selectedCompleteness.incompleteSourceBlockCount} niepełnych · godziny {strictHourAudits.filter((audit) => audit.status === 'MATCH').length}/{strictHourAudits.length}</span></summary><div className="study-source-audit-body-v207">{incompleteHourAudits.length ? <div className="study-completeness-note"><strong>{incompleteHourAudits.length} bilansów godzin jest niepełnych.</strong><span>Te pozycje pozostają tylko do wglądu.</span></div> : null}{advisoryHourInconsistencies.length ? <div className="study-completeness-note advisory"><strong>{advisoryHourInconsistencies.length} deklaracji godzin nie zgadza się z terminami.</strong><span>Zachowujemy daty i godziny z planu.</span></div> : null}{selectedCompleteness.reasons.length ? <div className="inline-error">{selectedCompleteness.reasons.join(' ')}</div> : null}</div></details> : null}
 
-              <div className="preview-toolbar study-review-toolbar"><div><h3>Wpisy z planu</h3><p>Domyślnie zaznaczamy wszystkie bezpieczne wpisy. Niepełne dane pozostają tylko do wglądu.</p></div><div className="preview-filters" role="group" aria-label="Filtr wpisów"><button type="button" className={previewFilter === 'all' ? 'filter-button active' : 'filter-button'} onClick={() => setPreviewFilter('all')}>Wszystkie ({workingCandidates.length})</button><button type="button" className={previewFilter === 'ready' ? 'filter-button active' : 'filter-button'} onClick={() => setPreviewFilter('ready')}>Gotowe ({readyPreviewCount})</button><button type="button" className={previewFilter === 'warning' ? 'filter-button active' : 'filter-button'} onClick={() => setPreviewFilter('warning')}>Do sprawdzenia ({warningPreviewCount})</button><button type="button" className={previewFilter === 'incomplete' ? 'filter-button active' : 'filter-button'} onClick={() => setPreviewFilter('incomplete')}>Niepełne ({incompletePreviewCount})</button><button type="button" className={previewFilter === 'blocking' ? 'filter-button active' : 'filter-button'} onClick={() => setPreviewFilter('blocking')}>Wymagają poprawy ({blockingPreviewCount})</button></div></div>
-              <section className="preview-selection" aria-label="Wybór wpisów do importu"><div className="preview-selection-summary"><strong>{importable.length} wybranych z {possibleCount} możliwych</strong><span>{warningPreviewCount} do sprawdzenia{incompletePreviewCount ? ` - ${incompletePreviewCount} niepełnych tylko do wglądu` : ''}{blockingPreviewCount ? ` - ${blockingPreviewCount} wymaga poprawy` : ''}</span></div><div className="preview-bulk-actions"><button type="button" className="button button-secondary button-small" onClick={() => setWorkingCandidates((current) => selectAllImportable(current))}>Zaznacz wszystkie możliwe</button><button type="button" className="button button-secondary button-small" onClick={() => setWorkingCandidates((current) => deselectAllCandidates(current))}>Odznacz wszystkie</button></div></section>
+              <div className="preview-toolbar study-review-toolbar study-review-toolbar-v207"><div><h3>Wpisy</h3></div><div className="preview-filters" role="group" aria-label="Filtr wpisów"><button type="button" className={previewFilter === 'all' ? 'filter-button active' : 'filter-button'} onClick={() => setPreviewFilter('all')}>Wszystkie {workingCandidates.length}</button>{warningPreviewCount ? <button type="button" className={previewFilter === 'warning' ? 'filter-button active' : 'filter-button'} onClick={() => setPreviewFilter('warning')}>Do sprawdzenia {warningPreviewCount}</button> : null}{incompletePreviewCount ? <button type="button" className={previewFilter === 'incomplete' ? 'filter-button active' : 'filter-button'} onClick={() => setPreviewFilter('incomplete')}>Niepełne {incompletePreviewCount}</button> : null}{blockingPreviewCount ? <button type="button" className={previewFilter === 'blocking' ? 'filter-button active' : 'filter-button'} onClick={() => setPreviewFilter('blocking')}>Do poprawy {blockingPreviewCount}</button> : null}</div></div>
+              <section className="preview-selection preview-selection-v207" aria-label="Wybór wpisów do importu"><div className="preview-selection-summary"><strong>{importable.length} wybranych</strong><span>{manuallyExcludedCount ? `${manuallyExcludedCount} pominiętych ręcznie` : 'Bezpieczne wpisy są już zaznaczone'}</span></div>{manuallyExcludedCount ? <button type="button" className="button button-secondary button-small" onClick={() => setWorkingCandidates((current) => selectAllImportable(current))}>Przywróć wybór</button> : null}</section>
               {scheduleConflicts.length ? <section className="confirm-warning conflict-review-panel"><div className="conflict-review-heading"><strong>Wykryto {scheduleConflicts.length} konfliktów godzin.</strong><span>Informacja</span></div><p>To mogą być błędy źródłowego planu albo świadomie nakładające się zajęcia. Konflikty pozostają widoczne, ale nie wymagają dodatkowego potwierdzenia - przejście dalej oznacza zapis wybranych wpisów zgodnie z planem.</p><ul className="study-conflict-list">{scheduleConflicts.slice(0, 8).map((conflict) => <li key={conflict.id}><time>{conflict.date}</time><span><strong>{conflict.left.subject}</strong> {conflict.left.startTime}-{conflict.left.endTime}</span><span className="conflict-separator">↔</span><span><strong>{conflict.right.subject}</strong> {conflict.right.startTime}-{conflict.right.endTime}</span></li>)}</ul>{scheduleConflicts.length > 8 ? <p>...oraz {scheduleConflicts.length - 8} kolejnych konfliktów.</p> : null}</section> : null}
 
               <div className="candidate-list study-review-candidate-list">
@@ -611,7 +600,7 @@ export function StudyView({ onDataChanged }: StudyViewProps) {
                 })}
               </div>
             </div>
-          </section>
+          </details>
         </div>
       ) : null}
 

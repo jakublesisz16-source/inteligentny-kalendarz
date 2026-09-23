@@ -5,15 +5,16 @@ function source(path: string): string {
   return readFileSync(new URL(path, import.meta.url), 'utf8');
 }
 
-describe('1.2.0.45 mobile weekly planner', () => {
-  it('keeps all seven day selectors visible but renders only the selected timeline on phones', () => {
+describe('mobile weekly planner contract', () => {
+  it('keeps all seven day timelines visible on phones', () => {
     const responsive = source('../styles/responsive.css');
+    const refinement = source('../styles/interface-refinement.css');
     expect(responsive).toContain('1.2.0.45 - mobile-first weekly planner');
-    expect(responsive).toContain('grid-template-columns: repeat(7, minmax(0, 1fr));');
-    expect(responsive).toContain('.calendar-week-column { display: none; }');
-    expect(responsive).toContain('.calendar-week-column.selected');
-    expect(responsive).toContain('.calendar-week-all-day-cell { display: none; }');
-    expect(responsive).toContain('.calendar-week-all-day-cell.selected');
+    expect(refinement).toContain('Build208 - final UI polish');
+    expect(refinement).toContain('grid-template-columns: 38px repeat(7, minmax(0, 1fr));');
+    expect(refinement).toContain('.calendar-week-column,');
+    expect(refinement).toContain('.calendar-week-column.selected');
+    expect(refinement).toContain('.calendar-week-all-day-cell,');
   });
 
   it('keeps the phone timeline vertically scrollable and touch-friendly', () => {

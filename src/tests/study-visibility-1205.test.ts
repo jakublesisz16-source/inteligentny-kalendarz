@@ -15,7 +15,7 @@ describe('1.2.0.175 Study information hierarchy', () => {
   it('preserves groups, history and import-review access', () => {
     expect(source).toContain('StudyProfileSettings');
     expect(source).toContain('Historia planów');
-    expect(source).toContain('Szczegóły i korekty');
+    expect(source).toContain('<strong>Szczegóły</strong>');
     expect(source).toContain('StudyProfileSettings');
     expect(source).toContain('StudyGroupPreviewPanel');
   });

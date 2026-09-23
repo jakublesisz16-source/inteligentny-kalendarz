@@ -13,8 +13,11 @@ describe('1.2.0.48 adaptive desktop week density', () => {
     expect(calendar).toContain('buildWeekTimedEventLayout(timedEvents, key, WEEK_START_HOUR, WEEK_END_HOUR, weekHourHeight)');
   });
 
-  it('does not squeeze the mobile planner', () => {
-    expect(calendar).toContain("if (window.innerWidth <= 820) return WEEK_HOUR_HEIGHT;");
+  it('keeps the full mobile week readable by fitting the timeline to the phone viewport', () => {
+    expect(calendar).toContain('if (window.innerWidth <= 620) {');
+    expect(calendar).toContain('window.innerHeight - WEEK_MOBILE_VERTICAL_CHROME');
+    expect(calendar).toContain('return Math.max(26, Math.min(32, Math.floor(availableHeight / hourCount)));');
+    expect(calendar).toContain('if (window.innerWidth <= 820) return 40;');
     expect(calendar).toContain('weekHourHeight < WEEK_HOUR_HEIGHT ? { height: weekTimelineHeight } : undefined');
   });
 

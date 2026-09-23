@@ -99,6 +99,7 @@ const WEEK_END_HOUR = 23;
 const WEEK_HOUR_HEIGHT = 48;
 const WEEK_HOUR_MIN_HEIGHT = 30;
 const WEEK_DESKTOP_VERTICAL_CHROME = 225;
+const WEEK_MOBILE_VERTICAL_CHROME = 350;
 
 type QuickAddSource = 'WEEK' | 'MONTH';
 type QuickAddState = {
@@ -154,8 +155,12 @@ const MOBILE_WEEK_LONG_PRESS_MS = 450;
 
 function calculateWeekHourHeight(): number {
   if (typeof window === 'undefined') return WEEK_HOUR_HEIGHT;
-  if (window.innerWidth <= 820) return WEEK_HOUR_HEIGHT;
   const hourCount = WEEK_END_HOUR - WEEK_START_HOUR;
+  if (window.innerWidth <= 620) {
+    const availableHeight = Math.max(442, window.innerHeight - WEEK_MOBILE_VERTICAL_CHROME);
+    return Math.max(26, Math.min(32, Math.floor(availableHeight / hourCount)));
+  }
+  if (window.innerWidth <= 820) return 40;
   const availableHeight = Math.max(WEEK_HOUR_MIN_HEIGHT * hourCount, window.innerHeight - WEEK_DESKTOP_VERTICAL_CHROME);
   return Math.max(WEEK_HOUR_MIN_HEIGHT, Math.min(WEEK_HOUR_HEIGHT, Math.floor(availableHeight / hourCount)));
 }
@@ -462,13 +467,17 @@ export function CalendarView({ events, locations, timeFormat, showPolishHolidays
     if (displayMode !== 'WEEK' || typeof window === 'undefined' || !window.matchMedia('(max-width: 620px)').matches) return;
     const container = weekScrollRef.current;
     if (!container) return;
+    if (weekHourHeight <= 32) {
+      window.requestAnimationFrame(() => { container.scrollTop = 0; });
+      return;
+    }
     const selectedEventsForWeek = weekEventsByDate.get(selectedKey) ?? [];
     const firstTimed = selectedEventsForWeek.find((event) => !event.allDay);
     const firstHour = firstTimed ? Number(firstTimed.startDateTime.slice(11, 13)) : undefined;
     const targetHour = selectedKey === todayKey ? currentTime.getHours() - 1 : firstHour !== undefined ? firstHour - 1 : 8;
     const clampedHour = Math.max(WEEK_START_HOUR, Math.min(targetHour, WEEK_END_HOUR - 3));
-    window.requestAnimationFrame(() => { container.scrollTop = Math.max(0, (clampedHour - WEEK_START_HOUR) * WEEK_HOUR_HEIGHT); });
-  }, [displayMode, selectedKey, todayKey, weekEventsByDate]);
+    window.requestAnimationFrame(() => { container.scrollTop = Math.max(0, (clampedHour - WEEK_START_HOUR) * weekHourHeight); });
+  }, [displayMode, selectedKey, todayKey, weekEventsByDate, weekHourHeight]);
 
   const locationMap = new Map(locations.map((location) => [location.id, location]));
   const conflictEventIds = useMemo(() => new Set(consistencyIssues.filter((issue) => !issue.acknowledged).flatMap((issue) => issue.eventIds)), [consistencyIssues]);
@@ -1156,7 +1165,7 @@ export function CalendarView({ events, locations, timeFormat, showPolishHolidays
               ) : null}
               <div ref={weekScrollRef} className="calendar-week-scroll" onScroll={handleMobileWeekScroll} style={weekHourHeight < WEEK_HOUR_HEIGHT ? { height: weekTimelineHeight } : undefined}>
                 <div className="calendar-week-time-axis" style={weekHourHeight < WEEK_HOUR_HEIGHT ? { height: weekTimelineHeight } : undefined}>
-                  {Array.from({ length: WEEK_END_HOUR - WEEK_START_HOUR }, (_, index) => <span key={index} style={{ top: index * weekHourHeight }}>{String(WEEK_START_HOUR + index).padStart(2, '0')}:00</span>)}
+                  {Array.from({ length: WEEK_END_HOUR - WEEK_START_HOUR }, (_, index) => <span key={index} data-hour={WEEK_START_HOUR + index} style={{ top: index * weekHourHeight }}>{String(WEEK_START_HOUR + index).padStart(2, '0')}:00</span>)}
                 </div>
                 <div className="calendar-week-columns" style={weekHourHeight < WEEK_HOUR_HEIGHT ? { height: weekTimelineHeight } : undefined}>
                   {weekDays.map((day) => {
@@ -1205,7 +1214,7 @@ export function CalendarView({ events, locations, timeFormat, showPolishHolidays
                         const resizeState = weekResize?.eventId === event.id ? weekResize : null;
                         const resizeHeight = resizeState ? Math.max(26, ((resizeState.previewEndMinutes - resizeState.startMinutes) / 60) * weekHourHeight) : position.height;
                         const timeLabel = resizeState ? `${formatMinuteTime(resizeState.startMinutes)}-${formatMinuteTime(resizeState.previewEndMinutes)}` : calendarEventTimeLabel(event, key, timeFormat);
-                        return <button key={event.id} type="button" draggable={draggable && !resizeState} className={`calendar-week-event category-${event.category.toLowerCase()}${position.overlapping ? ' overlapping' : ''}${conflict ? ' conflict' : ''}${draggable ? ' draggable' : ''}${resizable ? ' resizable' : ''}${touchDraggable ? ' touch-draggable' : ''}${weekDrag?.eventId === event.id ? ' dragging' : ''}${resizeState ? ' resizing' : ''}`} style={{ top: position.top, height: resizeHeight, left: `calc(${position.leftPercent}% + 3px)`, width: `calc(${position.widthPercent}% - 6px)`, right: 'auto' }} onDragStart={(dragEvent) => startWeekEventDrag(dragEvent, event)} onDragEnd={finishWeekEventDrag} onTouchStart={(touchEvent) => startMobileWeekLongPress(touchEvent, event, day)} onTouchMove={moveMobileWeekTouchDrag} onTouchEnd={finishMobileWeekTouchDrag} onTouchCancel={cancelMobileWeekTouchDrag} onClick={(clickEvent) => selectWeekEventDay(clickEvent, day)} title={`${title}${draggable ? ' - przeciągnij, aby zmienić termin' : touchDraggable ? ' - przytrzymaj, aby przenieść' : ''}${desktopResizable ? ' - przeciągnij dolną krawędź, aby zmienić czas trwania' : touchResizable ? ' - przeciągnij uchwyt w dół lub w górę, aby zmienić czas trwania' : ''}`}><span>{timeLabel}</span><strong>{event.title}</strong>{studyGroupLabel ? <small className="calendar-week-study-group">{studyGroupLabel}</small> : null}{conflict ? <i aria-label="Konflikt">!</i> : null}{resizable ? <span className={`calendar-week-resize-handle${touchResizable ? ' touch-resize-handle' : ''}`} onTouchStart={(touchEvent) => touchEvent.stopPropagation()} onTouchMove={(touchEvent) => touchEvent.stopPropagation()} onTouchEnd={(touchEvent) => touchEvent.stopPropagation()} onPointerDown={(pointerEvent) => startWeekResize(pointerEvent, event)} onPointerMove={updateWeekResize} onPointerUp={(pointerEvent) => { void finishWeekResize(pointerEvent); }} onPointerCancel={cancelWeekResize} onLostPointerCapture={handleWeekResizeLostPointerCapture} aria-hidden="true" /> : null}</button>;
+                        return <button key={event.id} type="button" draggable={draggable && !resizeState} className={`calendar-week-event category-${event.category.toLowerCase()}${position.overlapping ? ' overlapping' : ''}${conflict ? ' conflict' : ''}${draggable ? ' draggable' : ''}${resizable ? ' resizable' : ''}${touchDraggable ? ' touch-draggable' : ''}${weekDrag?.eventId === event.id ? ' dragging' : ''}${resizeState ? ' resizing' : ''}`} style={{ top: position.top, height: resizeHeight, left: `calc(${position.leftPercent}% + 3px)`, width: `calc(${position.widthPercent}% - 6px)`, right: 'auto' }} onDragStart={(dragEvent) => startWeekEventDrag(dragEvent, event)} onDragEnd={finishWeekEventDrag} onTouchStart={(touchEvent) => startMobileWeekLongPress(touchEvent, event, day)} onTouchMove={moveMobileWeekTouchDrag} onTouchEnd={finishMobileWeekTouchDrag} onTouchCancel={cancelMobileWeekTouchDrag} onClick={(clickEvent) => selectWeekEventDay(clickEvent, day)} title={`${title}${draggable ? ' - przeciągnij, aby zmienić termin' : touchDraggable ? ' - przytrzymaj, aby przenieść' : ''}${desktopResizable ? ' - przeciągnij dolną krawędź, aby zmienić czas trwania' : touchResizable ? ' - przeciągnij uchwyt w dół lub w górę, aby zmienić czas trwania' : ''}`}><span data-mobile-time={resizeState ? formatMinuteTime(resizeState.startMinutes) : formatTime(event.startDateTime, timeFormat)}>{timeLabel}</span><strong data-mobile-label={event.title.split(' - ')[0]?.trim() || event.title}>{event.title}</strong>{studyGroupLabel ? <small className="calendar-week-study-group">{studyGroupLabel}</small> : null}{conflict ? <i aria-label="Konflikt">!</i> : null}{resizable ? <span className={`calendar-week-resize-handle${touchResizable ? ' touch-resize-handle' : ''}`} onTouchStart={(touchEvent) => touchEvent.stopPropagation()} onTouchMove={(touchEvent) => touchEvent.stopPropagation()} onTouchEnd={(touchEvent) => touchEvent.stopPropagation()} onPointerDown={(pointerEvent) => startWeekResize(pointerEvent, event)} onPointerMove={updateWeekResize} onPointerUp={(pointerEvent) => { void finishWeekResize(pointerEvent); }} onPointerCancel={cancelWeekResize} onLostPointerCapture={handleWeekResizeLostPointerCapture} aria-hidden="true" /> : null}</button>;
                       })}
                     </div>;
                   })}

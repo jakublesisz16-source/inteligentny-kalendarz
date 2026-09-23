@@ -97,7 +97,6 @@ export function StudyProfileSettings({ onDataChanged }: StudyProfileSettingsProp
     <div className="study-profile-settings-heading study-groups-visible-heading">
       <div>
         <strong id="study-profile-groups-title">Wybór grup</strong>
-        <span>{formatStudyGroupList(groupsDraft) || 'Wybierz swoje grupy'}</span>
       </div>
       {!draftValidation.valid ? <span className="study-profile-heading-status">{draftProgress.completed} z {draftProgress.required}</span> : null}
     </div>

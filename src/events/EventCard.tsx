@@ -26,9 +26,10 @@ interface EventCardProps {
   showAllWorkCoworkers?: boolean | undefined;
   workCoworkerLimit?: number | undefined;
   compactTimeRange?: boolean | undefined;
+  compactCoworkerLabel?: boolean | undefined;
 }
 
-export function EventCard({ event, location, timeFormat, seriesCount, onEdit, onDelete, onStudyCorrect, workCoworkers = [], showAllWorkCoworkers = false, workCoworkerLimit = 4, compactTimeRange = false }: EventCardProps) {
+export function EventCard({ event, location, timeFormat, seriesCount, onEdit, onDelete, onStudyCorrect, workCoworkers = [], showAllWorkCoworkers = false, workCoworkerLimit = 4, compactTimeRange = false, compactCoworkerLabel = false }: EventCardProps) {
   const hasStudyIssues = event.source === 'UNIVERSITY_XLSX' && Boolean(event.studyIssueCodes?.length);
   const multiDay = event.spanType === 'MULTI_DAY' || eventDayCount(event) > 1;
   const directionsUrl = location
@@ -75,7 +76,7 @@ export function EventCard({ event, location, timeFormat, seriesCount, onEdit, on
         {locationText ? <p className="event-location">{locationText}</p> : null}
         {studyDisplay.description ? <p className="event-description">{studyDisplay.description}</p> : null}
         {hasStudyIssues ? <p className="event-review-note">Brakujące dane: {(event.studyIssueCodes ?? []).map(importIssueLabel).join(' · ')}</p> : null}
-        {event.source === 'WORK_PDF' && workCoworkers.length ? <div className="event-coworkers"><strong>Z Tobą na zmianie · {workCoworkerCountLabel}</strong><span>{visibleWorkCoworkers.map((person) => <span className="event-coworker-line" key={`${person.displayName}-${person.coworkerStartTime}`}><b>{person.displayName}</b><small>{person.overlapStartTime}-{person.overlapEndTime}</small></span>)}{hiddenWorkCoworkerCount ? <small>+{hiddenWorkCoworkerCount} więcej</small> : null}</span></div> : null}
+        {event.source === 'WORK_PDF' && workCoworkers.length ? <div className="event-coworkers"><strong>{compactCoworkerLabel ? `Z Tobą · ${workCoworkerCountLabel}` : `Z Tobą na zmianie · ${workCoworkerCountLabel}`}</strong><span>{visibleWorkCoworkers.map((person) => <span className="event-coworker-line" key={`${person.displayName}-${person.coworkerStartTime}`}><b>{person.displayName}</b><small>{person.overlapStartTime}-{person.overlapEndTime}</small></span>)}{hiddenWorkCoworkerCount ? <small>+{hiddenWorkCoworkerCount} więcej</small> : null}</span></div> : null}
       </div>
       <div className="event-actions-column">
         {directionsUrl ? <a className="text-button" href={directionsUrl} target="_blank" rel="noopener noreferrer" aria-label={`Wyznacz trasę do ${location?.name || event.locationText || 'miejsca'} w Mapach Google`}>Trasa</a> : null}

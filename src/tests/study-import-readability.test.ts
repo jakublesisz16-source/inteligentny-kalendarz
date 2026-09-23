@@ -53,9 +53,9 @@ describe('study import readability contract', () => {
     expect(calendar).toContain('study-incomplete-marker');
     expect(calendar).toContain('to nie jest potwierdzone wydarzenie');
     expect(calendar).toContain('Niepełne dane z planu studiów');
-    expect(view).toContain('Kontrola kompletności');
-    expect(view).toContain('Bloki i godziny źródłowe');
-    expect(view).toContain('nie są zamieniane na fikcyjne wydarzenia');
+    expect(view).toContain('Kontrola źródła');
+    expect(view).toContain('study-source-audit-v207');
+    expect(view).toContain('Te pozycje pozostają tylko do wglądu.');
     expect(css).toContain('.study-completeness-panel');
     expect(css).toContain('.study-incomplete-marker');
   });

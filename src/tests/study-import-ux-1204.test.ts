@@ -33,19 +33,18 @@ describe('1.2.0.4 simplified Study import flow', () => {
 
   it('shows a compact summary before write and keeps detailed corrections available on demand', () => {
     const view = source('../study/StudyView.tsx');
-    expect(view).toContain('className="panel study-import-summary"');
-    expect(view).toContain('Do kalendarza');
-    expect(view).toContain('Okres');
-    expect(view).toContain('Niepełne');
-    expect(view).toContain('Szczegóły i korekty');
-    expect(view).toContain('Dodaj ${importable.length} do kalendarza');
+    expect(view).toContain('className="panel study-import-summary study-import-summary-v207"');
+    expect(view).toContain('study-import-summary-line-v207');
+    expect(view).toContain('study-review-details-v207');
+    expect(view).toContain('<strong>Szczegóły</strong>');
+    expect(view).toContain('`Dodaj ${importable.length}`');
   });
 
   it('does not weaken source completeness protection while simplifying the UI', () => {
     const view = source('../study/StudyView.tsx');
     expect(view).toContain('selectedCompleteness && !selectedCompleteness.safe');
-    expect(view).toContain('Aplikacja nie zgaduje brakujących dni ani godzin.');
-    expect(view).toContain('Kontrola kompletności');
+    expect(view).toContain('Nie zostaną dodane.');
+    expect(view).toContain('Kontrola źródła');
     expect(source('../core/version.ts')).toContain('DATABASE_SCHEMA_VERSION = 14');
   });
 });
