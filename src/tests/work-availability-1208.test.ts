@@ -19,7 +19,8 @@ describe('1.2.0.8 compact Work availability UX', () => {
   });
 
   it('moves per-day automation exceptions to the automation section', () => {
-    expect(availabilityView).toContain('Wyjątki dla poszczególnych dni');
+    expect(availabilityView).toContain('<strong>Wyjątki</strong>');
+    expect(availabilityView).not.toContain('Wyjątki dla poszczególnych dni');
     expect(availabilityView).toContain('availability-day-rule-grid');
     expect(dayEditor).toContain('Ustawienia automatu dla dnia');
   });

@@ -1334,7 +1334,6 @@ export function FinanceDashboardView() {
             <section className="panel finance-overview-summary-card finance-trip-summary finance-trip-summary-simple finance-trip-dashboard-v148 finance-trip-dashboard-v150" aria-label={`Podsumowanie wyjazdu ${activeTripName}`}>
               <div className="finance-overview-summary-main finance-trip-summary-main finance-trip-dashboard-head">
                 <div className="finance-trip-hero-total">
-                  <span className="section-kicker">Wydatki na wyjeździe</span>
                   <strong>{activeTripOriginalTotalMinor !== null ? formatCurrencyAmountMinor(activeTripOriginalTotalMinor, activeTripCurrency) : formatMoneyMinor(activeTripTotalMinor)}</strong>
                   <small className="finance-trip-hero-context"><strong>{activeTripName}</strong>{activeTripDateRange ? <span>{activeTripDateRange}</span> : null}</small>
                   {activeTripOriginalTotalMinor !== null ? <span className="finance-trip-original-total">≈ {formatMoneyMinor(activeTripTotalMinor)} po przeliczeniu</span> : null}
@@ -1363,7 +1362,6 @@ export function FinanceDashboardView() {
               {activeTripCategoryTotals.length ? <div className="finance-overview-category-strip finance-trip-category-strip finance-trip-category-ranking" aria-label="Największe kategorie wydatków wyjazdu">
                 <div className="finance-trip-category-heading">
                   <div>
-                    <span className="section-kicker">Największe kategorie</span>
                     <strong>{activeTripCategoryContext}</strong>
                   </div>
                 </div>
@@ -1494,7 +1492,6 @@ export function FinanceDashboardView() {
           <section className="panel finance-overview-summary-card finance-month-summary-compact finance-month-dashboard-v147 finance-month-dashboard-v177" aria-label="Podsumowanie miesiąca">
             <div className="finance-overview-summary-main finance-month-summary-main finance-month-dashboard-head">
               <button type="button" className="finance-month-hero-total" onClick={showTransactions} aria-label="Pokaż wszystkie transakcje miesiąca">
-                <span className="section-kicker">Wydatki w miesiącu</span>
                 <strong>{formatMoneyMinor(monthSummary.totalMinor)}</strong>
                 <small className={comparison.state === 'comparable' ? comparison.differenceMinor < 0 ? 'is-lower' : comparison.differenceMinor > 0 ? 'is-higher' : '' : ''}>
                   {comparison.state === 'comparable'
@@ -1514,24 +1511,22 @@ export function FinanceDashboardView() {
                   <span>Średnio</span>
                   <strong>{formatMoneyMinor(monthSummary.averageReceiptMinor)}</strong>
                 </button>
-                <button type="button" className={activeNecessity === 'essential' ? 'is-active' : ''} onClick={() => filterByNecessity('essential')} aria-pressed={activeNecessity === 'essential'}>
+                {necessityTotals.essential > 0 ? <button type="button" className={activeNecessity === 'essential' ? 'is-active' : ''} onClick={() => filterByNecessity('essential')} aria-pressed={activeNecessity === 'essential'}>
                   <span>Niezbędne</span>
                   <strong>{formatMoneyMinor(necessityTotals.essential)}</strong>
-                </button>
-                <button type="button" className={activeNecessity === 'nonessential' ? 'is-active' : ''} onClick={() => filterByNecessity('nonessential')} aria-pressed={activeNecessity === 'nonessential'}>
+                </button> : null}
+                {necessityTotals.nonessential > 0 ? <button type="button" className={activeNecessity === 'nonessential' ? 'is-active' : ''} onClick={() => filterByNecessity('nonessential')} aria-pressed={activeNecessity === 'nonessential'}>
                   <span>Zbędne</span>
                   <strong>{formatMoneyMinor(necessityTotals.nonessential)}</strong>
-                </button>
+                </button> : null}
               </div>
             </div>
 
             <div className="finance-overview-category-strip finance-month-category-chips finance-month-category-ranking" aria-label="Największe kategorie miesiąca">
-              <div className="finance-month-category-heading">
-                <div>
-                  <span className="section-kicker">Największe kategorie</span>
-                </div>
-                <button type="button" className="text-button finance-month-category-all" onClick={openCategoryOverview}>Wszystkie kategorie</button>
-              </div>
+              {categoryAnalytics.length > 1 ? <div className="finance-month-category-heading">
+                <div><strong>Kategorie</strong></div>
+                <button type="button" className="text-button finance-month-category-all" onClick={openCategoryOverview}>Wszystkie</button>
+              </div> : null}
               <div className="finance-month-category-grid">
                 {categoryAnalytics.slice(0, 4).map((entry) => (
                   <button

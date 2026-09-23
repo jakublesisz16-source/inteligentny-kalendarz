@@ -8,10 +8,10 @@ function source(path: string): string {
 describe('1.1.0-dev.2 FIX4 Excel export UI contract', () => {
   it('adds local Excel export next to canonical JSON transfer without adding Excel import', () => {
     const panel = source('../data-transfer/DataTransferPanel.tsx');
-    expect(panel).toContain('Eksportuj do Excela');
+    expect(panel).toContain('>Excel</button>');
     expect(panel).toContain('createCanonicalDataTransferDocument');
     expect(panel).toContain("from './excel-export'");
-    expect(panel).toContain('nie można go importować z powrotem');
+    expect(panel).toContain('Excel jest tylko do odczytu');
     expect(panel).not.toContain('Importuj Excel');
   });
 

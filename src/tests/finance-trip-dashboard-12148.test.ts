@@ -9,7 +9,9 @@ const version = readFileSync('src/core/version.ts', 'utf8');
 describe('1.2.0.148 Finance trip dashboard polish', () => {
   it('mirrors the month hierarchy with trip total and lightweight metrics', () => {
     expect(dashboard).toContain('finance-trip-dashboard-v148');
-    expect(dashboard).toContain('Wydatki na wyjeździe');
+    expect(dashboard).toContain('finance-trip-hero-total');
+    expect(dashboard).toContain('<strong>{activeTripName}</strong>');
+    expect(dashboard).not.toContain('Wydatki na wyjeździe');
     expect(dashboard).toContain('finance-trip-metric-grid');
     expect(dashboard).toContain('activeTripAverageMinor');
     expect(dashboard).toContain('activeTripCategoryCount');

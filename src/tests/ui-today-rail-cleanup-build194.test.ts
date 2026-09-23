@@ -12,9 +12,10 @@ describe('Build194 Today accent rail cleanup', () => {
     expect(consistency).not.toContain('.today-next-strip.category-work::before');
   });
 
-  it('removes the event-card category rail only inside the Today single surface', () => {
-    expect(components).toContain('.today-plan-panel.today-single-surface .event-card::before {\n  display: none;\n}');
-    expect(components).toContain('.event-card.category-work::before { background: var(--work); }');
+  it('keeps the Today cleanup after category rails are removed globally', () => {
+    expect(components).not.toContain('.event-card::before');
+    expect(components).not.toContain('.event-card.category-work::before');
+    expect(components).toContain('.event-card.category-work { background:');
   });
 
   it('reclaims the old rail gutter without shrinking touch targets', () => {

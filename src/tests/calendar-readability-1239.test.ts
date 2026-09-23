@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 const css = readFileSync('src/styles/components.css', 'utf8');
 const responsiveCss = readFileSync('src/styles/responsive.css', 'utf8');
 const calendarView = readFileSync('src/calendar/CalendarView.tsx', 'utf8');
+const eventCard = readFileSync('src/events/EventCard.tsx', 'utf8');
 
 describe('1.2.0.39 month calendar readability', () => {
   it('keeps event counters neutral and high-contrast without redundant inner dots', () => {
@@ -22,7 +23,9 @@ describe('1.2.0.39 month calendar readability', () => {
     expect(css).toContain('.calendar-day.today .day-number');
   });
 
-  it('shows the full Study group label as a native tooltip', () => {
-    expect(calendarView).toContain('title={studyGroupDisplayLabel(group)}>{studyGroupDisplayLabel(group)}</span>');
+  it('keeps Study group context attached to the actual event instead of repeating profile metadata', () => {
+    expect(calendarView).toContain('studyEventDisplay(event).groupLabel');
+    expect(eventCard).toContain('className="event-study-group"');
+    expect(eventCard).toContain('studyDisplay.groupLabel');
   });
 });

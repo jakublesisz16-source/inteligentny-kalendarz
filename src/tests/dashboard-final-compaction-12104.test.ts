@@ -19,12 +19,11 @@ describe('1.2.0.104 dashboard compaction', () => {
     expect(profile).toContain('StudyGroupChoiceFields');
   });
 
-  it('keeps Calendar Study context compact until the user expands group details', () => {
+  it('keeps Calendar selected-day context compact by showing only actionable day information', () => {
     const calendar = source('../calendar/CalendarView.tsx');
     const css = source('../styles/interface-consistency.css');
-    expect(calendar).toContain('<details className="calendar-study-context-wrap');
-    expect(calendar).toContain('calendar-study-context-details');
-    expect(css).toContain('.calendar-study-context-details[open] > summary i');
+    expect(calendar).not.toContain('calendar-selected-day-study-context');
+    expect(calendar).not.toContain('Plan studiów aktywny');
     expect(css).toContain('.calendar-side-column.is-empty .selected-day-panel .empty-state');
   });
 

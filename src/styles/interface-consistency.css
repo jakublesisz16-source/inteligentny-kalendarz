@@ -152,15 +152,6 @@
 .event-card.category-other,
 .selected-day-panel .event-card.category-other { background: linear-gradient(90deg, color-mix(in srgb, var(--category-other-soft) 96%, white), #fff 24%); }
 
-.event-card.category-study::before,
-.selected-day-panel .event-card.category-study::before { background: var(--category-study); }
-.event-card.category-work::before,
-.selected-day-panel .event-card.category-work::before { background: var(--category-work); }
-.event-card.category-personal::before,
-.selected-day-panel .event-card.category-personal::before { background: var(--category-personal); }
-.event-card.category-other::before,
-.selected-day-panel .event-card.category-other::before { background: var(--category-other); }
-
 .event-card.category-study .event-category,
 .event-card.category-study .event-source,
 .selected-day-panel .event-card.category-study .event-category {
@@ -191,13 +182,12 @@
 }
 
 .calendar-week-event {
-  border-left-width: 4px;
   box-shadow: 0 2px 8px rgba(39,32,35,.06), inset 0 0 0 1px rgba(48,42,45,.03);
 }
-.calendar-week-event.category-study { border-left-color: var(--category-study); background: var(--category-study-soft); }
-.calendar-week-event.category-work { border-left-color: var(--category-work); background: var(--category-work-soft); }
-.calendar-week-event.category-personal { border-left-color: var(--category-personal); background: var(--category-personal-soft); }
-.calendar-week-event.category-other { border-left-color: var(--category-other); background: var(--category-other-soft); }
+.calendar-week-event.category-study { background: var(--category-study-soft); }
+.calendar-week-event.category-work { background: var(--category-work-soft); }
+.calendar-week-event.category-personal { background: var(--category-personal-soft); }
+.calendar-week-event.category-other { background: var(--category-other-soft); }
 .calendar-week-event.category-study > span:first-child { color: var(--category-study); }
 .calendar-week-event.category-work > span:first-child { color: var(--category-work); }
 .calendar-week-event.category-personal > span:first-child { color: var(--category-personal); }
@@ -213,15 +203,8 @@
 .calendar-filter-chip.filter-work.active { color: var(--category-work); background: var(--category-work-soft); border-color: color-mix(in srgb, var(--category-work) 38%, transparent); }
 .calendar-filter-chip.filter-my.active { color: var(--category-personal); background: var(--category-personal-soft); border-color: color-mix(in srgb, var(--category-personal) 38%, transparent); }
 
-/* Mobile day preview uses a category edge instead of another badge row. */
-.calendar-mobile-day-preview-event {
-  border-left: 3px solid transparent;
-  padding-left: 9px;
-}
-.calendar-mobile-day-preview-event.category-study { border-left-color: var(--category-study); }
-.calendar-mobile-day-preview-event.category-work { border-left-color: var(--category-work); }
-.calendar-mobile-day-preview-event.category-personal { border-left-color: var(--category-personal); }
-.calendar-mobile-day-preview-event.category-other { border-left-color: var(--category-other); }
+/* Mobile day preview keeps category meaning without a decorative edge. */
+.calendar-mobile-day-preview-event { padding-left: 0; }
 
 @media (max-width: 820px) {
   :root {

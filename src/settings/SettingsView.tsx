@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { BUILD_NUMBER } from '../core/build';
-import { APP_RELEASE_VERSION, DATABASE_SCHEMA_VERSION } from '../core/version';
+import { APP_RELEASE_VERSION } from '../core/version';
 import type { Location } from '../locations/location.types';
 import { SafetyCenter } from '../safety/SafetyCenter';
 import { DataTransferPanel } from '../data-transfer/DataTransferPanel';
@@ -29,7 +29,7 @@ export function SettingsView({ settings, locations, onChange, onDataChanged }: S
       </header>
 
       <section className="settings-core" aria-label="Najważniejsze ustawienia aplikacji">
-        <div className="settings-core-heading"><h2>Podstawy</h2><span>Najczęściej używane ustawienia</span></div>
+        <div className="settings-core-heading"><h2>Podstawy</h2></div>
         <div className="settings-essential-grid">
           <label className="field"><span>Ekran startowy</span><select value={settings.preferredStartView} onChange={(e) => onChange({ preferredStartView: e.target.value as StartView })}><option value="today">Dzisiaj</option><option value="calendar">Kalendarz</option></select></label>
           <label className="field"><span>Format czasu</span><select value={settings.timeFormat} onChange={(e) => onChange({ timeFormat: e.target.value as TimeFormat })}><option value="24h">24-godzinny</option><option value="12h">12-godzinny</option></select></label>
@@ -42,18 +42,18 @@ export function SettingsView({ settings, locations, onChange, onDataChanged }: S
           <label className="settings-layer-switch" title="Oficjalny kalendarz akademicki WUM 2026/2027"><input type="checkbox" checked={settings.showWumAcademicCalendar !== false} onChange={(event) => void onChange({ showWumAcademicCalendar: event.target.checked })} /><span>WUM 26/27</span></label>
         </div>
         <PwaInstallPanel />
-        <div className="settings-build-line" aria-label={`Wersja ${APP_RELEASE_VERSION}, build ${BUILD_NUMBER}, schemat bazy ${DATABASE_SCHEMA_VERSION}, tryb lokalny`}>
-          <span>{APP_RELEASE_VERSION}</span><i aria-hidden="true">·</i><span>Build {BUILD_NUMBER}</span><i aria-hidden="true">·</i><span>Baza {DATABASE_SCHEMA_VERSION}</span><i aria-hidden="true">·</i><span>Lokalnie</span>
+        <div className="settings-build-line" aria-label={`Wersja ${APP_RELEASE_VERSION}, build ${BUILD_NUMBER}`}>
+          <span>{APP_RELEASE_VERSION}</span><i aria-hidden="true">·</i><span>Build {BUILD_NUMBER}</span>
         </div>
       </section>
 
       <div className="settings-secondary-list">
         <details className="settings-collapsible-section">
-          <summary><span><strong>Backup i przenoszenie</strong><small>Eksport, Excel i import danych</small></span><span className="settings-summary-action">Otwórz</span></summary>
+          <summary><span><strong>Kopia i przenoszenie</strong><small>Eksport, Excel, import</small></span><span className="settings-summary-action">Otwórz</span></summary>
           <div className="settings-collapsible-body"><DataTransferPanel onDataChanged={handleTransferDataChanged} /></div>
         </details>
         <details className="settings-collapsible-section">
-          <summary><span><strong>Historia i bezpieczeństwo</strong><small>Cofanie zmian, Kosz i punkty przywracania</small></span><span className="settings-summary-action">Otwórz</span></summary>
+          <summary><span><strong>Historia i odzyskiwanie</strong><small>Historia, Kosz, punkty</small></span><span className="settings-summary-action">Otwórz</span></summary>
           <div className="settings-collapsible-body"><SafetyCenter key={safetyRevision} onDataChanged={onDataChanged} /></div>
         </details>
       </div>

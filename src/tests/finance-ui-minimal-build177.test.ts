@@ -18,7 +18,7 @@ describe('Build 177 Finance default-surface simplification', () => {
     expect(finance).toContain('finance-month-dashboard-v177');
     expect(responsive).toContain('.finance-month-dashboard-v177 .finance-month-category-grid > .finance-month-category-row:nth-child(n+3)');
     expect(responsive).toContain('display: none;');
-    expect(finance).toContain('Wszystkie kategorie');
+    expect(finance).toContain('>Wszystkie</button>');
   });
 
   it('keeps review controls one level deeper in item mode', () => {
@@ -32,7 +32,7 @@ describe('Build 177 Finance default-surface simplification', () => {
     const categoryHeadingStart = finance.indexOf('className="finance-month-category-heading"');
     const categoryGridStart = finance.indexOf('className="finance-month-category-grid"', categoryHeadingStart);
     const categoryHeading = finance.slice(categoryHeadingStart, categoryGridStart);
-    expect(categoryHeading).toContain('Największe kategorie');
+    expect(categoryHeading).toContain('>Kategorie</strong>');
     expect(categoryHeading).not.toContain('formatMonthLabel(monthKey)');
     expect(consistency).toContain('1.2.0.177 - Finance keeps the default surface transaction-first and decision-light.');
   });

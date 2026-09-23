@@ -14,13 +14,12 @@ describe('1.2.0.23 calendar viewport-first layout', () => {
     expect(calendar).not.toContain('<p className="eyebrow">Kalendarz</p>');
   });
 
-  it('keeps primary controls in the compact header and all study groups visible', () => {
+  it('keeps primary controls in the compact header without repeating active Study groups', () => {
     const calendar = source('../calendar/CalendarView.tsx');
     expect(calendar).toContain('calendar-view-header');
     expect(calendar).toContain('calendar-primary-controls');
-    expect(calendar).toContain('calendar-study-context-compact');
-    expect(calendar).toContain('activeStudyGroups.map((group)');
-    expect(calendar).not.toContain('Pokaż grupy');
+    expect(calendar).not.toContain('calendar-selected-day-study-context');
+    expect(calendar).toContain('calendar-week-study-group');
   });
 
   it('has desktop and responsive viewport-first styling without a schema migration', () => {

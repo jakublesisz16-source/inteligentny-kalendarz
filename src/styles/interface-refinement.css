@@ -1,0 +1,590 @@
+/* 1.2.0.196 - interface refinement.
+ * Preserve the soft pink identity while making density come from layout, not tiny type.
+ */
+
+@media (min-width: 821px) {
+  .today-view,
+  .finance-view,
+  .study-view,
+  .work-view,
+  .settings-minimal-view {
+    max-width: 1240px;
+    padding-top: 34px;
+  }
+
+  .today-view .view-header,
+  .finance-view .view-header,
+  .study-view .view-header,
+  .work-view .view-header,
+  .settings-minimal-view .view-header {
+    margin-bottom: 18px;
+  }
+
+  .today-view h1,
+  .finance-view h1,
+  .study-view h1,
+  .work-view h1,
+  .settings-minimal-view h1 { font-size: clamp(1.8rem, 2.2vw, 2.15rem); }
+
+  .today-view .panel,
+  .finance-view .panel,
+  .study-view .panel,
+  .work-view .panel,
+  .settings-minimal-view .panel {
+    border-radius: 18px;
+    box-shadow: 0 10px 28px rgba(99,72,83,.045);
+  }
+
+  .study-view .study-upload-dashboard,
+  .settings-minimal-view .settings-core { border-radius: 16px; }
+
+  .work-shift-row-minimal,
+  .finance-expense-row { min-height: 46px; }
+}
+
+@media (max-width: 620px) {
+  :root {
+    --mobile-compact-radius: 11px;
+  }
+
+  .app-main > .view-shell {
+    padding-top: 14px;
+    padding-bottom: 28px;
+  }
+
+  .view-header { gap: 10px; margin-bottom: 10px; }
+  .view-header h1,
+  .today-header-minimal h1,
+  .work-minimal-header h1,
+  .settings-minimal-view .view-header h1 { font-size: 1.42rem; line-height: 1.12; }
+  .eyebrow, .section-kicker { font-size: .66rem; letter-spacing: .1em; margin-bottom: 4px; }
+
+  .panel { box-shadow: none; }
+  .button { border-radius: 10px; }
+  input, select, textarea { border-radius: 10px; }
+
+  /* Readability floor: compact spacing, never microscopic information. */
+  .today-next-label,
+  .work-next-strip > div:first-child > span,
+  .settings-build-line,
+  .settings-collapsible-section > summary small,
+  .work-shift-main-line small,
+  .work-next-team-count,
+  .work-shift-team-details > summary,
+  .finance-trip-card small { font-size: .66rem; }
+
+  .today-next-strip > strong,
+  .work-next-strip > div:first-child > strong,
+  .work-shift-main-line strong,
+  .work-shift-main-line span,
+  .settings-minimal-view .settings-essential-grid .field > span,
+  .settings-minimal-view .settings-essential-grid select { font-size: .74rem; }
+
+  /* Today: keep one readable row and a genuinely small add action. */
+  .today-next-strip { gap: 4px 8px; padding: 6px 0 8px; }
+  .today-next-strip > small { font-size: .66rem; max-width: 38vw; }
+  .today-view.has-plan .today-plan-panel.today-single-surface .event-card,
+  .today-view.has-plan .today-plan-panel.today-single-surface .event-card.compact-time-range {
+    grid-template-columns: 72px minmax(0, 1fr);
+    padding: 11px 0;
+  }
+  .today-view.has-plan .today-plan-panel.today-single-surface .event-time strong { font-size: .78rem; }
+  .today-view.has-plan .today-plan-panel.today-single-surface .event-heading-row h3 { font-size: .92rem; }
+  .today-view.has-plan .today-plan-panel.today-single-surface .event-location,
+  .today-view.has-plan .today-plan-panel.today-single-surface .event-description { font-size: .72rem; }
+  .today-view.has-plan .today-plan-panel.today-single-surface .event-coworkers > strong { font-size: .68rem; }
+  .today-view.has-plan .today-plan-panel.today-single-surface .event-coworker-line b { font-size: .72rem; }
+  .today-view.has-plan .today-plan-panel.today-single-surface .event-coworker-line small { font-size: .66rem; }
+  .today-plan-panel .today-add-row { justify-content: flex-end; padding: 8px 0 0; }
+  .today-plan-panel .today-add-row .today-add-button {
+    width: auto !important;
+    max-width: none;
+    min-width: 112px;
+    min-height: 42px !important;
+    padding-inline: 14px;
+    font-size: .72rem;
+  }
+
+  /* Calendar: controls stay visually light; the grid remains the focus. */
+  .calendar-view-shell .calendar-view-header { margin-bottom: 8px; }
+  .calendar-primary-controls-minimal,
+  .calendar-view-shell .calendar-toolbar-modern { gap: 6px; }
+  .calendar-view-switch,
+  .calendar-filter-select,
+  .calendar-view-shell .calendar-toolbar-modern .button,
+  .calendar-view-shell .calendar-toolbar-modern .icon-button { border-radius: 10px; }
+  .calendar-panel { border-radius: 14px; }
+
+  /* Finance: trip list is a list, not a card inside a card. */
+  .finance-view .view-header { margin-bottom: 8px; }
+  .finance-scope-switch { width: 100%; border-radius: 12px; }
+  .finance-scope-switch button { flex: 1; border-radius: 9px; min-height: 36px; }
+  .finance-month-switch { border-radius: 11px; }
+  .finance-trips-overview {
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+  .finance-trips-heading { padding: 8px 0 7px; border-bottom: 1px solid var(--line); }
+  .finance-trip-card-list { gap: 0; }
+  .finance-trip-card,
+  .finance-trip-card-v148,
+  .finance-trip-card-v149 {
+    min-height: 66px;
+    padding: 10px 2px;
+    border: 0;
+    border-bottom: 1px solid color-mix(in srgb, var(--line) 76%, transparent);
+    border-radius: 0;
+    background: transparent;
+  }
+  .finance-trip-card strong { font-size: .84rem; }
+  .finance-trip-card-total > strong { font-size: .8rem !important; }
+  .finance-trip-card-total > small { font-size: .64rem !important; }
+  .finance-month-dashboard-v177,
+  .finance-trip-view > .finance-overview-summary,
+  .finance-expense-section-v177 { border-radius: 14px; box-shadow: none; }
+
+  /* Study: import and group choice behave like compact utility rows. */
+  .study-view .study-upload-dashboard {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 10px;
+    padding: 8px 0 10px;
+    border: 0;
+    border-bottom: 1px solid var(--line);
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+  .study-view .study-upload-dashboard h2 { font-size: .86rem; }
+  .study-upload-action { justify-content: flex-end; }
+  .study-view .study-upload-dashboard .study-upload-primary {
+    width: auto !important;
+    min-width: 108px;
+    min-height: 40px;
+    padding-inline: 12px;
+    font-size: .7rem;
+  }
+  .study-groups-primary { margin-top: 5px; }
+  .study-groups-visible-heading { padding: 8px 0 5px; }
+  .study-profile-group-picker .study-group-choice-grid { gap: 0; }
+  .study-profile-group-picker .study-group-choice-card {
+    grid-template-columns: minmax(112px, .8fr) minmax(0, 1.2fr);
+    align-items: center;
+    gap: 8px;
+    min-height: 51px;
+    padding: 6px 0;
+    border: 0;
+    border-bottom: 1px solid color-mix(in srgb, var(--line) 72%, transparent);
+    border-radius: 0;
+    background: transparent;
+  }
+  .study-profile-group-picker .study-group-choice-card strong { font-size: .72rem; }
+  .study-profile-group-picker .study-group-choice-card select { min-height: 39px; font-size: .72rem; }
+  .study-profile-group-picker .compact-study-actions { padding-top: 8px; }
+  .study-profile-group-picker .compact-study-actions .button { min-height: 42px; }
+
+  /* Work: preserve all coworkers but present them as text, not a cloud of pills. */
+  .work-next-strip { padding: 7px 0 9px; }
+  .work-next-team-static { grid-template-columns: auto minmax(0, 1fr); align-items: center; }
+  .work-next-team-static > .coworker-inline { gap: 0 6px; align-items: center; }
+  .work-next-team-static > .coworker-inline > span {
+    min-height: 0;
+    padding: 1px 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    font-size: .67rem;
+  }
+  .work-next-team-static > .coworker-inline > span + span::before {
+    content: '·';
+    margin-right: 6px;
+    color: var(--line-strong);
+  }
+  .work-shift-row-minimal { padding: 9px 0; }
+  .work-shift-team-details > summary { height: 40px; min-height: 40px; max-height: 40px; }
+  .work-shift-team-details .coworker-overlap-list.compact .coworker-overlap-row > strong { font-size: .72rem; }
+  .work-shift-team-details .coworker-overlap-list.compact .coworker-full-shift,
+  .work-shift-team-details .coworker-overlap-list.compact .coworker-shared-time { font-size: .64rem; }
+
+  /* Settings: keep label/value rows, flatten the expanded utility sections too. */
+  .settings-minimal-view .settings-essential-grid .field {
+    grid-template-columns: minmax(0, .9fr) minmax(154px, 1.1fr);
+    min-height: 52px;
+    padding: 6px 0;
+  }
+  .settings-minimal-view .settings-essential-grid select { min-height: 40px; }
+  .settings-calendar-layers label { font-size: .68rem; }
+  .settings-collapsible-section > summary strong { font-size: .76rem; }
+  .settings-collapsible-body { padding-bottom: 8px; }
+  .settings-collapsible-body .data-transfer-panel {
+    gap: 8px;
+    margin: 0;
+    padding: 8px 0 4px;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+  }
+  .settings-minimal-view .data-transfer-heading h3 { font-size: .82rem; }
+  .settings-minimal-view .data-transfer-actions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+  }
+  .settings-minimal-view .data-transfer-actions .button {
+    width: 100%;
+    min-height: 42px;
+    padding-inline: 8px;
+    font-size: .68rem;
+  }
+  .settings-minimal-view .data-transfer-actions .button:first-child { grid-column: 1 / -1; }
+  .settings-minimal-view .safety-center { gap: 6px; }
+  .settings-minimal-view .safety-list,
+  .settings-minimal-view .safety-stack { gap: 0; }
+  .settings-minimal-view .safety-list-item {
+    padding: 9px 0;
+    border: 0;
+    border-bottom: 1px solid color-mix(in srgb, var(--line) 72%, transparent);
+    border-radius: 0;
+    background: transparent;
+  }
+
+  /* Navigation: quieter shell, stronger active destination. */
+  .bottom-nav {
+    height: 62px;
+    border: 1px solid color-mix(in srgb, var(--line) 82%, white);
+    box-shadow: 0 10px 28px rgba(83, 58, 68, .11);
+  }
+  .bottom-nav-item { font-size: .64rem; }
+  .bottom-nav-item.active { font-weight: 800; }
+}
+
+@media (max-width: 370px) {
+  .settings-minimal-view .settings-essential-grid .field {
+    grid-template-columns: minmax(0, .82fr) minmax(138px, 1.18fr);
+  }
+  .study-profile-group-picker .study-group-choice-card {
+    grid-template-columns: minmax(104px, .78fr) minmax(0, 1.22fr);
+  }
+}
+
+/* 1.2.0.197 - coherence pass after real-device Build196 review.
+ * Keep the established identity; flatten the few remaining nested-card outliers.
+ */
+@media (min-width: 821px) {
+  /* Today: use the available reading width and keep the secondary add action quiet. */
+  .today-plan-panel .event-coworkers > span { width: min(100%, 760px); }
+  .today-plan-panel .today-add-row { justify-content: flex-end; padding: 8px 18px 10px; }
+  .today-plan-panel .today-add-row .today-add-button { min-width: 112px; }
+
+  /* Study history: one information row, not a card containing mini-cards. */
+  .study-history-compact-grid .import-history-card {
+    grid-template-columns: minmax(0, 1.35fr) minmax(300px, .95fr) auto;
+    align-items: center;
+    gap: 16px;
+    padding: 12px 2px;
+    border: 0;
+    border-bottom: 1px solid color-mix(in srgb, var(--line) 78%, transparent);
+    border-radius: 0;
+    background: transparent;
+  }
+  .study-history-compact-grid .import-history-card dl {
+    grid-template-columns: minmax(0, 1fr) 88px;
+    gap: 12px;
+    margin: 0;
+  }
+  .study-history-compact-grid .import-history-card dl div {
+    padding: 0;
+    border-radius: 0;
+    background: transparent;
+  }
+
+  /* Availability: keep two useful outer surfaces, flatten their internal rows. */
+  .availability-dashboard-layout .availability-week-days { gap: 0; }
+  .availability-dashboard-layout .availability-week-day,
+  .availability-dashboard-layout .availability-week-day.has-hours {
+    padding: 10px 2px;
+    border: 0;
+    border-bottom: 1px solid color-mix(in srgb, var(--line) 76%, transparent);
+    border-radius: 0;
+    background: transparent;
+  }
+  .availability-dashboard-layout .availability-week-day:last-child { border-bottom: 0; }
+  .availability-dashboard-layout .availability-summary-grid.automation-summary-grid {
+    gap: 0;
+    border-top: 1px solid color-mix(in srgb, var(--line) 76%, transparent);
+    border-bottom: 1px solid color-mix(in srgb, var(--line) 76%, transparent);
+  }
+  .availability-dashboard-layout .availability-summary-grid.automation-summary-grid > div {
+    padding: 9px 10px;
+    border: 0;
+    border-right: 1px solid color-mix(in srgb, var(--line) 72%, transparent);
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+  .availability-dashboard-layout .availability-summary-grid.automation-summary-grid > div:last-child { border-right: 0; }
+  .availability-dashboard-layout .availability-day-rule-grid { gap: 0 12px; }
+  .availability-dashboard-layout .availability-day-rule-button,
+  .availability-dashboard-layout .availability-day-rule-button.has-rule {
+    padding: 8px 0;
+    border: 0;
+    border-bottom: 1px solid color-mix(in srgb, var(--line) 72%, transparent);
+    border-radius: 0;
+    background: transparent;
+  }
+  .availability-dashboard-layout .availability-day-rule-button.has-rule strong { color: var(--accent-strong); }
+
+  /* Finance editor: use separators for structure instead of pink panels inside the modal. */
+  .finance-receipt-edit-source {
+    padding: 8px 0;
+    border-radius: 0;
+    background: transparent;
+    border-bottom: 1px solid color-mix(in srgb, var(--line) 72%, transparent);
+  }
+  .finance-receipt-edit-currency-context {
+    padding: 10px 0;
+    border-left: 0;
+    border-right: 0;
+    border-radius: 0;
+    background: transparent;
+  }
+  .finance-receipt-edit-items { gap: 0; }
+  .finance-receipt-edit-item {
+    padding: 10px 0;
+    border: 0;
+    border-bottom: 1px solid color-mix(in srgb, var(--line) 76%, transparent);
+    border-radius: 0;
+  }
+}
+
+@media (max-width: 620px) {
+  /* Today: the add action should not become the visual focus of the screen. */
+  .today-plan-panel .today-add-row .today-add-button {
+    min-width: 88px;
+    min-height: 36px !important;
+    padding: 6px 11px;
+  }
+
+  /* Study: applying selected groups is important, but does not need a full-width banner. */
+  .study-profile-group-picker .compact-study-actions {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+  }
+  .study-profile-group-picker .compact-study-actions .button {
+    width: auto !important;
+    min-width: 148px;
+    padding-inline: 14px;
+  }
+
+  /* Work: keep every coworker visible while giving names enough width to scan. */
+  .work-next-team-static {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+  .work-next-team-count {
+    min-height: 0;
+    width: fit-content;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--accent-strong);
+    font-weight: 800;
+  }
+  .work-next-team-static > .coworker-inline {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 3px 10px;
+  }
+  .work-next-team-static > .coworker-inline > span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: .69rem;
+  }
+  .work-next-team-static > .coworker-inline > span + span::before { content: none; }
+  .work-shift-team-details .coworker-overlap-list.compact .coworker-shared-time {
+    display: inline-flex;
+    align-items: baseline;
+    justify-content: flex-end;
+    gap: 0;
+    font-size: 0 !important;
+  }
+  .work-shift-team-details .coworker-overlap-list.compact .coworker-shared-time b { font-size: .68rem; }
+  .work-shift-team-details .coworker-overlap-list.compact .coworker-shared-time small { font-size: .6rem; }
+  .work-shift-team-details .coworker-overlap-list.compact .coworker-shared-time small::before { content: ' · '; }
+
+  /* Finance edit sheet: one flowing form with dividers rather than nested surfaces. */
+  .finance-receipt-edit-form { gap: 9px; }
+  .finance-receipt-edit-source {
+    padding: 7px 0;
+    border-radius: 0;
+    background: transparent;
+    border-bottom: 1px solid color-mix(in srgb, var(--line) 72%, transparent);
+  }
+  .finance-receipt-edit-currency-context {
+    padding: 9px 0;
+    border-left: 0;
+    border-right: 0;
+    border-radius: 0;
+    background: transparent;
+  }
+  .finance-receipt-edit-items { gap: 0; }
+  .finance-receipt-edit-item {
+    padding: 10px 0;
+    border: 0;
+    border-bottom: 1px solid color-mix(in srgb, var(--line) 76%, transparent);
+    border-radius: 0;
+  }
+
+  /* Availability uses one weekly surface and one automation surface; their contents are rows. */
+  .availability-dashboard-layout .availability-week-days { gap: 0; }
+  .availability-dashboard-layout .availability-week-day,
+  .availability-dashboard-layout .availability-week-day.has-hours {
+    padding: 9px 0;
+    border: 0;
+    border-bottom: 1px solid color-mix(in srgb, var(--line) 74%, transparent);
+    border-radius: 0;
+    background: transparent;
+  }
+  .availability-dashboard-layout .availability-week-day:last-child { border-bottom: 0; }
+  .availability-dashboard-layout .availability-summary-grid.automation-summary-grid {
+    gap: 0;
+    border-top: 1px solid color-mix(in srgb, var(--line) 74%, transparent);
+  }
+  .availability-dashboard-layout .availability-summary-grid.automation-summary-grid > div {
+    padding: 8px 7px;
+    border: 0;
+    border-bottom: 1px solid color-mix(in srgb, var(--line) 70%, transparent);
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+  .availability-dashboard-layout .availability-day-rule-grid { gap: 0 10px; }
+  .availability-dashboard-layout .availability-day-rule-button,
+  .availability-dashboard-layout .availability-day-rule-button.has-rule {
+    padding: 8px 0;
+    border: 0;
+    border-bottom: 1px solid color-mix(in srgb, var(--line) 70%, transparent);
+    border-radius: 0;
+    background: transparent;
+  }
+
+  /* Study history follows the same row language as the rest of the screen. */
+  .study-history-compact-grid .import-history-card {
+    padding: 10px 0;
+    border: 0;
+    border-bottom: 1px solid color-mix(in srgb, var(--line) 74%, transparent);
+    border-radius: 0;
+    background: transparent;
+  }
+  .study-history-compact-grid .import-history-card dl div {
+    padding: 5px 0;
+    border-radius: 0;
+    background: transparent;
+  }
+}
+
+
+/* Build198 - information reduction and stable category-free event geometry. */
+.today-view .event-category,
+.today-view .event-source { display: none; }
+
+.work-shift-team-details {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-auto-rows: max-content;
+  align-items: start;
+  justify-self: end;
+}
+.work-shift-team-details > summary {
+  grid-column: 2;
+  grid-row: 1;
+  align-self: start;
+  justify-self: end;
+  height: 36px;
+  min-height: 36px;
+  max-height: 36px;
+  white-space: nowrap;
+}
+.work-shift-team-details[open] {
+  grid-column: 1 / -1;
+  width: 100%;
+  align-items: start;
+  justify-self: stretch;
+}
+.work-shift-team-details[open] > summary {
+  grid-column: 2;
+  grid-row: 1;
+  align-self: start;
+  justify-self: end;
+  height: 36px;
+  min-height: 36px;
+  max-height: 36px;
+}
+.work-shift-team-details .coworker-overlap-list.compact {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  width: 100%;
+}
+
+
+/* Build200 - final information hierarchy cleanup. */
+.today-next-label {
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 750;
+}
+.today-tomorrow {
+  margin: 0 0 12px;
+  padding: 9px 0 10px;
+  border-bottom: 1px solid var(--line);
+}
+.today-tomorrow-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 4px;
+}
+.today-tomorrow-heading > strong { font-size: .8rem; }
+.today-tomorrow-heading > span { color: var(--text-muted); font-size: .66rem; }
+.today-tomorrow-list { display: grid; gap: 0; }
+.today-tomorrow-row {
+  display: grid;
+  grid-template-columns: 92px minmax(0, 1fr) minmax(0, .7fr);
+  gap: 10px;
+  align-items: baseline;
+  padding: 6px 0;
+  border-top: 1px solid color-mix(in srgb, var(--line) 62%, transparent);
+}
+.today-tomorrow-row > span { color: var(--text-muted); font-size: .69rem; font-variant-numeric: tabular-nums; }
+.today-tomorrow-row > strong { min-width: 0; font-size: .76rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.today-tomorrow-row > small { min-width: 0; color: var(--text-muted); font-size: .66rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: right; }
+
+/* Names are information, not status badges. */
+.work-next-team-static > .coworker-inline > span {
+  min-height: 0;
+  padding: 1px 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--text);
+}
+.work-next-team-static > .coworker-inline > span + span::before {
+  content: '·';
+  margin-right: 6px;
+  color: var(--text-muted);
+}
+
+@media (max-width: 620px) {
+  .today-tomorrow { margin-bottom: 8px; padding: 7px 0 8px; }
+  .today-tomorrow-heading { margin-bottom: 2px; }
+  .today-tomorrow-heading > strong { font-size: .76rem; }
+  .today-tomorrow-row { grid-template-columns: 76px minmax(0, 1fr); gap: 7px; padding: 6px 0; }
+  .today-tomorrow-row > span { font-size: .65rem; }
+  .today-tomorrow-row > strong { font-size: .72rem; }
+  .today-tomorrow-row > small { grid-column: 2; margin-top: -3px; font-size: .62rem; text-align: left; }
+}

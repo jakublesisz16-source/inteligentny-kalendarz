@@ -142,14 +142,13 @@ export function DataTransferPanel({ onDataChanged }: DataTransferPanelProps) {
     <section className="data-transfer-panel" aria-labelledby="data-transfer-title">
       <div className="data-transfer-heading">
         <div>
-          <h3 id="data-transfer-title">Przenieś cały stan aplikacji</h3>
-          <p>Eksportuj kopię, przenieś ją na drugie urządzenie i zaimportuj lokalnie.</p>
+          <h3 id="data-transfer-title">Kopia danych</h3>
         </div>
       </div>
 
       <div className="data-transfer-actions">
-        <button type="button" className="button button-primary" disabled={busy} onClick={() => void exportData()}>Eksportuj moje dane</button>
-        <button type="button" className="button button-secondary" disabled={busy} onClick={() => void exportExcel()}>Eksportuj do Excela</button>
+        <button type="button" className="button button-primary" disabled={busy} onClick={() => void exportData()}>Eksportuj kopię</button>
+        <button type="button" className="button button-secondary" disabled={busy} onClick={() => void exportExcel()}>Excel</button>
         <input
           ref={fileInputRef}
           className="visually-hidden"
@@ -165,13 +164,13 @@ export function DataTransferPanel({ onDataChanged }: DataTransferPanelProps) {
       </div>
 
       <details className="data-transfer-privacy-details">
-        <summary>Informacje o bezpieczeństwie eksportu</summary>
-        <p className="data-transfer-privacy">JSON służy do backupu i przywracania. Excel jest czytelnym archiwum i nie można go importować z powrotem. Pliki mogą zawierać prywatne dane, nie są szyfrowane i powinny być przechowywane w bezpiecznym miejscu. Aplikacja nie wysyła ich do internetu.</p>
+        <summary>O plikach</summary>
+        <p className="data-transfer-privacy">Kopia JSON służy do przywracania. Excel jest tylko do odczytu. Pliki mogą zawierać prywatne dane.</p>
       </details>
 
       {error ? <div className="study-message error-message" role="alert">{error}</div> : null}
       {message ? <div className="study-message success-message" role="status" aria-live="polite">{message}</div> : null}
-      {busy ? <p className="muted-copy" role="status" aria-live="polite">Przetwarzanie danych / przygotowywanie pliku...</p> : null}
+      {busy ? <p className="muted-copy" role="status" aria-live="polite">Przetwarzanie...</p> : null}
 
       {inspection ? (
         <div className="data-transfer-preview">
@@ -186,8 +185,6 @@ export function DataTransferPanel({ onDataChanged }: DataTransferPanelProps) {
           <div className="data-transfer-meta">
             <div><span>Plik z</span><strong>{formatDateTime(inspection.summary.createdAt)}</strong></div>
             <div><span>Wersja aplikacji</span><strong>{inspection.summary.appVersion}</strong></div>
-            <div><span>Schemat danych</span><strong>{inspection.summary.databaseSchemaVersion}</strong></div>
-            <div><span>Format pliku</span><strong>{inspection.document.backupVersion}</strong></div>
           </div>
 
           <div className="data-transfer-counts" aria-label="Zawartość pliku danych">

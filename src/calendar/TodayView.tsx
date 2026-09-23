@@ -44,12 +44,6 @@ function upcomingWhenLabel(event: CalendarEvent, todayKey: string, timeFormat: T
   return `${dayLabel} · ${event.allDay ? 'cały dzień' : formatTime(event.startDateTime, timeFormat)}`;
 }
 
-const nextCategoryLabels: Record<CalendarEvent['category'], string> = {
-  STUDY: 'Studia',
-  WORK: 'Praca',
-  PERSONAL: 'Prywatne',
-  OTHER: 'Inne',
-};
 
 export function TodayView({ events, locations, timeFormat, showPolishHolidays = true, showWumAcademicCalendar = true, onAdd, onEdit, onStudyCorrect, consistencyIssues = [], onOpenConsistencyCenter, availabilityPlans = [], coworkersByEvent = {} }: TodayViewProps) {
   const today = new Date();
@@ -63,6 +57,8 @@ export function TodayView({ events, locations, timeFormat, showPolishHolidays = 
   const blockingToday = consistencyIssues.filter((issue) => !issue.acknowledged && issue.planningImpact === 'BLOCKING' && issue.endDateTime.slice(0, 10) >= todayKey && issue.startDateTime.slice(0, 10) <= todayKey);
   const todayAvailability = availabilityPlans.flatMap((plan) => plan.blocks.filter((block) => block.date === todayKey && block.status !== 'REJECTED').map((block) => ({ ...block, planStatus: plan.status }))).sort((a, b) => a.startTime.localeCompare(b.startTime));
   const hasPlan = todayEvents.length > 0 || todayAvailability.length > 0;
+  const tomorrowKey = addDaysToDateKey(todayKey, 1);
+  const tomorrowEvents = sortEventsForDay(events.filter((event) => eventOccursOnDate(event, tomorrowKey)));
   const nextEvent = upcomingEvent(events, today, todayEvents.length ? todayKey : undefined);
   const todayMarkers = calendarOverlayMarkersForDate(todayKey, { showPolishHolidays, showWumAcademicCalendar });
 
@@ -75,10 +71,22 @@ export function TodayView({ events, locations, timeFormat, showPolishHolidays = 
         </div>
       </header>
 
-      {nextEvent ? <section className={`today-next-strip category-${nextEvent.category.toLowerCase()}`} aria-label="Następne wydarzenie">
+      {nextEvent ? <section className="today-next-strip" aria-label="Następne wydarzenie">
         <span className="today-next-label">Następne</span>
         <strong>{nextEvent.title}</strong>
-        <small>{nextCategoryLabels[nextEvent.category]} · {upcomingWhenLabel(nextEvent, todayKey, timeFormat, today)}{nextEvent.locationId && locationMap.get(nextEvent.locationId)?.name ? ` · ${locationMap.get(nextEvent.locationId)?.name}` : nextEvent.locationText ? ` · ${nextEvent.locationText}` : ''}</small>
+        <small>{upcomingWhenLabel(nextEvent, todayKey, timeFormat, today)}{nextEvent.locationId && locationMap.get(nextEvent.locationId)?.name ? ` · ${locationMap.get(nextEvent.locationId)?.name}` : nextEvent.locationText ? ` · ${nextEvent.locationText}` : ''}</small>
+      </section> : null}
+
+      {tomorrowEvents.length ? <section className="today-tomorrow" aria-label="Plan na jutro">
+        <div className="today-tomorrow-heading"><strong>Jutro</strong><span>{tomorrowEvents.length} {tomorrowEvents.length === 1 ? 'wydarzenie' : tomorrowEvents.length < 5 ? 'wydarzenia' : 'wydarzeń'}</span></div>
+        <div className="today-tomorrow-list">{tomorrowEvents.map((event) => {
+          const location = event.locationId ? locationMap.get(event.locationId)?.name : event.locationText;
+          return <div key={event.id} className={`today-tomorrow-row category-${event.category.toLowerCase()}`}>
+            <span>{event.allDay ? 'Cały dzień' : `${formatTime(event.startDateTime, timeFormat)}-${formatTime(event.endDateTime, timeFormat)}`}</span>
+            <strong>{event.title}</strong>
+            {location ? <small>{location}</small> : null}
+          </div>;
+        })}</div>
       </section> : null}
 
       {blockingToday.length ? <div className="today-conflict-banner" role="alert"><div><strong>Plan na dziś zawiera {blockingToday.length === 1 ? 'konflikt' : `${blockingToday.length} konflikty`}</strong><span>Sprawdź niespójności przed automatycznym planowaniem pracy.</span></div>{onOpenConsistencyCenter ? <button type="button" className="button button-secondary button-small" onClick={onOpenConsistencyCenter}>Sprawdź</button> : null}</div> : null}
@@ -94,7 +102,7 @@ export function TodayView({ events, locations, timeFormat, showPolishHolidays = 
           <EmptyState icon="calendar" title="Wolny dzień" description="" actionLabel="+ Dodaj" onAction={() => onAdd(today)} />
         )}
         {todayAvailability.length ? <div className="today-availability-list">{todayAvailability.map((block) => <article key={block.id} className={`availability-overlay-card status-${block.status.toLowerCase()}${block.validationState === 'CONFLICT' ? ' has-conflict' : ''}`} aria-label={`${block.status === 'PROPOSED' ? 'Proponowana' : 'Zaakceptowana'} dyspozycyjność ${block.startTime}-${block.endTime}`}><div><strong>{block.status === 'PROPOSED' ? 'Proponowana dyspozycyjność' : block.origin === 'MANUAL' ? 'Twoja dyspozycyjność' : 'Dyspozycyjność'}</strong><span>{block.startTime}-{block.endTime}</span></div>{block.validationState === 'CONFLICT' ? <small>{block.validationMessage ?? 'Wymaga poprawy'}</small> : block.planStatus === 'STALE' ? <small>Wymaga ponownego sprawdzenia</small> : null}</article>)}</div> : null}
-        {hasPlan ? <div className="today-add-row"><button type="button" className="button button-primary today-add-button" onClick={() => onAdd(today)}>+ Dodaj wydarzenie</button></div> : null}
+        {hasPlan ? <div className="today-add-row"><button type="button" className="button button-primary today-add-button" onClick={() => onAdd(today)}>+ Dodaj</button></div> : null}
       </div>
     </section>
   );

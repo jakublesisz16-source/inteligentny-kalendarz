@@ -243,7 +243,7 @@ assert(interfaceConsistency.includes('/* 1.2.0.85 - one hierarchy and stronger s
 assert(interfaceConsistency.includes('.calendar-week-event.category-study') && interfaceConsistency.includes('.calendar-week-event.category-work') && interfaceConsistency.includes('.calendar-week-event.category-personal') && interfaceConsistency.includes('.selected-day-panel .event-card.category-work'), 'semantic event contrast does not cover calendar and selected-day surfaces');
 assert(calendarView.includes('filter-${item.id.toLowerCase()}') && calendarView.includes('category-${event.category.toLowerCase()}'), 'calendar filters or mobile day preview lost semantic category classes');
 assert(studyViewSource.includes('<h1>Studia</h1>') && studyViewSource.includes('study-current-plan-line') && studyViewSource.includes('study-groups-primary') && studyViewSource.includes('study-history-details'), 'Study default surface simplification is missing');
-assert(styleIndex.trimEnd().endsWith("@import './interface-consistency.css';"), 'shared interface consistency stylesheet must load last');
+assert(styleIndex.includes("@import './interface-consistency.css';") && styleIndex.includes("@import './mobile-compact.css';") && styleIndex.trimEnd().endsWith("@import './interface-refinement.css';"), 'shared consistency and compact mobile layers must be followed by the final interface refinement layer');
 assert(privacyDoc.includes('## Lokalne kursy walut 1.2.0.85') && privacyDoc.includes('wbudowanych lokalnie') && privacyDoc.includes('nie wysyła kwoty wydatku'), 'simplified FX privacy boundary is not documented');
 assert(financeDashboard.includes('completeTripOriginalTotal') && financeDashboard.includes('activeTripOriginalTotalMinor') && financeDashboard.includes('finance-trip-currency-button'), 'Trip original-currency summary or currency settings entry is missing');
 assert(calendarCss.includes('/* 1.2.0.58 - lightweight trip expense summaries */') && mobileResponsiveCss.includes('/* 1.2.0.58 - trip finances on mobile */'), 'Finance trip summary styling missing');
@@ -264,7 +264,7 @@ assert(calendarCss.includes('/* 1.2.0.89 - travel-ready category cues') && mobil
 assert(financeDashboard.includes('finance-overview-summary-card') && financeDashboard.includes('finance-overview-category-strip') && financeDashboard.includes('finance-expense-row finance-month-transaction-row') && financeDashboard.includes('finance-expense-row finance-trip-expense-row'), '1.2.0.90 Month/Trip shared Finance structure is missing');
 assert(financeDashboard.includes('finance-month-transaction-icon') && financeDashboard.includes('finance-trip-expense-icon') && financeDashboard.includes("const secondary = [receipt.tripName, formatExpenseMerchantDisplayName(receipt.merchant), categoryLabel]"), '1.2.0.90 transaction category cues are not shared between Month and Trip');
 assert(calendarCss.includes('/* 1.2.0.90 - Month and Trip Finance share one compact visual grammar. */') && mobileResponsiveCss.includes('/* 1.2.0.90 - Month and Trip keep the same Finance hierarchy on phones. */'), '1.2.0.90 shared Finance styling missing');
-assert(settingsView.includes('settings-core') && settingsView.includes('settings-essential-grid') && settingsView.includes('settings-build-line') && settingsView.includes('Backup i przenoszenie') && settingsView.includes('Historia i bezpieczeństwo') && settingsView.includes('settings-collapsible-section'), 'Settings minimal default surface is missing');
+assert(settingsView.includes('settings-core') && settingsView.includes('settings-essential-grid') && settingsView.includes('settings-build-line') && settingsView.includes('Kopia i przenoszenie') && settingsView.includes('Historia i odzyskiwanie') && settingsView.includes('settings-collapsible-section'), 'Settings minimal default surface is missing');
 assert(!safety.includes("tab === 'backup'") && !safety.includes('Utwórz kopię zapasową'), 'duplicate backup controls returned to Safety Center');
 assert(workView.includes("activeWorkEvents.length ? 'Aktualizuj PDF' : 'Importuj PDF'") && mobileResponsiveCss.includes('.work-header-actions .work-import-button'), 'travel-ready Work header hardening missing');
 assert(calendarCss.includes('/* 1.2.0.54 - global clarity pass') && mobileResponsiveCss.includes('/* 1.2.0.54 - real-device mobile clarity pass */'), '1.2.0.54 clarity styles missing');
@@ -491,21 +491,17 @@ assert(studyImportReview.includes('const hasSourceWeek = Boolean(candidate.sourc
 assert(studyImportReview.includes("severity: 'INCOMPLETE'"), 'source-week missing date is no longer represented as incomplete');
 assert(studyCompleteness.includes("status = 'SOURCE_INCONSISTENT'"), 'advisory seminar hour inconsistencies are no longer surfaced');
 assert(studyView.includes('deklaracji godzin seminariów nie zgadza się z datowanymi terminami'), 'Study UI hides advisory seminar-hour inconsistencies');
-assert(app.includes('activeStudyGroups={activeStudyGroups}'), 'Calendar does not receive active Study groups');
-assert(app.includes('getActiveUniversityImport()'), 'App does not load active Study import metadata for calendar context');
-assert(calendarView.includes('className="calendar-study-context"'), 'calendar lacks visible active Study group context');
-assert(calendarView.includes('Plan studiów aktywny'), 'calendar Study context lacks concise label');
-assert(calendarView.includes('calendar-side-column') && calendarView.includes('calendar-side-study-context'), 'active Study context is not placed in the compact right-side calendar column');
-assert(calendarView.indexOf('calendar-side-study-context') > calendarView.indexOf('className="panel selected-day-panel"'), 'active Study context must remain below the selected-day panel');
-assert(calendarView.includes('const WEEK_DESKTOP_VERTICAL_CHROME = 225;'), 'adaptive week density did not reclaim the vertical space freed by moving Study context');
-assert(calendarCss.includes('/* 1.2.0.50 - move Study context out of the main calendar vertical flow */'), '1.2.0.50 compact calendar side-context styles missing');
-assert(mobileResponsiveCss.includes('/* 1.2.0.50 - compact side Study context */'), '1.2.0.50 responsive side-context styles missing');
+assert(app.includes('getActiveUniversityImport()'), 'App no longer loads active Study import metadata');
+assert(!calendarView.includes('Plan studiów aktywny'), 'Calendar default day panel reintroduced redundant Study-plan status copy');
+assert(!calendarView.includes('calendar-selected-day-study-context'), 'Calendar default day panel reintroduced redundant Study group context');
+assert(calendarView.includes('calendar-week-study-group'), 'Study group labels disappeared from actual calendar events');
+assert(calendarView.includes('const WEEK_DESKTOP_VERTICAL_CHROME = 225;'), 'adaptive week density baseline changed unexpectedly');
 assert(studyProfile.includes('study-future-groups-note') && studyProfile.includes('Aktualny plan: {formatStudyGroupList(activeGroups)}'), 'Study profile does not distinguish active groups when future groups differ');
 assert(studyProfile.includes('study-future-groups-note'), 'Study profile does not distinguish future-only group selection');
 assert(studyProfile.includes('study-profile-settings-always-open') && studyProfile.includes('Wybór grup') && studyProfile.includes('StudyGroupChoiceFields') && !studyProfile.includes('Zmień grupy') && !studyProfile.includes('setEditing'), 'Study group controls are no longer permanently visible through the shared chooser');
 assert(source('src/study/StudyGroupPreviewPanel.tsx').includes('<section className="study-preview-sandbox">') && !source('src/study/StudyGroupPreviewPanel.tsx').includes('<section className="panel study-preview-sandbox">'), '1.2.0.101 Study preview returned to a nested panel');
-assert(transfer.includes('data-transfer-privacy-details') && transfer.includes('Informacje o bezpieczeństwie eksportu'), '1.2.0.101 compact transfer safety disclosure missing');
-assert(!safety.includes('<section className="panel safety-center">') && safety.includes('settings-section-intro'), '1.2.0.101 Settings safety hierarchy returned to a nested panel');
+assert(transfer.includes('data-transfer-privacy-details') && transfer.includes('O plikach'), 'compact transfer safety disclosure missing');
+assert(!safety.includes('<section className="panel safety-center">') && safety.includes('<StoragePersistencePanel />'), 'Settings safety hierarchy returned to a nested panel or lost data protection control');
 assert(interfaceConsistency.includes('/* 1.2.0.101 - compact Studies and Settings without hiding primary controls. */') && interfaceConsistency.includes('.study-profile-group-picker .group-chip { min-height: 42px;'), '1.2.0.101 compact UI or mobile touch-size guard missing');
 assert(studyGroupChoice.includes('STUDY_GROUP_PARTITIONS') && studyGroupChoice.includes('study-group-choice-card') && studyGroupChoice.includes('<select value={current}') && studyGroupChoice.includes('setPartitionGroup'), 'Shared Study group selector missing');
 assert(workView.includes('work-overview-simple') && workView.includes('work-summary-line') && workView.includes('work-shift-row-minimal'), '1.2.0.174 Work minimal default surface is missing');
@@ -513,7 +509,7 @@ assert(settingsView.includes('settings-core') && settingsView.includes('settings
 assert(interfaceConsistency.includes('/* 1.2.0.102 - dashboard density: compact Studies, Work overview and Settings. */') && interfaceConsistency.includes('.study-group-choice-card select') && interfaceConsistency.includes('.work-overview-dashboard') && interfaceConsistency.includes('.settings-dashboard-grid'), 'dashboard density styles missing');
 assert(studyViewSource.includes('study-upload-dashboard') && interfaceConsistency.includes('.study-view .study-upload-dashboard'), '1.2.0.102 compact Study import dashboard missing');
 // 1.2.0.103 continues dashboard density without hiding primary actions and adds optional calendar information layers.
-assert(todayView.includes('today-add-row') && todayView.includes('+ Dodaj wydarzenie'), 'Today add action is no longer kept below the agenda');
+assert(todayView.includes('today-add-row') && todayView.includes('today-add-button') && todayView.includes('>+ Dodaj</button>'), 'Today add action is no longer kept below the agenda');
 assert(financeDashboard.includes('!newTripOpen && tripSummaries.length') && financeDashboard.includes('Utwórz pierwszy wyjazd, a jego wydatki będą zebrane w jednym miejscu.'), '1.2.0.103 empty Trips returned to duplicated header/empty-state actions');
 assert(settingsView.includes('showPolishHolidays') && settingsView.includes('showWumAcademicCalendar') && db.includes('showPolishHolidays: settings?.showPolishHolidays ?? true') && db.includes('showWumAcademicCalendar: settings?.showWumAcademicCalendar ?? true'), '1.2.0.103 optional calendar layers are not persisted safely');
 assert(calendarView.includes('calendarOverlayMarkersForDate') && calendarView.includes('calendar-selected-day-overlays') && calendarView.includes('calendar-overlay-dots'), '1.2.0.103 calendar overlay rendering missing');
@@ -524,7 +520,7 @@ assert(availabilityView.includes('availability-week-days') && workSummaryView.in
 // 1.2.0.104 finishes desktop compaction without hiding data or shrinking touch targets.
 assert(availabilityView.includes('availability-dashboard-layout') && interfaceConsistency.includes('grid-template-columns: minmax(0, 2fr) minmax(320px, 1fr)'), '1.2.0.104 Availability 2/3 + 1/3 dashboard missing');
 assert(!studyProfile.includes('study-profile-plan-summary') && !studyProfile.includes('Grupy aktywnego planu') && studyViewSource.includes('study-current-plan-line'), 'Study profile reintroduced a duplicate active-plan summary above selectors');
-assert(calendarView.includes('calendar-study-context-details') && interfaceConsistency.includes('.calendar-side-column.is-empty .selected-day-panel .empty-state'), '1.2.0.104 Calendar compact context or empty-day density guard missing');
+assert(!calendarView.includes('calendar-study-context-details') && interfaceConsistency.includes('.calendar-side-column.is-empty .selected-day-panel .empty-state'), 'Calendar redundant Study context returned or empty-day density guard missing');
 assert(settingsView.includes('Święta PL') && settingsView.includes('WUM 26/27') && interfaceConsistency.includes('.settings-layer-switch input:checked'), '1.2.0.104 compact calendar layer switches missing');
 
 // 1.2.0.105 mobile touch targets after dashboard compaction.
@@ -670,7 +666,7 @@ assert(studyMatrixAdapter.includes("warnings.push('Nie udało się ustalić prze
 assert(!app.includes('GlobalSearch') && !app.includes('searchOpen'), 'abandoned global search App state returned');
 assert(!calendarCss.includes('global-search') && !mobileResponsiveCss.includes('global-search') && !mobileResponsiveCss.includes('bottom-nav-search'), 'obsolete global search CSS returned');
 assert(studyView.includes('className="import-history-group-list"'), 'Study import history still renders groups as dense text');
-assert(componentCss.includes('.calendar-study-context'), 'calendar Study group context styling missing');
+assert(componentCss.includes('.calendar-week-study-group'), 'calendar Study event group styling missing');
 assert(app.includes('incompleteStudyEntries={incompleteStudyEntries}'), 'Calendar does not receive source-incomplete Study entries');
 assert(calendarView.includes('study-incomplete-marker'), 'Calendar hides source-incomplete Study blocks');
 assert(calendarView.includes('to nie jest potwierdzone wydarzenie'), 'Calendar does not distinguish source-incomplete blocks from confirmed events');
@@ -700,6 +696,6 @@ assert(!calendarView.includes('className="calendar-day-events"'), 'calendar mont
 assert(calendarView.includes('className="category-count-row calendar-day-counts"'), 'calendar compact event counters missing');
 assert(calendarView.includes("title={dayEvents.map((event) => `${calendarEventTimeLabel(event, key, timeFormat)} ${event.title}`).join('\\n')}"), 'calendar compact counters lost event detail tooltip');
 assert(!componentCss.includes('.calendar-panel .calendar-day-counts { display: none; }'), 'desktop month counters are hidden');
-assert(calendarView.includes('activeStudyGroups.map(studyGroupDisplayLabel).join'), 'calendar Study context lost full group labels in accessibility metadata');
+assert(!calendarView.includes('activeStudyGroups.map(studyGroupDisplayLabel).join'), 'Calendar should not repeat active Study groups in the default day panel');
 
 console.log('RELEASE_SAFETY_GATE_OK');

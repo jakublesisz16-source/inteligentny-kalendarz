@@ -11,10 +11,9 @@ describe('1.2.0.19 visibility consistency', () => {
     expect(workView).not.toContain('nearestCoworkers.slice(');
   });
 
-  it('shows all selected Study groups directly in Calendar', () => {
-    expect(calendarView).toContain('Plan studiów aktywny');
-    expect(calendarView).toContain('Wybrane grupy aktywnego planu');
-    expect(calendarView).toContain('activeStudyGroups.map((group) => <span key={group} title={studyGroupDisplayLabel(group)}>{studyGroupDisplayLabel(group)}</span>)');
+  it('keeps Study group labels on actual calendar events without a redundant side summary', () => {
+    expect(calendarView).not.toContain('Plan studiów aktywny');
+    expect(calendarView).not.toContain('calendar-selected-day-study-context');
     expect(calendarView).toContain('calendar-week-study-group');
     expect(calendarView).toContain('studyEventDisplay(event).groupLabel');
   });

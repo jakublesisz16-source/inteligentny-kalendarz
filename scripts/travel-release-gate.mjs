@@ -32,7 +32,7 @@ assert(responsive.includes('body.modal-open .bottom-nav') && responsive.includes
 assert(indexHtml.includes('interactive-widget=resizes-content'), 'mobile keyboard viewport resize hint missing');
 assert(finance.includes('finance-overview-summary-card') && finance.includes('finance-expense-row finance-month-transaction-row') && finance.includes('finance-expense-row finance-trip-expense-row'), 'Month/Trip Finance structure drifted');
 assert(calendar.includes('setSelectedDate(day)') && calendar.includes('setMobileDayPanelOpen(false)'), 'mobile Month day selection invariant missing');
-assert(settings.includes('settings-core') && settings.includes('Backup i przenoszenie') && settings.includes('Historia i bezpieczeństwo'), 'Settings core sections missing');
+assert(settings.includes('settings-core') && settings.includes('Kopia i przenoszenie') && settings.includes('Historia i odzyskiwanie'), 'Settings core sections missing');
 assert(settings.includes('settings-collapsible-section') && settings.includes('<details'), 'Settings secondary tools must stay one click below the default surface');
 assert(!safety.includes("tab === 'backup'") && !safety.includes('Utwórz kopię zapasową'), 'duplicate backup UI returned to Safety Center');
 assert(transfer.includes('createDataTransferFile') && transfer.includes('importDataTransfer') && transfer.includes('MAX_TRANSFER_FILE_BYTES'), 'portable backup/restore path missing');

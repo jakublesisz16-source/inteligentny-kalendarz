@@ -20,11 +20,7 @@
 .empty-orbit span { width: 12px; height: 12px; background: var(--accent); border-radius: 50%; box-shadow: 0 0 0 8px var(--accent-soft); }
 .event-list { container-type: inline-size; padding: 18px 24px 26px; display: grid; gap: 10px; }
 .compact-event-list { padding: 0; }
-.event-card { position: relative; display: grid; grid-template-columns: 72px minmax(0, 1fr) auto; gap: 16px; align-items: start; padding: 17px 18px 17px 20px; border: 1px solid var(--line); border-radius: var(--radius-md); background: #fff; overflow: hidden; }
-.event-card::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: var(--other); }
-.event-card.category-study::before { background: var(--study); }
-.event-card.category-work::before { background: var(--work); }
-.event-card.category-personal::before { background: var(--personal); }
+.event-card { position: relative; display: grid; grid-template-columns: 72px minmax(0, 1fr) auto; gap: 16px; align-items: start; padding: 17px 18px; border: 1px solid var(--line); border-radius: var(--radius-md); background: #fff; overflow: hidden; }
 .event-time strong, .event-time span { display: block; }
 .event-time strong { font-size: .92rem; }
 .event-time span { color: var(--text-muted); font-size: .78rem; margin-top: 3px; }
@@ -489,10 +485,6 @@
 .event-card.category-work { background: linear-gradient(90deg, var(--category-work-soft), #fff 18%); }
 .event-card.category-personal { background: linear-gradient(90deg, var(--category-personal-soft), #fff 18%); }
 .event-card.category-other { background: linear-gradient(90deg, var(--category-other-soft), #fff 18%); }
-.event-card.category-study::before { background: var(--category-study); }
-.event-card.category-work::before { background: var(--category-work); }
-.event-card.category-personal::before { background: var(--category-personal); }
-.event-card.category-other::before { background: var(--category-other); }
 .event-card.category-study .event-category { color: var(--category-study); background: var(--category-study-soft); }
 .event-card.category-work .event-category { color: var(--category-work); background: var(--category-work-soft); }
 .event-card.category-personal .event-category { color: var(--category-personal); background: var(--category-personal-soft); }
@@ -778,7 +770,7 @@
 .study-preview-day-heading h3 { margin: 2px 0 0; font-size: .94rem; text-transform: capitalize; }
 .study-preview-day-total { flex: 0 0 auto; padding: 5px 8px; border-radius: 999px; background: var(--category-study-soft); color: var(--category-study); font-size: .66rem; font-weight: 800; }
 .compact-preview-events { gap: 6px; }
-.preview-calendar-event { border-left: 3px solid var(--category-study); background: rgba(255,255,255,.9); }
+.preview-calendar-event { background: rgba(255,255,255,.9); }
 .study-preview-empty-day { margin: 0; padding: 14px; border-radius: 12px; background: var(--surface-soft); color: var(--text-muted); font-size: .78rem; }
 .study-preview-undated-note { margin: 0; color: var(--text-muted); font-size: .72rem; line-height: 1.45; }
 .preview-results-meta { display: flex; align-items: center; gap: 7px 14px; flex-wrap: wrap; color: var(--text-muted); font-size: .72rem; }
@@ -2003,7 +1995,6 @@
   gap: 1px;
   padding: 5px 6px;
   border: 1px solid transparent;
-  border-left-width: 3px;
   border-radius: 8px;
   background: var(--surface);
   color: var(--text);
@@ -2014,10 +2005,10 @@
 .calendar-week-event span { font-size: .56rem; font-weight: 800; color: var(--text-muted); white-space: nowrap; }
 .calendar-week-event strong { font-size: .64rem; line-height: 1.18; overflow: hidden; }
 .calendar-week-event i { position: absolute; right: 4px; top: 3px; width: 15px; height: 15px; display: grid; place-items: center; border-radius: 50%; background: var(--warning-soft); color: var(--warning); font-size: .56rem; font-style: normal; font-weight: 900; }
-.calendar-week-event.category-study { border-left-color: var(--category-study); background: var(--category-study-soft); }
-.calendar-week-event.category-work { border-left-color: #7597a0; background: #eef4f5; }
-.calendar-week-event.category-personal { border-left-color: var(--category-personal); background: var(--category-personal-soft); }
-.calendar-week-event.category-other { border-left-color: var(--category-other); background: var(--category-other-soft); }
+.calendar-week-event.category-study { background: var(--category-study-soft); }
+.calendar-week-event.category-work { background: #eef4f5; }
+.calendar-week-event.category-personal { background: var(--category-personal-soft); }
+.calendar-week-event.category-other { background: var(--category-other-soft); }
 .calendar-week-event.conflict { box-shadow: inset 0 0 0 1px rgba(163,107,47,.32); }
 .selected-day-panel .selected-day-quick-actions { margin-bottom: 12px; }
 .calendar-day-alerts { display: grid; gap: 7px; margin-bottom: 12px; }
@@ -2043,10 +2034,9 @@
 .calendar-day.today:not(.selected) { border-color: color-mix(in srgb, var(--accent) 42%, var(--line)); box-shadow: inset 0 0 0 1px rgba(217,142,171,.06); }
 .calendar-week-day-heading.weekend { background: color-mix(in srgb, var(--surface-soft) 64%, var(--surface)); }
 .calendar-week-column.weekend { background-color: color-mix(in srgb, var(--surface-soft) 34%, transparent); }
-.calendar-week-event.category-work { border-left-color: #9b7f8b; background: #f7f1f4; }
+.calendar-week-event.category-work { background: #f7f1f4; }
 .calendar-day .category-count.category-work { color: #8f7480; background: #f7eff3; border-color: rgba(143,116,128,.18); }
 .selected-day-panel .event-card.category-work { background: linear-gradient(90deg, #f7eff3, #fff 18%); }
-.selected-day-panel .event-card.category-work::before { background: #9b7f8b; }
 .selected-day-panel .event-card.category-work .event-category { color: #8f7480; background: #f7eff3; }
 .event-card.compact-time-range { grid-template-columns: 90px minmax(0, 1fr) auto; }
 .event-card.compact-time-range .event-time strong { white-space: nowrap; font-size: .82rem; letter-spacing: -.01em; }
@@ -3164,7 +3154,6 @@
   gap: 4px;
   padding: 4px 6px;
   border: 1px solid transparent;
-  border-left-width: 3px;
   border-radius: 7px;
   background: var(--surface);
   color: var(--text);
@@ -3193,10 +3182,10 @@
   font-style: normal;
   font-weight: 900;
 }
-.calendar-week-all-day-event.category-study { border-left-color: var(--category-study); background: var(--category-study-soft); }
-.calendar-week-all-day-event.category-work { border-left-color: #9b7f8b; background: #f7f1f4; }
-.calendar-week-all-day-event.category-personal { border-left-color: var(--category-personal); background: var(--category-personal-soft); }
-.calendar-week-all-day-event.category-other { border-left-color: var(--category-other); background: var(--category-other-soft); }
+.calendar-week-all-day-event.category-study { background: var(--category-study-soft); }
+.calendar-week-all-day-event.category-work { background: #f7f1f4; }
+.calendar-week-all-day-event.category-personal { background: var(--category-personal-soft); }
+.calendar-week-all-day-event.category-other { background: var(--category-other-soft); }
 .calendar-week-all-day-event.conflict { box-shadow: inset 0 0 0 1px rgba(163,107,47,.32); }
 .calendar-week-all-day-more {
   appearance: none;
@@ -3468,9 +3457,6 @@
 }
 .today-plan-panel.today-single-surface .event-card + .event-card {
   border-top: 1px solid color-mix(in srgb, var(--line) 82%, transparent);
-}
-.today-plan-panel.today-single-surface .event-card::before {
-  display: none;
 }
 .today-plan-panel.today-single-surface .today-availability-list {
   margin: 0;

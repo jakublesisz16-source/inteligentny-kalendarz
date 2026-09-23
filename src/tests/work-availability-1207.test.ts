@@ -10,8 +10,9 @@ const styles = fs.readFileSync(path.join(root, 'src/styles/components.css'), 'ut
 describe('1.2.0.7 manual-first Work availability UX', () => {
   it('keeps manual weekly availability before optional automation', () => {
     expect(availabilityView.indexOf('availability-week-editor')).toBeLessThan(availabilityView.indexOf('availability-automation-panel'));
-    expect(availabilityView).toContain('Automatyczne propozycje');
-    expect(availabilityView).toContain('Ręczny wpis lub wyjątek ma zawsze pierwszeństwo');
+    expect(availabilityView).toContain('<h3>Automat</h3>');
+    expect(availabilityView).toContain('availability-week-editor');
+    expect(availabilityView).not.toContain('Ręczny wpis lub wyjątek ma zawsze pierwszeństwo');
   });
 
   it('does not show the old optimizer banner above manual time inputs', () => {

@@ -10,7 +10,7 @@ const responsive = read('src/styles/responsive.css');
 const version = read('src/core/version.ts');
 
 const checks = [
-  ['Study has one calm page title', study.includes('<h1>Studia</h1>') && study.includes('Plan, grupy i aktualizacje.')],
+  ['Study has one calm page title', study.includes('<h1>Studia</h1>') && !study.includes('Plan, grupy i aktualizacje.')],
   ['Study active-plan status is a single compact line', study.includes('study-current-plan-line') && !study.includes('className="study-plan-freshness"')],
   ['Study group choice stays visible while secondary history remains collapsed', study.includes('className="study-groups-primary"') && study.includes('StudyProfileSettings')],
   ['Study history is collapsed by default', study.includes('<details className="imports-section study-history-details study-compact-details">')],
@@ -18,8 +18,8 @@ const checks = [
   ['Work empty availability comparison is not shown on schedule surface', work.includes('hasSentAvailability ? <AvailabilityWorkComparisonPanel')],
   ['Work nearest team stays visible while roster details remain on demand', work.includes('work-next-team-static') && work.includes('work-shift-team-details') && work.includes('<CoworkerOverlapList people={coworkers} compact />')],
   ['Work roster rows show own shift first', work.includes('work-shift-row-minimal') && work.includes('work-shift-main-line')],
-  ['Settings essentials are the only expanded default block', settings.includes('className="settings-core"') && settings.includes('Najczęściej używane ustawienia')],
-  ['Settings backup and history are one-click sections', (settings.match(/<details className="settings-collapsible-section">/g) ?? []).length === 2 && settings.includes('Backup i przenoszenie') && settings.includes('Historia i bezpieczeństwo')],
+  ['Settings essentials are the only expanded default block', settings.includes('className="settings-core"') && settings.includes('<h2>Podstawy</h2>')],
+  ['Settings backup and history are one-click sections', (settings.match(/<details className="settings-collapsible-section">/g) ?? []).length === 2 && settings.includes('Kopia i przenoszenie') && settings.includes('Historia i odzyskiwanie')],
   ['Mobile removes helper copy and keeps Work tabs all visible', responsive.includes('.study-view .study-upload-dashboard > .study-upload-copy > p { display: none; }') && responsive.includes('grid-template-columns: repeat(3, minmax(0, 1fr));')],
   ['Mobile touch targets remain readable', responsive.includes('.work-shift-team-details > summary { min-height: 40px; }') && responsive.includes('.settings-collapsible-section > summary { min-height: 50px;')],
   ['Build174 CSS contract is present', styles.includes('1.2.0.174 - default surfaces show only the next decision') && responsive.includes('1.2.0.174 - mobile keeps only essential information')],

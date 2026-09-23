@@ -1,0 +1,309 @@
+/* 1.2.0.195 - one compact mobile surface system.
+ * Goal: fewer nested cards, denser scan paths and stable touch targets.
+ */
+@media (max-width: 620px) {
+  :root {
+    --mobile-bottom-nav-clearance: calc(66px + max(6px, env(safe-area-inset-bottom)));
+    --mobile-compact-radius: 12px;
+  }
+
+  .app-main > .view-shell {
+    padding-left: max(14px, env(safe-area-inset-left));
+    padding-right: max(14px, env(safe-area-inset-right));
+  }
+
+  .bottom-nav {
+    left: max(6px, env(safe-area-inset-left));
+    right: max(6px, env(safe-area-inset-right));
+    bottom: max(6px, env(safe-area-inset-bottom));
+    height: 62px;
+    padding: 4px;
+    border-radius: 18px;
+  }
+  .bottom-nav-item { gap: 1px; border-radius: 12px; }
+  .bottom-nav-icon-shell { width: 26px; height: 26px; border-radius: 9px; }
+
+  /* Today - one reading surface, no decorative card stack. */
+  .today-header-minimal { margin-bottom: 2px; }
+  .today-header-minimal h1 { font-size: 1.24rem; line-height: 1.15; }
+  .today-next-strip {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: 4px 7px;
+    margin-bottom: 5px;
+    padding: 5px 0 7px;
+  }
+  .today-next-label { font-size: .56rem; }
+  .today-next-strip > strong { font-size: .75rem; }
+  .today-next-strip > small {
+    grid-column: auto;
+    max-width: 42vw;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: .59rem;
+    text-align: right;
+  }
+  .today-view.has-plan .today-plan-panel.today-single-surface {
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+    overflow: visible;
+  }
+  .today-view.has-plan .today-plan-panel.today-single-surface .event-card,
+  .today-view.has-plan .today-plan-panel.today-single-surface .event-card.compact-time-range {
+    grid-template-columns: 68px minmax(0, 1fr);
+    column-gap: 10px;
+    row-gap: 5px;
+    padding: 10px 0;
+  }
+  .today-view.has-plan .today-plan-panel.today-single-surface .event-card:first-child { padding-top: 8px; }
+  .today-view.has-plan .today-plan-panel.today-single-surface .event-time strong { font-size: .76rem; }
+  .today-view.has-plan .today-plan-panel.today-single-surface .event-heading-row { gap: 4px 6px; }
+  .today-view.has-plan .today-plan-panel.today-single-surface .event-heading-row h3 {
+    font-size: .9rem;
+    line-height: 1.22;
+  }
+  .today-view.has-plan .today-plan-panel.today-single-surface .event-category,
+  .today-view.has-plan .today-plan-panel.today-single-surface .event-source { display: none; }
+  .today-view.has-plan .today-plan-panel.today-single-surface .event-location,
+  .today-view.has-plan .today-plan-panel.today-single-surface .event-description { margin-top: 2px; font-size: .69rem; line-height: 1.35; }
+  .today-view.has-plan .today-plan-panel.today-single-surface .event-coworkers {
+    margin-top: 6px;
+    padding-top: 6px;
+    gap: 2px;
+  }
+  .today-view.has-plan .today-plan-panel.today-single-surface .event-coworkers > strong {
+    margin: 0 0 2px;
+    font-size: .62rem;
+  }
+  .today-view.has-plan .today-plan-panel.today-single-surface .event-coworker-line {
+    grid-template-columns: minmax(0, 1fr) max-content;
+    gap: 6px;
+    min-height: 0;
+    padding: 3px 0;
+  }
+  .today-view.has-plan .today-plan-panel.today-single-surface .event-coworker-line + .event-coworker-line {
+    border-top: 0;
+    padding-top: 3px;
+  }
+  .today-view.has-plan .today-plan-panel.today-single-surface .event-coworker-line b { font-size: .67rem; line-height: 1.25; }
+  .today-view.has-plan .today-plan-panel.today-single-surface .event-coworker-line small { font-size: .6rem; line-height: 1.25; }
+  .today-view.has-plan .today-plan-panel.today-single-surface .event-actions-column {
+    grid-column: 2;
+    gap: 10px;
+    margin-top: 0;
+  }
+  .today-view.has-plan .today-plan-panel.today-single-surface .event-actions-column .text-button {
+    min-height: 28px;
+    padding: 2px 0;
+    font-size: .68rem;
+  }
+  .today-plan-panel .today-add-row {
+    justify-content: flex-end;
+    padding: 8px 0 0;
+    border-top: 1px solid color-mix(in srgb, var(--line) 76%, transparent);
+  }
+  .today-plan-panel .today-add-row .today-add-button {
+    width: auto;
+    min-width: 0;
+    min-height: 38px;
+    padding: 7px 13px;
+    border-radius: 11px;
+    font-size: .7rem;
+  }
+
+  /* Work - each shift is a single scan row until the team is expanded. */
+  .work-minimal-header { margin-bottom: 6px; }
+  .work-minimal-header .eyebrow { margin-bottom: 1px; font-size: .58rem; }
+  .work-minimal-header h1 { font-size: 1.28rem; }
+  .work-header-actions { gap: 5px; }
+  .work-header-actions .button { min-height: 36px; padding: 6px 10px; border-radius: 10px; font-size: .66rem; }
+  .work-header-actions .work-settings-button { width: 36px; min-width: 36px; padding: 0; }
+  .work-section-tabs { margin-bottom: 7px; }
+  .work-section-tabs button { min-height: 38px; border-radius: 9px; }
+  .work-summary-line { margin-bottom: 5px; padding-bottom: 6px; }
+  .work-next-strip {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 6px;
+    padding: 7px 0 8px;
+    border: 0;
+    border-bottom: 1px solid var(--line);
+    border-radius: 0;
+    background: transparent;
+  }
+  .work-next-strip > div:first-child { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 1px 8px; align-items: baseline; }
+  .work-next-strip > div:first-child > span { font-size: .55rem; }
+  .work-next-strip > div:first-child > strong { min-width: 0; font-size: .74rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .work-next-strip > div:first-child > small { grid-column: 2; font-size: .59rem; }
+  .work-next-team-static {
+    width: 100%;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: start;
+    gap: 5px 7px;
+  }
+  .work-next-team-count { min-height: 28px; padding: 4px 8px; font-size: .58rem; }
+  .work-next-team-static > .coworker-inline { gap: 4px; }
+  .work-next-team-static > .coworker-inline > span { min-height: 26px; padding: 4px 7px; font-size: .58rem; }
+  .work-roster-minimal-heading { padding: 4px 0 5px; }
+  .work-roster-minimal-heading h2 { font-size: .88rem; }
+  .work-shift-row-minimal {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 7px;
+    padding: 8px 0;
+  }
+  .work-shift-main-line {
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    gap: 5px 7px;
+    align-items: baseline;
+  }
+  .work-shift-main-line strong { grid-column: auto; font-size: .69rem; white-space: nowrap; }
+  .work-shift-main-line span { font-size: .72rem; white-space: nowrap; }
+  .work-shift-main-line small { font-size: .57rem; text-align: right; white-space: nowrap; }
+  .work-shift-team-details { justify-self: end; }
+  .work-shift-team-details[open] { grid-column: 1 / -1; justify-self: stretch; }
+  .work-shift-team-details > summary {
+    min-height: 34px;
+    padding: 5px 8px;
+    border-radius: 10px;
+    font-size: .58rem;
+  }
+  .work-shift-team-details[open] > summary { justify-self: end; margin-bottom: 4px; }
+  .work-shift-team-details .coworker-overlap-list.compact {
+    gap: 0;
+    border-top: 1px solid color-mix(in srgb, var(--line) 76%, transparent);
+  }
+  .work-shift-team-details .coworker-overlap-list.compact .coworker-overlap-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas: "name shared" "full shared";
+    gap: 1px 9px;
+    padding: 7px 0;
+    border: 0;
+    border-bottom: 1px solid color-mix(in srgb, var(--line) 68%, transparent);
+    border-radius: 0;
+    background: transparent;
+  }
+  .work-shift-team-details .coworker-overlap-list.compact .coworker-overlap-row > strong { grid-area: name; font-size: .68rem; }
+  .work-shift-team-details .coworker-overlap-list.compact .coworker-full-shift { grid-area: full; font-size: .57rem; color: var(--text-muted); }
+  .work-shift-team-details .coworker-overlap-list.compact .coworker-shared-time {
+    grid-area: shared;
+    align-self: center;
+    display: grid;
+    justify-items: end;
+    gap: 1px;
+    font-size: .58rem;
+    white-space: nowrap;
+  }
+  .work-shift-team-details .coworker-overlap-list.compact .coworker-shared-time b { font-size: .64rem; }
+  .work-shift-team-details .coworker-overlap-list.compact .coworker-shared-time small { font-size: .54rem; }
+
+  /* Settings - value rows instead of four full-width field cards. */
+  .settings-minimal-view .view-header { margin-bottom: 5px; }
+  .settings-minimal-view .view-header h1 { font-size: 1.28rem; }
+  .settings-minimal-view .settings-core {
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+  }
+  .settings-core-heading { margin-bottom: 4px; padding-bottom: 6px; border-bottom: 1px solid var(--line); }
+  .settings-core-heading h2 { font-size: .86rem; }
+  .settings-minimal-view .settings-core .settings-essential-grid { display: grid; gap: 0; }
+  .settings-minimal-view .settings-essential-grid .field {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(150px, 56%);
+    align-items: center;
+    gap: 10px;
+    min-height: 50px;
+    padding: 6px 0;
+    border-bottom: 1px solid color-mix(in srgb, var(--line) 72%, transparent);
+  }
+  .settings-minimal-view .settings-essential-grid .field > span { margin: 0; font-size: .67rem; font-weight: 760; }
+  .settings-minimal-view .settings-essential-grid select {
+    min-height: 38px;
+    padding: 7px 28px 7px 9px;
+    border-radius: 9px;
+    font-size: .67rem;
+  }
+  .settings-calendar-layers {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 5px;
+    margin-top: 7px;
+    padding-top: 0;
+    border-top: 0;
+  }
+  .settings-calendar-layers > span { grid-column: 1 / -1; margin: 0; font-size: .6rem; }
+  .settings-calendar-layers label {
+    justify-content: flex-start;
+    min-height: 36px;
+    padding: 4px 7px;
+    border-radius: 9px;
+    font-size: .62rem;
+  }
+  .settings-build-line { margin-top: 8px; padding-top: 7px; font-size: .57rem; }
+  .settings-secondary-list { margin-top: 8px; }
+  .settings-collapsible-section > summary { min-height: 46px; padding: 6px 0; }
+  .settings-collapsible-section > summary strong { font-size: .73rem; }
+  .settings-collapsible-section > summary small { font-size: .57rem; }
+
+  /* Consistency - one issue card, related events become flat rows. */
+  .consistency-center {
+    margin-top: 8px;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+  .consistency-center > .panel-heading { padding: 0 0 7px; }
+  .consistency-center .panel-heading .section-kicker { margin-bottom: 2px; font-size: .57rem; }
+  .consistency-center .panel-heading h2 { font-size: .94rem; }
+  .consistency-center .panel-heading p { font-size: .65rem; }
+  .consistency-toolbar { gap: 7px; padding: 0 0 9px; }
+  .consistency-filter-select { grid-template-columns: 44px minmax(0, 1fr); }
+  .consistency-filter-select select { min-height: 38px; border-radius: 9px; }
+  .consistency-toolbar .compact-check { min-height: 30px; }
+  .consistency-list { gap: 7px; }
+  .consistency-card {
+    padding: 11px;
+    border-radius: var(--mobile-compact-radius);
+    box-shadow: none;
+  }
+  .consistency-card.impact-blocking,
+  .consistency-card.impact-warning { border-left-width: 1px; }
+  .consistency-impact { min-height: 19px; padding-inline: 6px; font-size: .53rem; }
+  .consistency-card-top h3 { margin: 4px 0 2px; font-size: .86rem; }
+  .consistency-card-top p,
+  .consistency-description { font-size: .65rem; }
+  .consistency-description { margin-top: 6px; line-height: 1.38; }
+  .consistency-events { gap: 0; margin-top: 8px; border-top: 1px solid color-mix(in srgb, var(--line) 72%, transparent); }
+  .consistency-events > div {
+    grid-template-columns: 8px minmax(0, 1fr) auto;
+    gap: 7px;
+    padding: 7px 0;
+    border: 0;
+    border-bottom: 1px solid color-mix(in srgb, var(--line) 64%, transparent);
+    border-radius: 0;
+    background: transparent;
+  }
+  .consistency-events strong { font-size: .69rem; }
+  .consistency-events small { margin-top: 1px; font-size: .57rem; }
+  .consistency-event-actions { grid-column: 3; grid-row: 1; gap: 6px; }
+  .consistency-event-actions .text-button { min-height: 26px; font-size: .62rem; }
+  .consistency-actions { justify-content: flex-end; margin-top: 7px; }
+  .consistency-actions .button { width: auto; min-height: 34px; padding: 5px 9px; border-radius: 9px; font-size: .62rem; }
+}
+
+@media (max-width: 370px) {
+  .app-main > .view-shell {
+    padding-left: max(10px, env(safe-area-inset-left));
+    padding-right: max(10px, env(safe-area-inset-right));
+  }
+  .settings-minimal-view .settings-essential-grid .field { grid-template-columns: minmax(0, 1fr) minmax(138px, 58%); gap: 7px; }
+  .work-shift-main-line { gap-inline: 5px; }
+  .work-shift-main-line strong { font-size: .65rem; }
+  .work-shift-main-line span { font-size: .68rem; }
+}

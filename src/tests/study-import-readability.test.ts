@@ -68,10 +68,10 @@ describe('study import readability contract', () => {
     const css = source('../styles/components.css');
 
     expect(app).toContain('getActiveUniversityImport()');
-    expect(app).toContain('activeStudyGroups={activeStudyGroups}');
-    expect(calendar).toContain('className="calendar-study-context"');
-    expect(calendar).toContain('Plan studiów aktywny');
-    expect(calendar).toContain('Wybrane grupy aktywnego planu');
+    expect(app).toContain('getActiveUniversityImport()');
+    expect(calendar).not.toContain('Plan studiów aktywny');
+    expect(calendar).not.toContain('calendar-selected-day-study-context');
+    expect(calendar).toContain('calendar-week-study-group');
     expect(profile).not.toContain('Grupy aktywnego planu');
     expect(profile).not.toContain('study-profile-plan-summary');
     expect(profile).toContain('Aktualny plan: {formatStudyGroupList(activeGroups)}');

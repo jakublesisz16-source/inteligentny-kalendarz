@@ -24,13 +24,13 @@ describe('1.2.0.101 compact Studies and Settings', () => {
     expect(studyPreview).not.toContain('<section className="panel study-preview-sandbox">');
     expect(safety).toContain('<section className="safety-center">');
     expect(safety).not.toContain('<section className="panel safety-center">');
-    expect(settings).toContain('Backup i przenoszenie');
-    expect(settings).toContain('Historia i bezpieczeństwo');
+    expect(settings).toContain('Kopia i przenoszenie');
+    expect(settings).toContain('Historia i odzyskiwanie');
   });
 
   it('keeps safety information available without occupying the default layout', () => {
     expect(transfer).toContain('<details className="data-transfer-privacy-details">');
-    expect(transfer).toContain('Informacje o bezpieczeństwie eksportu');
+    expect(transfer).toContain('O plikach');
     expect(styles).toContain('/* 1.2.0.101 - compact Studies and Settings without hiding primary controls. */');
     expect(styles).toContain('.study-profile-group-picker .group-chip { min-height: 38px;');
     expect(styles).toContain('.study-profile-group-picker .group-chip { min-height: 42px;');

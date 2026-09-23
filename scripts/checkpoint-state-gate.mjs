@@ -56,7 +56,7 @@ if (!failures.length) {
   assert(state.workflowPolicy?.testCadence === 'impact-based-during-development-full-once-before-release', 'CURRENT_STATE workflowPolicy testCadence missing');
   assert(state.workflowPolicy?.publicGeneration === 'clean-from-frozen-private', 'CURRENT_STATE workflowPolicy publicGeneration missing');
   assert(state.workflowPolicy?.publicHandoff === 'final-only-after-fresh-public-validation', 'CURRENT_STATE workflowPolicy publicHandoff missing');
-  assert(state.workflowPolicy?.userPublish === 'fetch-sync-copy-stage-commit-push', 'CURRENT_STATE workflowPolicy userPublish missing');
+  assert(state.workflowPolicy?.userPublish === 'manual-public-copy-to-publish-preserve-git-add-diff-commit-push', 'CURRENT_STATE workflowPolicy userPublish missing');
   assert(state.workflowPolicy?.repeatLocalFullPublicCheck === 'skip-if-exact-validated-public-unchanged', 'CURRENT_STATE workflowPolicy repeatLocalFullPublicCheck missing');
   assert(state.workflowPolicy?.githubCi === 'independent-final-validation', 'CURRENT_STATE workflowPolicy githubCi missing');
   assert(Number(state.schema) === schema, 'CURRENT_STATE schema differs from source');

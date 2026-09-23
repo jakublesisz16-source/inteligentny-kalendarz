@@ -53,13 +53,13 @@ npm run build
 
 ## Workflow wydania
 
-Projekt jest rozwijany w prywatnym checkpointcie roboczym, a do publikacji powstaje osobny oczyszczony snapshot PUBLIC. GitHub Desktop służy wyłącznie do prostego opublikowania gotowego PUBLIC.
+Projekt jest rozwijany w prywatnym checkpointcie roboczym, a do publikacji powstaje osobny oczyszczony snapshot PUBLIC. Stały lokalny katalog publikacyjny to `D:\Projekty\inteligentny-kalendarz-publish`.
 
 1. Rozwój i testy prowadzimy na aktualnym PRIVATE.
 2. Po zakończeniu etapu tworzymy nowy lekki PRIVATE bez `node_modules`, historii starych checkpointów i artefaktów builda.
 3. Z tego samego stanu generujemy sanitizowany PUBLIC i uruchamiamy publiczne testy, build oraz release gates.
-4. PUBLIC trafia do lokalnego repozytorium GitHub Desktop.
-5. W GitHub Desktop wykonujemy `Commit to main`, a następnie `Push origin`.
+4. Użytkownik rozpakowuje/przekopiowuje zawartość finalnego PUBLIC do `D:\Projekty\inteligentny-kalendarz-publish`, pozostawiając istniejący `.git`.
+5. Gdy PUBLIC jest już w tym folderze, push robimy zawsze z niego: `git add -A`, `git diff --cached --check`, `git commit -m "Release <release> Build <build>"`, `git push origin main`. Nie tworzymy osobnego katalogu publikacyjnego i nie generujemy skryptu push, jeśli użytkownik o to nie prosi.
 6. GitHub Actions wykonuje końcową kontrolę, a workflow `Deploy GitHub Pages` publikuje `dist` po pushu do `main`.
 7. Brak `.github/workflows/pages.yml` ma blokować release preflight i build.
 8. Każde wydanie oznaczamy wersją i buildem, np. `1.2.0 - Build 130`, z tagiem `v1.2.0.130`.

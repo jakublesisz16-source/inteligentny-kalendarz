@@ -7,14 +7,11 @@ const responsive = readFileSync('src/styles/responsive.css', 'utf8');
 const version = readFileSync('src/core/version.ts', 'utf8');
 
 describe('1.2.0.50 compact calendar study context placement', () => {
-  it('keeps active Study group context inside the selected-day panel hierarchy instead of as a separate box', () => {
+  it('keeps the selected-day panel compact without repeating passive Study profile context', () => {
     expect(calendar).toContain('calendar-side-column');
-    expect(calendar).toContain('calendar-side-study-context');
-    expect(calendar).toContain('calendar-selected-day-study-context');
-    const panelIndex = calendar.indexOf('selected-day-panel${mobileDayPanelOpen');
-    const studyContextIndex = calendar.indexOf('calendar-selected-day-study-context', panelIndex);
-    expect(panelIndex).toBeGreaterThan(-1);
-    expect(studyContextIndex).toBeGreaterThan(panelIndex);
+    expect(calendar).toContain('selected-day-panel${mobileDayPanelOpen');
+    expect(calendar).not.toContain('calendar-selected-day-study-context');
+    expect(calendar).not.toContain('className="calendar-side-study-context"');
   });
 
   it('keeps the Study context compact and responsive instead of consuming vertical space above the calendar', () => {

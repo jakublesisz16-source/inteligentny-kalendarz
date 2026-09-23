@@ -9,7 +9,7 @@ const version = readFileSync('src/core/version.ts', 'utf8');
 describe('1.2.0.147 Finance month dashboard hierarchy', () => {
   it('puts monthly spend and comparison ahead of secondary metrics', () => {
     expect(dashboard).toContain('finance-month-dashboard-v147');
-    expect(dashboard).toContain('Wydatki w miesiącu');
+    expect(dashboard).not.toContain('<span className="section-kicker">Wydatki w miesiącu</span>');
     expect(dashboard).toContain('monthSummary.totalMinor');
     expect(dashboard).toContain('monthSummary.averageReceiptMinor');
     expect(dashboard).toContain('Transakcje');
@@ -25,8 +25,8 @@ describe('1.2.0.147 Finance month dashboard hierarchy', () => {
   });
 
   it('shows the four largest categories with amount, share and a lightweight progress bar', () => {
-    expect(dashboard).toContain('Największe kategorie');
-    expect(dashboard).toContain('Wszystkie kategorie');
+    expect(dashboard).toContain('categoryAnalytics.length > 1');
+    expect(dashboard).toContain('>Wszystkie</button>');
     expect(dashboard).toContain('categoryAnalytics.slice(0, 4)');
     expect(dashboard).toContain('entry.sharePercent.toFixed(1)');
     expect(dashboard).toContain('finance-month-category-bar');

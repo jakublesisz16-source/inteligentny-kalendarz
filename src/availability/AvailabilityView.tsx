@@ -156,12 +156,12 @@ export function AvailabilityView({ onDataChanged, onOpenSettings }: Availability
   }
 
   return <section className="availability-view">
-    <div className="availability-week-toolbar"><button type="button" className="icon-button soft" aria-label="Poprzedni tydzień" onClick={() => setWeekStart(addDaysToDateKey(weekStart, -7))}>‹</button><div><span className="section-kicker">Dyspozycyjność</span><h2>{weekLabel(weekStart)}</h2></div><button type="button" className="icon-button soft" aria-label="Następny tydzień" onClick={() => setWeekStart(addDaysToDateKey(weekStart, 7))}>›</button></div>
+    <div className="availability-week-toolbar"><button type="button" className="icon-button soft" aria-label="Poprzedni tydzień" onClick={() => setWeekStart(addDaysToDateKey(weekStart, -7))}>‹</button><div><h2>{weekLabel(weekStart)}</h2></div><button type="button" className="icon-button soft" aria-label="Następny tydzień" onClick={() => setWeekStart(addDaysToDateKey(weekStart, 7))}>›</button></div>
     {error ? <div className="study-message error-message" role="alert">{error}</div> : null}{message ? <div className="study-message success-message availability-flash-message" role="status">{message}</div> : null}
 
     <div className="availability-dashboard-layout">
     <section className="panel availability-week-editor" aria-label="Dyspozycyjność na dni tygodnia">
-      <div className="panel-heading compact-heading"><div><span className="section-kicker">Plan tygodnia</span><h3>Automat dopasowuje godziny do kalendarza</h3><p className="muted-copy">Znana praca jest stała. Jeśli jej brakuje do celu, aplikacja sama proponuje wolne godziny. Ręczny wpis lub wyjątek ma zawsze pierwszeństwo.</p></div></div>
+      <div className="panel-heading compact-heading"><div><h3>Plan tygodnia</h3></div></div>
       <div className="availability-week-days">
         {weekDates.map((date) => {
           const dayBlocks = acceptedByDate.get(date) ?? [];
@@ -176,7 +176,7 @@ export function AvailabilityView({ onDataChanged, onOpenSettings }: Availability
               {dayWork.map((block) => <span key={block.eventId} className="availability-fixed-work-chip">Praca {block.startDateTime.slice(11, 16)}-{block.endDateTime.slice(11, 16)}</span>)}
               {dayBlocks.map((block) => <button key={block.id} type="button" className="availability-time-chip" onClick={() => setDayEditor({ date, blockId: block.id, mode: 'manual' })}>{block.startTime}-{block.endTime}</button>)}
               {dayProposals.map((block) => <button key={block.id} type="button" className="availability-proposal-chip" aria-label={`Akceptuj propozycję ${block.startTime}-${block.endTime}`} onClick={() => void blockAction(block, 'ACCEPT')}>Propozycja {block.startTime}-{block.endTime}</button>)}
-              {!hasAny ? <span className="availability-empty-hours">Wolne - automat analizuje kalendarz</span> : null}
+              {!hasAny ? <span className="availability-empty-hours">Wolne</span> : null}
             </div>
             <button type="button" className="button button-secondary button-small" onClick={() => setDayEditor({ date, mode: 'manual' })}>{dayBlocks.length ? '+ Dodaj zakres' : 'Ustaw ręcznie'}</button>
           </article>;
@@ -188,7 +188,7 @@ export function AvailabilityView({ onDataChanged, onOpenSettings }: Availability
 
     <section className="panel availability-automation-panel" aria-label="Automatyczne propozycje dyspozycyjności">
       <div className="availability-automation-heading">
-        <div><span className="section-kicker">Automat</span><h3>Jak wyliczono tydzień</h3><p className="muted-copy">Propozycje powstają automatycznie z bieżącego kalendarza. Zajęcia i wydarzenia blokują czas, a ręczne wpisy pozostają nadrzędne.</p></div>
+        <div><h3>Automat</h3></div>
         <button type="button" className="button button-secondary button-small" onClick={onOpenSettings}>Ustawienia automatu</button>
       </div>
 
@@ -196,7 +196,7 @@ export function AvailabilityView({ onDataChanged, onOpenSettings }: Availability
         <div className="availability-summary-grid minimal-summary automation-summary-grid"><div><span>Cel tygodnia</span><strong>{minutesLabel(targetMinutes)}</strong></div><div><span>Zaplanowana praca</span><strong>{minutesLabel(confirmedMinutes)}</strong></div><div><span>Twoja dyspozycyjność</span><strong>{minutesLabel(acceptedMinutes)}</strong></div><div><span>{overMinutes ? 'Ponad potrzebę' : 'Do uzupełnienia'}</span><strong>{minutesLabel(overMinutes || remainingMinutes)}</strong></div></div>
 
         <div className="availability-day-rules">
-          <div className="availability-day-rules-heading"><strong>Wyjątki dla poszczególnych dni</strong><span>Opcjonalne ograniczenia używane tylko przez automat.</span></div>
+          <div className="availability-day-rules-heading"><strong>Wyjątki</strong></div>
           <div className="availability-day-rule-grid">
             {weekDates.map((date) => {
               const rule = rulesByDate.get(date);
@@ -209,11 +209,11 @@ export function AvailabilityView({ onDataChanged, onOpenSettings }: Availability
 
         {plan?.status === 'STALE' ? <div className="availability-stale availability-stale-inline" role="alert"><strong>Kalendarz się zmienił.</strong><span>Ręczne godziny zostają, a propozycje zostaną przeliczone z aktualnego planu.</span>{remainingMinutes > 0 ? <button className="button button-secondary button-small" type="button" onClick={() => void generate()}>Przelicz teraz</button> : null}</div> : null}
 
-        {remainingMinutes > 0 ? <div className="availability-generate-row availability-auto-status"><span>{loading ? 'Przeliczam kalendarz...' : proposals.length ? 'Propozycje są już pokazane przy odpowiednich dniach powyżej.' : 'Automat nie znalazł jeszcze bezpiecznego uzupełnienia.'}</span><button type="button" className="button button-secondary button-small" disabled={loading} onClick={() => void generate()}>{loading ? 'Przeliczam...' : 'Przelicz'}</button></div> : <div className="availability-automation-complete"><strong>Godziny na ten tydzień są już ustalone.</strong><span>{targetMinutes > 0 && confirmedMinutes >= targetMinutes ? 'Znana praca z kalendarza pokrywa cel, więc automat jej nie zastępuje. Jeśli chcesz inne godziny, wpisz je ręcznie albo zmień cel.' : 'Cel tygodnia jest już pokryty przez pracę i zapisaną dyspozycyjność.'}</span></div>}
+        {remainingMinutes > 0 ? <div className="availability-generate-row availability-auto-status"><span>{loading ? 'Przeliczam kalendarz...' : proposals.length ? 'Propozycje są już pokazane przy odpowiednich dniach powyżej.' : 'Automat nie znalazł jeszcze bezpiecznego uzupełnienia.'}</span><button type="button" className="button button-secondary button-small" disabled={loading} onClick={() => void generate()}>{loading ? 'Przeliczam...' : 'Przelicz'}</button></div> : <div className="availability-automation-complete"><strong>Cel tygodnia osiągnięty</strong></div>}
 
         {noSafeProposal ? <section className="availability-no-safe" aria-label="Brak bezpiecznych godzin"><div><strong>Nie znaleziono bezpiecznych godzin do uzupełnienia.</strong><span>Plan zajęć, praca, wydarzenia i Twoje wyjątki pozostają nadrzędne.</span></div><div className="availability-limit-reasons"><strong>Co ogranicza ten tydzień</strong><div>{plan?.diagnostics?.reasons.slice(0, 6).map((reason) => <span key={reason}>{reason}</span>)}</div></div></section> : null}
 
-        {proposals.length ? <section className="availability-plan-panel availability-proposal-inline availability-proposal-summary"><div><span className="section-kicker">Gotowa propozycja</span><h3>{minutesLabel(proposals.reduce((sum, block) => sum + block.minutes, 0))} dopasowane do kalendarza</h3><p className="muted-copy">Godziny są pokazane przy dniach tygodnia. Możesz zaakceptować je pojedynczo albo wszystkie naraz.</p></div><button type="button" className="button button-primary button-small" onClick={() => void acceptAll()}>Akceptuj wszystko</button></section> : null}
+        {proposals.length ? <section className="availability-plan-panel availability-proposal-inline availability-proposal-summary"><div><h3>Propozycje: {minutesLabel(proposals.reduce((sum, block) => sum + block.minutes, 0))}</h3></div><button type="button" className="button button-primary button-small" onClick={() => void acceptAll()}>Akceptuj wszystko</button></section> : null}
       </>}
     </section>
     </div>

@@ -170,19 +170,16 @@ export function StudyGroupPreviewPanel({ activeImport, primaryGroups }: StudyGro
     <section className="study-preview-sandbox">
       <div className="panel-heading preview-sandbox-heading">
         <div>
-          <p className="section-kicker">Bezpieczny podgląd</p>
           <h2>Sprawdź plan innej grupy</h2>
-          <p className="panel-copy">To oddzielny, tylko do odczytu podgląd. Nie zmienia Twoich grup, aktywnego importu, wydarzeń, diffu ani ręcznych poprawek.</p>
         </div>
         <div className="preview-sandbox-actions">
-          <span className="read-only-pill">TYLKO PODGLĄD</span>
-          <button type="button" className="button button-secondary" onClick={() => setOpen((value) => !value)}>{open ? 'Zamknij podgląd' : 'Otwórz podgląd'}</button>
+          <button type="button" className="button button-secondary" onClick={() => setOpen((value) => !value)}>{open ? 'Zamknij' : 'Podgląd'}</button>
         </div>
       </div>
 
       {open ? (
         <div className="study-preview-sandbox-body">
-          <div className="primary-group-note">Twój aktywny plan pozostaje bez zmian: <strong>{formatStudyGroupList(primaryGroups) || 'brak zapisanych grup'}</strong>.</div>
+          <div className="primary-group-note">Twoje grupy: <strong>{formatStudyGroupList(primaryGroups) || 'brak zapisanych grup'}</strong></div>
 
           <div className="preview-source-box">
             <div>

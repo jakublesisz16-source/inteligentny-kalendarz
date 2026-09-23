@@ -19,8 +19,8 @@ describe('1.2.0.92 travel-ready hardening', () => {
   });
 
   it('keeps Settings direct while moving infrequent data tools one level deeper', () => {
-    expect(settings).toContain('Backup i przenoszenie');
-    expect(settings).toContain('Historia i bezpieczeństwo');
+    expect(settings).toContain('Kopia i przenoszenie');
+    expect(settings).toContain('Historia i odzyskiwanie');
     expect(settings).toContain('<details className="settings-collapsible-section">');
     expect(safety).not.toContain("tab === 'backup'");
     expect(safety).not.toContain('Utwórz kopię zapasową');
@@ -32,7 +32,7 @@ describe('1.2.0.92 travel-ready hardening', () => {
   });
 
   it('keeps Study copy short while preserving direct access', () => {
-    expect(study).toContain('Plan, grupy i aktualizacje.');
+    expect(study).toContain('<h1>Studia</h1>');
     expect(study).toContain('study-groups-primary');
     expect(study).toContain('StudyProfileSettings');
   });

@@ -8,7 +8,8 @@ describe('1.2.0.103 dashboard continuation and calendar overlays', () => {
   it('moves Today add action below existing agenda instead of keeping it in the header', () => {
     const today = source('../calendar/TodayView.tsx');
     expect(today).toContain('today-add-row');
-    expect(today).toContain('+ Dodaj wydarzenie');
+    expect(today).toContain('+ Dodaj');
+    expect(today).not.toContain('+ Dodaj wydarzenie');
     expect(today).not.toContain('today-header-actions');
   });
 

@@ -38,8 +38,8 @@ describe('1.2.0.54 global clarity pass', () => {
   it('keeps Settings simple: essentials first, infrequent data tools collapsed and a compact build line', () => {
     expect(settings).toContain('settings-essential-grid');
     expect(settings).toContain('settings-build-line');
-    expect(settings).toContain('Backup i przenoszenie');
-    expect(settings).toContain('Historia i bezpieczeństwo');
+    expect(settings).toContain('Kopia i przenoszenie');
+    expect(settings).toContain('Historia i odzyskiwanie');
     expect(settings).toContain('settings-collapsible-section');
     expect(settings).toContain('<span>{APP_RELEASE_VERSION}</span>');
     expect(settings).toContain('Build {BUILD_NUMBER}');

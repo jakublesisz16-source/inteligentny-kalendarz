@@ -71,8 +71,6 @@ export function SafetyCenter({ onDataChanged }: SafetyCenterProps) {
 
   return (
     <section className="safety-center">
-      <p className="settings-section-intro">Cofaj pomyłki, odzyskuj usunięte elementy i wracaj do wcześniejszych stanów.</p>
-
       <StoragePersistencePanel />
 
       <div className="safety-tabs" role="tablist" aria-label="Bezpieczeństwo danych">
@@ -122,7 +120,7 @@ export function SafetyCenter({ onDataChanged }: SafetyCenterProps) {
               const compatible = point.schemaVersion === DATABASE_SCHEMA_VERSION && point.snapshot.databaseSchemaVersion === DATABASE_SCHEMA_VERSION;
               return (
                 <article key={point.id} className="safety-list-item">
-                  <div><strong>{point.label}</strong><span>{formatDateTime(point.createdAt)}</span><small>{point.automatic ? 'Automatyczny' : 'Ręczny'}{point.pinned ? ' - chroniony' : ''}{!compatible ? ' - archiwalny' : ''} - schema {point.schemaVersion}</small></div>
+                  <div><strong>{point.label}</strong><span>{formatDateTime(point.createdAt)}</span><small>{point.automatic ? 'Automatyczny' : 'Ręczny'}{point.pinned ? ' - chroniony' : ''}{!compatible ? ' - archiwalny' : ''}</small></div>
                   <div className="safety-item-actions">
                     <button type="button" className="button button-secondary button-small" disabled={busy || !compatible} title={!compatible ? 'Punkt pochodzi z innego schematu bazy i nie może być bezpiecznie przywrócony w tej wersji.' : undefined} onClick={() => { if (window.confirm(`Przywrócić punkt „${point.label}”? Najpierw zostanie zapisany bieżący stan.`)) void run(() => restoreRestorePoint(point.id), 'Przywrócono wcześniejszy stan.'); }}>{compatible ? 'Przywróć' : 'Archiwalny'}</button>
                     {!point.pinned ? <button type="button" className="text-button danger-text" disabled={busy} onClick={() => { if (window.confirm(`Usunąć punkt przywracania „${point.label}”? Tej operacji nie można cofnąć.`)) void run(() => deleteRestorePoint(point.id), 'Usunięto punkt przywracania.'); }}>Usuń</button> : null}

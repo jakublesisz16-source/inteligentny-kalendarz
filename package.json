@@ -1,7 +1,7 @@
 {
   "name": "inteligentny-kalendarz",
   "private": true,
-  "version": "1.2.0-private.194",
+  "version": "1.2.0-private.201",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -53,7 +53,14 @@
     "finance:trip-optional:qa": "node scripts/finance-trip-optional-build190-proof.mjs",
     "release:parser-freeze:qa": "node scripts/build192-production-audit-freeze-proof.mjs",
     "ui:today-work:qa": "node scripts/ui-today-work-stability-build193-proof.mjs",
-    "ui:today-rail:qa": "node scripts/ui-today-rail-cleanup-build194-proof.mjs"
+    "ui:today-rail:qa": "node scripts/ui-today-rail-cleanup-build194-proof.mjs",
+    "ui:mobile-compact:qa": "node scripts/ui-mobile-compact-build195-proof.mjs",
+    "ui:interface-refinement:qa": "node scripts/ui-interface-refinement-build196-proof.mjs",
+    "ui:interface-coherence:qa": "node scripts/ui-interface-coherence-build197-proof.mjs",
+    "ui:information-reduction:qa": "node scripts/ui-information-reduction-build198-proof.mjs",
+    "ui:work-person-count:qa": "node scripts/ui-work-person-count-build199-proof.mjs",
+    "ui:global-cleanup:qa": "node scripts/ui-global-cleanup-build200-proof.mjs",
+    "release:contract-sync:qa": "node scripts/release-contract-sync-build201-proof.mjs"
   },
   "dependencies": {
     "react": "^19.1.1",

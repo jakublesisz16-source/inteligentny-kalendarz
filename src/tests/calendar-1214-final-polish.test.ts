@@ -29,7 +29,8 @@ describe('1.2.0.15 final calendar polish', () => {
 
   it('uses a clean background and subdued Work accents in Calendar', () => {
     expect(calendar).not.toContain('calendar-texture-surface');
-    expect(css).toContain('.calendar-week-event.category-work { border-left-color: #9b7f8b;');
+    expect(css).toContain('.calendar-week-event.category-work { background: #f7f1f4; }');
+    expect(css).not.toContain('.calendar-week-event.category-work { border-left-color:');
     expect(css).toContain('.calendar-day.weekend');
   });
 });

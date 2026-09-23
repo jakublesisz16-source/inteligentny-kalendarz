@@ -2,9 +2,9 @@ import { useEffect, useState } from 'react';
 import { getLocalStorageProtectionStatus, requestLocalStoragePersistence, type LocalStorageProtectionStatus } from '../storage/persistence';
 
 function statusLabel(status: LocalStorageProtectionStatus): string {
-  if (status === 'persistent') return 'Chronione przez przeglądarkę';
-  if (status === 'standard') return 'Standardowe przechowywanie';
-  if (status === 'unsupported') return 'Standardowe przechowywanie';
+  if (status === 'persistent') return 'Włączona';
+  if (status === 'standard') return 'Standardowa';
+  if (status === 'unsupported') return 'Standardowa';
   return 'Sprawdzanie...';
 }
 
@@ -34,15 +34,13 @@ export function StoragePersistencePanel() {
   return (
     <section className="storage-persistence-panel" aria-labelledby="storage-persistence-title">
       <div className="storage-persistence-copy">
-        <strong id="storage-persistence-title">Dane lokalne</strong>
-        <span>Dane pozostają w tej przeglądarce. Kopię zapasową możesz wyeksportować powyżej.</span>
+        <strong id="storage-persistence-title">Ochrona danych</strong>
       </div>
       <div className="storage-persistence-status">
-        <span>Status</span>
         <strong>{statusLabel(status)}</strong>
       </div>
-      {status === 'standard' ? <button type="button" className="button button-secondary button-small" disabled={busy} onClick={() => void strengthenProtection()}>{busy ? 'Sprawdzam...' : 'Wzmocnij ochronę'}</button> : null}
-      {status === 'unsupported' ? <p className="muted-copy">Ta przeglądarka nie udostępnia dodatkowej ochrony pamięci. Aplikacja nadal działa normalnie.</p> : null}
+      {status === 'standard' ? <button type="button" className="button button-secondary button-small" disabled={busy} onClick={() => void strengthenProtection()}>{busy ? 'Sprawdzam...' : 'Włącz ochronę'}</button> : null}
+      
       {message ? <p className="storage-persistence-message" role="status" aria-live="polite">{message}</p> : null}
     </section>
   );

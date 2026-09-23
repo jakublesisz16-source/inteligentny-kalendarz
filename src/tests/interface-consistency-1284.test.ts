@@ -21,7 +21,8 @@ describe('1.2.0.85 interface consistency and semantic category contrast', () => 
     expect(calendar).toContain('filter-${item.id.toLowerCase()}');
     expect(calendar).toContain('category-${event.category.toLowerCase()}');
     expect(consistency).toContain('.calendar-filter-chip.filter-study.active');
-    expect(consistency).toContain('.calendar-mobile-day-preview-event.category-work');
+    expect(consistency).toContain('.calendar-mobile-day-preview-event { padding-left: 0; }');
+    expect(consistency).not.toContain('.calendar-mobile-day-preview-event.category-work { border-left-color:');
   });
 
   it('uses one page-title scale across the main modules', () => {
@@ -34,7 +35,8 @@ describe('1.2.0.85 interface consistency and semantic category contrast', () => 
   });
 
   it('makes Study calmer without hiding its workflow', () => {
-    expect(study).toContain('Plan, grupy i aktualizacje.');
+    expect(study).toContain('<h1>Studia</h1>');
+    expect(study).not.toContain('Plan, grupy i aktualizacje.');
     expect(consistency).toContain('.study-view .study-upload-simple');
     expect(consistency).toContain('min-height: 220px');
   });

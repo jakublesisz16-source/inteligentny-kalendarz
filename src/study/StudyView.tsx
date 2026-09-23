@@ -508,11 +508,7 @@ export function StudyView({ onDataChanged }: StudyViewProps) {
   return (
     <section className="view-shell study-view">
       <header className="view-header hero-header study-hero-simple">
-        <div>
-          <p className="eyebrow">Studia</p>
-          <h1>Studia</h1>
-          <p className="view-subtitle">Plan, grupy i aktualizacje.</p>
-        </div>
+        <div><h1>Studia</h1></div>
         <div className="view-header-actions">
           {phase !== 'idle' && phase !== 'groups' ? <button type="button" className="button button-secondary" onClick={() => resetFlow()}>Anuluj import</button> : null}
         </div>
@@ -520,24 +516,24 @@ export function StudyView({ onDataChanged }: StudyViewProps) {
 
       {error ? <div className="study-message error-message" role="alert">{error}</div> : null}
       {message ? <div className="study-message success-message" role="status">{message}</div> : null}
-      {diagnostics.length ? <section className="diagnostics-card"><div className="diagnostics-card-heading"><strong>Szczegóły techniczne problemu</strong></div><div className="diagnostics-card-body">{diagnostics.map((line) => <span key={line}>{line}</span>)}</div></section> : null}
+      {diagnostics.length ? <section className="diagnostics-card"><div className="diagnostics-card-heading"><strong>Szczegóły</strong></div><div className="diagnostics-card-body">{diagnostics.map((line) => <span key={line}>{line}</span>)}</div></section> : null}
 
       {phase === 'idle' ? (
         <div className={dragActive ? 'upload-panel study-upload-simple study-upload-dashboard panel drag-active' : 'upload-panel study-upload-simple study-upload-dashboard panel'} onDragEnter={(event) => { event.preventDefault(); setDragActive(true); }} onDragOver={(event) => event.preventDefault()} onDragLeave={() => setDragActive(false)} onDrop={handleDrop}>
           <div className="study-upload-copy">
-            <h2>{activeImport ? 'Wczytaj nowszy plan' : 'Wczytaj plan zajęć'}</h2>
-            <p>{activeImport ? 'Nowy plik najpierw porównamy z obecnym - nic nie zmieni się bez Twojego zatwierdzenia.' : 'Wskaż plik planu. Format Excel zostanie rozpoznany automatycznie, a przed zapisem zobaczysz krótkie podsumowanie.'}</p>
+            <h2>Plan zajęć</h2>
+            {!activeImport ? <p>Wczytaj plik XLSX lub XLS.</p> : null}
             {activeImport ? (
               <div className="study-current-plan-line" aria-label="Status aktualnego planu studiów">
-                <div className="study-current-plan-main"><b>Aktualny plan</b><strong>{activeImport.fileName}</strong><small>{activeImport.importedEventCount} wydarzeń · {formatImportDate(activeImport.importedAt)}</small></div>
+                <div className="study-current-plan-main"><strong>{activeImport.fileName}</strong><small>{activeImport.importedEventCount} wydarzeń · {formatImportDate(activeImport.importedAt)}</small></div>
                 {activePlanUpdate ? <span className="study-current-plan-change" title={activePlanUpdate.appliedAt ? formatImportDate(activePlanUpdate.appliedAt) : undefined}>{formatUpdateSummary(activePlanUpdate.summary)}</span> : null}
               </div>
             ) : null}
-            <span className="upload-hint">XLSX lub XLS - na komputerze możesz też przeciągnąć plik tutaj.</span>
+            <span className="upload-hint">Możesz też przeciągnąć plik tutaj.</span>
           </div>
           <div className="study-upload-action">
             <input ref={fileInputRef} className="visually-hidden" type="file" accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" onChange={(event) => { const file = event.target.files?.[0]; if (file) void processFile(file); }} />
-            <button type="button" className="button button-primary study-upload-primary" disabled={parsing} onClick={() => fileInputRef.current?.click()}>{parsing ? 'Sprawdzam plan...' : 'Wczytaj plan'}</button>
+            <button type="button" className="button button-primary study-upload-primary" disabled={parsing} onClick={() => fileInputRef.current?.click()}>{parsing ? 'Sprawdzam...' : activeImport ? 'Wczytaj nowy' : 'Wczytaj plan'}</button>
           </div>
         </div>
       ) : null}

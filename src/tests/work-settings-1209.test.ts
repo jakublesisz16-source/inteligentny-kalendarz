@@ -10,7 +10,9 @@ const comparison = fs.readFileSync(path.join(root, 'src/work/AvailabilityWorkCom
 
 describe('1.2.0.10 simplified Work settings', () => {
   it('uses one visible save action for profile and automation settings in the Work modal', () => {
-    expect(workView).toContain('Zapisz ustawienia pracy');
+    expect(workView).toContain('work-settings-header-save');
+    expect(workView).toContain("settingsSaving ? 'Zapisuję...' : 'Zapisz'");
+    expect(workView).not.toContain('work-settings-save-footer');
     expect(workView).toContain('workProfileSettingsRef.current?.save()');
     expect(workView).toContain('planningSettingsRef.current?.save()');
     expect(workView).toContain('hideSubmit');

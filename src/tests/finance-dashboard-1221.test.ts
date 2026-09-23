@@ -8,9 +8,9 @@ function source(path: string): string {
 describe('finance dashboard foundation regression', () => {
   it('keeps the main finance surface focused on current essentials', () => {
     const dashboard = source('../finance/FinanceDashboardView.tsx');
-    expect(dashboard).toContain('Wydatki w miesiącu');
+    expect(dashboard).not.toContain('<span className="section-kicker">Wydatki w miesiącu</span>');
     expect(dashboard).toContain('poprzednio');
-    expect(dashboard).toContain('Największe kategorie');
+    expect(dashboard).toContain('categoryAnalytics.length > 1');
     expect(dashboard).toContain('Wydatki');
     expect(dashboard).toContain('finance-scan-receipt-short">Skanuj');
     expect(dashboard).toContain('finance-scan-receipt-long">paragon');

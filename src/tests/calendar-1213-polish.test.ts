@@ -19,7 +19,7 @@ describe('1.2.0.13 calendar polish', () => {
   });
 
   it('uses a compact Study plan status and clear consistency actions', () => {
-    expect(calendar).toContain('Plan studiów aktywny');
+    expect(calendar).not.toContain('Plan studiów aktywny');
     expect(consistency).toContain('Edytuj serię');
   });
 

@@ -7,11 +7,12 @@ const responsive = readFileSync('src/styles/responsive.css', 'utf8');
 const version = readFileSync('src/core/version.ts', 'utf8');
 
 describe('1.2.0.146 selected day panel polish', () => {
-  it('keeps the study context inside the selected day panel hierarchy', () => {
+  it('keeps the selected day hierarchy without a redundant Study-plan block', () => {
     expect(calendar).toContain('calendar-selected-day-heading');
     expect(calendar).toContain('calendar-selected-day-heading-actions');
     expect(calendar).toContain('calendar-selected-day-content');
-    expect(calendar).toContain('calendar-selected-day-study-context');
+    expect(calendar).not.toContain('calendar-selected-day-study-context');
+    expect(calendar).not.toContain("'Wybrany dzień'");
   });
 
   it('keeps one outer surface while turning the event card into an integrated section', () => {
@@ -23,7 +24,6 @@ describe('1.2.0.146 selected day panel polish', () => {
     expect(consistency).toContain('border: 0;');
     expect(consistency).toContain('box-shadow: none;');
     expect(consistency).toContain('.calendar-view-shell .selected-day-panel .event-card.category-work { background: linear-gradient');
-    expect(consistency).toContain('.calendar-selected-day-study-context .calendar-study-context {');
     expect(consistency).toContain('background: transparent;');
     expect(consistency).toContain('.calendar-view-shell .selected-day-panel .event-actions-column {');
     expect(consistency).toContain('grid-column: 1 / -1;');
@@ -31,7 +31,6 @@ describe('1.2.0.146 selected day panel polish', () => {
   });
 
   it('keeps the mobile day surfaces aligned with the desktop hierarchy', () => {
-    expect(responsive).toContain('.calendar-view-shell .selected-day-panel .calendar-side-study-context { display: grid !important; }');
     expect(responsive).toContain('.calendar-mobile-day-preview-list { display: grid; gap: 8px; }');
     expect(responsive).toContain('.calendar-view-shell .selected-day-panel .event-card.compact-time-range { grid-template-columns: 72px minmax(0, 1fr);');
     expect(responsive).toContain('background: linear-gradient(180deg, rgba(255,255,255,.99), rgba(252,247,249,.97) 56%, rgba(255,255,255,.98));');

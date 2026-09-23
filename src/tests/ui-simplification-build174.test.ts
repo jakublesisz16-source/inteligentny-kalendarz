@@ -26,8 +26,8 @@ describe('1.2.0.174 minimal default surfaces', () => {
   it('keeps Settings essentials visible and infrequent tools collapsed', () => {
     expect(settings).toContain('settings-core');
     expect(settings.match(/settings-collapsible-section/g)?.length).toBeGreaterThanOrEqual(2);
-    expect(settings).toContain('Backup i przenoszenie');
-    expect(settings).toContain('Historia i bezpieczeństwo');
+    expect(settings).toContain('Kopia i przenoszenie');
+    expect(settings).toContain('Historia i odzyskiwanie');
   });
 
   it('keeps the same information hierarchy on phones', () => {

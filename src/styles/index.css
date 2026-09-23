@@ -4,3 +4,7 @@
 @import './components.css';
 @import './responsive.css';
 @import './interface-consistency.css';
+
+@import './mobile-compact.css';
+
+@import './interface-refinement.css';

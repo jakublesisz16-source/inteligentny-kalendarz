@@ -248,7 +248,7 @@ function calendarEventTimeLabel(event: CalendarEvent, dateKey: string, timeForma
   return 'trwa';
 }
 
-export function CalendarView({ events, locations, timeFormat, showPolishHolidays, showWumAcademicCalendar, dayConstraints, dayAttributes, consistencyIssues, activeStudyGroups = [], incompleteStudyEntries = [], onToggleWorkAvailabilityExclusion, onToggleTradingSunday, onAcknowledgeConsistency, onAdd, onQuickAdd, onQuickEdit, onQuickMove, onQuickDelete, onAddMany, onEdit, onStudyCorrect, onStudySeriesCorrect, availabilityPlans = [], coworkersByEvent = {}, onOpenAvailability }: CalendarViewProps) {
+export function CalendarView({ events, locations, timeFormat, showPolishHolidays, showWumAcademicCalendar, dayConstraints, dayAttributes, consistencyIssues, incompleteStudyEntries = [], onToggleWorkAvailabilityExclusion, onToggleTradingSunday, onAcknowledgeConsistency, onAdd, onQuickAdd, onQuickEdit, onQuickMove, onQuickDelete, onAddMany, onEdit, onStudyCorrect, onStudySeriesCorrect, availabilityPlans = [], coworkersByEvent = {}, onOpenAvailability }: CalendarViewProps) {
   const [visibleMonth, setVisibleMonth] = useState(() => new Date());
   const [selectedDate, setSelectedDate] = useState(() => { const today = new Date(); return new Date(today.getFullYear(), today.getMonth(), today.getDate()); });
   const [currentTime, setCurrentTime] = useState(() => new Date());
@@ -1222,7 +1222,7 @@ export function CalendarView({ events, locations, timeFormat, showPolishHolidays
           <aside className={`panel selected-day-panel${mobileDayPanelOpen ? ' mobile-open' : ''}`}>
             <div className="panel-heading compact-heading calendar-selected-day-heading">
               <div className="calendar-selected-day-heading-copy">
-                <span className="section-kicker">{selectionMode ? 'Tryb wyboru' : 'Wybrany dzień'}</span>
+                {selectionMode ? <span className="section-kicker">Tryb wyboru</span> : null}
                 <h2>{selectionMode ? `${selectedDateKeys.length} zaznaczonych` : selectedDate.toLocaleDateString('pl-PL', { day: 'numeric', month: 'long' })}</h2>
               </div>
               <div className="calendar-selected-day-heading-actions">
@@ -1230,14 +1230,6 @@ export function CalendarView({ events, locations, timeFormat, showPolishHolidays
                 <button type="button" className="calendar-mobile-day-close" onClick={() => setMobileDayPanelOpen(false)} aria-label="Zamknij szczegóły dnia">×</button>
               </div>
             </div>
-            {!selectionMode && activeStudyGroups.length && (filter === 'ALL' || filter === 'STUDY') ? (
-              <details className="calendar-study-context-wrap calendar-study-context-compact calendar-side-study-context calendar-study-context-details calendar-selected-day-study-context" aria-label={`Aktywny plan studiów dla grup: ${activeStudyGroups.map(studyGroupDisplayLabel).join(', ')}`}>
-                <summary className="calendar-study-context"><span>Plan studiów aktywny</span><strong>{activeStudyGroups.length} grupy</strong><i aria-hidden="true">›</i></summary>
-                <div className="calendar-study-groups-preview" aria-label="Wybrane grupy aktywnego planu">
-                  {activeStudyGroups.map((group) => <span key={group} title={studyGroupDisplayLabel(group)}>{studyGroupDisplayLabel(group)}</span>)}
-                </div>
-              </details>
-            ) : null}
             {!selectionMode && selectedDayOverlayMarkers.length ? <div className="calendar-selected-day-overlays" aria-label="Informacje o dniu">{selectedDayOverlayMarkers.map((marker) => <span key={marker.kind} className={`overlay-${marker.kind.toLowerCase()}`}>{marker.label}</span>)}</div> : null}
             {!selectionMode && selectedDayIssues.length ? <div className="calendar-day-alerts">{selectedDayIssues.slice(0, 2).map((issue) => <div key={issue.id} className="calendar-day-alert"><strong>{issue.title}</strong><span>{issue.description}</span></div>)}</div> : null}
             <div className="calendar-selected-day-content">
