@@ -31,13 +31,17 @@ describe('Build211 release contract synchronization', () => {
     expect(summary).toContain('dni z rzędu');
   });
 
-  it('keeps Build211 metadata synchronized without changing schema', () => {
+  it('keeps Build211-or-newer metadata synchronized without changing schema', () => {
     const version = read('src/core/version.ts');
     const build = read('src/core/build.ts');
     const sw = read('public/service-worker.js');
-    expect(version).toContain("APP_VERSION = '1.2.0.211'");
-    expect(build).toContain("APP_BUILD = '211'");
-    expect(sw).toContain('v1.2.0.211');
+    const versionMatch = version.match(/APP_VERSION = '(\d+\.\d+\.\d+\.(\d+))'/);
+    const buildMatch = build.match(/APP_BUILD = '(\d+)'/);
+    expect(versionMatch).not.toBeNull();
+    expect(buildMatch).not.toBeNull();
+    expect(Number(versionMatch?.[2])).toBeGreaterThanOrEqual(211);
+    expect(versionMatch?.[2]).toBe(buildMatch?.[1]);
+    expect(sw).toContain(`v${versionMatch?.[1]}`);
     expect(version).toContain('DATABASE_SCHEMA_VERSION = 14');
   });
 });

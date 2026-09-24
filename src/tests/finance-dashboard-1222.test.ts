@@ -11,7 +11,7 @@ describe('finance categories and history regression', () => {
     expect(dashboard).toContain('finance-scan-receipt-short">Skanuj');
     expect(dashboard).toContain('finance-scan-receipt-long">paragon');
     expect(dashboard).toContain('<Modal title="Kategorie"');
-    expect(dashboard).toContain('Szukaj nazwy, miejsca lub kategorii');
+    expect(dashboard).toContain('placeholder="Szukaj pozycji"');
     expect(dashboard).toContain('Wyczyść filtry');
     expect(dashboard).toContain('Edytuj transakcję');
     expect(dashboard).toContain('Transakcja usunięta.');

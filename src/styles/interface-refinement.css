@@ -2592,3 +2592,429 @@
     padding: 10px 12px;
   }
 }
+
+/* Build212 - usability system: larger tap surfaces, remembered context and calm interaction feedback. */
+.work-shift-row-details {
+  width: 100%;
+}
+.work-shift-row-details > summary.work-shift-row-trigger {
+  list-style: none;
+  width: 100%;
+  min-height: 46px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  padding: 0;
+  border-radius: 11px;
+  cursor: pointer;
+  transition: background .14s ease, transform .14s ease;
+}
+.work-shift-row-details > summary.work-shift-row-trigger::-webkit-details-marker { display: none; }
+.work-shift-row-details > summary.work-shift-row-trigger:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent) 72%, transparent);
+  outline-offset: 2px;
+}
+.work-shift-row-details > summary.work-shift-row-trigger:hover {
+  background: color-mix(in srgb, var(--accent-surface) 36%, transparent);
+}
+.work-shift-team-count {
+  min-height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 5px 8px;
+  border: 1px solid color-mix(in srgb, var(--line) 88%, transparent);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--accent-surface) 28%, var(--surface));
+  color: var(--text-muted);
+  font-size: .66rem;
+  font-weight: 720;
+  white-space: nowrap;
+}
+.work-shift-chevron {
+  display: inline-block;
+  font-size: .78rem;
+  line-height: 1;
+  transform: translateY(-1px);
+  transition: transform .16s ease;
+}
+.work-shift-row-minimal.is-expanded .work-shift-chevron { transform: rotate(180deg) translateY(1px); }
+.work-shift-row-minimal.is-expanded > .work-shift-row-details > summary.work-shift-row-trigger {
+  background: color-mix(in srgb, var(--accent-surface) 28%, transparent);
+}
+.work-shift-row-static {
+  min-height: 46px;
+  display: grid;
+  align-items: center;
+}
+
+/* Reusable press feedback: make existing full-row buttons feel obviously interactive without extra chrome. */
+.finance-expense-row,
+.finance-month-category-row,
+.preview-profile-main,
+.settings-minimal-view .data-transfer-actions .button,
+.settings-minimal-view .safety-list-item {
+  transition: background .14s ease, border-color .14s ease, transform .1s ease;
+}
+.finance-expense-row:active,
+.finance-month-category-row:active,
+.preview-profile-main:active,
+.work-shift-row-trigger:active {
+  transform: scale(.995);
+}
+
+@media (max-width: 620px) {
+  /* Fixed bottom navigation must never cover the last useful row or action. */
+  :root { --mobile-bottom-nav-clearance: calc(76px + max(8px, env(safe-area-inset-bottom))); }
+  .app-main { padding-bottom: calc(var(--mobile-bottom-nav-clearance) + 10px) !important; }
+  .app-main > .view-shell { padding-bottom: calc(var(--mobile-bottom-nav-clearance) + 24px) !important; }
+  .work-roster-direct,
+  .finance-purchases-section,
+  .study-groups-primary,
+  .settings-minimal-view { scroll-margin-bottom: calc(var(--mobile-bottom-nav-clearance) + 24px); }
+
+  /* Work: the complete scan row is now the tap target; only one team expansion is shown at a time. */
+  .work-roster-direct .work-shift-row-minimal {
+    display: block;
+    padding: 4px 0;
+  }
+  .work-roster-direct .work-shift-row-details > summary.work-shift-row-trigger {
+    min-height: 46px;
+    padding: 2px 2px;
+  }
+  .work-roster-direct .work-shift-main-line {
+    padding-right: 0 !important;
+  }
+  .work-roster-direct .work-shift-team-count {
+    min-width: 66px;
+    min-height: 36px;
+    font-size: .61rem;
+  }
+  .work-roster-direct .work-shift-row-details[open] > .coworker-overlap-list.compact {
+    margin-top: 4px;
+  }
+
+  /* Settings/Study: use spacing to group sections instead of making every row look boxed. */
+  .settings-minimal-view .settings-core-heading,
+  .study-profile-settings-heading {
+    border-bottom-color: color-mix(in srgb, var(--line) 62%, transparent);
+  }
+  .settings-minimal-view .settings-essential-grid .field,
+  .study-profile-group-picker .study-group-choice-field {
+    border-bottom-color: color-mix(in srgb, var(--line) 60%, transparent);
+  }
+}
+
+@media (max-width: 620px) {
+  .work-roster-direct .work-shift-row-details.work-shift-team-details {
+    height: auto !important;
+    margin-top: 0 !important;
+  }
+  .work-roster-direct .work-shift-row-details > summary.work-shift-row-trigger {
+    position: static !important;
+    right: auto !important;
+    top: auto !important;
+    display: grid !important;
+    width: 100% !important;
+    margin: 0 !important;
+    border: 0 !important;
+    background: transparent;
+  }
+  .work-roster-direct .work-shift-row-details > summary.work-shift-row-trigger::after {
+    content: none !important;
+  }
+  .work-roster-direct .work-shift-row-minimal.is-expanded > .work-shift-row-details > summary.work-shift-row-trigger {
+    background: color-mix(in srgb, var(--accent-surface) 34%, transparent);
+  }
+}
+
+/* Build213 - Work desktop alignment + Finance Items simplification after real-device QA. */
+@media (min-width: 621px) {
+  .work-roster-direct {
+    width: min(100%, 900px);
+    margin-inline: auto;
+  }
+  .work-roster-direct .work-shift-row-minimal {
+    display: block;
+    padding: 6px 0;
+  }
+  .work-roster-direct .work-shift-row-details.work-shift-team-details {
+    width: 100%;
+    height: auto;
+    display: block;
+    grid-column: auto;
+    justify-self: stretch;
+  }
+  .work-roster-direct .work-shift-row-details > summary.work-shift-row-trigger {
+    position: static;
+    width: 100%;
+    height: auto;
+    min-height: 48px;
+    max-height: none;
+    grid-column: auto;
+    grid-row: auto;
+    justify-self: stretch;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 12px;
+    padding: 3px 6px;
+    border: 0;
+    background: transparent;
+  }
+  .work-roster-direct .work-shift-main-line {
+    grid-template-columns: minmax(150px, 1fr) auto auto;
+    gap: 12px;
+    padding-right: 0;
+  }
+  .work-roster-direct .work-shift-row-details[open] > .coworker-overlap-list.compact {
+    width: 100%;
+    margin: 2px 0 6px;
+    padding: 4px 10px 6px;
+    border: 1px solid color-mix(in srgb, var(--line) 62%, transparent);
+    border-radius: 12px;
+    background: color-mix(in srgb, var(--accent-surface) 20%, var(--surface));
+  }
+}
+
+@media (max-width: 620px) {
+  /* Finance Items is a review list, not a desktop table squeezed onto a phone. */
+  .finance-expense-section-v177 .finance-review-strip,
+  .finance-expense-section-v177 .finance-quick-filters {
+    display: none;
+  }
+  .finance-expense-section-v177 .finance-purchase-tools-compact {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 7px;
+    padding: 7px 10px;
+  }
+  .finance-expense-section-v177 .finance-purchase-filter-panel {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    padding: 8px 10px 10px;
+  }
+  .finance-expense-section-v177 .finance-purchase-filter-panel .field {
+    width: auto;
+    min-width: 0;
+  }
+  .finance-expense-section-v177 .finance-purchase-filter-panel .text-button {
+    grid-column: 1 / -1;
+    justify-self: start;
+  }
+  .finance-expense-section-v177 .finance-purchase-table-wrap {
+    overflow: visible;
+  }
+  .finance-expense-section-v177 .finance-purchase-table,
+  .finance-expense-section-v177 .finance-purchase-table.has-quantity {
+    min-width: 0;
+    width: 100%;
+    table-layout: auto;
+    border-collapse: separate;
+    border-spacing: 0;
+  }
+  .finance-expense-section-v177 .finance-purchase-table thead {
+    display: none;
+  }
+  .finance-expense-section-v177 .finance-purchase-table tbody {
+    display: grid;
+  }
+  .finance-expense-section-v177 .finance-purchase-table tbody tr,
+  .finance-expense-section-v177 .finance-purchase-table tbody tr.is-category-review-row,
+  .finance-expense-section-v177 .finance-purchase-table tbody tr.is-necessity-review-row:not(.is-category-review-row) {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      'product money'
+      'category necessity';
+    gap: 7px 10px;
+    padding: 10px 11px;
+    border-bottom: 1px solid color-mix(in srgb, var(--line) 72%, transparent);
+    background: transparent;
+  }
+  .finance-expense-section-v177 .finance-purchase-table tbody tr:last-child {
+    border-bottom: 0;
+  }
+  .finance-expense-section-v177 .finance-purchase-table td {
+    display: block;
+    min-width: 0;
+    padding: 0;
+    border: 0;
+  }
+  .finance-expense-section-v177 .finance-purchase-product-column { grid-area: product; align-self: center; }
+  .finance-expense-section-v177 .finance-purchase-category-column { grid-area: category; }
+  .finance-expense-section-v177 .finance-purchase-necessity-column { grid-area: necessity; justify-self: end; }
+  .finance-expense-section-v177 .finance-purchase-money-column { grid-area: money; align-self: center; text-align: right; }
+  .finance-expense-section-v177 .finance-purchase-merchant-column,
+  .finance-expense-section-v177 .finance-purchase-unit-column,
+  .finance-expense-section-v177 .finance-purchase-date-column,
+  .finance-expense-section-v177 .finance-purchase-details-column {
+    display: none;
+  }
+  .finance-expense-section-v177 .finance-purchase-product-button,
+  .finance-expense-section-v177 .finance-purchase-product-cell > strong {
+    min-height: 36px;
+    padding: 0;
+    font-size: .72rem;
+    font-weight: 760;
+  }
+  .finance-expense-section-v177 .finance-purchase-product-button::after {
+    content: '›';
+    margin-left: 5px;
+  }
+  .finance-expense-section-v177 .finance-category-select,
+  .finance-expense-section-v177 .finance-necessity-select {
+    min-height: 38px;
+    max-width: 100%;
+    padding-block: 6px;
+    font-size: .63rem;
+  }
+  .finance-expense-section-v177 .finance-category-select { width: 100%; }
+  .finance-expense-section-v177 .finance-necessity-select { width: auto; min-width: 96px; }
+  .finance-expense-section-v177 .finance-expense-heading-tools > span {
+    display: none;
+  }
+  .finance-expense-section-v177 .finance-expense-review-link,
+  .finance-expense-section-v177 .finance-expense-assessment-link {
+    min-height: 34px;
+    padding-inline: 8px;
+  }
+
+  /* Expanded Work rows stay dense while secondary "razem" context remains available. */
+  .work-roster-direct .coworker-overlap-list.compact .coworker-overlap-row {
+    padding-block: 6px;
+  }
+  .work-roster-direct .coworker-overlap-list.compact .coworker-compact-time small {
+    color: color-mix(in srgb, var(--text-muted) 78%, transparent);
+    font-size: .54rem;
+    font-weight: 560;
+  }
+}
+
+@media (max-width: 380px) {
+  .finance-expense-section-v177 .finance-purchase-filter-panel {
+    grid-template-columns: 1fr;
+  }
+  .finance-expense-section-v177 .finance-purchase-filter-panel .text-button {
+    grid-column: 1;
+  }
+}
+
+
+/* Build214 - Finance Items mobile polish: one quiet attention badge, denser cards and useful footer context. */
+.finance-items-review-badge { display: none; }
+
+@media (max-width: 620px) {
+  .finance-expense-section-v177 .finance-expense-review-link,
+  .finance-expense-section-v177 .finance-expense-assessment-link {
+    display: none;
+  }
+  .finance-expense-section-v177 .finance-expense-mode-switch button {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .finance-expense-section-v177 .finance-items-review-badge {
+    min-width: 18px;
+    height: 18px;
+    display: inline-grid;
+    place-items: center;
+    padding-inline: 4px;
+    border-radius: 999px;
+    background: var(--accent-soft);
+    color: var(--accent-strong);
+    font-size: .56rem;
+    font-weight: 850;
+    line-height: 1;
+  }
+  .finance-expense-section-v177 .finance-purchase-tools-compact {
+    grid-template-columns: minmax(0, 1fr) 70px;
+    gap: 6px;
+    padding: 7px 10px;
+  }
+  .finance-expense-section-v177 .finance-purchase-search input {
+    min-width: 0;
+    padding-inline: 11px;
+  }
+  .finance-expense-section-v177 .finance-purchase-table tbody tr,
+  .finance-expense-section-v177 .finance-purchase-table tbody tr.is-category-review-row,
+  .finance-expense-section-v177 .finance-purchase-table tbody tr.is-necessity-review-row:not(.is-category-review-row) {
+    grid-template-columns: minmax(0, 1fr) auto 28px;
+    grid-template-areas:
+      'product money details'
+      'category necessity necessity'
+      'merchant date date';
+    gap: 5px 8px;
+    padding: 8px 10px 7px;
+  }
+  .finance-expense-section-v177 .finance-purchase-product-column { grid-area: product; }
+  .finance-expense-section-v177 .finance-purchase-category-column { grid-area: category; }
+  .finance-expense-section-v177 .finance-purchase-necessity-column { grid-area: necessity; }
+  .finance-expense-section-v177 .finance-purchase-money-column { grid-area: money; }
+  .finance-expense-section-v177 .finance-purchase-merchant-column {
+    grid-area: merchant;
+    display: block;
+    overflow: hidden;
+    color: var(--text-muted);
+    font-size: .59rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .finance-expense-section-v177 .finance-purchase-date-column {
+    grid-area: date;
+    display: block;
+    justify-self: end;
+    color: var(--text-muted);
+    font-size: .59rem;
+    white-space: nowrap;
+  }
+  .finance-expense-section-v177 .finance-purchase-unit-column { display: none; }
+  .finance-expense-section-v177 .finance-purchase-details-column {
+    grid-area: details;
+    display: grid;
+    place-items: center;
+    align-self: center;
+    justify-self: end;
+  }
+  .finance-expense-section-v177 .finance-purchase-details-column .icon-button {
+    width: 28px;
+    min-width: 28px;
+    height: 28px;
+    min-height: 28px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--text-muted);
+    font-size: 1rem;
+    box-shadow: none;
+  }
+  .finance-expense-section-v177 .finance-purchase-product-button,
+  .finance-expense-section-v177 .finance-purchase-product-cell > strong {
+    min-height: 30px;
+  }
+  .finance-expense-section-v177 .finance-purchase-product-button::after {
+    content: none;
+  }
+  .finance-expense-section-v177 .finance-category-select,
+  .finance-expense-section-v177 .finance-necessity-select {
+    min-height: 34px;
+    padding-block: 4px;
+  }
+  .finance-expense-section-v177 .finance-necessity-select { min-width: 92px; }
+}
+
+/* Build215 - trip detail mobile compaction: remove the empty hidden-category heading gap. */
+@media (max-width: 620px) {
+  .finance-trip-dashboard-v148 .finance-trip-hero-total {
+    border-bottom: 0;
+  }
+  .finance-trip-dashboard-v148 .finance-trip-category-ranking {
+    margin-top: 0;
+    padding-top: 0;
+    border-top: 1px solid color-mix(in srgb, var(--line) 70%, transparent);
+  }
+  .finance-trip-dashboard-v148 .finance-trip-category-heading {
+    display: none;
+  }
+}

@@ -32,7 +32,7 @@ describe('1.2.0.30 Finance core flow', () => {
     expect(dashboard).toContain('finance-overview-category-chip');
     expect(dashboard).not.toContain('finance-category-donut');
     expect(dashboard).toContain('finance-purchase-table');
-    expect(dashboard).toContain('Szukaj nazwy, miejsca lub kategorii');
+    expect(dashboard).toContain('placeholder="Szukaj pozycji"');
     expect(dashboard).not.toContain('Ostatnie 6 miesięcy');
     expect(dashboard).not.toContain('Kartoteka produktów');
   });

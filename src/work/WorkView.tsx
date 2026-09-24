@@ -59,6 +59,18 @@ function formatDate(value: string): string {
   return new Intl.DateTimeFormat('pl-PL', { weekday: 'short', day: 'numeric', month: 'short' }).format(new Date(`${value}T12:00:00`));
 }
 
+const WORK_TAB_STORAGE_KEY = 'ik.work.tab';
+
+function readSavedWorkTab(): 'schedule' | 'availability' | 'summary' {
+  if (typeof window === 'undefined') return 'schedule';
+  try {
+    const saved = window.localStorage.getItem(WORK_TAB_STORAGE_KEY);
+    return saved === 'availability' || saved === 'summary' ? saved : 'schedule';
+  } catch {
+    return 'schedule';
+  }
+}
+
 export function WorkView({ locations, onDataChanged }: WorkViewProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const workProfileSettingsRef = useRef<WorkProfileEditorHandle>(null);
@@ -79,10 +91,16 @@ export function WorkView({ locations, onDataChanged }: WorkViewProps) {
   const [settingsSaving, setSettingsSaving] = useState(false);
   const [settingsMessage, setSettingsMessage] = useState('');
   const [conflictDecision, setConflictDecision] = useState<'PRESERVE_USER' | 'USE_NEW'>('PRESERVE_USER');
-  const [workTab, setWorkTab] = useState<'schedule' | 'availability' | 'summary'>('schedule');
+  const [workTab, setWorkTab] = useState<'schedule' | 'availability' | 'summary'>(readSavedWorkTab);
+  const [expandedShiftId, setExpandedShiftId] = useState<string | null>(null);
   const [comparisonDetailsRequest, setComparisonDetailsRequest] = useState(0);
 
   useEffect(() => { void refresh(); }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try { window.localStorage.setItem(WORK_TAB_STORAGE_KEY, workTab); } catch { /* storage may be blocked */ }
+  }, [workTab]);
 
   async function refresh() {
     const [currentProfile, currentImports, events, plans] = await Promise.all([getWorkProfile(), listWorkScheduleImports(), listEvents(), listAvailabilityPlans()]);
@@ -238,7 +256,7 @@ export function WorkView({ locations, onDataChanged }: WorkViewProps) {
           {hasSentAvailability ? <AvailabilityWorkComparisonPanel plans={availabilityPlans} workEvents={workEvents} workImports={imports} onImportClick={requestPdfImport} onOpenAvailability={() => setWorkTab('availability')} openDetailsRequest={comparisonDetailsRequest} /> : null}
         </div>
 
-        {activeWorkEvents.length ? <section className="work-roster-list work-roster-minimal work-roster-direct" aria-label="Grafik zmian"><div className="work-shift-list work-shift-list-minimal">{[...activeWorkEvents].sort((a,b)=>a.startDateTime.localeCompare(b.startDateTime)).map((event) => { const coworkers = coworkersByEvent[event.id] ?? []; const ownMinutes = Math.max(0, Math.round((Date.parse(event.endDateTime) - Date.parse(event.startDateTime)) / 60000)); return <article key={event.id} className="work-shift-row-minimal"><div className="work-shift-main-line"><strong>{formatDate(event.startDateTime.slice(0,10))}</strong><span>{event.startDateTime.slice(11,16)}-{event.endDateTime.slice(11,16)}</span><small>{formatWorkMinutes(ownMinutes)}</small></div>{coworkers.length ? <details className="work-shift-team-details"><summary>{formatPersonCount(coworkers.length)}</summary><CoworkerOverlapList people={coworkers} compact /></details> : null}</article>; })}</div></section> : null}
+        {activeWorkEvents.length ? <section className="work-roster-list work-roster-minimal work-roster-direct" aria-label="Grafik zmian"><div className="work-shift-list work-shift-list-minimal">{[...activeWorkEvents].sort((a,b)=>a.startDateTime.localeCompare(b.startDateTime)).map((event) => { const coworkers = coworkersByEvent[event.id] ?? []; const ownMinutes = Math.max(0, Math.round((Date.parse(event.endDateTime) - Date.parse(event.startDateTime)) / 60000)); const expanded = expandedShiftId === event.id; const mainLine = <div className="work-shift-main-line"><strong>{formatDate(event.startDateTime.slice(0,10))}</strong><span>{event.startDateTime.slice(11,16)}-{event.endDateTime.slice(11,16)}</span><small>{formatWorkMinutes(ownMinutes)}</small></div>; return <article key={event.id} className={`work-shift-row-minimal${expanded ? ' is-expanded' : ''}`}>{coworkers.length ? <details className="work-shift-team-details work-shift-row-details" open={expanded}><summary className="work-shift-row-trigger" aria-expanded={expanded} onClick={(clickEvent) => { clickEvent.preventDefault(); setExpandedShiftId((current) => current === event.id ? null : event.id); }}>{mainLine}<span className="work-shift-team-count">{formatPersonCount(coworkers.length)}<span className="work-shift-chevron" aria-hidden="true">⌄</span></span></summary><CoworkerOverlapList people={coworkers} compact /></details> : <div className="work-shift-row-static">{mainLine}</div>}</article>; })}</div></section> : null}
 
         {imports.length ? <details className="panel work-history work-history-details"><summary>Historia importów ({imports.length})</summary><div className="import-history-grid">{imports.map((item) => <article key={item.id} className="import-history-card"><div><strong>{formatPeriod(item.periodStart)}</strong><span className="status-pill">{item.lifecycleStatus === 'ACTIVE' ? 'AKTYWNY' : item.lifecycleStatus === 'HISTORICAL' ? 'HISTORYCZNY' : 'USUNIĘTY'}</span></div><p>{item.fileName}</p><small>{item.shiftCount} zmian - {formatWorkMinutes(item.totalMinutes)}</small>{item.lifecycleStatus !== 'DELETED' ? <button type="button" className="text-button warning-text" onClick={() => void removeImport(item)}>Usuń import</button> : null}</article>)}</div></details> : null}
       </>}

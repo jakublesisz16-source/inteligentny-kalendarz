@@ -14,7 +14,9 @@ describe('1.2.0.78 transaction-first monthly Finance view', () => {
     expect(dashboard).toContain("useState<FinanceExpenseListMode>('TRANSACTIONS')");
     expect(dashboard).toContain('finance-month-transaction-list');
     expect(dashboard).toContain('>Transakcje</button>');
-    expect(dashboard).toContain('>Pozycje</button>');
+    expect(dashboard).toContain("aria-pressed={expenseListMode === 'ITEMS'}");
+    expect(dashboard).toContain("onClick={() => setExpenseListMode('ITEMS')}");
+    expect(dashboard).toContain('finance-items-review-badge');
     expect(dashboard).toContain("expenseListMode === 'TRANSACTIONS'");
   });
 

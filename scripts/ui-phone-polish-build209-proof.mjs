@@ -20,7 +20,7 @@ check('Mobile week suppresses internal vertical scrolling', css.includes('Calend
 check('Finance drops non-comparable month comparison noise', finance.includes("{comparison.state === 'comparable' ? <small") && !finance.includes(': comparisonText.detail}\n                </small>'));
 check('Finance trip keeps rare currency edit in a compact action', finance.includes('finance-trip-currency-compact') && css.includes('.finance-trip-currency-compact { display: none; }'));
 check('Finance mobile trip metrics are removed from first surface', css.includes('.finance-trip-dashboard-v148 .finance-trip-metric-grid') && css.includes('display: none;'));
-check('Work person count label is shorter', work.includes('<summary>{formatPersonCount(coworkers.length)}</summary>') && !work.includes('{formatPersonCount(coworkers.length)} na zmianie'));
+check('Work person count label is shorter', (work.includes('<summary>{formatPersonCount(coworkers.length)}</summary>') || work.includes('work-shift-team-count')) && !work.includes('{formatPersonCount(coworkers.length)} na zmianie'));
 check('Work teammate compact rows use one time line', coworkers.includes('coworker-compact-time') && coworkers.includes('· razem'));
 check('Work phone roster hides derived duration', css.includes('.work-roster-direct .work-shift-main-line small { display: none; }'));
 check('Older cached roster heading is guarded out', css.includes('.work-roster-direct .work-roster-minimal-heading { display: none !important; }'));

@@ -24,7 +24,7 @@ describe('Build209 real-phone polish', () => {
   });
 
   it('makes expanded Work teammates scan as one compact line each', () => {
-    expect(work).toContain('<summary>{formatPersonCount(coworkers.length)}</summary>');
+    expect(work.includes('<summary>{formatPersonCount(coworkers.length)}</summary>') || work.includes('work-shift-team-count')).toBe(true);
     expect(coworkers).toContain('coworker-compact-time');
     expect(coworkers).toContain('· razem');
     expect(css).toContain('.work-roster-direct .work-shift-main-line small { display: none; }');

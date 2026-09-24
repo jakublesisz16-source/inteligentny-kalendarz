@@ -29,7 +29,7 @@ describe('1.2.0.79 Finance hierarchy polish', () => {
     expect(dashboard).toContain('function receiptExpenseTitle(receipt: Receipt)');
     expect(dashboard).toContain('<strong>{receiptExpenseTitle(receipt)}</strong>');
     expect(dashboard).toContain("[formatExpenseMerchantDisplayName(receipt.merchant), categoryLabel].filter(Boolean).join(' · ')");
-    expect(dashboard).toContain('Szukaj nazwy, miejsca lub kategorii');
+    expect(dashboard).toContain('placeholder="Szukaj pozycji"');
   });
 
   it('uses lighter desktop and mobile presentation without a schema bump', () => {

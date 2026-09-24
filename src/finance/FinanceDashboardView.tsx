@@ -90,6 +90,13 @@ interface ReceiptEditForm {
 type FinanceScope = 'MONTH' | 'TRIPS';
 type FinanceExpenseListMode = 'TRANSACTIONS' | 'ITEMS';
 
+const FINANCE_SCOPE_STORAGE_KEY = 'ik.finance.scope';
+function readSavedFinanceScope(): FinanceScope {
+  if (typeof window === 'undefined') return 'MONTH';
+  try { return window.localStorage.getItem(FINANCE_SCOPE_STORAGE_KEY) === 'TRIPS' ? 'TRIPS' : 'MONTH'; }
+  catch { return 'MONTH'; }
+}
+
 interface ProductEditForm {
   id: string;
   name: string;
@@ -291,7 +298,7 @@ export function FinanceDashboardView() {
   const [receipts, setReceipts] = useState<Receipt[]>([]);
   const [tripDefinitions, setTripDefinitions] = useState<FinanceTrip[]>([]);
   const [monthKey, setMonthKey] = useState(currentMonthKey);
-  const [financeScope, setFinanceScope] = useState<FinanceScope>('MONTH');
+  const [financeScope, setFinanceScope] = useState<FinanceScope>(readSavedFinanceScope);
   const [expenseListMode, setExpenseListMode] = useState<FinanceExpenseListMode>('TRANSACTIONS');
   const [activeTripName, setActiveTripName] = useState('');
   const [activeTripCategoryId, setActiveTripCategoryId] = useState('');
@@ -334,6 +341,11 @@ export function FinanceDashboardView() {
   useEffect(() => {
     void refresh().catch((cause) => setError(cause instanceof Error ? cause.message : 'Nie udało się wczytać finansów.'));
   }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try { window.localStorage.setItem(FINANCE_SCOPE_STORAGE_KEY, financeScope); } catch { /* storage may be blocked */ }
+  }, [financeScope]);
 
   useEffect(() => {
     if (!deletedReceipt) return;
@@ -621,6 +633,10 @@ export function FinanceDashboardView() {
   );
   const otherReviewCount = categoryReviewRows.length;
   const unknownReviewCount = necessityReviewRows.length;
+  const itemAttentionCount = useMemo(
+    () => new Set([...categoryReviewRows, ...necessityReviewRows].map((row) => row.key)).size,
+    [categoryReviewRows, necessityReviewRows],
+  );
 
   const filteredPurchaseRows = useMemo(() => {
     const query = searchQuery.trim().toLocaleLowerCase('pl-PL');
@@ -1573,7 +1589,16 @@ export function FinanceDashboardView() {
                 ) : null}
                 <div className="finance-expense-mode-switch" role="group" aria-label="Sposób wyświetlania wydatków">
                   <button type="button" className={expenseListMode === 'TRANSACTIONS' ? 'is-active' : ''} aria-pressed={expenseListMode === 'TRANSACTIONS'} onClick={showTransactions}>Transakcje</button>
-                  <button type="button" className={expenseListMode === 'ITEMS' ? 'is-active' : ''} aria-pressed={expenseListMode === 'ITEMS'} onClick={() => setExpenseListMode('ITEMS')}>Pozycje</button>
+                  <button
+                    type="button"
+                    className={expenseListMode === 'ITEMS' ? 'is-active' : ''}
+                    aria-pressed={expenseListMode === 'ITEMS'}
+                    aria-label={`Pozycje${itemAttentionCount ? `, ${itemAttentionCount} do sprawdzenia` : ''}`}
+                    onClick={() => setExpenseListMode('ITEMS')}
+                  >
+                    Pozycje
+                    {itemAttentionCount ? <span className="finance-items-review-badge" aria-hidden="true">{itemAttentionCount}</span> : null}
+                  </button>
                 </div>
                 <span>{expenseListMode === 'TRANSACTIONS' ? `${monthReceipts.length} ${polishCountLabel(monthReceipts.length, 'transakcja', 'transakcje', 'transakcji')}` : hasTableFilters ? `${filteredPurchaseRows.length} ${polishCountLabel(filteredPurchaseRows.length, 'wynik', 'wyniki', 'wyników')}` : `${monthPurchaseRows.length} ${polishCountLabel(monthPurchaseRows.length, 'pozycja', 'pozycje', 'pozycji')}`}</span>
               </div>
@@ -1619,7 +1644,7 @@ export function FinanceDashboardView() {
                 <div className="finance-purchase-tools finance-purchase-tools-compact">
                   <label className="finance-purchase-search">
                     <span className="visually-hidden">Szukaj</span>
-                    <input type="search" value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} placeholder="Szukaj nazwy, miejsca lub kategorii" />
+                    <input type="search" value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} placeholder="Szukaj pozycji" />
                   </label>
                   <button type="button" className={`button button-secondary button-small${filtersOpen ? ' is-active' : ''}`} onClick={() => setFiltersOpen((current) => !current)}>Filtry</button>
                 </div>
@@ -1704,7 +1729,7 @@ export function FinanceDashboardView() {
                               row.necessityNeedsReview ? 'is-necessity-review-row' : '',
                             ].filter(Boolean).join(' ') || undefined}
                           >
-                            <td>
+                            <td className="finance-purchase-product-column">
                               <div className="finance-purchase-product-cell">
                                 {bulkReviewMode ? (
                                   <input
@@ -1719,7 +1744,7 @@ export function FinanceDashboardView() {
                                 ) : <strong>{formatExpenseProductDisplayName(row.canonicalName)}</strong>}
                               </div>
                             </td>
-                            <td>
+                            <td className="finance-purchase-category-column">
                               <select
                                 className={`finance-category-select${row.categoryNeedsReview ? ' is-review' : ''}`}
                                 value={row.effectiveCategoryId}
@@ -1729,7 +1754,7 @@ export function FinanceDashboardView() {
                                 <CategoryOptions categories={categories} />
                               </select>
                             </td>
-                            <td>
+                            <td className="finance-purchase-necessity-column">
                               {row.product ? (
                                 <select
                                   className={`finance-necessity-select is-${row.necessity}${row.necessityNeedsReview ? ' is-assessment' : ''}`}
@@ -1743,7 +1768,7 @@ export function FinanceDashboardView() {
                                 </select>
                               ) : <span>{expenseNecessityLabel(row.necessity)}</span>}
                             </td>
-                            <td title={row.receipt.merchant}>{formatExpenseMerchantDisplayName(row.receipt.merchant)}</td>
+                            <td className="finance-purchase-merchant-column" title={row.receipt.merchant}>{formatExpenseMerchantDisplayName(row.receipt.merchant)}</td>
                             {hasQuantityData ? <td className="finance-purchase-unit-column">{receiptUnitDetails(row.item) || '—'}</td> : null}
                             <td className="finance-purchase-date-column">{formatDate(row.receipt.date)}</td>
                             <td className="finance-purchase-money-column"><strong>{formatMoneyMinor(row.item.amountMinor)}</strong></td>

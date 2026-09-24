@@ -21,7 +21,9 @@ check('Tablet/narrow mobile week remains bounded', calendar.includes('if (window
 check('Compact coworker rows avoid duplicate shared times', coworkers.includes('sameAsShared') && coworkers.includes('coworker-compact-time') && coworkers.includes('· razem'));
 check('Availability uses current natural action wording', availability.includes("dayBlocks.length ? 'Dodaj' : 'Ustaw'"));
 check('Work summary uses compact rhythm contract', summary.includes('work-summary-rhythm-inline') && summary.includes('dni z rzędu'));
-check('Build211 metadata is synchronized', version.includes("APP_VERSION = '1.2.0.211'") && build.includes("APP_BUILD = '211'") && sw.includes('v1.2.0.211'));
+const versionMatch = version.match(/APP_VERSION = '(\d+\.\d+\.\d+\.(\d+))'/);
+const buildMatch = build.match(/APP_BUILD = '(\d+)'/);
+check('Build211-or-newer metadata is synchronized', Boolean(versionMatch && buildMatch && Number(versionMatch[2]) >= 211 && versionMatch[2] === buildMatch[1] && sw.includes(`v${versionMatch[1]}`)));
 check('database schema remains 14', version.includes('DATABASE_SCHEMA_VERSION = 14'));
 
 console.log(`Build211 release contract sync proof PASS ${checks.length}/${checks.length}`);
