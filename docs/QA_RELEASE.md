@@ -1,14 +1,14 @@
 # QA i wydanie
 
-## Ostatni opublikowany release - Build234
+## Ostatni opublikowany release - Build242
 
-Build234 został opublikowany 26.09.2026 na `main` jako commit `5c05438101b09c70aa6ec92609efbfe7d0dead3c`. GitHub workflow `CI` oraz `Deploy GitHub Pages` zakończyły się `success`. Przed publikacją dependency-complete Windows `check:public` miał 319/319 wykonanych test files i 1836/1836 wykonanych tests PASS, 2 optional skips; production/release/security gates PASS i production dependency audit 0 vulnerabilities. Release-runtime potwierdził Service Worker, lazy Receipt Scanner i installed-PWA offline lazy chunks.
+Build242 został opublikowany 26.09.2026 na `main` jako commit `30de2295f81d60bc07735dfdcad203e6f217ae76`. Windows `npm run check:public` zakończył się 323/323 wykonanych plików testowych i 1853/1853 wykonanych testów PASS z 2 optional skips. Produkcyjny Vite build, production-audit, service-worker, release-safety, travel i security-release były PASS; `npm run security:dependencies` zgłosił 0 vulnerabilities. GitHub workflow `CI` oraz `Deploy GitHub Pages` zakończyły się `success`.
 
-## Bieżący PRIVATE - Build242 release-test contract cleanup candidate
+## Bieżący PRIVATE - Build244 stale-test-contract cleanup candidate
 
-Build240 synchronizował clean checkpoint. Build241 naprawił strict-TypeScript TS18048 w `mobileWeekEventLabel`. Dependency-complete Windows walidacja Build241 następnie potwierdziła `npm ci` PASS, typecheck PASS i 1850 testów publicznych PASS. Trzy jedyne FAIL były przestarzałymi asercjami historycznych testów: stary tekst `Pokaż szczegóły` wobec zaakceptowanego `Szczegóły` oraz dwa twarde oczekiwania `APP_VERSION = 1.2.0.236`. Dodatkowo regresja Build239 miała przyszły twardy pin do `1.2.0.241`.
+Build243 wprowadził wyłącznie uzgodniony mobilny polish Finance Items + Study current-plan. Dependency-complete Windows `check:public` wykonał 1855 testów PASS, 2 optional skips i 2 FAIL; oba FAIL to stale historyczne asercje CSS w Build213/236, nie regresja produktu. `security:dependencies` Build243: 0 vulnerabilities. Lokalny commit `986e1ef` został utworzony, ale GitHub `main` nadal wskazuje Build242, więc release nie został opublikowany.
 
-Build242 nie zmienia produktu. Aktualizuje wyłącznie te kontrakty testowe tak, aby historyczne testy chroniły zachowanie i schema 14, a nie konkretny numer późniejszego buildu. Dokładna synchronizacja bieżącej wersji pozostaje chroniona przez `release:contract:qa`. `npm run security:dependencies` Build241 zakończył się PASS z 0 produkcyjnymi podatnościami. Po podmianie patcha wymagane jest ponowne `npm run check:public`; dopiero jego PASS pozwala na commit/push.
+Build244 aktualizuje tylko te kontrakty testowe i metadane wersji. Przed promocją wymagany jest ponowny dependency-complete Windows `check:public` + `security:dependencies`; real-phone visual QA nadal dotyczy niezmienionych powierzchni produktu z Build243.
 
 ## Codzienny development
 

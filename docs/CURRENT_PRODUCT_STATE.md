@@ -1,8 +1,8 @@
-# Aktualny stan produktu - Build 241
+# Aktualny stan produktu - Build 244
 
 ## Status
 
-Build242 jest wąskim cleanupem kontraktów testowych po dependency-complete Windows walidacji Build241. TypeScript przeszedł, a pełny public suite osiągnął 1850 PASS; trzy jedyne FAIL były przestarzałymi asercjami historycznymi, nie regresjami produktu. Build242 aktualizuje stary tekst `Pokaż szczegóły` do zaakceptowanego `Szczegóły`, usuwa dwa piny do Build236 oraz przyszły pin do Build241 w regresji mobilnego Tygodnia. Kod produktu pozostaje bez zmian. Zaakceptowany Build239 mobilny Tydzień, Build237 Work, Build236 Receipt/Finance, Receipt OCR/parser, Study i schema 14 pozostają bez zmian. Ostatni PUBLIC na `main`: Build234, commit `5c05438101b09c70aa6ec92609efbfe7d0dead3c`, CI i Pages success 26.09.2026.
+Build244 jest wąskim cleanupem kontraktów testowych nad niezmienionym produktem Build243. Build242 pozostaje ostatnim opublikowanym baseline na `main` (`30de2295f81d60bc07735dfdcad203e6f217ae76`). Windows walidacja Build243 wykonała 1855 testów PASS; jedyne 2 FAIL były przestarzałymi asercjami historycznych testów CSS dla starej geometrii Finance Items. Build244 aktualizuje wyłącznie te testy i metadane wersji. Mobilne `Finanse -> Pozycje` oraz nagłówek aktywnego planu `Studia` pozostają dokładnie jak w Build243; parsery, dane i schema 14 są bez zmian.
 
 ## Dzisiaj
 
@@ -154,3 +154,13 @@ Dependency-complete Windows `check:public` Build241 przeszedł strict TypeScript
 ## Build241 - Calendar strict TypeScript release-blocker fix
 
 Dependency-complete Windows preflight Build240 ujawnił jeden rzeczywisty blocker przed promocją: `CalendarView.tsx` zgłaszał TS18048 dla `first` w `mobileWeekEventLabel`, mimo wcześniejszego warunku odrzucającego pustą tablicę. Build241 zastępuje odczyt `words[0]` przez `words[0] ?? ''`, co spełnia strict/noUncheckedIndexedAccess bez zmiany wyniku dla niepustych etykiet. `npm ci` Build240 zakończył się poprawnie, a production dependency audit miał 0 vulnerabilities. Po Build241 wymagane jest ponowne pełne `npm run check:public`; do jego PASS Build241 pozostaje release candidate, nie opublikowanym baseline.
+
+
+## Build243 - Mobile Finance Items + Study Current Plan Polish
+
+Real-device QA po Build242 ujawnił dwa problemy kompozycji. Mobilne `Finanse -> Pozycje` miało równolegle aktywne geometrie z Build214 i Build236, co skracało nazwy i mogło mieszać kontekst sklepu/daty z resztą wiersza. Build243 usuwa konkurujące definicje i ustanawia jeden dwurzędowy kontrakt: do dwóch linii nazwy, kwota i szczegóły po prawej, sklep/data oraz opcjonalna ilość w kontekście produktu, a kategoria + necessity w drugim rzędzie. W `Studia` aktywny plan i `Wczytaj nowy` układają się na telefonie w jednej kolumnie, z osobnym kompaktowym statusem zmiany. Desktop i logika domenowa pozostają bez zmian.
+
+
+## Build244 - historical Finance mobile test-contract cleanup
+
+Windows `check:public` Build243 potwierdził 1855 testów PASS i 2 FAIL wynikające wyłącznie z nieaktualnych historycznych asercji CSS: Build236 oczekiwał dawnej pojedynczej reguły ukrycia kolumny daty, a Build213 oczekiwał superseded grid areas `product money` / `category necessity`. Build244 aktualizuje te regresje do kanonicznego layoutu Build243 oraz usuwa exact version pin z testu Build243. Kod produktu i UI nie są zmieniane.

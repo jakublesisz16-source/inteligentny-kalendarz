@@ -19,13 +19,15 @@ describe('Build214 Finance Items mobile polish', () => {
     expect(finance).toContain('Filtry');
   });
 
-  it('uses a compact three-layer mobile item card with a right-edge details action', () => {
+  it('keeps a compact two-row mobile item card with inline source context and a right-edge details action', () => {
+    const finance = read('src/finance/FinanceDashboardView.tsx');
     const css = read('src/styles/interface-refinement.css');
     expect(css).toContain("'product money details'");
     expect(css).toContain("'category necessity necessity'");
-    expect(css).toContain("'merchant date date'");
+    expect(css).not.toContain("'merchant date date'");
+    expect(finance).toContain('finance-purchase-mobile-context');
     expect(css).toContain('.finance-purchase-details-column .icon-button');
-    expect(css).toContain('content: none;');
+    expect(css).toContain('-webkit-line-clamp: 2;');
   });
 
   it('does not change transaction-first Finance or schema 14', () => {

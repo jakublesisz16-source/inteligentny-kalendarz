@@ -168,8 +168,18 @@ Po real-phone akceptacji Build239 przygotowano pełny czysty checkpoint do nowej
 
 ## Build242 - Historical Release Test Contract Cleanup
 
-Dependency-complete Windows validation of Build241 passed strict TypeScript and produced 1850 public test PASS with only three stale assertion FAIL plus two optional skips. Build242 updates the outdated mobile Month copy assertion and removes obsolete exact build-number pins from Build235/236 plus the remaining Build241 pin in the Build239 Week regression. No product behavior changes and schema remains 14. Full `check:public` must be rerun before publication.
+Dependency-complete Windows validation of Build241 passed strict TypeScript and produced 1850 public test PASS with only three stale assertion FAIL plus two optional skips. Build242 updated the outdated mobile Month copy assertion and removed obsolete exact build-number pins from Build235/236 plus the remaining Build241 pin in the Build239 Week regression. Final Windows `check:public` then passed 1853/1853 executed tests with 2 optional skips; production/release gates and dependency audit passed, and Build242 was published as commit `30de2295f81d60bc07735dfdcad203e6f217ae76` with GitHub CI and Pages success. No product behavior change; schema remains 14.
 
 ## Build241 - Calendar Strict TypeScript Release Blocker
 
 Windows dependency-complete preflight Build240 zakończył `npm ci` poprawnie i potwierdził 0 production dependency vulnerabilities, ale strict typecheck zatrzymał release na TS18048 w `mobileWeekEventLabel`. Build241 dodaje bezpieczny fallback dla `words[0]` bez zmiany zachowania mobilnego Tygodnia, parsera, Studiów, Pracy, Finansów ani schema 14. Pełny `check:public` musi zostać powtórzony przed push na `main`.
+
+
+## Build243 - Mobile Finance Items + Study Current Plan Polish
+
+Real-device screenshots po Build242 wykazały nakładające się historyczne kontrakty mobilnego Finance Items oraz kolizję aktywnego planu Studiów z akcją `Wczytaj nowy`. Build243 konsoliduje Finance Items do jednej geometrii telefonu, pozwala nazwie produktu wykorzystać dwie linie, zachowuje sklep/datę i opcjonalną ilość jako inline context oraz układa aktywny plan Studiów w jednej kolumnie. Zakres nie zmienia parserów, finansów domenowych, danych ani schema 14.
+
+
+## Build244 - Historical Finance Mobile Test Contract Cleanup
+
+Dependency-complete Windows Build243 validation wykonała 1855 testów PASS i zatrzymała release wyłącznie na dwóch przestarzałych asercjach historycznych CSS. Build244 aktualizuje Build213/236 regression contracts do zaakceptowanej geometrii Build243 i robi Build243 version assertion odporną na kolejne buildy. Produkt pozostaje bez zmian.

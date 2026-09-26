@@ -1,22 +1,19 @@
-# Roadmap - Build242 release-test contract closure
+# Roadmap - Build244 release-test contract cleanup
 
-## P0 - close Build242 release gate
+## P0 - close Build244
 
-- apply the Build242 stale-test-contract patch over the dependency-complete Windows publish tree,
-- rerun `npm run check:public`,
-- confirm all historical regression tests are green without pinning obsolete exact build numbers,
-- if green, run `npm run security:dependencies` and publish Build242 from the existing Git checkout,
-- keep accepted Dzisiaj and Build239 mobile Week behavior unchanged.
+- keep the Build243 Finance Items + Study current-plan product code unchanged,
+- replace the two stale historical CSS assertions exposed by Windows Build243 validation,
+- keep historical regression tests version-agnostic within the 1.2.0 release line,
+- run static/release/fresh-unpack gates,
+- apply the Build244 patch over the existing Windows publish tree and rerun `npm run check:public` plus `npm run security:dependencies`,
+- perform real-phone visual QA of the unchanged Build243 Finance Items and Study current-plan surfaces,
+- publish only after the technical gate is fully green.
 
-## P1 - periodic consolidation
+## P1 - continue bounded product work
 
-After several additional patches or before release:
+After Build244 closure, choose the next concrete issue from real-device QA or an explicit user request. Do not reopen stable Today, Calendar Week, Work, Receipt OCR/parser or Study parsing without evidence.
 
-- run dependency-complete typecheck and full public suite,
-- close remaining focused/adjacent validation listed in `CURRENT_STATE.json`,
-- run production dependency audit and release gates,
-- create a fresh full PRIVATE checkpoint and validate it after unpacking.
+## P2 - future Study source updates
 
-## P2 - future product work
-
-Choose only from real-device issues or explicit user requests. Do not start another global redesign of stable Today/Calendar/Work/Finance/Study surfaces without evidence. Future official Study Excel updates continue through the universal parser and explicit schedule diff before calendar apply.
+Each new official Excel continues through the universal parser, schedule diff and explicit apply decision. Do not hardcode a semester/subject or create a parallel static schedule database.

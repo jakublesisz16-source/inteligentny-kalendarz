@@ -25,8 +25,9 @@ describe('Build213 Work and Finance simplification', () => {
     expect(finance).toContain('finance-purchase-necessity-column');
     expect(finance).toContain('finance-category-select');
     expect(finance).toContain('finance-necessity-select');
-    expect(css).toContain("'product money'");
-    expect(css).toContain("'category necessity'");
+    expect(css).toContain('Build243 - canonical mobile Finance Items + Study current-plan polish');
+    expect(css).toContain("'product money details'");
+    expect(css).toContain("'category necessity necessity'");
   });
 
   it('removes duplicate mobile filter chrome while preserving the filter panel', () => {

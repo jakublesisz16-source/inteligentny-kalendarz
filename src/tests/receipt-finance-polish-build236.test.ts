@@ -19,7 +19,9 @@ describe('Build236 Receipt -> Finance mobile polish', () => {
     expect(refinement).toContain("'product money details'");
     expect(refinement).toContain("'category necessity necessity'");
     expect(refinement).toContain('.finance-purchase-merchant-column,');
-    expect(refinement).toContain('.finance-purchase-date-column { display: none; }');
+    expect(refinement).toContain('.finance-purchase-unit-column,');
+    expect(refinement).toContain('.finance-purchase-date-column');
+    expect(refinement).toContain('display: none;');
   });
 
   it('keeps compact bulk correction as a two-column mobile action row', () => {

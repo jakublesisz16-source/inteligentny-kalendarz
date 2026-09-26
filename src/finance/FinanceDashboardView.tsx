@@ -2126,6 +2126,7 @@ export function FinanceDashboardView() {
                                     <button type="button" className="finance-purchase-product-button" aria-label={`Otwórz produkt: ${formatExpenseProductDisplayName(row.canonicalName)}`} onClick={() => openProductEditor(row.productAnalytics!)}>{formatExpenseProductDisplayName(row.canonicalName)}</button>
                                   ) : <strong>{formatExpenseProductDisplayName(row.canonicalName)}</strong>}
                                   <small className="finance-purchase-mobile-context">{formatExpenseMerchantDisplayName(row.receipt.merchant)} · {formatShortDate(row.receipt.date)}</small>
+                                  {receiptUnitDetails(row.item) ? <small className="finance-purchase-mobile-unit">{receiptUnitDetails(row.item)}</small> : null}
                                 </span>
                               </div>
                             </td>

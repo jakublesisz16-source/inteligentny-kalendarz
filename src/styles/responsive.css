@@ -2616,7 +2616,7 @@
   .work-view .view-subtitle { display: none; }
   .study-view .view-header,
   .work-view .view-header { margin-bottom: 8px; }
-  .study-view .study-upload-dashboard { gap: 8px; padding: 12px; }
+  .study-view .study-upload-dashboard { padding: 12px; }
   .study-view .study-upload-dashboard > .study-upload-copy > p { display: none; }
   .study-view .study-upload-dashboard .upload-hint { display: none; }
   .study-current-plan-line { display: grid; gap: 6px; }
