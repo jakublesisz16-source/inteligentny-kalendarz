@@ -225,3 +225,23 @@
       radial-gradient(circle at 10% 92%, rgba(231,184,202,.09), transparent 23rem);
   }
 }
+
+.view-loading-state {
+  min-height: 180px;
+  display: grid;
+  place-items: center;
+  color: var(--text-muted);
+  font-weight: 700;
+}
+
+.receipt-scan-loading {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: color-mix(in srgb, var(--surface) 92%, transparent);
+  color: var(--text-muted);
+  font-weight: 700;
+}

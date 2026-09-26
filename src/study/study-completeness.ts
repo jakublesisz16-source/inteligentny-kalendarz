@@ -40,8 +40,8 @@ export function expectedDatesForSourceBlock(block: StudySourceBlock): string[] {
     if (indexes.has(cursor.getDay()) && !excluded.has(key)) result.push(key);
     cursor.setDate(cursor.getDate() + 1);
   }
-  if (!result.length && block.exceptionDate) return [block.exceptionDate];
-  return result;
+  if (block.exceptionDate && !result.includes(block.exceptionDate)) result.push(block.exceptionDate);
+  return result.sort();
 }
 
 function candidateMinutes(candidate: StudyScheduleCandidate): number | null {

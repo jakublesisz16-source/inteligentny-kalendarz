@@ -1,8 +1,12 @@
-import { readXlsFile, looksLikeLegacyXls } from './xls-reader';
-import { readXlsxFile } from './xlsx-reader';
 import type { WorkbookSnapshot } from './xlsx.types';
 
 const MAX_SPREADSHEET_FILE_BYTES = 64 * 1024 * 1024;
+const LEGACY_XLS_SIGNATURE = [0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1] as const;
+
+function looksLikeLegacyXls(bytes: Uint8Array): boolean {
+  if (bytes.byteLength < LEGACY_XLS_SIGNATURE.length) return false;
+  return LEGACY_XLS_SIGNATURE.every((value, index) => bytes[index] === value);
+}
 
 function looksLikeZip(bytes: Uint8Array): boolean {
   if (bytes.byteLength < 4) return false;
@@ -35,5 +39,10 @@ export async function readSpreadsheetFile(file: File): Promise<WorkbookSnapshot>
   if (format === 'XLSX' && !lowerName.endsWith('.xlsx')) {
     throw new Error('Zawartość pliku jest w formacie .xlsx, ale rozszerzenie nazwy jest inne. Popraw nazwę pliku i spróbuj ponownie.');
   }
-  return format === 'XLS' ? readXlsFile(file) : readXlsxFile(file);
+  if (format === 'XLS') {
+    const { readXlsFile } = await import('./xls-reader');
+    return readXlsFile(file);
+  }
+  const { readXlsxFile } = await import('./xlsx-reader');
+  return readXlsxFile(file);
 }

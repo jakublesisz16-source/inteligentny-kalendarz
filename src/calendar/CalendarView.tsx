@@ -1059,7 +1059,7 @@ export function CalendarView({ events, locations, timeFormat, showPolishHolidays
                 {calendarFilters.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
               </select>
             </label>
-            {displayMode === 'MONTH' ? <button type="button" className="button button-primary button-small calendar-mobile-explicit-add" onClick={() => onAdd(selectedDate)}>+ Dodaj</button> : null}
+            <button type="button" className="button button-primary button-small calendar-mobile-explicit-add" onClick={() => onAdd(selectedDate)}>+ Dodaj</button>
           </div>
         </div>
       </header>

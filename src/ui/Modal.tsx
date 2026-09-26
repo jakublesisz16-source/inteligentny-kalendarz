@@ -1,4 +1,4 @@
-import { useEffect, useRef, type ReactNode } from 'react';
+import { useEffect, useId, useRef, type ReactNode } from 'react';
 
 interface ModalProps {
   title: string;
@@ -10,7 +10,14 @@ interface ModalProps {
 
 const focusableSelector = 'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])';
 
+function isVisibleFocusable(element: HTMLElement) {
+  if (element.hidden || element.getAttribute('aria-hidden') === 'true') return false;
+  const style = window.getComputedStyle(element);
+  return style.display !== 'none' && style.visibility !== 'hidden' && element.getClientRects().length > 0;
+}
+
 export function Modal({ title, children, onClose, wide = false, headerActions }: ModalProps) {
+  const titleId = useId();
   const backdropRef = useRef<HTMLDivElement>(null);
   const cardRef = useRef<HTMLElement>(null);
   const onCloseRef = useRef(onClose);
@@ -39,15 +46,15 @@ export function Modal({ title, children, onClose, wide = false, headerActions }:
     viewport?.addEventListener('scroll', syncVisualViewport);
     window.addEventListener('resize', syncVisualViewport);
 
-    const preferred = card?.querySelector<HTMLElement>('[data-modal-autofocus="true"]');
-    const first = preferred ?? card?.querySelector<HTMLElement>(focusableSelector);
-    first?.focus();
+    const initialFocusable = card ? [...card.querySelectorAll<HTMLElement>(focusableSelector)].filter(isVisibleFocusable) : [];
+    const preferred = initialFocusable.find((element) => element.dataset.modalAutofocus === 'true');
+    (preferred ?? initialFocusable[0] ?? card)?.focus();
 
     function onKeyDown(event: KeyboardEvent) {
       if (event.key === 'Escape') { event.preventDefault(); onCloseRef.current(); return; }
       if (event.key !== 'Tab' || !card) return;
-      const focusable = [...card.querySelectorAll<HTMLElement>(focusableSelector)].filter((element) => !element.hidden);
-      if (!focusable.length) return;
+      const focusable = [...card.querySelectorAll<HTMLElement>(focusableSelector)].filter(isVisibleFocusable);
+      if (!focusable.length) { event.preventDefault(); card.focus(); return; }
       const firstElement = focusable[0]!;
       const lastElement = focusable[focusable.length - 1]!;
       if (event.shiftKey && document.activeElement === firstElement) { event.preventDefault(); lastElement.focus(); }
@@ -78,11 +85,12 @@ export function Modal({ title, children, onClose, wide = false, headerActions }:
         className={wide ? 'modal-card modal-wide' : 'modal-card'}
         role="dialog"
         aria-modal="true"
-        aria-labelledby="modal-title"
+        aria-labelledby={titleId}
+        tabIndex={-1}
         onMouseDown={(event) => event.stopPropagation()}
       >
         <header className="modal-header">
-          <h2 id="modal-title">{title}</h2>
+          <h2 id={titleId}>{title}</h2>
           <div className="modal-header-actions">
             {headerActions}
             <button type="button" className="icon-button" onClick={onClose} aria-label="Zamknij okno">×</button>

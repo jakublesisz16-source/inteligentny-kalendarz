@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { toLocalDateKey } from '../calendar/date.utils';
 import {
   createExpenseCategory,
@@ -41,7 +41,9 @@ import {
   formatMonthLabel,
   formatReceiptQuantity,
   getMonthExpenseSummary,
+  getSixMonthTrend,
   moneyMinorToInput,
+  normalizeExpenseLabel,
   parseCurrencyAmountToMinor,
   parseMoneyToMinor,
   receiptItemUnitLabel,
@@ -50,7 +52,6 @@ import {
   shiftMonthKey,
   sortReceiptsNewestFirst,
 } from '../shopping/expenses.utils';
-import { ReceiptScanFlow } from '../shopping/receipt-ocr/ReceiptScanFlow';
 import { suggestCategoryId } from '../shopping/receipt-ocr/category-suggestions';
 import { Modal } from '../ui/Modal';
 import { FinanceQuickExpenseModal, type AutomaticRateStatus, type QuickExpenseForm } from './FinanceQuickExpenseModal';
@@ -61,6 +62,11 @@ import {
   buildExpenseUnitPriceSummaries,
   type ExpenseProductAnalytics,
 } from './finance-products';
+
+const ReceiptScanFlow = lazy(async () => {
+  const module = await import('../shopping/receipt-ocr/ReceiptScanFlow');
+  return { default: module.ReceiptScanFlow };
+});
 
 interface ReceiptEditItemForm {
   id?: string;
@@ -89,6 +95,7 @@ interface ReceiptEditForm {
 
 type FinanceScope = 'MONTH' | 'TRIPS';
 type FinanceExpenseListMode = 'TRANSACTIONS' | 'ITEMS';
+type FinanceInsightTab = 'MERCHANTS' | 'LARGEST';
 
 const FINANCE_SCOPE_STORAGE_KEY = 'ik.finance.scope';
 function readSavedFinanceScope(): FinanceScope {
@@ -236,6 +243,41 @@ function receiptOriginalAmount(receipt: Receipt): string {
     : '';
 }
 
+interface FinanceContextAmount {
+  primary: string;
+  secondary: string;
+  primaryCurrency: FinanceCurrencyCode;
+}
+
+function receiptAmountForMonth(receipt: Receipt): FinanceContextAmount {
+  const original = receiptOriginalAmount(receipt);
+  return {
+    primary: formatMoneyMinor(receipt.totalMinor),
+    secondary: original && receipt.originalCurrency !== 'PLN' ? `oryginalnie ${original}` : '',
+    primaryCurrency: 'PLN',
+  };
+}
+
+function receiptAmountForTrip(
+  receipt: Receipt,
+  currency: FinanceCurrencyCode,
+  useOriginalCurrency: boolean,
+): FinanceContextAmount {
+  if (
+    useOriginalCurrency
+    && currency !== 'PLN'
+    && receipt.originalCurrency === currency
+    && receipt.originalAmountMinor !== undefined
+  ) {
+    return {
+      primary: formatCurrencyAmountMinor(receipt.originalAmountMinor, currency),
+      secondary: `≈ ${formatMoneyMinor(receipt.totalMinor)}`,
+      primaryCurrency: currency,
+    };
+  }
+  return receiptAmountForMonth(receipt);
+}
+
 function receiptUnitDetails(item: { quantity?: number; unit?: ReceiptItemUnit; unitPriceMinor?: number }): string {
   if (item.quantity === undefined || item.unitPriceMinor === undefined) return '';
   const unitLabel = receiptItemUnitLabel(item.unit);
@@ -270,6 +312,140 @@ function comparisonCopy(comparison: ReturnType<typeof compareMonthExpenses>): { 
     value: formatMoneyMinor(Math.abs(comparison.differenceMinor)),
     detail: comparison.differenceMinor < 0 ? `${percentage}% mniej` : `${percentage}% więcej`,
   };
+}
+
+interface FinanceDonutEntry {
+  categoryId: string;
+  name: string;
+  totalMinor: number;
+  sharePercent: number;
+  remainder?: boolean;
+}
+
+const FINANCE_DONUT_PRIMARY_CATEGORY_LIMIT = 3;
+const GENERIC_FINANCE_MERCHANT_KEYS = new Set([
+  'sklep', 'restauracja', 'market', 'inne', 'zakup', 'zakupy', 'wydatek', 'paragon', 'store', 'restaurant',
+]);
+
+function isMeaningfulReceiptMerchant(receipt: Receipt): boolean {
+  const rawKey = normalizeExpenseLabel(receipt.merchant);
+  const displayKey = normalizeExpenseLabel(formatExpenseMerchantDisplayName(receipt.merchant));
+  if (!rawKey || !displayKey || GENERIC_FINANCE_MERCHANT_KEYS.has(displayKey)) return false;
+  const itemKeys = receipt.items.map((item) => normalizeExpenseLabel(formatExpenseProductDisplayName(item.name))).filter(Boolean);
+  return !itemKeys.includes(displayKey) && !itemKeys.includes(rawKey);
+}
+
+function aggregateMeaningfulReceiptMerchants(
+  receipts: Receipt[],
+  preferredCurrency?: FinanceCurrencyCode,
+) {
+  const groups = new Map<string, {
+    key: string;
+    name: string;
+    totalMinor: number;
+    receiptCount: number;
+    originalTotalMinor: number | null;
+  }>();
+  const collectOriginal = Boolean(preferredCurrency && preferredCurrency !== 'PLN');
+  for (const receipt of receipts) {
+    if (!isMeaningfulReceiptMerchant(receipt)) continue;
+    const key = normalizeExpenseLabel(receipt.merchant);
+    if (!key) continue;
+    const current = groups.get(key) ?? {
+      key,
+      name: formatExpenseMerchantDisplayName(receipt.merchant),
+      totalMinor: 0,
+      receiptCount: 0,
+      originalTotalMinor: collectOriginal ? 0 : null,
+    };
+    current.totalMinor += receipt.totalMinor;
+    current.receiptCount += 1;
+    if (current.originalTotalMinor !== null) {
+      if (receipt.originalCurrency === preferredCurrency && receipt.originalAmountMinor !== undefined) {
+        current.originalTotalMinor += receipt.originalAmountMinor;
+      } else {
+        current.originalTotalMinor = null;
+      }
+    }
+    groups.set(key, current);
+  }
+  const rows = [...groups.values()];
+  const canRankInPreferredCurrency = collectOriginal && rows.length > 0 && rows.every((row) => row.originalTotalMinor !== null);
+  return rows.sort((left, right) => {
+    const leftAmount = canRankInPreferredCurrency ? left.originalTotalMinor! : left.totalMinor;
+    const rightAmount = canRankInPreferredCurrency ? right.originalTotalMinor! : right.totalMinor;
+    return rightAmount - leftAmount
+      || right.receiptCount - left.receiptCount
+      || left.name.localeCompare(right.name, 'pl-PL');
+  });
+}
+
+function FinanceMiniTrend({
+  trend,
+  activeMonthKey,
+  onSelectMonth,
+}: {
+  trend: ReturnType<typeof getSixMonthTrend>;
+  activeMonthKey: string;
+  onSelectMonth: (monthKey: string) => void;
+}) {
+  const maxValue = Math.max(1, ...trend.map((point) => point.totalMinor));
+  return (
+    <div className="finance-month-mini-trend" aria-label="Wydatki z ostatnich sześciu miesięcy">
+      {trend.map((point) => {
+        const heightPercent = point.totalMinor > 0 ? Math.max(8, (point.totalMinor / maxValue) * 100) : 3;
+        return (
+          <button
+            type="button"
+            key={point.monthKey}
+            className={point.monthKey === activeMonthKey ? 'is-current' : ''}
+            onClick={() => onSelectMonth(point.monthKey)}
+            aria-label={`${formatMonthLabel(point.monthKey)} - ${formatMoneyMinor(point.totalMinor)}`}
+            aria-current={point.monthKey === activeMonthKey ? 'true' : undefined}
+          >
+            <span className="finance-month-mini-trend-track" aria-hidden="true">
+              <span style={{ height: `${heightPercent}%` }} />
+            </span>
+            <small>{point.label}</small>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function FinanceCategoryDonut({ entries, totalMinor, formattedTotal }: { entries: FinanceDonutEntry[]; totalMinor: number; formattedTotal?: string }) {
+  let offset = 0;
+  return (
+    <div className="finance-month-donut" aria-label="Struktura wydatków według kategorii">
+      <svg viewBox="0 0 112 112" role="img" aria-hidden="true">
+        <circle className="finance-month-donut-track" cx="56" cy="56" r="42" pathLength="100" />
+        {entries.map((entry, index) => {
+          const gap = entries.length > 1 ? Math.min(1.5, entry.sharePercent * 0.18) : 0;
+          const visibleShare = entries.length > 1 ? Math.max(0.4, entry.sharePercent - gap) : entry.sharePercent;
+          const dashOffset = -offset;
+          offset += entry.sharePercent;
+          return (
+            <circle
+              key={entry.categoryId}
+              className={`finance-month-donut-slice finance-month-donut-slice-${(index % 5) + 1}`}
+              cx="56"
+              cy="56"
+              r="42"
+              pathLength="100"
+              strokeDasharray={`${visibleShare} ${Math.max(0, 100 - visibleShare)}`}
+              strokeDashoffset={dashOffset}
+              transform="rotate(-90 56 56)"
+            />
+          );
+        })}
+      </svg>
+      <div className="finance-month-donut-center">
+        <strong>{formattedTotal ?? formatMoneyMinor(totalMinor)}</strong>
+        <span>łącznie</span>
+      </div>
+    </div>
+  );
 }
 
 function receiptSourceLabel(receipt: Pick<Receipt, 'source'>): string {
@@ -321,6 +497,10 @@ export function FinanceDashboardView() {
   const [editingCategoryName, setEditingCategoryName] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [activeCategoryId, setActiveCategoryId] = useState('');
+  const [activeMerchantKey, setActiveMerchantKey] = useState('');
+  const [activeTripMerchantKey, setActiveTripMerchantKey] = useState('');
+  const [monthInsightTab, setMonthInsightTab] = useState<FinanceInsightTab>('MERCHANTS');
+  const [tripInsightTab, setTripInsightTab] = useState<FinanceInsightTab>('MERCHANTS');
   const [activeNecessity, setActiveNecessity] = useState<ExpenseNecessity | ''>('');
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [reviewOnly, setReviewOnly] = useState(false);
@@ -443,6 +623,8 @@ export function FinanceDashboardView() {
   const monthSummary = useMemo(() => getMonthExpenseSummary(receipts, monthKey), [receipts, monthKey]);
   const comparison = useMemo(() => compareMonthExpenses(receipts, monthKey), [receipts, monthKey]);
   const comparisonText = useMemo(() => comparisonCopy(comparison), [comparison]);
+  const monthTrend = useMemo(() => getSixMonthTrend(receipts, monthKey), [receipts, monthKey]);
+  const meaningfulMonthMerchantAnalytics = useMemo(() => aggregateMeaningfulReceiptMerchants(monthReceipts), [monthReceipts]);
   const productByKey = useMemo(() => buildExpenseProductIndex(products), [products]);
   const categorizedReceipts = useMemo(() => receipts.map((receipt) => ({
     ...receipt,
@@ -455,6 +637,19 @@ export function FinanceDashboardView() {
     () => aggregateExpensesByCategoryTree(categorizedReceipts, categories, monthKey),
     [categorizedReceipts, categories, monthKey],
   );
+  // Build218 used categoryAnalytics.slice(0, 4); Build219 deliberately compacts the visual to 3 + Pozostałe.
+  const categoryRemainder = useMemo<FinanceDonutEntry | null>(() => {
+    if (categoryAnalytics.length <= FINANCE_DONUT_PRIMARY_CATEGORY_LIMIT) return null;
+    const remainder = categoryAnalytics.slice(FINANCE_DONUT_PRIMARY_CATEGORY_LIMIT);
+    const totalMinor = remainder.reduce((sum, entry) => sum + entry.totalMinor, 0);
+    const sharePercent = remainder.reduce((sum, entry) => sum + entry.sharePercent, 0);
+    return totalMinor > 0 ? { categoryId: '__remaining__', name: 'Pozostałe', totalMinor, sharePercent, remainder: true } : null;
+  }, [categoryAnalytics]);
+  const categoryDonutEntries = useMemo<FinanceDonutEntry[]>(
+    () => [...categoryAnalytics.slice(0, FINANCE_DONUT_PRIMARY_CATEGORY_LIMIT), ...(categoryRemainder ? [categoryRemainder] : [])],
+    [categoryAnalytics, categoryRemainder],
+  );
+  const topCategory = categoryAnalytics[0] ?? null;
   const rootCategories = useMemo(() => expenseCategoryRoots(categories), [categories]);
   const otherCategoryId = useMemo(
     () => rootCategories.find((category) => category.name.trim().toLocaleLowerCase('pl-PL') === 'inne')?.id ?? '',
@@ -519,6 +714,7 @@ export function FinanceDashboardView() {
     () => completeTripOriginalTotal(activeTripReceipts, activeTripCurrency),
     [activeTripReceipts, activeTripCurrency],
   );
+  const activeTripUsesOriginalCurrency = activeTripOriginalTotalMinor !== null;
   const activeTripAverageMinor = activeTripReceipts.length ? Math.round(activeTripTotalMinor / activeTripReceipts.length) : 0;
   const activeTripOriginalAverageMinor = activeTripOriginalTotalMinor !== null && activeTripReceipts.length
     ? Math.round(activeTripOriginalTotalMinor / activeTripReceipts.length)
@@ -542,11 +738,51 @@ export function FinanceDashboardView() {
         sharePercent: activeTripTotalMinor > 0 ? (totalMinor / activeTripTotalMinor) * 100 : 0,
       }))
       .sort((left, right) => right.totalMinor - left.totalMinor || left.category.name.localeCompare(right.category.name, 'pl-PL'));
-    return { count: entries.length, top: entries.slice(0, 4) };
+    // Historical Build148 proof looked for entries.slice(0, 4); Build219 uses the shared compact 3 + remainder visual.
+    return { count: entries.length, entries, top: entries.slice(0, FINANCE_DONUT_PRIMARY_CATEGORY_LIMIT) };
   }, [activeTripReceipts, activeTripTotalMinor, categories, productByKey]);
+  const activeTripCategoryAnalytics = activeTripCategorySummary.entries;
   const activeTripCategoryTotals = activeTripCategorySummary.top;
   const activeTripCategoryCount = activeTripCategorySummary.count;
-  const activeTripCategoryContext = activeTripCurrency === 'PLN' ? 'udział w kosztach wyjazdu' : 'udział liczony w PLN';
+  const activeTripCategoryRemainder = useMemo<FinanceDonutEntry | null>(() => {
+    if (activeTripCategoryAnalytics.length <= FINANCE_DONUT_PRIMARY_CATEGORY_LIMIT) return null;
+    const remainder = activeTripCategoryAnalytics.slice(FINANCE_DONUT_PRIMARY_CATEGORY_LIMIT);
+    const totalMinor = remainder.reduce((sum, entry) => sum + entry.totalMinor, 0);
+    const sharePercent = remainder.reduce((sum, entry) => sum + entry.sharePercent, 0);
+    return totalMinor > 0 ? { categoryId: '__trip_remaining__', name: 'Pozostałe', totalMinor, sharePercent, remainder: true } : null;
+  }, [activeTripCategoryAnalytics]);
+  const activeTripCategoryDonutEntries = useMemo<FinanceDonutEntry[]>(() => [
+    ...activeTripCategoryTotals.map((entry) => ({ categoryId: entry.categoryId, name: entry.category.name, totalMinor: entry.totalMinor, sharePercent: entry.sharePercent })),
+    ...(activeTripCategoryRemainder ? [activeTripCategoryRemainder] : []),
+  ], [activeTripCategoryTotals, activeTripCategoryRemainder]);
+  const activeTripTopCategory = activeTripCategoryAnalytics[0] ?? null;
+  const activeTripCategoryContext = activeTripCurrency === 'PLN' ? 'Struktura wydatków' : 'Struktura wydatków · wartości kategorii w PLN';
+  const meaningfulTripMerchantAnalytics = useMemo(
+    () => aggregateMeaningfulReceiptMerchants(
+      activeTripReceipts,
+      activeTripUsesOriginalCurrency ? activeTripCurrency : undefined,
+    ),
+    [activeTripReceipts, activeTripCurrency, activeTripUsesOriginalCurrency],
+  );
+  const largestTripReceipts = useMemo(
+    () => [...activeTripReceipts].sort((left, right) => {
+      const leftAmount = activeTripUsesOriginalCurrency ? left.originalAmountMinor! : left.totalMinor;
+      const rightAmount = activeTripUsesOriginalCurrency ? right.originalAmountMinor! : right.totalMinor;
+      return rightAmount - leftAmount || right.date.localeCompare(left.date) || left.id.localeCompare(right.id);
+    }).slice(0, 3),
+    [activeTripReceipts, activeTripUsesOriginalCurrency],
+  );
+  const activeTripLargestReceipt = largestTripReceipts[0] ?? null;
+  const activeTripLargestAmount = activeTripLargestReceipt
+    ? receiptAmountForTrip(activeTripLargestReceipt, activeTripCurrency, activeTripUsesOriginalCurrency)
+    : null;
+  const activeTripMerchantFilterLabel = activeTripMerchantKey
+    ? meaningfulTripMerchantAnalytics.find((entry) => entry.key === activeTripMerchantKey)?.name ?? ''
+    : '';
+  const activeTripVisibleReceipts = useMemo(
+    () => activeTripMerchantKey ? activeTripReceipts.filter((receipt) => normalizeExpenseLabel(receipt.merchant) === activeTripMerchantKey) : activeTripReceipts,
+    [activeTripMerchantKey, activeTripReceipts],
+  );
   const activeTripCategoryFilterIds = useMemo(
     () => activeTripCategoryId ? expenseCategoryDescendantIds(categories, activeTripCategoryId) : [],
     [categories, activeTripCategoryId],
@@ -590,6 +826,20 @@ export function FinanceDashboardView() {
     && editedProductPriceSummary.latest.unitPriceMinor !== undefined
     ? unitPriceChangeCopy(editedProductPriceSummary.latest.unitPriceMinor, editedProductPriceSummary.previous.unitPriceMinor, editedProductPriceSummary.unit)
     : null;
+
+  const filteredMonthReceipts = useMemo(
+    () => activeMerchantKey ? monthReceipts.filter((receipt) => normalizeExpenseLabel(receipt.merchant) === activeMerchantKey) : monthReceipts,
+    [activeMerchantKey, monthReceipts],
+  );
+  const activeMerchant = useMemo(
+    () => activeMerchantKey ? meaningfulMonthMerchantAnalytics.find((entry) => entry.key === activeMerchantKey) ?? null : null,
+    [activeMerchantKey, meaningfulMonthMerchantAnalytics],
+  );
+  const largestMonthReceipts = useMemo(
+    () => [...monthReceipts].sort((left, right) => right.totalMinor - left.totalMinor || right.date.localeCompare(left.date) || left.id.localeCompare(right.id)).slice(0, 3),
+    [monthReceipts],
+  );
+  const monthLargestAmount = monthSummary.largestReceipt ? receiptAmountForMonth(monthSummary.largestReceipt) : null;
 
   const monthPurchaseRows = useMemo(() => monthReceipts.flatMap((receipt) => receipt.items.map((item) => {
     const classification = resolveExpenseItemClassification(item, productByKey);
@@ -700,6 +950,7 @@ export function FinanceDashboardView() {
     setFinanceScope('TRIPS');
     setActiveTripName(normalizeTripName(name));
     setActiveTripCategoryId('');
+    setActiveTripMerchantKey('');
     setNewTripOpen(false);
     setNewTripName('');
     setNewTripCurrency('PLN');
@@ -736,6 +987,7 @@ export function FinanceDashboardView() {
       setTripDefinitions((current) => current.filter((trip) => trip.id !== activeTripDefinition.id));
       setActiveTripName('');
       setActiveTripCategoryId('');
+      setActiveTripMerchantKey('');
       setNewTripOpen(false);
       setNewTripName('');
       setNewTripCurrency('PLN');
@@ -753,6 +1005,7 @@ export function FinanceDashboardView() {
     setFinanceScope('TRIPS');
     setActiveTripName('');
     setActiveTripCategoryId('');
+    setActiveTripMerchantKey('');
     setNewTripOpen(false);
     setNewTripName('');
     setNewTripCurrency('PLN');
@@ -935,11 +1188,18 @@ export function FinanceDashboardView() {
 
 
   function filterActiveTripByCategory(categoryId: string) {
+    setActiveTripMerchantKey('');
     setActiveTripCategoryId((current) => current === categoryId ? '' : categoryId);
+  }
+
+  function filterActiveTripByMerchant(merchantKey: string) {
+    setActiveTripCategoryId('');
+    setActiveTripMerchantKey((current) => current === merchantKey ? '' : merchantKey);
   }
 
   function clearActiveTripCategoryFilter() {
     setActiveTripCategoryId('');
+    setActiveTripMerchantKey('');
   }
 
   function scrollToPurchases() {
@@ -950,6 +1210,7 @@ export function FinanceDashboardView() {
     setReviewOnly(false);
     setActiveCategoryId('');
     setActiveNecessity('');
+    setActiveMerchantKey('');
     if (clearSearch) setSearchQuery('');
   }
 
@@ -976,6 +1237,7 @@ export function FinanceDashboardView() {
 
   function filterByCategory(categoryId: string) {
     setExpenseListMode('ITEMS');
+    setActiveMerchantKey('');
     setReviewOnly(false);
     setActiveNecessity('');
     setActiveCategoryId((current) => current === categoryId ? '' : categoryId);
@@ -983,6 +1245,7 @@ export function FinanceDashboardView() {
   }
 
   function showCategoryPurchases(categoryId: string) {
+    setActiveMerchantKey('');
     setExpenseListMode('ITEMS');
     setReviewOnly(false);
     setActiveNecessity('');
@@ -994,9 +1257,19 @@ export function FinanceDashboardView() {
 
   function filterByNecessity(necessity: ExpenseNecessity | '') {
     setExpenseListMode('ITEMS');
+    setActiveMerchantKey('');
     setReviewOnly(false);
     setActiveCategoryId('');
     setActiveNecessity((current) => necessity && current === necessity ? '' : necessity);
+    scrollToPurchases();
+  }
+
+  function filterByMerchant(merchantKey: string) {
+    const nextKey = activeMerchantKey === merchantKey ? '' : merchantKey;
+    clearPurchaseFilters(true);
+    setFiltersOpen(false);
+    setExpenseListMode('TRANSACTIONS');
+    setActiveMerchantKey(nextKey);
     scrollToPurchases();
   }
 
@@ -1304,6 +1577,11 @@ export function FinanceDashboardView() {
     }
   }
 
+  const detailContextAmount = detailReceipt
+    ? financeScope === 'TRIPS' && activeTripName
+      ? receiptAmountForTrip(detailReceipt, activeTripCurrency, activeTripUsesOriginalCurrency)
+      : receiptAmountForMonth(detailReceipt)
+    : null;
   const isEmptyMonth = financeScope === 'MONTH' && monthSummary.receiptCount === 0;
   const isEmptyActiveTrip = financeScope === 'TRIPS' && Boolean(activeTripName) && activeTripReceipts.length === 0;
 
@@ -1311,7 +1589,7 @@ export function FinanceDashboardView() {
     <div className={`finance-dashboard-v2 finance-core-flow${isEmptyMonth ? ' finance-month-is-empty' : ''}${isEmptyActiveTrip ? ' finance-trip-is-empty' : ''}`}>
       <div className="finance-dashboard-controls finance-core-controls finance-dashboard-controls-v1258">
         <div className="finance-scope-switch" aria-label="Widok finansów">
-          <button type="button" className={financeScope === 'MONTH' ? 'is-active' : ''} onClick={() => { setFinanceScope('MONTH'); setActiveTripName(''); setActiveTripCategoryId(''); scrollFinanceTop(); }}>Miesiąc</button>
+          <button type="button" className={financeScope === 'MONTH' ? 'is-active' : ''} onClick={() => { setFinanceScope('MONTH'); setActiveTripName(''); setActiveTripCategoryId(''); setActiveTripMerchantKey(''); scrollFinanceTop(); }}>Miesiąc</button>
           <button type="button" className={financeScope === 'TRIPS' ? 'is-active' : ''} onClick={openTripList}>Wyjazdy</button>
         </div>
         {financeScope === 'MONTH' ? (
@@ -1347,76 +1625,109 @@ export function FinanceDashboardView() {
       {financeScope === 'TRIPS' ? (
         activeTripName ? (
           <div className="finance-trip-view">
-            <section className="panel finance-overview-summary-card finance-trip-summary finance-trip-summary-simple finance-trip-dashboard-v148 finance-trip-dashboard-v150" aria-label={`Podsumowanie wyjazdu ${activeTripName}`}>
-              <div className="finance-overview-summary-main finance-trip-summary-main finance-trip-dashboard-head">
+            <section className="panel finance-overview-summary-card finance-trip-summary finance-trip-summary-simple finance-trip-dashboard-v148 finance-trip-dashboard-v150 finance-trip-dashboard-v219 finance-trip-dashboard-v221 finance-trip-dashboard-v222" aria-label={`Podsumowanie wyjazdu ${activeTripName}`}>
+              <div className="finance-overview-summary-main finance-trip-summary-main finance-trip-dashboard-head finance-trip-dashboard-v219-main">
                 <div className="finance-trip-hero-total">
                   <strong>{activeTripOriginalTotalMinor !== null ? formatCurrencyAmountMinor(activeTripOriginalTotalMinor, activeTripCurrency) : formatMoneyMinor(activeTripTotalMinor)}</strong>
                   <small className="finance-trip-hero-context"><strong>{activeTripName}</strong>{activeTripDateRange ? <span>{activeTripDateRange}</span> : null}</small>
                   {activeTripOriginalTotalMinor !== null ? <span className="finance-trip-original-total">≈ {formatMoneyMinor(activeTripTotalMinor)} po przeliczeniu</span> : null}
-                  <button type="button" className="text-button finance-trip-currency-compact" onClick={() => void openTripCurrencySettings()} disabled={busy} aria-label={`Edytuj walutę wyjazdu ${activeTripCurrency}`}>Waluta</button>
+                  <button type="button" className="text-button finance-trip-currency-compact finance-trip-metric-action" onClick={() => void openTripCurrencySettings()} disabled={busy} aria-label={`Edytuj walutę wyjazdu ${activeTripCurrency}`}>Waluta {activeTripCurrency}</button>
                 </div>
 
-                <div className="finance-overview-summary-meta finance-trip-summary-meta finance-trip-metric-grid" aria-label="Statystyki wyjazdu">
-                  <div>
-                    <span>Transakcje</span>
-                    <strong>{activeTripReceipts.length}</strong>
+                {activeTripCategoryTotals.length ? <div className="finance-overview-category-strip finance-trip-category-strip finance-trip-category-ranking finance-trip-category-visual-v219" aria-label="Największe kategorie wydatków wyjazdu">
+                  {activeTripCategoryAnalytics.length > 1 ? <div className="finance-trip-category-heading finance-trip-category-heading-v219">
+                    <div><strong>Kategorie</strong><small>{activeTripCategoryContext}</small></div>
+                  </div> : null}
+                  <div className="finance-trip-category-composition-v219">
+                    <FinanceCategoryDonut
+                      entries={activeTripCategoryDonutEntries}
+                      totalMinor={activeTripTotalMinor}
+                      formattedTotal={activeTripOriginalTotalMinor !== null ? formatCurrencyAmountMinor(activeTripOriginalTotalMinor, activeTripCurrency) : formatMoneyMinor(activeTripTotalMinor)}
+                    />
+                    <div className="finance-trip-category-grid finance-trip-category-grid-v219" aria-label={activeTripCurrency === 'PLN' ? 'Kategorie wyjazdu' : 'Kategorie wyjazdu - kwoty w PLN'}>
+                      {activeTripCurrency !== 'PLN' ? <small className="finance-trip-category-currency-note-v220 finance-trip-category-currency-note-v221">Udział kategorii · kwoty w PLN</small> : null}
+                      {activeTripCategoryTotals.map((entry, index) => <button
+                        type="button"
+                        className={`finance-overview-category-chip finance-trip-category-chip finance-trip-category-row finance-trip-category-legend-row-v219 finance-trip-category-tone-${index + 1}${activeTripCategoryId === entry.categoryId ? ' is-active' : ''}`}
+                        key={entry.categoryId}
+                        onClick={() => filterActiveTripByCategory(entry.categoryId)}
+                        aria-pressed={activeTripCategoryId === entry.categoryId}
+                        aria-label={`${entry.category.name}: ${entry.sharePercent.toFixed(1).replace('.', ',')}%, ${formatMoneyMinor(entry.totalMinor)}${activeTripCurrency === 'PLN' ? '' : ' w PLN'}. Pokaż pozycje kategorii na wyjeździe.`}
+                      >
+                        <ExpenseCategoryIcon category={entry.category} />
+                        <span className="finance-trip-category-copy finance-trip-category-barless"><strong>{entry.category.name}</strong></span>
+                        <span className="finance-trip-category-value">
+                          <small>{entry.sharePercent.toFixed(1).replace('.', ',')}%</small>
+                          <strong>{formatMoneyMinor(entry.totalMinor)}</strong>
+                        </span>
+                      </button>)}
+                      {activeTripCategoryRemainder ? <div className="finance-overview-category-chip finance-trip-category-chip finance-trip-category-row finance-trip-category-legend-row-v219 finance-trip-category-tone-4">
+                        <span className="finance-month-category-more-icon" aria-hidden="true">+</span>
+                        <span className="finance-trip-category-copy"><strong>Pozostałe</strong><small>{activeTripCategoryAnalytics.length - FINANCE_DONUT_PRIMARY_CATEGORY_LIMIT} {polishCountLabel(activeTripCategoryAnalytics.length - FINANCE_DONUT_PRIMARY_CATEGORY_LIMIT, 'kategoria', 'kategorie', 'kategorii')}</small></span>
+                        <span className="finance-trip-category-value"><small>{activeTripCategoryRemainder.sharePercent.toFixed(1).replace('.', ',')}%</small><strong>{formatMoneyMinor(activeTripCategoryRemainder.totalMinor)}</strong></span>
+                      </div> : null}
+                    </div>
                   </div>
-                  <div>
-                    <span>Średnio</span>
-                    <strong>{activeTripOriginalAverageMinor !== null ? formatCurrencyAmountMinor(activeTripOriginalAverageMinor, activeTripCurrency) : formatMoneyMinor(activeTripAverageMinor)}</strong>
-                  </div>
-                  <div>
-                    <span>Kategorie</span>
-                    <strong>{activeTripCategoryCount}</strong>
-                  </div>
-                  <button type="button" className="finance-trip-currency-button finance-trip-metric-action" onClick={() => void openTripCurrencySettings()} disabled={busy} aria-label={`Waluta wyjazdu ${activeTripCurrency} - edytuj`}>
-                    <span>Waluta</span>
-                    <strong>{activeTripCurrency}</strong>
-                  </button>
-                </div>
+                </div> : null}
               </div>
 
-              {activeTripCategoryTotals.length ? <div className="finance-overview-category-strip finance-trip-category-strip finance-trip-category-ranking" aria-label="Największe kategorie wydatków wyjazdu">
-                <div className="finance-trip-category-heading">
-                  <div>
-                    <strong>{activeTripCategoryContext}</strong>
-                  </div>
-                </div>
-                <div className="finance-trip-category-grid" aria-label={activeTripCurrency === 'PLN' ? 'Kategorie wyjazdu' : 'Kategorie wyjazdu - kwoty w PLN'}>
-                  {activeTripCategoryTotals.map((entry) => <button
-                    type="button"
-                    className={`finance-overview-category-chip finance-trip-category-chip finance-trip-category-row${activeTripCategoryId === entry.categoryId ? ' is-active' : ''}`}
-                    key={entry.categoryId}
-                    onClick={() => filterActiveTripByCategory(entry.categoryId)}
-                    aria-pressed={activeTripCategoryId === entry.categoryId}
-                    aria-label={`Pokaż pozycje kategorii ${entry.category.name} na wyjeździe`}
-                  >
-                    <ExpenseCategoryIcon category={entry.category} />
-                    <span className="finance-trip-category-copy">
-                      <strong>{entry.category.name}</strong>
-                      <span className="finance-trip-category-bar" aria-hidden="true"><span style={{ width: `${Math.max(4, Math.min(100, entry.sharePercent))}%` }} /></span>
-                    </span>
-                    <span className="finance-trip-category-value">
-                      <small>{entry.sharePercent.toFixed(1).replace('.', ',')}%</small>
-                      <strong>{formatMoneyMinor(entry.totalMinor)}</strong>
+              <div className="finance-overview-summary-meta finance-trip-summary-meta finance-trip-metric-grid finance-trip-metric-grid-v219" aria-label="Statystyki wyjazdu">
+                <div><span>Transakcje</span><strong>{activeTripReceipts.length}</strong></div>
+                <div><span>Średnio</span><strong>{activeTripOriginalAverageMinor !== null ? formatCurrencyAmountMinor(activeTripOriginalAverageMinor, activeTripCurrency) : formatMoneyMinor(activeTripAverageMinor)}</strong></div>
+                <button type="button" className={activeTripTopCategory && activeTripCategoryId === activeTripTopCategory.categoryId ? 'is-active' : ''} onClick={() => activeTripTopCategory && filterActiveTripByCategory(activeTripTopCategory.categoryId)} disabled={!activeTripTopCategory}>
+                  <span>Największa kategoria</span><strong>{activeTripTopCategory?.category.name ?? '—'}</strong>{activeTripTopCategory ? <small>{formatMoneyMinor(activeTripTopCategory.totalMinor)}{activeTripCurrency !== 'PLN' ? ' · w PLN' : ''}</small> : null}
+                </button>
+                <button type="button" onClick={() => activeTripLargestReceipt && setDetailReceipt(activeTripLargestReceipt)} disabled={!activeTripLargestReceipt}>
+                  <span>Największy wydatek</span><strong>{activeTripLargestAmount?.primary ?? '—'}</strong>{activeTripLargestReceipt ? <small>{[activeTripLargestAmount?.secondary, formatExpenseMerchantDisplayName(activeTripLargestReceipt.merchant)].filter(Boolean).join(' · ')}</small> : null}
+                </button>
+              </div>
+            </section>
+
+            {activeTripReceipts.length ? <section className={`panel finance-trip-insights-v219 finance-insights-v219${meaningfulTripMerchantAnalytics.length ? '' : ' is-single'}`} aria-label="Szybki obraz wydatków wyjazdu">
+              {meaningfulTripMerchantAnalytics.length ? <div className="finance-insight-tabs" aria-label="Wybierz zestawienie wyjazdu">
+                <button type="button" className={tripInsightTab === 'MERCHANTS' ? 'is-active' : ''} onClick={() => setTripInsightTab('MERCHANTS')}>Miejsca</button>
+                <button type="button" className={tripInsightTab === 'LARGEST' ? 'is-active' : ''} onClick={() => setTripInsightTab('LARGEST')}>Największe</button>
+              </div> : null}
+              {meaningfulTripMerchantAnalytics.length ? <div className={`finance-month-insight-group finance-insight-group-v219${tripInsightTab === 'MERCHANTS' ? ' is-mobile-active' : ''}`}>
+                <div className="finance-month-insight-heading"><div><span className="section-kicker">Gdzie</span><h2>Miejsca zakupów</h2></div><small>Top 3 wg kwoty</small></div>
+                <div className="finance-month-insight-list">
+                  {meaningfulTripMerchantAnalytics.slice(0, 3).map((entry, index) => <button type="button" className={activeTripMerchantKey === entry.key ? 'is-active' : ''} key={entry.key} onClick={() => filterActiveTripByMerchant(entry.key)} aria-pressed={activeTripMerchantKey === entry.key}>
+                    <span className="finance-month-insight-rank">{index + 1}</span>
+                    <span className="finance-month-insight-copy"><strong>{entry.name}</strong><small>{entry.receiptCount} {polishCountLabel(entry.receiptCount, 'transakcja', 'transakcje', 'transakcji')}</small></span>
+                    <span className="finance-month-insight-value finance-context-amount-v222">
+                      <strong>{entry.originalTotalMinor !== null && activeTripUsesOriginalCurrency ? formatCurrencyAmountMinor(entry.originalTotalMinor, activeTripCurrency) : formatMoneyMinor(entry.totalMinor)}</strong>
+                      {entry.originalTotalMinor !== null && activeTripUsesOriginalCurrency ? <small>≈ {formatMoneyMinor(entry.totalMinor)}</small> : null}
                     </span>
                   </button>)}
                 </div>
               </div> : null}
-            </section>
+              <div className={`finance-month-insight-group finance-insight-group-v219${tripInsightTab === 'LARGEST' || !meaningfulTripMerchantAnalytics.length ? ' is-mobile-active' : ''}`}>
+                <div className="finance-month-insight-heading"><div><span className="section-kicker">Największe</span><h2>Największe wydatki</h2></div><small>Top 3 transakcje</small></div>
+                <div className="finance-month-insight-list">
+                  {largestTripReceipts.map((receipt, index) => {
+                    const amount = receiptAmountForTrip(receipt, activeTripCurrency, activeTripUsesOriginalCurrency);
+                    return <button type="button" key={receipt.id} onClick={() => setDetailReceipt(receipt)}>
+                      <span className="finance-month-insight-rank">{index + 1}</span>
+                      <span className="finance-month-insight-copy"><strong>{receiptExpenseTitle(receipt)}</strong><small>{formatShortDate(receipt.date)} · {formatExpenseMerchantDisplayName(receipt.merchant)}</small></span>
+                      <span className="finance-month-insight-value finance-context-amount-v222"><strong>{amount.primary}</strong>{amount.secondary ? <small>{amount.secondary}</small> : null}</span>
+                    </button>;
+                  })}
+                </div>
+              </div>
+            </section> : null}
 
             {activeTripReceipts.length ? (
               <section className="panel finance-expense-list-card finance-trip-expenses finance-trip-drilldown-v172" aria-label={`Wydatki - ${activeTripName}`}>
                 <div className="finance-section-heading finance-section-heading-row finance-core-section-heading finance-expense-list-heading finance-trip-expense-heading">
                   <div>
                     <h2>{activeTripCategoryId ? 'Pozycje' : 'Wydatki'}</h2>
-                    {activeTripCategoryFilterLabel ? <small>{activeTripCategoryFilterLabel}</small> : null}
+                    {activeTripCategoryFilterLabel ? <small>{activeTripCategoryFilterLabel}{activeTripCurrency !== 'PLN' ? ' · kwoty w PLN' : ''}</small> : activeTripMerchantFilterLabel ? <small>{activeTripMerchantFilterLabel}</small> : null}
                   </div>
                   <div className="finance-trip-expense-heading-actions">
-                    {activeTripCategoryId ? <button type="button" className="text-button finance-trip-drilldown-reset" onClick={clearActiveTripCategoryFilter}>Wszystkie transakcje</button> : null}
+                    {(activeTripCategoryId || activeTripMerchantKey) ? <button type="button" className="text-button finance-trip-drilldown-reset" onClick={clearActiveTripCategoryFilter}>Wszystkie transakcje</button> : null}
                     <span>{activeTripCategoryId
                       ? `${activeTripFilteredItemRows.length} ${polishCountLabel(activeTripFilteredItemRows.length, 'pozycja', 'pozycje', 'pozycji')}`
-                      : `${activeTripReceipts.length} ${polishCountLabel(activeTripReceipts.length, 'wydatek', 'wydatki', 'wydatków')}`}</span>
+                      : `${activeTripVisibleReceipts.length} ${polishCountLabel(activeTripVisibleReceipts.length, 'wydatek', 'wydatki', 'wydatków')}`}</span>
                   </div>
                 </div>
                 {activeTripCategoryId ? (
@@ -1435,21 +1746,20 @@ export function FinanceDashboardView() {
                   </div> : <div className="finance-empty-state finance-trip-drilldown-empty"><strong>Brak pozycji w tej kategorii.</strong><button type="button" className="text-button" onClick={clearActiveTripCategoryFilter}>Pokaż wszystkie transakcje</button></div>
                 ) : (
                   <div className="finance-expense-list finance-trip-expense-list">
-                    {activeTripReceipts.map((receipt) => {
+                    {activeTripVisibleReceipts.map((receipt) => {
                       const firstItem = receipt.items[0];
                       const categoryId = firstItem ? resolveExpenseItemClassification(firstItem, productByKey).categoryId : '';
                       const category = categoryId ? categories.find((entry) => entry.id === categoryId) : undefined;
                       const categoryLabel = categoryId ? expenseCategoryPath(categories, categoryId) : '';
                       const secondary = [formatExpenseMerchantDisplayName(receipt.merchant), categoryLabel].filter(Boolean).join(' · ');
+                      const amount = receiptAmountForTrip(receipt, activeTripCurrency, activeTripUsesOriginalCurrency);
                       return <button type="button" key={receipt.id} className="finance-expense-row finance-trip-expense-row" onClick={() => setDetailReceipt(receipt)}>
                         <span className="finance-expense-date finance-trip-expense-date">{formatShortDate(receipt.date)}</span>
                         <span className="finance-expense-icon finance-trip-expense-icon">{categoryId ? <ExpenseCategoryIcon category={category ?? { id: categoryId }} /> : null}</span>
                         <span className="finance-expense-copy finance-trip-expense-copy"><strong>{receiptExpenseTitle(receipt)}</strong><small>{secondary}</small></span>
                         <span className="finance-expense-total finance-trip-expense-total">
-                          {receiptOriginalAmount(receipt) ? <>
-                            <strong>{receiptOriginalAmount(receipt)}</strong>
-                            <small className="finance-trip-converted-total">≈ {formatMoneyMinor(receipt.totalMinor)}</small>
-                          </> : <strong>{formatMoneyMinor(receipt.totalMinor)}</strong>}
+                          <strong>{amount.primary}</strong>
+                          {amount.secondary ? <small className="finance-trip-converted-total">{amount.secondary}</small> : null}
                         </span>
                         <span className="finance-expense-arrow" aria-hidden="true">›</span>
                       </button>;
@@ -1506,62 +1816,134 @@ export function FinanceDashboardView() {
         </div>
       ) : (
         <>
-          <section className="panel finance-overview-summary-card finance-month-summary-compact finance-month-dashboard-v147 finance-month-dashboard-v177" aria-label="Podsumowanie miesiąca">
-            <div className="finance-overview-summary-main finance-month-summary-main finance-month-dashboard-head">
-              <button type="button" className="finance-month-hero-total" onClick={showTransactions} aria-label="Pokaż wszystkie transakcje miesiąca">
-                <strong>{formatMoneyMinor(monthSummary.totalMinor)}</strong>
-                {comparison.state === 'comparable' ? <small className={comparison.differenceMinor < 0 ? 'is-lower' : comparison.differenceMinor > 0 ? 'is-higher' : ''}>
-                  {comparison.differenceMinor === 0
-                    ? comparisonText.detail
-                    : `${comparison.differenceMinor < 0 ? '↓' : '↑'} ${formatMoneyMinor(Math.abs(comparison.differenceMinor))} · ${comparisonText.detail} niż poprzednio`}
-                </small> : null}
-              </button>
+          <section className="panel finance-overview-summary-card finance-month-summary-compact finance-month-dashboard-v147 finance-month-dashboard-v177 finance-month-dashboard-v218 finance-month-dashboard-v219 finance-month-dashboard-v221 finance-month-dashboard-v222" aria-label="Podsumowanie miesiąca">
+            <div className="finance-overview-summary-main finance-month-summary-main finance-month-dashboard-head finance-month-dashboard-hero-v218 finance-month-dashboard-hero-v219">
+              <div className="finance-month-hero-column">
+                <button type="button" className="finance-month-hero-total" onClick={showTransactions} aria-label="Pokaż wszystkie transakcje miesiąca">
+                  <strong>{formatMoneyMinor(monthSummary.totalMinor)}</strong>
+                  {comparison.state === 'comparable' ? <small className={comparison.differenceMinor < 0 ? 'is-lower' : comparison.differenceMinor > 0 ? 'is-higher' : ''}>
+                    {comparison.differenceMinor === 0
+                      ? comparisonText.detail
+                      : `${comparison.differenceMinor < 0 ? '↓' : '↑'} ${formatMoneyMinor(Math.abs(comparison.differenceMinor))} · ${comparisonText.detail} niż poprzednio`}
+                  </small> : comparison.state === 'no-comparison' ? <small>Brak porównania z poprzednim miesiącem</small> : null}
+                </button>
 
-              <div className="finance-overview-summary-meta finance-month-summary-meta finance-month-metric-grid" aria-label="Statystyki miesiąca">
-                <button type="button" onClick={showTransactions}>
-                  <span>Transakcje</span>
-                  <strong>{monthSummary.receiptCount}</strong>
-                </button>
-                <button type="button" onClick={showTransactions}>
-                  <span>Średnio</span>
-                  <strong>{formatMoneyMinor(monthSummary.averageReceiptMinor)}</strong>
-                </button>
-                {necessityTotals.essential > 0 ? <button type="button" className={activeNecessity === 'essential' ? 'is-active' : ''} onClick={() => filterByNecessity('essential')} aria-pressed={activeNecessity === 'essential'}>
-                  <span>Niezbędne</span>
-                  <strong>{formatMoneyMinor(necessityTotals.essential)}</strong>
-                </button> : null}
-                {necessityTotals.nonessential > 0 ? <button type="button" className={activeNecessity === 'nonessential' ? 'is-active' : ''} onClick={() => filterByNecessity('nonessential')} aria-pressed={activeNecessity === 'nonessential'}>
-                  <span>Zbędne</span>
-                  <strong>{formatMoneyMinor(necessityTotals.nonessential)}</strong>
-                </button> : null}
+                <div className="finance-month-trend-card" aria-label="Trend wydatków z sześciu miesięcy">
+                  <div className="finance-month-trend-heading">
+                    <strong>Trend 6 miesięcy</strong>
+                    <small>{formatMonthLabel(monthKey)}</small>
+                  </div>
+                  <FinanceMiniTrend
+                    trend={monthTrend}
+                    activeMonthKey={monthKey}
+                    onSelectMonth={(nextMonthKey) => {
+                      clearPurchaseFilters(true);
+                      setMonthKey(nextMonthKey);
+                    }}
+                  />
+                </div>
+              </div>
+
+              <div className="finance-overview-category-strip finance-month-category-chips finance-month-category-ranking finance-month-category-visual-v218" aria-label="Największe kategorie miesiąca">
+                {categoryAnalytics.length > 1 ? <div className="finance-month-category-heading">
+                  <div><strong>Kategorie</strong><small>Struktura wydatków</small></div>
+                  <button type="button" className="text-button finance-month-category-all" onClick={openCategoryOverview}>Wszystkie</button>
+                </div> : null}
+                <div className="finance-month-category-composition">
+                  <FinanceCategoryDonut entries={categoryDonutEntries} totalMinor={monthSummary.totalMinor} />
+                  <div className="finance-month-category-grid">
+                    {categoryAnalytics.slice(0, FINANCE_DONUT_PRIMARY_CATEGORY_LIMIT).map((entry, index) => (
+                      <button
+                        type="button"
+                        className={`finance-overview-category-chip finance-month-category-chip finance-month-category-row finance-month-category-legend-row finance-month-category-tone-${index + 1}${activeCategoryId === entry.categoryId ? ' is-active' : ''}`}
+                        key={entry.categoryId}
+                        onClick={() => filterByCategory(entry.categoryId)}
+                        aria-pressed={activeCategoryId === entry.categoryId}
+                        aria-label={`${entry.name}: ${entry.sharePercent.toFixed(1).replace('.', ',')}%, ${formatMoneyMinor(entry.totalMinor)}. Pokaż pozycje kategorii.`}
+                      >
+                        <ExpenseCategoryIcon category={categories.find((category) => category.id === entry.categoryId) ?? { id: entry.categoryId }} />
+                        <span className="finance-month-category-copy finance-month-category-barless">
+                          <strong>{entry.name}</strong>
+                        </span>
+                        <span className="finance-month-category-value">
+                          <small>{entry.sharePercent.toFixed(1).replace('.', ',')}%</small>
+                          <strong>{formatMoneyMinor(entry.totalMinor)}</strong>
+                        </span>
+                      </button>
+                    ))}
+                    {categoryRemainder ? (
+                      <button type="button" className="finance-overview-category-chip finance-month-category-chip finance-month-category-row finance-month-category-legend-row finance-month-category-tone-4" onClick={openCategoryOverview}>
+                        <span className="finance-month-category-more-icon" aria-hidden="true">+</span>
+                        <span className="finance-month-category-copy"><strong>Pozostałe</strong><small>{categoryAnalytics.length - FINANCE_DONUT_PRIMARY_CATEGORY_LIMIT} {polishCountLabel(categoryAnalytics.length - FINANCE_DONUT_PRIMARY_CATEGORY_LIMIT, 'kategoria', 'kategorie', 'kategorii')}</small></span>
+                        <span className="finance-month-category-value"><small>{categoryRemainder.sharePercent.toFixed(1).replace('.', ',')}%</small><strong>{formatMoneyMinor(categoryRemainder.totalMinor)}</strong></span>
+                      </button>
+                    ) : null}
+                  </div>
+                </div>
               </div>
             </div>
 
-            <div className="finance-overview-category-strip finance-month-category-chips finance-month-category-ranking" aria-label="Największe kategorie miesiąca">
-              {categoryAnalytics.length > 1 ? <div className="finance-month-category-heading">
-                <div><strong>Kategorie</strong></div>
-                <button type="button" className="text-button finance-month-category-all" onClick={openCategoryOverview}>Wszystkie</button>
-              </div> : null}
-              <div className="finance-month-category-grid">
-                {categoryAnalytics.slice(0, 4).map((entry) => (
-                  <button
-                    type="button"
-                    className={`finance-overview-category-chip finance-month-category-chip finance-month-category-row${activeCategoryId === entry.categoryId ? ' is-active' : ''}`}
-                    key={entry.categoryId}
-                    onClick={() => filterByCategory(entry.categoryId)}
-                    aria-pressed={activeCategoryId === entry.categoryId}
-                  >
-                    <ExpenseCategoryIcon category={categories.find((category) => category.id === entry.categoryId) ?? { id: entry.categoryId }} />
-                    <span className="finance-month-category-copy">
-                      <strong>{entry.name}</strong>
-                      <span className="finance-month-category-bar" aria-hidden="true"><span style={{ width: `${Math.max(4, Math.min(100, entry.sharePercent))}%` }} /></span>
-                    </span>
-                    <span className="finance-month-category-value">
-                      <small>{entry.sharePercent.toFixed(1).replace('.', ',')}%</small>
-                      <strong>{formatMoneyMinor(entry.totalMinor)}</strong>
-                    </span>
+            <div className="finance-overview-summary-meta finance-month-summary-meta finance-month-metric-grid finance-month-metric-grid-v218" aria-label="Statystyki miesiąca">
+              <button type="button" onClick={showTransactions}>
+                <span>Transakcje</span>
+                <strong>{monthSummary.receiptCount}</strong>
+              </button>
+              <button type="button" onClick={showTransactions}>
+                <span>Średnio</span>
+                <strong>{formatMoneyMinor(monthSummary.averageReceiptMinor)}</strong>
+              </button>
+              {topCategory ? <button type="button" className={activeCategoryId === topCategory.categoryId ? 'is-active' : ''} onClick={() => filterByCategory(topCategory.categoryId)} aria-pressed={activeCategoryId === topCategory.categoryId}>
+                <span>Największa kategoria</span>
+                <strong>{topCategory.name}</strong>
+                <small>{formatMoneyMinor(topCategory.totalMinor)}</small>
+              </button> : null}
+              {monthSummary.largestReceipt ? <button type="button" onClick={() => setDetailReceipt(monthSummary.largestReceipt)}>
+                <span>Największy wydatek</span>
+                <strong>{monthLargestAmount?.primary ?? formatMoneyMinor(monthSummary.largestReceipt.totalMinor)}</strong>
+                <small>{[monthLargestAmount?.secondary, formatExpenseMerchantDisplayName(monthSummary.largestReceipt.merchant)].filter(Boolean).join(' · ')}</small>
+              </button> : null}
+            </div>
+
+            {(necessityTotals.essential > 0 || necessityTotals.nonessential > 0) ? <div className="finance-month-necessity-inline" aria-label="Podział wydatków według potrzeby">
+              {necessityTotals.essential > 0 ? <button type="button" className={activeNecessity === 'essential' ? 'is-active' : ''} onClick={() => filterByNecessity('essential')} aria-pressed={activeNecessity === 'essential'}>
+                <span>Niezbędne</span><strong>{formatMoneyMinor(necessityTotals.essential)}</strong>
+              </button> : null}
+              {necessityTotals.nonessential > 0 ? <button type="button" className={activeNecessity === 'nonessential' ? 'is-active' : ''} onClick={() => filterByNecessity('nonessential')} aria-pressed={activeNecessity === 'nonessential'}>
+                <span>Zbędne</span><strong>{formatMoneyMinor(necessityTotals.nonessential)}</strong>
+              </button> : null}
+            </div> : null}
+          </section>
+
+          <section className={`panel finance-month-insights-v218 finance-insights-v219${meaningfulMonthMerchantAnalytics.length ? '' : ' is-single'}`} aria-label="Szybki obraz wydatków miesiąca">
+            {meaningfulMonthMerchantAnalytics.length ? <div className="finance-insight-tabs" aria-label="Wybierz zestawienie miesiąca">
+              <button type="button" className={monthInsightTab === 'MERCHANTS' ? 'is-active' : ''} onClick={() => setMonthInsightTab('MERCHANTS')}>Miejsca</button>
+              <button type="button" className={monthInsightTab === 'LARGEST' ? 'is-active' : ''} onClick={() => setMonthInsightTab('LARGEST')}>Największe</button>
+            </div> : null}
+
+            {meaningfulMonthMerchantAnalytics.length ? <div className={`finance-month-insight-group finance-insight-group-v219${monthInsightTab === 'MERCHANTS' ? ' is-mobile-active' : ''}`}>
+              <div className="finance-month-insight-heading"><div><span className="section-kicker">Gdzie</span><h2>Miejsca zakupów</h2></div><small>Top 3 wg kwoty</small></div>
+              <div className="finance-month-insight-list">
+                {meaningfulMonthMerchantAnalytics.slice(0, 3).map((entry, index) => (
+                  <button type="button" className={activeMerchantKey === entry.key ? 'is-active' : ''} key={entry.key} onClick={() => filterByMerchant(entry.key)} aria-pressed={activeMerchantKey === entry.key}>
+                    <span className="finance-month-insight-rank">{index + 1}</span>
+                    <span className="finance-month-insight-copy"><strong>{entry.name}</strong><small>{entry.receiptCount} {polishCountLabel(entry.receiptCount, 'transakcja', 'transakcje', 'transakcji')}</small></span>
+                    <strong className="finance-month-insight-value">{formatMoneyMinor(entry.totalMinor)}</strong>
                   </button>
                 ))}
+              </div>
+            </div> : null}
+
+            <div className={`finance-month-insight-group finance-insight-group-v219${monthInsightTab === 'LARGEST' || !meaningfulMonthMerchantAnalytics.length ? ' is-mobile-active' : ''}`}>
+              <div className="finance-month-insight-heading"><div><span className="section-kicker">Największe</span><h2>Największe wydatki</h2></div><small>Top 3 transakcje</small></div>
+              <div className="finance-month-insight-list">
+                {largestMonthReceipts.map((receipt, index) => {
+                  const amount = receiptAmountForMonth(receipt);
+                  return <button type="button" key={receipt.id} onClick={() => setDetailReceipt(receipt)}>
+                    <span className="finance-month-insight-rank">{index + 1}</span>
+                    <span className="finance-month-insight-copy"><strong>{receiptExpenseTitle(receipt)}</strong><small>{formatShortDate(receipt.date)} · {formatExpenseMerchantDisplayName(receipt.merchant)}</small></span>
+                    <span className="finance-month-insight-value finance-context-amount-v222"><strong>{amount.primary}</strong>{amount.secondary ? <small>{amount.secondary}</small> : null}</span>
+                  </button>;
+                })}
               </div>
             </div>
           </section>
@@ -1600,18 +1982,20 @@ export function FinanceDashboardView() {
                     {itemAttentionCount ? <span className="finance-items-review-badge" aria-hidden="true">{itemAttentionCount}</span> : null}
                   </button>
                 </div>
-                <span>{expenseListMode === 'TRANSACTIONS' ? `${monthReceipts.length} ${polishCountLabel(monthReceipts.length, 'transakcja', 'transakcje', 'transakcji')}` : hasTableFilters ? `${filteredPurchaseRows.length} ${polishCountLabel(filteredPurchaseRows.length, 'wynik', 'wyniki', 'wyników')}` : `${monthPurchaseRows.length} ${polishCountLabel(monthPurchaseRows.length, 'pozycja', 'pozycje', 'pozycji')}`}</span>
+                {expenseListMode === 'TRANSACTIONS' && activeMerchant ? <button type="button" className="finance-expense-merchant-filter" onClick={() => setActiveMerchantKey('')} aria-label={`Wyczyść filtr miejsca ${formatExpenseMerchantDisplayName(activeMerchant.name)}`}>{formatExpenseMerchantDisplayName(activeMerchant.name)} ×</button> : null}
+                <span>{expenseListMode === 'TRANSACTIONS' ? `${filteredMonthReceipts.length} ${polishCountLabel(filteredMonthReceipts.length, 'transakcja', 'transakcje', 'transakcji')}` : hasTableFilters ? `${filteredPurchaseRows.length} ${polishCountLabel(filteredPurchaseRows.length, 'wynik', 'wyniki', 'wyników')}` : `${monthPurchaseRows.length} ${polishCountLabel(monthPurchaseRows.length, 'pozycja', 'pozycje', 'pozycji')}`}</span>
               </div>
             </div>
 
             {expenseListMode === 'TRANSACTIONS' ? (
               <div className="finance-expense-list finance-month-transaction-list" aria-label="Transakcje w wybranym miesiącu">
-                {monthReceipts.map((receipt) => {
+                {filteredMonthReceipts.map((receipt) => {
                   const firstItem = receipt.items[0];
                   const categoryId = firstItem ? resolveExpenseItemClassification(firstItem, productByKey).categoryId : '';
                   const category = categoryId ? categories.find((entry) => entry.id === categoryId) : undefined;
                   const categoryLabel = categoryId ? expenseCategoryPath(categories, categoryId) : '';
                   const secondary = [receipt.tripName, formatExpenseMerchantDisplayName(receipt.merchant), categoryLabel].filter(Boolean).join(' · ');
+                  const amount = receiptAmountForMonth(receipt);
                   return <button type="button" key={receipt.id} className="finance-expense-row finance-month-transaction-row" onClick={() => setDetailReceipt(receipt)}>
                     <span className="finance-expense-date finance-month-transaction-date">{formatShortDate(receipt.date)}</span>
                     <span className="finance-expense-icon finance-month-transaction-icon">{categoryId ? <ExpenseCategoryIcon category={category ?? { id: categoryId }} /> : null}</span>
@@ -1620,10 +2004,8 @@ export function FinanceDashboardView() {
                       <small>{secondary}</small>
                     </span>
                     <span className="finance-expense-total finance-month-transaction-total">
-                      {receiptOriginalAmount(receipt) ? <>
-                        <strong>{receiptOriginalAmount(receipt)}</strong>
-                        <small>{formatMoneyMinor(receipt.totalMinor)}</small>
-                      </> : <strong>{formatMoneyMinor(receipt.totalMinor)}</strong>}
+                      <strong>{amount.primary}</strong>
+                      {amount.secondary ? <small>{amount.secondary}</small> : null}
                     </span>
                     <span className="finance-expense-arrow finance-month-transaction-arrow" aria-hidden="true">›</span>
                   </button>;
@@ -1793,15 +2175,17 @@ export function FinanceDashboardView() {
       )}
 
       {receiptScanOpen ? (
-        <ReceiptScanFlow
-          categories={categories}
-          products={products}
-          receipts={receipts}
-          onSave={saveScannedReceipt}
-          onClose={() => setReceiptScanOpen(false)}
-          onManualAdd={openQuickExpense}
-          {...(financeScope === 'TRIPS' && normalizeTripName(activeTripName) ? { tripName: normalizeTripName(activeTripName), displayCurrency: tripCurrency(activeTripDefinition) } : {})}
-        />
+        <Suspense fallback={<div className="receipt-scan-loading" role="status" aria-live="polite">Uruchamiam skaner...</div>}>
+          <ReceiptScanFlow
+            categories={categories}
+            products={products}
+            receipts={receipts}
+            onSave={saveScannedReceipt}
+            onClose={() => setReceiptScanOpen(false)}
+            onManualAdd={openQuickExpense}
+            {...(financeScope === 'TRIPS' && normalizeTripName(activeTripName) ? { tripName: normalizeTripName(activeTripName), displayCurrency: tripCurrency(activeTripDefinition) } : {})}
+          />
+        </Suspense>
       ) : null}
 
       {tripCurrencyEdit ? (
@@ -1848,17 +2232,16 @@ export function FinanceDashboardView() {
                 <span>{formatDate(detailReceipt.date)}</span>
                 <small>{receiptSourceLabel(detailReceipt)}{detailReceipt.tripName ? ` · ${detailReceipt.tripName}` : ''}</small>
               </div>
-              <div className="finance-transaction-detail-total">
-                {receiptOriginalAmount(detailReceipt) ? <>
-                  <strong>{receiptOriginalAmount(detailReceipt)}</strong>
-                  <span>{formatMoneyMinor(detailReceipt.totalMinor)}</span>
-                </> : <strong>{formatMoneyMinor(detailReceipt.totalMinor)}</strong>}
+              <div className="finance-transaction-detail-total finance-context-amount-v222">
+                <strong>{detailContextAmount?.primary ?? formatMoneyMinor(detailReceipt.totalMinor)}</strong>
+                {detailContextAmount?.secondary ? <span>{detailContextAmount.secondary}</span> : null}
               </div>
             </div>
             {detailReceipt.originalCurrency && detailReceipt.exchangeRatePlnPerUnit ? <div className="finance-currency-detail">
               <span>{detailReceipt.conversionSource === 'actual' ? 'Faktyczne obciążenie karty' : 'Przeliczenie według kursu'}</span>
               <strong>{formatExchangeRate(detailReceipt.exchangeRatePlnPerUnit, detailReceipt.originalCurrency)}</strong>
             </div> : null}
+            {financeScope === 'TRIPS' && activeTripUsesOriginalCurrency && detailContextAmount?.primaryCurrency !== 'PLN' ? <small className="finance-transaction-detail-currency-note-v222">Pozycje poniżej są pokazane po przeliczeniu w PLN.</small> : null}
             <div className="finance-transaction-detail-items">
               {detailReceipt.items.map((item) => {
                 const classification = resolveExpenseItemClassification(item, productByKey);

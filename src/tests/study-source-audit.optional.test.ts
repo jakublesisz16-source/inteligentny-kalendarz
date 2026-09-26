@@ -6,6 +6,8 @@ import { describe, expect, it } from 'vitest';
 import { analyzeScheduleWorkbook } from '../imports/xlsx/adapter-registry';
 import { readSpreadsheetFile } from '../imports/xlsx/spreadsheet-reader';
 import { auditSelectedStudyProfile, buildStudySourceAudit } from '../study/study-source-audit';
+import { candidatesForSelectedGroups } from '../study/study.service';
+import { candidateSemanticFingerprint } from '../study/verified-study-plan';
 
 const sourcePath = process.env.IK_STUDY_XLS_PATH;
 const expectedHash = process.env.IK_STUDY_XLS_SHA256?.toLowerCase();
@@ -65,9 +67,16 @@ describe('optional real study source QA audit', () => {
         conflictCount: number;
         importableMonthCounts: Record<string, number>;
       };
+      activeStudySemanticReference?: {
+        allCandidatesSha256?: string;
+        selectedProfileCandidatesSha256?: string;
+      };
     } : null;
     if (state?.activeStudySourceFingerprint?.sha256?.toLowerCase() === hash) {
       expect(summary(report)).toEqual(state.activeStudyAudit);
+      if (state.activeStudySemanticReference?.allCandidatesSha256) {
+        expect(await candidateSemanticFingerprint(analysis!.candidates)).toBe(state.activeStudySemanticReference.allCandidatesSha256);
+      }
       if (state.activeStudyQaProfile) {
         const profile = auditSelectedStudyProfile(analysis!, state.activeStudyQaProfile.selectedGroups);
         expect(profile).toEqual({
@@ -83,6 +92,10 @@ describe('optional real study source QA audit', () => {
           conflictCount: state.activeStudyQaProfile.conflictCount,
           importableMonthCounts: state.activeStudyQaProfile.importableMonthCounts,
         });
+        if (state.activeStudySemanticReference?.selectedProfileCandidatesSha256) {
+          expect(await candidateSemanticFingerprint(candidatesForSelectedGroups(analysis!, state.activeStudyQaProfile.selectedGroups)))
+            .toBe(state.activeStudySemanticReference.selectedProfileCandidatesSha256);
+        }
       }
     }
 

@@ -1,14 +1,11 @@
-import { useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import type { AppView } from './app.types';
-import { Navigation } from '../ui/Navigation';
+import { NAVIGATION_ITEMS, Navigation } from '../ui/Navigation';
 import { Modal } from '../ui/Modal';
 import { AppSplash } from '../ui/AppSplash';
 import { TodayView } from '../calendar/TodayView';
 import { CalendarView } from '../calendar/CalendarView';
 import { SettingsView } from '../settings/SettingsView';
-import { StudyView } from '../study/StudyView';
-import { WorkView } from '../work/WorkView';
-import { FinanceView } from '../finance/FinanceView';
 import type { CoworkerOverlap } from '../work/work.types';
 import { StudyEventCorrection } from '../study/StudyEventCorrection';
 import { EventForm } from '../events/EventForm';
@@ -49,6 +46,25 @@ import {
   updateSettings,
 } from '../storage/database';
 
+const FinanceView = lazy(async () => {
+  const module = await import('../finance/FinanceView');
+  return { default: module.FinanceView };
+});
+
+const StudyView = lazy(async () => {
+  const module = await import('../study/StudyView');
+  return { default: module.StudyView };
+});
+
+const WorkView = lazy(async () => {
+  const module = await import('../work/WorkView');
+  return { default: module.WorkView };
+});
+
+function LazyViewFallback() {
+  return <section className="view-shell view-loading-state" role="status" aria-live="polite" aria-busy="true">Ładowanie widoku...</section>;
+}
+
 interface EventEditorState {
   event?: CalendarEvent | undefined;
   workCoworkers?: CoworkerOverlap[] | undefined;
@@ -87,6 +103,11 @@ export function App() {
   useEffect(() => {
     void bootstrap();
   }, []);
+
+  useEffect(() => {
+    const activeLabel = NAVIGATION_ITEMS.find((item) => item.id === view)?.label ?? 'Kalendarz';
+    document.title = `${activeLabel} - Inteligentny Kalendarz`;
+  }, [view]);
 
   useEffect(() => {
     if (!toast) return;
@@ -310,10 +331,13 @@ export function App() {
     );
   }
 
+  const activeViewLabel = NAVIGATION_ITEMS.find((item) => item.id === view)?.label ?? 'Kalendarz';
+
   return (
     <div className="app-shell">
+      <a className="skip-link" href="#main-content">Przejdź do treści</a>
       <Navigation activeView={view} onChange={changeView} />
-      <main className="app-main">
+      <main className="app-main" id="main-content" tabIndex={-1} aria-label={activeViewLabel}>
         {view === 'today' ? (
           <TodayView events={events} locations={locations} timeFormat={settings.timeFormat} showPolishHolidays={settings.showPolishHolidays !== false} showWumAcademicCalendar={settings.showWumAcademicCalendar !== false} consistencyIssues={consistencyIssues} onOpenConsistencyCenter={openConsistencyCenter} onAdd={(date) => setEventEditor(date ? { initialDate: date } : {})} onEdit={(event) => { void openEventEditor(event); }} onStudyCorrect={setStudyCorrectionEvent} availabilityPlans={availabilityPlans} coworkersByEvent={coworkersByEvent} />
         ) : null}
@@ -321,13 +345,13 @@ export function App() {
           <CalendarView events={events} locations={locations} timeFormat={settings.timeFormat} showPolishHolidays={settings.showPolishHolidays !== false} showWumAcademicCalendar={settings.showWumAcademicCalendar !== false} dayConstraints={dayConstraints} dayAttributes={dayAttributes} consistencyIssues={consistencyIssues} activeStudyGroups={activeStudyGroups} incompleteStudyEntries={incompleteStudyEntries} onToggleWorkAvailabilityExclusion={toggleWorkAvailabilityExclusion} onToggleTradingSunday={toggleTradingSunday} onAcknowledgeConsistency={acknowledgeIssue} onStudySeriesCorrect={setStudySeriesTimingEvent} onAdd={(date, initialTitle, initialEndDate) => setEventEditor(date ? { initialDate: date, ...(initialTitle ? { initialTitle } : {}), ...(initialEndDate ? { initialEndDate } : {}) } : {})} onQuickAdd={async (draft) => { await saveEvent(draft); }} onQuickEdit={quickEditEvent} onQuickMove={quickMoveEvent} onQuickDelete={quickDeleteEvent} onAddMany={(dates) => setEventEditor({ initialDates: dates })} onEdit={(event) => { void openEventEditor(event); }} onStudyCorrect={setStudyCorrectionEvent} availabilityPlans={availabilityPlans} coworkersByEvent={coworkersByEvent} onOpenAvailability={(date, blockId) => setAvailabilityEditor({ date, ...(blockId ? { blockId } : {}) })} />
         ) : null}
         {view === 'finance' ? (
-          <FinanceView />
+          <Suspense fallback={<LazyViewFallback />}><FinanceView /></Suspense>
         ) : null}
         {view === 'study' ? (
-          <StudyView onDataChanged={refreshAllData} />
+          <Suspense fallback={<LazyViewFallback />}><StudyView onDataChanged={refreshAllData} /></Suspense>
         ) : null}
         {view === 'work' ? (
-          <WorkView locations={locations} onDataChanged={refreshAllData} />
+          <Suspense fallback={<LazyViewFallback />}><WorkView locations={locations} onDataChanged={refreshAllData} /></Suspense>
         ) : null}
         {view === 'settings' ? (
           <SettingsView settings={settings} locations={locations} onChange={changeSettings} onDataChanged={refreshAllData} />

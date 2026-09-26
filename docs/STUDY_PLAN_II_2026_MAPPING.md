@@ -1,17 +1,17 @@
-# Plan studiów II rok - mapa źródła 18.09.2026
+# Plan studiów II rok - mapa źródła 25.09.2026
 
 ## Status dokumentu
 
 To jest aktywna mapa referencyjna dla aktualnego planu przekazanego do projektu:
 
-- plik źródłowy: `licencjat-ii-rok-piel.-18.09.2026.xls`,
+- plik źródłowy: `licencjat-ii-rok-piel.-25.09.2026.xls`,
 - kierunek: pielęgniarstwo stacjonarne pierwszego stopnia,
 - rok: II,
 - semestr: zimowy 2026/2027,
 - arkusz planu grupowego: `PLAN ZAJĘĆ`, zakres `A1:DK73`,
 - arkusz wykładów: `WYKŁADY`, zakres `A1:C34`.
 
-Poprzednia mapa `STUDY_PLAN_III_2026_MAPPING.md` dotyczy wcześniej przekazanego pliku III roku i nie jest aktywnym źródłem dla bieżącego kalendarza.
+Starsze mapy planów nie są już przechowywane w aktualnym clean checkpointcie. Ich regresje pozostają w testach; jedyną aktywną mapą źródła w dokumentacji jest ten plik.
 
 ## Zasada nadrzędna
 
@@ -56,9 +56,9 @@ Przykład: jeśli osoba należy do grupy głównej 2, podziału 12-osobowego 2A 
 
 | Kolumny | Sekcja | Typ | Deklaracja | Model grup | Reguła czasu/dnia |
 | --- | --- | --- | --- | --- | --- |
-| B:J | CHIRURGIA I BLOK OPERACYJNY | zajęcia praktyczne | 80 godz. | źródłowe wpisy G8; nagłówek wspomina też blok G4 | zasadniczo pon.-pt. 08:00-14:00; J zawiera konkretne wtorki CSM 08:00-14:00 |
-| K:AA | INTERNA | zajęcia praktyczne | 80 godz. | G8 | baza pon.-pt. 08:00-14:00, z wyłączeniem dni zajęć u prof. R. Steca; kolumny Steca mają jawne dni, ale brak pełnej godziny |
-| AB:AP | PEDIATRIA | zajęcia praktyczne | 80 godz. | G4 | zasadniczo pon.-pt. 08:00-14:00; AP zawiera konkretne terminy CSM 08:00-14:00 |
+| B:J | CHIRURGIA I BLOK OPERACYJNY | zajęcia praktyczne | 80 godz. | źródłowe wpisy G8; nagłówek wspomina też blok G4 | baza pon.-pt. 08:00-14:00; J8:J21 zawiera 14 dokładnych terminów CSM 08:00-14:00 |
+| K:AA | INTERNA | zajęcia praktyczne | 80 godz. | G8 | baza pon.-pt. 08:00-14:00 z wyłączeniem innych zajęć; kolumny Steca pozostają bez pełnej godziny, a AA8:AA21 zawiera 14 dokładnych terminów CSM 08:00-14:00 |
+| AB:AP | PEDIATRIA | zajęcia praktyczne | 80 godz. | G4 | baza pon.-pt. 08:00-14:00; AP8:AP21 zawiera 14 dokładnych terminów CSM 08:00-14:00 |
 | AQ:AV | Podst. Rehab. ćw. | ćwiczenia | 20 godz. | G12 | część układu ma stałe dni/godziny, a AQ7:AV7 zawiera dokładne grupy + daty + godziny + sale w jednej komórce |
 | AW:BB | POZ | zajęcia praktyczne | 40 godz. | G4 | źródło przypisuje tygodnie/grupy, ale nie podaje wystarczająco jednoznacznego dnia i pełnych godzin - pozostaje REVIEW_REQUIRED |
 | BC:BE | PROM. ZDROWIA | zajęcia praktyczne | 20 godz. | G8 | pon.-pt.; konkretne zakresy czasu w nagłówku, lokalizacje ograniczone do jawnych dni/dat |
@@ -104,15 +104,27 @@ Skutek: 84 wpisy G4 pozostają `REVIEW_REQUIRED`. Parser nie tworzy z nich fikcy
 
 ### PROMOCJA ZDROWIA - lokalizacje zależne od dnia i daty
 
-Reguły lokalizacji są zakresowe, nie globalne dla całej kolumny:
+W źródle 25.09 reguła została zmieniona względem 18.09. Reguły nadal są zakresowe, nie globalne dla całej kolumny:
 
-- BC: `pon. - sala 202 w NZA` - tylko poniedziałek,
-- BD: `pt. - sala 202 w NZA` - tylko piątek,
+- BC i BD: `pon. - sala 202 w NZA`, a dla piątku jawnie `brak sali`,
 - BE: poniedziałek `sala 126 w CD`,
 - BE: piątki 16.10-30.10 `sala 210 w NZJ`,
 - BE: piątki 06.11-29.01 `sala 104, ul. Litewska 14/16`.
 
-Wtorek-czwartek nie dziedziczą sali z reguły piątkowej lub poniedziałkowej.
+Wtorek-czwartek nie dziedziczą sali z reguły piątkowej lub poniedziałkowej. Dla aktualnego profilu `7 / 7A / 7B2` oznacza to m.in. salę 202 w NZA 14.12.2026 i brak sali 18.12.2026.
+
+
+### Aktualizacja źródła 25.09.2026 - dokładne terminy CSM
+
+Względem pliku 18.09 arkusz `PLAN ZAJĘĆ` ma 45 zmienionych komórek, przy niezmienionym zakresie `A1:DK73` i niezmienionym arkuszu `WYKŁADY A1:C34`. Najważniejsza zmiana to 42 jawne daty CSM:
+
+- `J8:J21` - 14 terminów CHIRURGII,
+- `AA8:AA21` - 14 terminów INTERNY,
+- `AP8:AP21` - 14 terminów PEDIATRII.
+
+Dedykowana kolumna terminu jest bardziej szczegółowa niż szeroki nagłówek sąsiedniej komórki. Jeśli podaje dokładną datę, pełny czas oraz kontekst `w konkretnych terminach`, ta data ma pierwszeństwo nawet wtedy, gdy uczelnia przesunęła zajęcia z typowego dnia tygodnia. Przykłady źródłowe to `AA12 = 09.11.` i `AA18 = 04.01.` pod sekcją opisaną jako `ŚRODY`. Nie wolno przesuwać ich z powrotem na środę.
+
+Jeżeli szeroki blok tego samego przedmiotu i tej samej grupy obejmowałby tę samą datę, dokładny termin CSM zastępuje szeroki wpis tego dnia - nie powstaje duplikat. Lokalizacja dokładnego terminu pochodzi z dedykowanej kolumny CSM (`ul. Pawińskiego 3a`, `CSM`), a nie z bazowej kliniki.
 
 ### POZ seminaria - narracyjna tabela sal
 
@@ -229,19 +241,20 @@ Jeżeli właściwa podgrupa użytkownika to `2B2`, wynik należy liczyć z `G4:2
 - nie zgadywać podgrupy G4 użytkownika,
 - brak źródłowej informacji ma pozostać jawnie niepełny, a nie zostać uzupełniony heurystyką.
 
-## Build 134 - fingerprint i audyt jakości źródła
-
-Build 134 nie zmienia parsera bieżącego planu. Dodaje warstwę QA, która ma odróżniać "parser wiernie odczytał źródło" od "źródło jest wewnętrznie spójne".
+## Aktualny fingerprint i audyt jakości źródła - Build226
 
 Aktywny plik:
-- nazwa: `licencjat-ii-rok-piel.-18.09.2026.xls`,
-- rozmiar: 147968 bajtów,
-- SHA-256: `2f3a36e9f4ec2baa0b3962ac1c5f4b01a5adb03150955eabb7deacd6c7b9d363`,
+- nazwa: `licencjat-ii-rok-piel.-25.09.2026.xls`,
+- rozmiar: 148992 bajty,
+- SHA-256: `b6279b96e8cdfc7a95b9c7199686db424ef84e315215a03545957aee413964e4`,
 - format: XLS.
 
-Fingerprint jest częścią `CURRENT_STATE.json`. Ta sama nazwa pliku przy innym SHA-256 oznacza nowe źródło i wymaga ponownego audytu.
+Fingerprint jest częścią `CURRENT_STATE.json`. Ta sama nazwa pliku przy innym SHA-256 oznacza nowe źródło i wymaga ponownego audytu. Dodatkowo Build226 zapisuje dwa skróty semantyczne wyniku parsera, bez umieszczania prywatnego planu w checkpointcie:
 
-Deterministyczny audyt wykonany tym samym readerem i adapterem co aplikacja potwierdza:
+- wszystkie kandydaty: `ba9be8db4573567662b6fa2eba588e486b32709f68535c2fe4fcdeb903df443e`,
+- aktualny profil `MAIN:7 + G12:7A + G4:7B2`: `a2df44543641c2f699d8a053a981eb2a6cc25c9f5fa7584082b5ad6bbe0a66f6`.
+
+Deterministyczny audyt produkcyjnym readerem i adapterem potwierdza:
 - 861 bloków źródłowych,
 - 2313 kandydatów,
 - 2145 READY,
@@ -255,7 +268,11 @@ Deterministyczny audyt wykonany tym samym readerem i adapterem co aplikacja potw
 - 168 poprawnych kombinacji profilu MAIN + G12 + G4,
 - 52 kombinacje z co najmniej jednym konfliktem godzin,
 - 5 unikalnych sygnatur konfliktu,
-- 3 rozbieżności daty z nagłówkiem dnia tygodnia.
+- 5 rozbieżności daty z nagłówkiem dnia tygodnia.
+
+Dwie dodatkowe rozbieżności względem wcześniejszego audytu nie są błędem parsera: to dokładne źródłowe przesunięcia CSM `09.11.` oraz `04.01.` wpisane w kolumnie opisanej jako `ŚRODY`. Dokładna data jest zachowana zgodnie ze źródłem.
+
+Aktualny profil regresyjny odpowiada bieżącemu wyborowi `7 / 7A / 7B2`: 79 kandydatów, 76 importowalnych, 3 niepełne, 0 blokujących i 1 konflikt źródłowy. Konflikt 08.10.2026 to POZ seminaria 12:00-15:45 nakładające się na wykład CHIRURGIA 15:00-16:30; aplikacja ma go pokazać, a nie samodzielnie poprawiać źródło.
 
 `safe` oznacza, że parser nie wykrył blokującej utraty semantyki źródła. Nie oznacza, że uczelniany arkusz nie zawiera sprzeczności.
 
@@ -304,9 +321,30 @@ Po zainstalowaniu zależności można uruchomić:
 Runner używa produkcyjnego readera XLS/XLSX i produkcyjnego adapter registry. Nie ma osobnej logiki interpretacji planu. Nowy plan może zmienić liczby audytu; wtedy należy najpierw ustalić, czy jest to rzeczywista zmiana źródła, błąd parsera czy poprawna nowa struktura, a dopiero potem aktualizować `CURRENT_STATE.activeStudyAudit` i tę mapę.
 
 
+
+## Build228 - Verified Study Plan Runtime Guard
+
+Build226 ustalił source-level referencję. Build228 przenosi tę referencję do produkcyjnej ścieżki importu bez tworzenia drugiej bazy zajęć. `src/study/verified-study-plan.ts` zawiera wyłącznie kontrakt weryfikacyjny: SHA-256 pliku, pełny fingerprint semantyczny wyniku parsera, invariants źródła i profil QA.
+
+Dla exact SHA-256 `b6279b96e8cdfc7a95b9c7199686db424ef84e315215a03545957aee413964e4` runtime wymaga jednocześnie:
+
+- 2313 kandydatów, 2145 READY i 168 REVIEW_REQUIRED,
+- MAIN 14, G12 28, G8 42, G4 84, GENERIC 0,
+- 861 source blocks, completeness safe, 168 niepełnych bloków, 16 anomalii godzin,
+- 168 poprawnych kombinacji profilu, 52 z co najmniej jedną kolizją i 5 unikalnych sygnatur konfliktu,
+- 5 źródłowych rozbieżności dnia tygodnia, 0 nierozpoznanych przypisań i 0 niezaaplikowanych wyjątków dat,
+- pełny fingerprint `ba9be8db4573567662b6fa2eba588e486b32709f68535c2fe4fcdeb903df443e`,
+- profil `MAIN:7 + G12:7A + G4:7B2` = 79/76/3/1 i fingerprint `a2df44543641c2f699d8a053a981eb2a6cc25c9f5fa7584082b5ad6bbe0a66f6`.
+
+Jeżeli hash pliku jest znany, ale którykolwiek z tych warunków nie pasuje, import jest blokowany jako `BLOCKED_REFERENCE_DRIFT`. Jeżeli nazwa wygląda jak 25.09, ale SHA-256 jest inny, plik jest traktowany jako nowe źródło. Nie wolno odziedziczyć verified po nazwie.
+
+Kolejna aktualizacja planu nie omija parsera. Najpierw powstaje nowa analiza, a gdy istnieje aktywny import, `prepareUniversityScheduleUpdate` wylicza jawny diff do poprzedniego planu. Dopiero decyzja użytkownika zmienia Kalendarz.
+
+Nie zapisujemy w kodzie drugiej statycznej listy 2313 rekordów. Taki eksport byłby drugim ownerem semantyki i mógłby rozjechać się z uniwersalnym parserem; pełna integralność bieżącej wersji jest chroniona kryptograficznie przez canonical candidate semantics.
+
 ## Release QA - Build 137
 
-Aktywne źródło do lokalnej kontroli release: `licencjat-ii-rok-piel.-18.09.2026.xls`, SHA-256 `2f3a36e9f4ec2baa0b3962ac1c5f4b01a5adb03150955eabb7deacd6c7b9d363`, 147968 B. Plik nie jest dołączany do repozytorium ani checkpointu.
+Historyczne źródło użyte przy Release QA Build137: `licencjat-ii-rok-piel.-18.09.2026.xls`, SHA-256 `2f3a36e9f4ec2baa0b3962ac1c5f4b01a5adb03150955eabb7deacd6c7b9d363`, 147968 B. Nie jest już aktywnym źródłem. Bieżące źródło referencyjne to 25.09.2026 opisane wyżej; żaden XLS nie jest dołączany do repozytorium ani checkpointu.
 
 Produkcyny parser na tym źródle daje deterministycznie: 2313 kandydatów, 2145 READY, 168 REVIEW_REQUIRED, 168 grup, 861 bloków źródłowych, 16 anomalii bilansu godzin, 168 poprawnych kombinacji profili, 52 kombinacje z co najmniej jedną kolizją, 5 unikalnych sygnatur kolizji i 3 rozbieżności dnia tygodnia w źródle. Integrity pozostaje `safe`; brak nieprzetworzonych przypisań grup i brak niezaaplikowanych wyjątków daty.
 

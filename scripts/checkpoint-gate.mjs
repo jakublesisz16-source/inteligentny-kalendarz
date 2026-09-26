@@ -11,6 +11,9 @@ const unix = (value) => value.split(sep).join('/');
 const stateGate = spawnSync(process.execPath, ['scripts/checkpoint-state-gate.mjs'], { cwd: root, encoding: 'utf8' });
 if (stateGate.status !== 0) failures.push((stateGate.stderr || stateGate.stdout || 'checkpoint state gate failed').trim());
 
+const hygieneGate = spawnSync(process.execPath, ['scripts/checkpoint-hygiene-gate.mjs'], { cwd: root, encoding: 'utf8' });
+if (hygieneGate.status !== 0) failures.push((hygieneGate.stderr || hygieneGate.stdout || 'checkpoint hygiene gate failed').trim());
+
 const forbiddenDirs = new Set(['node_modules', 'dist', 'coverage', '.git', '.benchmark-dist', '_PRIVATE_HISTORY', '_LOCAL_ONLY']);
 const forbiddenExt = new Set(['.zip', '.7z', '.rar', '.xls', '.xlsx', '.pdf', '.ikbackup', '.tsbuildinfo', '.log', '.tmp', '.orig', '.rej']);
 

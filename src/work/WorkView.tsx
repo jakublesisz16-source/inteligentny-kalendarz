@@ -102,6 +102,14 @@ export function WorkView({ locations, onDataChanged }: WorkViewProps) {
     try { window.localStorage.setItem(WORK_TAB_STORAGE_KEY, workTab); } catch { /* storage may be blocked */ }
   }, [workTab]);
 
+  function changeWorkTab(nextTab: 'schedule' | 'availability' | 'summary') {
+    if (nextTab === workTab) return;
+    setWorkTab(nextTab);
+    if (typeof window !== 'undefined') {
+      window.requestAnimationFrame(() => window.scrollTo({ top: 0, left: 0, behavior: 'auto' }));
+    }
+  }
+
   async function refresh() {
     const [currentProfile, currentImports, events, plans] = await Promise.all([getWorkProfile(), listWorkScheduleImports(), listEvents(), listAvailabilityPlans()]);
     setProfile(currentProfile);
@@ -128,7 +136,6 @@ export function WorkView({ locations, onDataChanged }: WorkViewProps) {
     const prefix = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
     return activeWorkEvents.filter((event) => event.startDateTime.startsWith(prefix)).length;
   }, [activeWorkEvents]);
-  const hasSentAvailability = useMemo(() => availabilityPlans.some((plan) => plan.sentSnapshots.length > 0), [availabilityPlans]);
 
   async function analyzeFile(file: File) {
     setError(''); setMessage(''); setAnalysis(null); setAnalyzing(true);
@@ -227,13 +234,13 @@ export function WorkView({ locations, onDataChanged }: WorkViewProps) {
   return (
     <section className="view-shell work-view">
       <header className="view-header work-minimal-header"><div><h1>{workHeaderTitle}</h1></div><div className="work-header-actions"><button type="button" className="button button-secondary button-small work-settings-button" onClick={() => setSettingsOpen(true)} aria-label="Ustawienia pracy"><span aria-hidden="true">⚙</span><span className="work-settings-button-label">Ustawienia</span></button>{workTab === 'schedule' ? workProfileReady ? <button type="button" className={`button ${activeWorkEvents.length ? 'button-secondary' : 'button-primary'} work-import-button`} onClick={requestPdfImport} disabled={analyzing}>{analyzing ? 'Analizuję...' : activeWorkEvents.length ? 'Aktualizuj PDF' : 'Importuj PDF'}</button> : <button type="button" className="button button-primary" onClick={() => setSettingsOpen(true)}>{importReadiness.actionLabel}</button> : null}</div></header>
-      <div className="work-section-tabs" role="tablist" aria-label="Praca"><button type="button" role="tab" aria-selected={workTab === 'schedule'} className={workTab === 'schedule' ? 'active' : ''} onClick={() => setWorkTab('schedule')}>Grafik</button><button type="button" role="tab" aria-selected={workTab === 'availability'} className={workTab === 'availability' ? 'active' : ''} onClick={() => setWorkTab('availability')}>Dyspozycyjność</button><button type="button" role="tab" aria-selected={workTab === 'summary'} className={workTab === 'summary' ? 'active' : ''} onClick={() => setWorkTab('summary')}>Podsumowanie</button></div>
+      <div className="work-section-tabs" role="tablist" aria-label="Praca"><button type="button" role="tab" aria-selected={workTab === 'schedule'} className={workTab === 'schedule' ? 'active' : ''} onClick={() => changeWorkTab('schedule')}>Grafik</button><button type="button" role="tab" aria-selected={workTab === 'availability'} className={workTab === 'availability' ? 'active' : ''} onClick={() => changeWorkTab('availability')}>Dyspozycyjność</button><button type="button" role="tab" aria-selected={workTab === 'summary'} className={workTab === 'summary' ? 'active' : ''} onClick={() => changeWorkTab('summary')}>Podsumowanie</button></div>
       <input ref={inputRef} type="file" accept="application/pdf,.pdf" className="visually-hidden" onChange={(event) => { const file = event.target.files?.[0]; if (file) void analyzeFile(file); }} />
       {workTab === 'schedule' && !workProfileReady ? <section className="work-action-guidance" aria-label="Wymaganie przed importem grafiku"><div><strong>{importReadiness.reason === 'MISSING_EMPLOYEE_NAME' ? 'Uzupełnij profil pracy' : 'Najpierw ustaw profil pracy'}</strong><span>{importReadiness.reason === 'MISSING_EMPLOYEE_NAME' ? 'Wpisz imię i nazwisko dokładnie tak, jak występuje w grafiku PDF.' : 'Aplikacja potrzebuje Twojego imienia i nazwiska z grafiku, aby rozpoznać właściwe zmiany.'}</span></div><button type="button" className="button button-secondary button-small" onClick={() => setSettingsOpen(true)}>{importReadiness.actionLabel}</button></section> : null}
       {error ? <div className="study-message error-message" role="alert">{error}</div> : null}
       {message ? <div className="study-message success-message" role="status">{message}</div> : null}
 
-      {workTab === 'availability' ? <AvailabilityView onDataChanged={async () => { await Promise.all([refresh(), onDataChanged()]); }} onOpenSettings={() => setSettingsOpen(true)} /> : workTab === 'summary' ? <WorkSummaryView workEvents={confirmedWorkEvents} workImports={imports} availabilityPlans={availabilityPlans} onImportClick={requestPdfImport} onOpenComparison={() => { setComparisonDetailsRequest((value) => value + 1); setWorkTab('schedule'); }} onOpenAvailability={() => setWorkTab('availability')} initialMonth={latestActive?.periodStart.slice(0, 7)} /> : <>
+      {workTab === 'availability' ? <AvailabilityView onDataChanged={async () => { await Promise.all([refresh(), onDataChanged()]); }} onOpenSettings={() => setSettingsOpen(true)} /> : workTab === 'summary' ? <WorkSummaryView workEvents={confirmedWorkEvents} workImports={imports} availabilityPlans={availabilityPlans} onImportClick={requestPdfImport} onOpenComparison={() => { setComparisonDetailsRequest((value) => value + 1); changeWorkTab('schedule'); }} onOpenAvailability={() => changeWorkTab('availability')} initialMonth={latestActive?.periodStart.slice(0, 7)} /> : <>
         <section className="work-summary-line" aria-label="Praca w tym miesiącu"><strong>{formatWorkMinutes(summary.totalConfirmedWorkMinutes)}</strong><span>{currentMonthShiftCount} {currentMonthShiftCount === 1 ? 'zmiana' : 'zmian'}</span><span>{latestActive ? formatPeriod(latestActive.periodStart) : 'Brak aktywnego grafiku'}</span></section>
 
         {analysis ? <section className="panel work-analysis-card"><div className="panel-heading"><div><p className="section-kicker">Podgląd przed zapisem</p><h2>{analysis.activeImport ? 'Aktualizacja grafiku' : 'Nowy grafik'} - {formatPeriod(analysis.result.periodStart)}</h2></div><button type="button" className="text-button" onClick={() => setAnalysis(null)}>Anuluj</button></div>
@@ -253,7 +260,7 @@ export function WorkView({ locations, onDataChanged }: WorkViewProps) {
             <div><span>Najbliższa</span><strong>{nearestEvent ? `${formatDate(nearestEvent.startDateTime.slice(0,10))}, ${nearestEvent.startDateTime.slice(11,16)}-${nearestEvent.endDateTime.slice(11,16)}` : 'Brak nadchodzącej zmiany'}</strong>{nearestEvent ? <small>{locations.find((location) => location.id === nearestEvent.locationId)?.name ?? profile?.workplaceName ?? 'Praca'}</small> : null}</div>
             {nearestEvent && nearestCoworkers.length ? <div className="work-next-team-static"><span className="work-next-team-count">{formatPersonCount(nearestCoworkers.length)}</span><div className="coworker-inline">{nearestCoworkers.map((person) => <span key={`${person.displayName}-${person.coworkerStartTime}-${person.coworkerEndTime}`}>{person.displayName}</span>)}</div></div> : null}
           </section>
-          {hasSentAvailability ? <AvailabilityWorkComparisonPanel plans={availabilityPlans} workEvents={workEvents} workImports={imports} onImportClick={requestPdfImport} onOpenAvailability={() => setWorkTab('availability')} openDetailsRequest={comparisonDetailsRequest} /> : null}
+          <AvailabilityWorkComparisonPanel plans={availabilityPlans} workEvents={workEvents} workImports={imports} onImportClick={requestPdfImport} onOpenAvailability={() => changeWorkTab('availability')} openDetailsRequest={comparisonDetailsRequest} />
         </div>
 
         {activeWorkEvents.length ? <section className="work-roster-list work-roster-minimal work-roster-direct" aria-label="Grafik zmian"><div className="work-shift-list work-shift-list-minimal">{[...activeWorkEvents].sort((a,b)=>a.startDateTime.localeCompare(b.startDateTime)).map((event) => { const coworkers = coworkersByEvent[event.id] ?? []; const ownMinutes = Math.max(0, Math.round((Date.parse(event.endDateTime) - Date.parse(event.startDateTime)) / 60000)); const expanded = expandedShiftId === event.id; const mainLine = <div className="work-shift-main-line"><strong>{formatDate(event.startDateTime.slice(0,10))}</strong><span>{event.startDateTime.slice(11,16)}-{event.endDateTime.slice(11,16)}</span><small>{formatWorkMinutes(ownMinutes)}</small></div>; return <article key={event.id} className={`work-shift-row-minimal${expanded ? ' is-expanded' : ''}`}>{coworkers.length ? <details className="work-shift-team-details work-shift-row-details" open={expanded}><summary className="work-shift-row-trigger" aria-expanded={expanded} onClick={(clickEvent) => { clickEvent.preventDefault(); setExpandedShiftId((current) => current === event.id ? null : event.id); }}>{mainLine}<span className="work-shift-team-count">{formatPersonCount(coworkers.length)}<span className="work-shift-chevron" aria-hidden="true">⌄</span></span></summary><CoworkerOverlapList people={coworkers} compact /></details> : <div className="work-shift-row-static">{mainLine}</div>}</article>; })}</div></section> : null}

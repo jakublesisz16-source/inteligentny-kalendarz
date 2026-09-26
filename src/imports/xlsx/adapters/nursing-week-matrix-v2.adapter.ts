@@ -359,7 +359,7 @@ function parseRuleDate(token: string, academicYear: AcademicYearContext | null):
 function locationRulesFromText(text: string, academicYear: AcademicYearContext | null): LocationRule[] {
   if (!hasLocationValue(parseLocationText(text))) return [];
   const foldedText = foldPolishText(text);
-  const weekdayToken = /\b(poniedzialek|pon\.|wtorek|wt\.|sroda|sr\.|czwartek|czw\.|piatek|pt\.|sobota|sob\.|niedziela|nd\.)/g;
+  const weekdayToken = /\b(poniedzialek|poniedzialki|pon\.|wtorek|wtorki|wt\.|sroda|srody|sr\.|czwartek|czwartki|czw\.|piatek|piatki|pt\.|sobota|soboty|sob\.|niedziela|niedziele|nd\.)/g;
   const matches = [...foldedText.matchAll(weekdayToken)];
   if (!matches.length) return [];
   const rules: LocationRule[] = [];
@@ -879,6 +879,17 @@ function effectiveContext(base: ColumnContext, exception: DateException | undefi
   const override = exception.context;
   const activityType = override.activityType ?? base.activityType;
   const time = override.time ?? base.time;
+  const isConcreteMarker = /konkretn(?:ych|e)\s+termin/.test(foldPolishText(override.headerText));
+  const concreteMarkerLocation = isConcreteMarker
+    ? override.locationRules.reduce<LocationParseResult>((location, rule) => ({
+        ...(location.room ? { room: location.room } : {}),
+        ...(location.address ? { address: location.address } : {}),
+        ...(location.label ? { label: location.label } : {}),
+        ...(rule.location.room ? { room: rule.location.room } : {}),
+        ...(rule.location.address ? { address: rule.location.address } : {}),
+        ...(rule.location.label ? { label: rule.location.label } : {}),
+      }), {})
+    : {};
   return {
     ...base,
     subject: override.subject || base.subject,
@@ -896,6 +907,9 @@ function effectiveContext(base: ColumnContext, exception: DateException | undefi
       ...(override.location.room ? { room: override.location.room } : {}),
       ...(override.location.address ? { address: override.location.address } : {}),
       ...(override.location.label ? { label: override.location.label } : {}),
+      ...(concreteMarkerLocation.room ? { room: concreteMarkerLocation.room } : {}),
+      ...(concreteMarkerLocation.address ? { address: concreteMarkerLocation.address } : {}),
+      ...(concreteMarkerLocation.label ? { label: concreteMarkerLocation.label } : {}),
     },
     headerText: `${base.headerText} | wyjątek: ${override.headerText}`,
   };
@@ -916,22 +930,45 @@ function groupLabels(cell: SheetCellSnapshot): string[] {
   return assignmentGroups(cell).groups;
 }
 
+function explicitDateMatchesMarkerContext(exception: DateException): boolean {
+  if (!exception.context.time?.start || !exception.context.time?.end) return false;
+  const folded = foldPolishText(exception.context.headerText);
+  // A column explicitly described as occurring on "specific dates" makes the
+  // exact marker stronger than its usual weekday heading. This also covers
+  // source-authored holiday shifts such as a normally-Wednesday CSM moved to
+  // Monday. We still require a complete time range in that marker context.
+  if (/konkretn(?:ych|e)\s+termin/.test(folded)) return true;
+  if (!exception.context.weekdays.length) return false;
+  const day = keyToDate(exception.date).getDay();
+  return exception.context.weekdays.some((weekday) => WEEKDAY_INDEX[weekday] === day);
+}
+
 function excludedDatesForCell(
   cell: SheetCellSnapshot,
   context: ColumnContext,
   range: WeekRangeRow,
   groupCells: SheetCellSnapshot[],
   contexts: Map<number, ColumnContext>,
+  exceptions: DateException[] = [],
 ): Set<string> {
-  if (!excludesOtherClassDays(context)) return new Set();
   const ownGroups = new Set(groupLabels(cell));
   const dates = new Set<string>();
+  const exceptionByGroup = new Map(exceptions.map((entry) => [entry.groupCellAddress, entry]));
   for (const other of groupCells) {
     if (other.address === cell.address) continue;
     const otherContext = contexts.get(other.col);
     if (!otherContext || !sameNormalizedSubject(context, otherContext)) continue;
     const otherGroups = groupLabels(other);
     if (!otherGroups.some((group) => ownGroups.has(group))) continue;
+
+    // A dedicated adjacent date column can describe a concrete occurrence for
+    // the same subject/group even when the neighbouring assignment cell sits
+    // under a broader weekday heading. That exact occurrence supersedes the
+    // broad same-day candidate instead of creating a duplicate overlap.
+    const explicitException = exceptionByGroup.get(other.address);
+    if (explicitException && explicitDateMatchesMarkerContext(explicitException)) dates.add(explicitException.date);
+
+    if (!excludesOtherClassDays(context)) continue;
     for (const date of datesWithinRangeForWeekdays(range, otherContext.weekdays)) dates.add(date);
   }
   return dates;
@@ -993,23 +1030,29 @@ function buildMatrixCandidates(sheet: SheetSnapshot, signals: MatrixSignals): { 
       const exception = exceptionByGroup.get(cell.address);
       let dates = inline?.date ? [inline.date] : datesWithinRangeForWeekdays(range, context.weekdays);
       if (!inline?.date && exception && dates.length && !dates.includes(exception.date)) {
-        // Jawna data w sąsiedniej kolumnie jest silnym sygnałem wyjątku, ale bez
-        // zgodności z bazowym rozkładem nie wiemy, który termin miałaby zastąpić.
-        // Nie ignorujemy jej i nie dokładamy samodzielnie kolejnego dnia - rejestr
-        // zablokuje taki import do ręcznego sprawdzenia.
-        unappliedDateExceptions.push({
-          groupCellAddress: cell.address,
-          markerCellAddress: exception.markerCell.address,
-          date: exception.date,
-        });
+        if (explicitDateMatchesMarkerContext(exception)) {
+          // The marker column carries a complete time range and either a matching
+          // weekday or an explicit 'specific dates' scope. That is enough source
+          // evidence to keep the broad occurrence and add the exact one, including
+          // source-authored holiday shifts away from the usual weekday.
+          dates = [...dates, exception.date].sort();
+        } else {
+          // A bare adjacent date without a self-consistent marker context is
+          // still ambiguous and must block the import rather than be guessed.
+          unappliedDateExceptions.push({
+            groupCellAddress: cell.address,
+            markerCellAddress: exception.markerCell.address,
+            date: exception.date,
+          });
+        }
       }
       if (dates.length && !inline?.date) {
-        const excluded = excludedDatesForCell(cell, context, range, groupCells, contexts);
-        if (excluded.size) dates = dates.filter((date) => !excluded.has(date));
+        const excluded = excludedDatesForCell(cell, context, range, groupCells, contexts, exceptions);
+        if (excluded.size) dates = dates.filter((date) => !excluded.has(date) || date === exception?.date);
       }
       if (!dates.length && exception) dates = [exception.date];
       const unresolvedDates = !dates.length;
-      const excludedDates = dates.length && !inline?.date ? [...excludedDatesForCell(cell, context, range, groupCells, contexts)] : [];
+      const excludedDates = dates.length && !inline?.date ? [...excludedDatesForCell(cell, context, range, groupCells, contexts, exceptions)] : [];
       if (!dates.length) dates = [''];
       const blockCandidateIds: string[] = [];
 

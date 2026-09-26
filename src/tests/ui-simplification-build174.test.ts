@@ -20,7 +20,9 @@ describe('1.2.0.174 minimal default surfaces', () => {
     expect(work).toContain('work-next-strip');
     expect(work).toContain('work-shift-row-minimal');
     expect(work).toContain('work-shift-team-details');
-    expect(work).toContain('hasSentAvailability ? <AvailabilityWorkComparisonPanel');
+    expect(work).toContain('<AvailabilityWorkComparisonPanel plans={availabilityPlans}');
+    expect(work).toContain("onOpenAvailability={() => changeWorkTab('availability')}");
+    expect(work).not.toContain('hasSentAvailability ? <AvailabilityWorkComparisonPanel');
   });
 
   it('keeps Settings essentials visible and infrequent tools collapsed', () => {

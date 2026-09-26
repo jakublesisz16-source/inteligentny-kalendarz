@@ -66,7 +66,7 @@ export function parseLocationText(text: string): LocationParseResult {
   const hospitalMatch = /\bSzpital\s+[A-ZĄĆĘŁŃÓŚŹŻ][\p{L}0-9 .'-]+?(?=\s*[,;|]|\s+\b(?:ul\.?|al\.?|aleja|plac|pl\.?)\b|\s*$)/u.exec(compact);
   if (hospitalMatch) result.label = compactWhitespace(hospitalMatch[0]);
   if (!result.label && /\bCBI\b/i.test(compact)) result.label = 'CBI';
-  if (!result.label && /\bCSM\b/i.test(compact)) result.label = 'CSM';
+  if (!result.label && (/\bCSM\b/i.test(compact) || /\bCentrum\s+Symulacji\s+Medycznych\b/i.test(compact))) result.label = 'CSM';
   if (!result.label && /\b(?:microsoft\s+)?teams\b/i.test(compact)) result.label = 'Microsoft Teams';
   if (!result.label && /mazowieck(?:ie|im)\s+specjalistyczn(?:e|ym)\s+centrum\s+zdrowia/i.test(compact)) result.label = 'Mazowieckie Specjalistyczne Centrum Zdrowia';
 

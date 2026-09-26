@@ -1,5 +1,5 @@
 const CACHE_PREFIX = 'inteligentny-kalendarz-shell-';
-const CACHE_NAME = `${CACHE_PREFIX}v1.2.0.216`;
+const CACHE_NAME = `${CACHE_PREFIX}v1.2.0.234`;
 
 const MANDATORY_SHELL_ASSET_PATHS = [
   'manifest.webmanifest',
@@ -69,12 +69,17 @@ function discoverBundledAssetUrls(text, sourceUrl, scope) {
   const urls = new Set();
   const patterns = [
     /["']([^"'?#\s]*assets\/[^"'?#\s]+)["']/g,
+    /import\(\s*["']([^"'?#\s]+)["']\s*\)/g,
+    /["'](\.\/[^"'?#\s]+\.css)["']/g,
     /["']([^"'?#\s]*pdf\.worker\.min-[^"'?#\s]+\.mjs)["']/g,
   ];
   for (const pattern of patterns) {
     for (const match of text.matchAll(pattern)) {
       const raw = match[1];
-      const base = raw.includes('assets/') && raw.startsWith('/') ? scope : sourceUrl;
+      // Bundlers may embed unresolved runtime templates such as "assets/${t}".
+      // They are not fetchable build artifacts and must never enter install-time precache.
+      if (!raw || raw.includes('${')) continue;
+      const base = raw.startsWith('assets/') ? scope : sourceUrl;
       const url = sameOriginUrl(raw, base, origin);
       if (url) urls.add(url);
     }
@@ -118,16 +123,28 @@ async function cacheApplicationShell() {
     }
 
     const nestedAssets = new Set();
-    for (const source of javascriptBodies) {
-      discoverBundledAssetUrls(source.text, source.url, scope).forEach((url) => nestedAssets.add(url));
-    }
-    const pdfWorkers = [...nestedAssets].filter(isPdfWorkerUrl);
-    if (!pdfWorkers.length) throw new Error('Build nie zawiera obowiązkowego workera PDF do pracy offline.');
+    const scannedJavascript = new Set();
+    const pendingJavascript = [...javascriptBodies];
 
-    for (const url of nestedAssets) {
-      const response = await fetchMandatoryAsset(url);
-      await cache.put(url, response);
+    while (pendingJavascript.length) {
+      const source = pendingJavascript.shift();
+      if (!source || scannedJavascript.has(source.url)) continue;
+      scannedJavascript.add(source.url);
+
+      for (const url of discoverBundledAssetUrls(source.text, source.url, scope)) {
+        if (nestedAssets.has(url) || mandatoryUrls.has(url)) continue;
+        nestedAssets.add(url);
+        const response = await fetchMandatoryAsset(url);
+        await cache.put(url, response.clone());
+        const contentType = (response.headers.get('content-type') || '').toLowerCase();
+        if (contentType.includes('javascript') || /\.(?:m?js)$/iu.test(new URL(url).pathname)) {
+          pendingJavascript.push({ url, text: await response.text() });
+        }
+      }
     }
+
+    const pdfWorkers = [...nestedAssets, ...mandatoryUrls].filter(isPdfWorkerUrl);
+    if (!pdfWorkers.length) throw new Error('Build nie zawiera obowiązkowego workera PDF do pracy offline.');
   } catch (error) {
     await caches.delete(CACHE_NAME);
     throw error;

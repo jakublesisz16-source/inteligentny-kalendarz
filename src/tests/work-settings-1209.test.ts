@@ -42,6 +42,7 @@ describe('1.2.0.10 simplified Work settings', () => {
   it('offers a direct route to availability when there is no sent snapshot', () => {
     expect(comparison).toContain('Przejdź do Dyspozycyjności');
     expect(comparison).toContain('onOpenAvailability');
-    expect(workView).toContain("onOpenAvailability={() => setWorkTab('availability')}");
+    expect(workView).toContain("onOpenAvailability={() => changeWorkTab('availability')}");
+    expect(workView).not.toContain('hasSentAvailability ? <AvailabilityWorkComparisonPanel');
   });
 });

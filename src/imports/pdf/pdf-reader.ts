@@ -1,8 +1,3 @@
-import { GlobalWorkerOptions, getDocument } from 'pdfjs-dist';
-import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
-
-GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
-
 export interface PdfTextItemSnapshot {
   text: string;
   x: number;
@@ -25,6 +20,11 @@ export interface PdfDocumentSnapshot {
 }
 
 export async function readPdfSnapshot(buffer: ArrayBuffer): Promise<PdfDocumentSnapshot> {
+  const [{ GlobalWorkerOptions, getDocument }, { default: pdfWorkerUrl }] = await Promise.all([
+    import('pdfjs-dist'),
+    import('pdfjs-dist/build/pdf.worker.min.mjs?url'),
+  ]);
+  GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
   const loadingTask = getDocument({ data: new Uint8Array(buffer), useWorkerFetch: false });
   const pdf = await loadingTask.promise;
   const pages: PdfPageSnapshot[] = [];

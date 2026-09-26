@@ -9,7 +9,7 @@ describe('1.2.0.x simplified product surface', () => {
   it('exposes Finanse as a top-level view and reuses the existing expense engine behind a clean finance facade', () => {
     const app = source('../app/App.tsx');
     const finance = source('../finance/FinanceView.tsx');
-    expect(app).toContain("import { FinanceView } from '../finance/FinanceView';");
+    expect(app).toContain("import('../finance/FinanceView')");
     expect(app).toContain("view === 'finance'");
     expect(finance).toContain("import { FinanceDashboardView } from './FinanceDashboardView';");
     expect(finance).toContain('<h1>Finanse</h1>');

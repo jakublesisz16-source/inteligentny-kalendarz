@@ -7,15 +7,15 @@ const version = readFileSync('src/core/version.ts', 'utf8');
 
 describe('1.2.0.150 Finance trip conversion context', () => {
   it('labels foreign-trip category shares as PLN-based instead of implying native-currency category totals', () => {
-    expect(dashboard).toContain("activeTripCurrency === 'PLN' ? 'udział w kosztach wyjazdu' : 'udział liczony w PLN'");
+    expect(dashboard).toContain("activeTripCurrency === 'PLN' ? 'Struktura wydatków' : 'Struktura wydatków · wartości kategorii w PLN'");
     expect(dashboard).toContain('{activeTripCategoryContext}');
     expect(dashboard).toContain("'Kategorie wyjazdu - kwoty w PLN'");
   });
 
-  it('keeps original transaction amount primary and marks PLN as a converted secondary value', () => {
-    expect(dashboard).toContain('receiptOriginalAmount(receipt) ? <>');
+  it('keeps the trip currency primary and marks PLN as a converted secondary value', () => {
+    expect(dashboard).toContain('receiptAmountForTrip(receipt, activeTripCurrency, activeTripUsesOriginalCurrency)');
     expect(dashboard).toContain('finance-trip-converted-total');
-    expect(dashboard).toContain('≈ {formatMoneyMinor(receipt.totalMinor)}');
+    expect(dashboard).toContain('secondary: `≈ ${formatMoneyMinor(receipt.totalMinor)}`');
   });
 
   it('does not synthesize category values in the foreign currency', () => {

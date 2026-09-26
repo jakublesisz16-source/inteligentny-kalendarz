@@ -740,3 +740,55 @@ describe('nursing-week-matrix-v2 inline exact-date assignments', () => {
     expect(expectedDatesForSourceBlock(sourceBlock!)).toEqual(['2025-11-06']);
   });
 });
+
+
+describe('nursing-week-matrix-v2 dedicated exact-date marker columns', () => {
+  it('uznaje dokładną datę z dedykowanej kolumny za bardziej szczegółową niż szeroki dzień sąsiedniej komórki', () => {
+    const workbook = wideWorkbook();
+    const plan = workbook.sheets[0]!;
+    plan.merges = plan.merges.filter((entry) => entry.ref !== 'B3:C3');
+    plan.cells = plan.cells.map((entry) => {
+      if (entry.address === 'B3') return { ...entry, value: 'pon. - pt. 8.00 - 14.00 bez dni, w których odbywają się inne zajęcia' };
+      if (entry.address === 'C3') return { ...entry, value: 'piątek 15.15 - 19.00, ul. Banacha 1a' };
+      if (entry.address === 'D3') return { ...entry, value: 'ŚRODY - Centrum Symulacji Medycznych, ul. Pawińskiego 3a, w konkretnych terminach 8.00 - 14.00' };
+      if (entry.address === 'B8') return { ...entry, value: '1a' };
+      if (entry.address === 'C8') return { ...entry, value: '1a' };
+      if (entry.address === 'D8') return { ...entry, value: '06.10.', valueType: 'date' as const, dateValue: '2025-10-06' };
+      return entry;
+    });
+
+    const direct = nursingWeekMatrixV2Adapter.analyze(workbook);
+    const group = direct.candidates
+      .filter((entry) => entry.groupTags.includes('G8:1A') && entry.subject.startsWith('CHIRURGIA'))
+      .sort((a, b) => (a.date ?? '').localeCompare(b.date ?? '') || (a.startTime ?? '').localeCompare(b.startTime ?? ''));
+
+    expect(direct.diagnostics?.unappliedDateExceptionCount ?? 0).toBe(0);
+    expect(analyzeScheduleWorkbook(workbook)).not.toBeNull();
+    expect(group.filter((entry) => entry.date === '2025-10-06')).toHaveLength(1);
+    expect(group.filter((entry) => entry.date === '2025-10-10')).toHaveLength(1);
+    expect(group.find((entry) => entry.date === '2025-10-06')).toMatchObject({
+      startTime: '08:00',
+      endTime: '14:00',
+      address: 'ul. Pawińskiego 3a',
+      locationLabel: 'CSM',
+    });
+  });
+
+  it('rozpoznaje pluralne nagłówki dni jako reguły lokalizacji dla konkretnego dnia', () => {
+    const workbook = wideWorkbook();
+    const plan = workbook.sheets[0]!;
+    plan.merges = plan.merges.filter((entry) => entry.ref !== 'B3:C3');
+    plan.cells = plan.cells.map((entry) => {
+      if (entry.address === 'B3') return { ...entry, value: 'pon. - pt. 8.00 - 14.00' };
+      return entry;
+    });
+    plan.cells.push(cell(5, 2, 'WTORKI - Centrum Symulacji Medycznych, ul. Pawińskiego 3a'));
+
+    const direct = nursingWeekMatrixV2Adapter.analyze(workbook);
+    const monday = direct.candidates.find((entry) => entry.sourceRange === 'B8' && entry.date === '2025-10-06');
+    const tuesday = direct.candidates.find((entry) => entry.sourceRange === 'B8' && entry.date === '2025-10-07');
+
+    expect(monday?.address).not.toBe('ul. Pawińskiego 3a');
+    expect(tuesday).toMatchObject({ address: 'ul. Pawińskiego 3a', locationLabel: 'CSM' });
+  });
+});

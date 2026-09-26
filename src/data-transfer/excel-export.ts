@@ -1,4 +1,5 @@
-import ExcelJS, { type Worksheet } from 'exceljs';
+import type ExcelJS from 'exceljs';
+import type { Worksheet } from 'exceljs';
 import type { BackupDocument } from '../safety/safety.types';
 import type { ExpenseCategory, ExpenseProduct, Receipt } from '../shopping/expenses.types';
 import { buildExpenseProductIndex, expenseNecessityLabel, resolveExpenseItemClassification } from '../shopping/expenses.utils';
@@ -419,7 +420,8 @@ export function canonicalStoreNamesInExcel(document: BackupDocument): string[] {
 }
 
 export async function createExcelExportFile(document: BackupDocument, now = new Date()): Promise<ExcelExportFile> {
-  const workbook = new ExcelJS.Workbook();
+  const { default: ExcelJSRuntime } = await import('exceljs');
+  const workbook = new ExcelJSRuntime.Workbook();
   workbook.creator = 'Inteligentny Kalendarz';
   workbook.title = 'Eksport danych Inteligentnego Kalendarza';
   workbook.subject = 'Lokalny eksport danych użytkownika';

@@ -52,10 +52,16 @@ function response(body, contentType, status = 200) {
 
 function baseResponses() {
   const html = `<!doctype html><html><head><link rel="stylesheet" href="/app/assets/index-abc.css"></head><body><script type="module" src="/app/assets/index-abc.js"></script></body></html>`;
-  const js = `const pdfWorker = "/app/assets/pdf.worker.min-xyz.mjs"; console.log(pdfWorker);`;
+  const js = `const finance = () => import("./finance-1.js"); console.log(finance);`;
+  const financeJs = `const work = () => import("./work-2.js"); const unresolvedRuntimeAsset = "assets/\${t}"; console.log(work, unresolvedRuntimeAsset);`;
+  const workJs = `const pdf = () => import("./pdfjs-3.js"); console.log(pdf);`;
+  const pdfJs = `const pdfWorker = "./pdf.worker.min-xyz.mjs"; console.log(pdfWorker);`;
   const map = new Map([
     [SCOPE, response(html, 'text/html')],
     ['https://calendar.test/app/assets/index-abc.js', response(js, 'text/javascript')],
+    ['https://calendar.test/app/assets/finance-1.js', response(financeJs, 'text/javascript')],
+    ['https://calendar.test/app/assets/work-2.js', response(workJs, 'text/javascript')],
+    ['https://calendar.test/app/assets/pdfjs-3.js', response(pdfJs, 'text/javascript')],
     ['https://calendar.test/app/assets/index-abc.css', response('body{}', 'text/css')],
     ['https://calendar.test/app/assets/pdf.worker.min-xyz.mjs', response('export {};', 'text/javascript')],
     ['https://calendar.test/app/manifest.webmanifest', response('{"name":"IK"}', 'application/manifest+json')],
@@ -149,6 +155,9 @@ function createHarness(overrides = new Map()) {
     SCOPE,
     'https://calendar.test/app/assets/index-abc.js',
     'https://calendar.test/app/assets/index-abc.css',
+    'https://calendar.test/app/assets/finance-1.js',
+    'https://calendar.test/app/assets/work-2.js',
+    'https://calendar.test/app/assets/pdfjs-3.js',
     'https://calendar.test/app/assets/pdf.worker.min-xyz.mjs',
     'https://calendar.test/app/manifest.webmanifest',
     'https://calendar.test/app/favicon.svg',
@@ -158,6 +167,11 @@ function createHarness(overrides = new Map()) {
     'https://calendar.test/app/ocr/tesseract/tesseract.min.js',
     'https://calendar.test/app/ocr/tesseract/lang/pol.traineddata.gz',
   ]) assert.ok(await cache.match(required), `missing required cache entry: ${required}`);
+  assert.equal(
+    await cache.match('https://calendar.test/app/assets/$%7Bt%7D'),
+    undefined,
+    'unresolved runtime asset template was incorrectly precached',
+  );
 }
 
 // A failed mandatory fetch must remove the partial current cache and not activate it.

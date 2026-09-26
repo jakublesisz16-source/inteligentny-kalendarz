@@ -1,4 +1,5 @@
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import { basename, extname, join, relative, sep } from 'node:path';
 
 const root = process.cwd();
@@ -6,6 +7,12 @@ const excludedDirs = new Set(['.git', 'node_modules', 'dist', 'coverage', '.benc
 const excludedFiles = new Set(['SHA256SUMS.txt', 'CHECKPOINT_MANIFEST.sha256', 'security-release-gate.mjs', 'public-package-gate.mjs']);
 const privateExtensions = new Set(['.xls', '.xlsx', '.pdf', '.ikbackup', '.zip', '.7z', '.rar', '.pem', '.key', '.p12', '.pfx', '.jks', '.keystore']);
 const textExtensions = new Set(['.ts', '.tsx', '.js', '.mjs', '.cjs', '.json', '.md', '.txt', '.html', '.css', '.svg', '.webmanifest', '.ps1', '.yml', '.yaml']);
+
+const verifiedLocalStudySource = {
+  relativePath: 'licencjat-ii-rok-piel.-25.09.2026.xls',
+  sizeBytes: 148_992,
+  sha256: 'b6279b96e8cdfc7a95b9c7199686db424ef84e315215a03545957aee413964e4',
+};
 
 const secretPatterns = [
   ['private key', /-----BEGIN (?:RSA |EC |OPENSSH |DSA )?PRIVATE KEY-----/u],
@@ -18,6 +25,25 @@ const secretPatterns = [
 function fail(message) {
   console.error(`SECURITY_RELEASE_GATE_FAIL: ${message}`);
   process.exitCode = 1;
+}
+
+function sha256File(file) {
+  return createHash('sha256').update(readFileSync(file)).digest('hex');
+}
+
+function isVerifiedLocalStudySource(file, rel) {
+  if (rel !== verifiedLocalStudySource.relativePath) return false;
+  const stat = statSync(file);
+  if (stat.size !== verifiedLocalStudySource.sizeBytes) {
+    fail(`verified local Study source size mismatch: ${rel} (got ${stat.size}, expected ${verifiedLocalStudySource.sizeBytes})`);
+    return false;
+  }
+  const hash = sha256File(file);
+  if (hash !== verifiedLocalStudySource.sha256) {
+    fail(`verified local Study source SHA-256 mismatch: ${rel} (got ${hash})`);
+    return false;
+  }
+  return true;
 }
 
 function walk(dir) {
@@ -44,6 +70,8 @@ for (const file of files) {
     continue;
   }
   if (privateExtensions.has(extension)) {
+    if (isVerifiedLocalStudySource(file, rel)) continue;
+    if (process.exitCode && rel === verifiedLocalStudySource.relativePath) continue;
     fail(`private or archive file present outside _PRIVATE_HISTORY: ${rel}`);
     continue;
   }

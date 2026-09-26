@@ -26,6 +26,7 @@ import { applySafeSeriesCorrection, pendingRulesForSeriesCorrection } from './st
 import { identifyCandidate } from './study-identity';
 import { candidatesForSelectedGroups, findStudyScheduleConflicts, hashFile, validateStudyGroupSelection } from './study.service';
 import { completenessForSelectedGroups } from './study-completeness';
+import { verifyStudyPlanSource } from './verified-study-plan';
 import { ScheduleDiffView } from './ScheduleDiffView';
 import { StudyGroupPreviewPanel } from './StudyGroupPreviewPanel';
 import { StudyGroupChoiceFields, studyGroupChoiceProgress } from './StudyGroupChoiceFields';
@@ -50,6 +51,7 @@ type PreviewFilter = 'all' | 'ready' | 'warning' | 'incomplete' | 'blocking';
 interface SelectedFileMeta {
   file: File;
   hash: string;
+  verification: Awaited<ReturnType<typeof verifyStudyPlanSource>>;
 }
 
 
@@ -228,8 +230,20 @@ export function StudyView({ onDataChanged }: StudyViewProps) {
         setDiagnostics(diagnoseUnrecognizedWorkbook(workbook));
         return;
       }
+      const verification = await verifyStudyPlanSource({
+        fileName: file.name,
+        fileSize: file.size,
+        fileHash: hash,
+        analysis: result,
+        workbook,
+      });
+      if (verification.state === 'BLOCKED_REFERENCE_DRIFT') {
+        setError('Znany plan 25.09.2026 nie zgadza się ze zweryfikowaną referencją. Import został zablokowany, żeby nie zapisać cichej regresji parsera.');
+        setDiagnostics(verification.reasons);
+        return;
+      }
       setAnalysis(result);
-      setFileMeta({ file, hash });
+      setFileMeta({ file, hash, verification });
 
       const preferredGroups = normalizeStudyGroupSelectionForAvailableGroups(
         result.groups,
@@ -551,7 +565,7 @@ export function StudyView({ onDataChanged }: StudyViewProps) {
           <section className="panel study-import-summary study-import-summary-v207">
             <div className="study-import-summary-heading">
               <div><h2>{importBlocked ? 'Plan wymaga sprawdzenia' : 'Plan gotowy'}</h2><p>{fileMeta.file.name}</p></div>
-              {importBlocked ? <span className="study-summary-state blocking">WYMAGA POPRAWY</span> : null}
+              {importBlocked ? <span className="study-summary-state blocking">WYMAGA POPRAWY</span> : fileMeta.verification.state === 'VERIFIED_REFERENCE' ? <span className="study-summary-state ready">ZWERYFIKOWANY</span> : null}
             </div>
             <div className="study-import-summary-line-v207" aria-label="Podsumowanie importu">
               <strong>{importable.length} wydarzeń</strong>
