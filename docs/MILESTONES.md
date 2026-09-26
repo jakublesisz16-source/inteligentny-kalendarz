@@ -135,3 +135,41 @@ Build232 przeszedł dependency-complete Windows QA w całości: 319/319 wykonany
 ## Build234 - Installed-PWA Service Worker Template Fix
 
 Release-runtime QA po Build233 wykrył rzeczywisty błąd instalacji Service Workera: recursive bundle discovery uznał nierozwiązany string `assets/${t}` za konkretny plik precache, pobrał HTML fallback i odrzucił install event. Build234 pomija unresolved `${...}` refs i dodaje dokładną regresję do `service-worker-gate`. UI produktu, Study parser/Verified Study i Receipt OCR/parser pozostają bez zmian. Dependency-complete Windows QA zakończył się 319/319 wykonanych test files i 1836/1836 wykonanych tests PASS, 2 optional skips, wszystkimi release/security gates PASS i 0 production dependency vulnerabilities. Runtime potwierdził aktywację Service Workera, first-open lazy Receipt Scanner, 24 transitive cache entries oraz installed-PWA offline lazy chunks; Build234 staje się verified PRIVATE baseline. Z tego exact baseline’u przygotowano i fresh-zwalidowano czysty PUBLIC candidate bez private-only plików; następny krok to kanoniczny push z istniejącego katalogu publish.
+
+
+## Build235 - Mobile Receipt Scanner Save Reachability
+
+Real-device QA po publikacji Build234 wykazał, że na telefonie custom Receipt Scanner nie uczestniczył w globalnym `modal-open`, a dolna nawigacja z wyższą warstwą mogła zasłaniać końcowe akcje review. Build235 ukrywa bottom nav na czas skanera przez wspólny `modalOpenCount`, dodaje stale osiągalne mobilne `Zapisz` w nagłówku i poprawia safe-area dolnego paska akcji. Parser/OCR, finanse domenowe, Studia i schema 14 pozostają bez zmian.
+
+
+## Build236 - Receipt -> Finance Mobile Polish
+
+Po real-phone PASS Build235 usunięto zduplikowane górne `Zapisz`, zachowując jedno sticky CTA z safe-area. Finance-layer category suggestions rozpoznają teraz trzy brakujące rodziny z realnego paragonu (`PłatOwsiane...`, `Delicje...`, `WarzNaPat...`) bez zmian w OCR/parserze. Mobilne `Pozycje` zostały spłaszczone do dwóch rzędów z zachowaniem sklepu/daty jako krótkiego kontekstu, a bulk correction nie rozciąga się już pionowo na telefonie.
+
+
+## Build237 - Work Shift Expansion Stability
+
+Historyczne poprawki Work nakładały na ten sam trigger reguły `<details>[open]`, whole-row interaction oraz osobne mobile/desktop override’y. Build237 usuwa źródło przeskakiwania zamiast dopisywać kolejną łatkę: shift row pozostaje stałym buttonem z `aria-expanded`/`aria-controls`, licznik osób zajmuje zarezerwowaną kolumnę, a lista współpracowników jest osobnym panelem pod wierszem. Zakres nie dotyka Receipt/Finance, OCR/parsera, Studiów ani schema 14.
+
+## Build238 - Calendar Mobile Week Readability
+
+Późniejszy mobile polish ścisnął siedem kolumn Tygodnia do szerokości telefonu, przez co godziny i tytuły stawały się skrótami. Build238 przywraca strukturę mobilną: siedem dat jako selector, jeden wybrany dzień timeline na pełnej szerokości, 48 px/h i pionowy scroll. Dodaje też kompaktowy podgląd wydarzeń wybranego dnia w Week oraz otwarcie istniejącego detail sheet po tapie wydarzenia. Desktop, Work, Receipt/Finance, OCR/parser, Study i schema 14 pozostają bez zmian.
+
+
+## Build239 - Calendar Mobile Full-Week Readability
+
+Real-phone QA Build238 pokazał, że przejście do timeline jednego dnia było niewłaściwym kierunkiem. Build239 przywraca pełny siedmiodniowy układ jako aktualny kontrakt produktu, ale bez powrotu do nadmiernej kompresji: 38 px/h, pionowy scroll, kompaktowe kody w siatce, pełne nazwy w selected-day preview i istniejący detail sheet po tapie wydarzenia. Build238 pozostaje historycznym eksperymentem superseded przez Build239.
+
+
+## Build240 - Clean Handoff Consolidation
+
+Po real-phone akceptacji Build239 przygotowano pełny czysty checkpoint do nowej rozmowy bez zmiany zachowania produktu. Build239 pozostaje zaakceptowanym kontraktem mobilnego Tygodnia, Build238 jest superseded, a verified/public baseline pozostaje Build234 do kolejnej dependency-complete promocji.
+
+
+## Build242 - Historical Release Test Contract Cleanup
+
+Dependency-complete Windows validation of Build241 passed strict TypeScript and produced 1850 public test PASS with only three stale assertion FAIL plus two optional skips. Build242 updates the outdated mobile Month copy assertion and removes obsolete exact build-number pins from Build235/236 plus the remaining Build241 pin in the Build239 Week regression. No product behavior changes and schema remains 14. Full `check:public` must be rerun before publication.
+
+## Build241 - Calendar Strict TypeScript Release Blocker
+
+Windows dependency-complete preflight Build240 zakończył `npm ci` poprawnie i potwierdził 0 production dependency vulnerabilities, ale strict typecheck zatrzymał release na TS18048 w `mobileWeekEventLabel`. Build241 dodaje bezpieczny fallback dla `words[0]` bez zmiany zachowania mobilnego Tygodnia, parsera, Studiów, Pracy, Finansów ani schema 14. Pełny `check:public` musi zostać powtórzony przed push na `main`.

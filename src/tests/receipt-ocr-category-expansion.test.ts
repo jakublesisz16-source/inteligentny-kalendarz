@@ -16,6 +16,7 @@ describe('1.1.0-dev.3 DEV3-B018 category expansion', () => {
   it.each([
     ['OBUWIE DAMSKIE', 'clothes'], ['buty sportowe', 'clothes'], ['sandały', 'clothes'], ['kurtka zimowa', 'clothes'],
     ['mleko świeże', 'food'], ['pesto zielone', 'food'], ['czekolada mleczna', 'food'],
+    ['PłatOwsianeBłysk500g', 'food'], ['DelicjePomarań147g', 'food'], ['WarzNaPatMrokKr450g', 'food'],
     ['napój gazowany', 'drinks'], ['kawa mielona', 'drinks'],
     ['szampon', 'hygiene'], ['dezodorant', 'hygiene'],
     ['detergent do domu', 'home'], ['płyn do naczyń', 'home'],

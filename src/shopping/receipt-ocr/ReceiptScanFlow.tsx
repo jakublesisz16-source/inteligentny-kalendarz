@@ -110,14 +110,29 @@ export function ReceiptScanFlow({ categories, products = [], receipts, onSave, o
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => () => {
-    abortRef.current?.abort();
-    if (imageUrlRef.current) URL.revokeObjectURL(imageUrlRef.current);
-    if (import.meta.env.DEV) {
-      const debugWindow = window as Window & { __IK_PRIVATE_RECEIPT_GEOMETRY__?: unknown };
-      delete debugWindow.__IK_PRIVATE_RECEIPT_GEOMETRY__;
-    }
-    void disposeReceiptOcrEngine();
+  useEffect(() => {
+    const body = document.body;
+    const openCount = Number(body.dataset.modalOpenCount ?? '0') + 1;
+    body.dataset.modalOpenCount = String(openCount);
+    body.classList.add('modal-open');
+
+    return () => {
+      abortRef.current?.abort();
+      if (imageUrlRef.current) URL.revokeObjectURL(imageUrlRef.current);
+      if (import.meta.env.DEV) {
+        const debugWindow = window as Window & { __IK_PRIVATE_RECEIPT_GEOMETRY__?: unknown };
+        delete debugWindow.__IK_PRIVATE_RECEIPT_GEOMETRY__;
+      }
+      void disposeReceiptOcrEngine();
+
+      const remaining = Math.max(0, Number(body.dataset.modalOpenCount ?? '1') - 1);
+      if (remaining === 0) {
+        delete body.dataset.modalOpenCount;
+        body.classList.remove('modal-open');
+      } else {
+        body.dataset.modalOpenCount = String(remaining);
+      }
+    };
   }, []);
 
   function replaceImageUrl(nextFile: File) {

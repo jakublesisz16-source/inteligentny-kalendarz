@@ -1,28 +1,14 @@
 # QA i wydanie
 
-## Aktualny dowód release
+## Ostatni opublikowany release - Build234
 
-Build216 został sprawdzony 24.09.2026 na Windows i następnie opublikowany na `main`; commit `5a633d68c7ccfbdc9d29ac315a494a94374e8fb2`, CI i Deploy GitHub Pages success:
+Build234 został opublikowany 26.09.2026 na `main` jako commit `5c05438101b09c70aa6ec92609efbfe7d0dead3c`. GitHub workflow `CI` oraz `Deploy GitHub Pages` zakończyły się `success`. Przed publikacją dependency-complete Windows `check:public` miał 319/319 wykonanych test files i 1836/1836 wykonanych tests PASS, 2 optional skips; production/release/security gates PASS i production dependency audit 0 vulnerabilities. Release-runtime potwierdził Service Worker, lazy Receipt Scanner i installed-PWA offline lazy chunks.
 
-- `npm run check:public` - PASS,
-- 310 plików testowych PASS,
-- 1782 testy PASS,
-- 2 opcjonalne testy skipped,
-- 0 failed,
-- produkcyjny Vite build PASS,
-- production audit PASS,
-- service-worker gate PASS,
-- release-safety gate PASS,
-- travel release gate PASS,
-- security release gate PASS,
-- `npm run security:dependencies` dla tego samego drzewa zależności - 0 vulnerabilities.
+## Bieżący PRIVATE - Build242 release-test contract cleanup candidate
 
-Build225 był public-data flow smoke + mobile edge hardening po Build224 lazy loading. Jego odroczone release wymagania zostały domknięte w kolejnych buildach; aktualny release proof jest przypisany do Build234. Receipt parser freeze pozostaje obowiązkowym kontraktem.
+Build240 synchronizował clean checkpoint. Build241 naprawił strict-TypeScript TS18048 w `mobileWeekEventLabel`. Dependency-complete Windows walidacja Build241 następnie potwierdziła `npm ci` PASS, typecheck PASS i 1850 testów publicznych PASS. Trzy jedyne FAIL były przestarzałymi asercjami historycznych testów: stary tekst `Pokaż szczegóły` wobec zaakceptowanego `Szczegóły` oraz dwa twarde oczekiwania `APP_VERSION = 1.2.0.236`. Dodatkowo regresja Build239 miała przyszły twardy pin do `1.2.0.241`.
 
-
-## Aktualny verified PRIVATE proof - Build234
-
-Build234 przeszedł 26.09.2026 dependency-complete Windows `check:public`: 319/319 wykonanych test files i 1836/1836 wykonanych tests PASS, 2 optional skips. Produkcyjny Vite build oraz production-audit, service-worker, release-safety, travel i security-release są zielone; `security:dependencies` zgłosił 0 vulnerabilities. Release-runtime QA potwierdził Service Worker register/activate, Receipt Scanner first-open lazy boundary, 24-entry transitive cache oraz installed-PWA offline lazy chunks. Build234 jest frozen verified PRIVATE baseline następnego PUBLIC. Finalny PUBLIC Build234 jest generowany wyłącznie z tego baseline’u; fresh PUBLIC musi zachować wspólne pliki bitowo identycznie i przejść release:preflight/security:public oraz finalne release gates przed handoffem.
+Build242 nie zmienia produktu. Aktualizuje wyłącznie te kontrakty testowe tak, aby historyczne testy chroniły zachowanie i schema 14, a nie konkretny numer późniejszego buildu. Dokładna synchronizacja bieżącej wersji pozostaje chroniona przez `release:contract:qa`. `npm run security:dependencies` Build241 zakończył się PASS z 0 produkcyjnymi podatnościami. Po podmianie patcha wymagane jest ponowne `npm run check:public`; dopiero jego PASS pozwala na commit/push.
 
 ## Codzienny development
 

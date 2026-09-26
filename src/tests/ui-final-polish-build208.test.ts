@@ -12,11 +12,11 @@ describe('Build208 final UI polish', () => {
     expect(css).toContain('.today-view .today-future-preview');
   });
 
-  it('shows the complete seven-day week on phones', () => {
-    expect(css).toContain('grid-template-columns: 38px repeat(7, minmax(0, 1fr));');
+  it('shows the complete seven-day week on phones with compact mobile labels', () => {
+    expect(css).toContain('grid-template-columns: 32px repeat(7, minmax(0, 1fr));');
     expect(css).toContain('.calendar-week-column,');
     expect(calendar).toContain('data-mobile-time=');
-    expect(calendar).toContain('data-mobile-label={event.title.split');
+    expect(calendar).toContain('data-mobile-label={mobileWeekEventLabel(event)}');
   });
 
   it('reduces Finance navigation and summary density on phones', () => {

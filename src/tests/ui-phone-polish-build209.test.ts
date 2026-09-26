@@ -8,12 +8,13 @@ const coworkers = readFileSync(new URL('../work/CoworkerOverlapList.tsx', import
 const css = readFileSync(new URL('../styles/interface-refinement.css', import.meta.url), 'utf8');
 
 describe('Build209 real-phone polish', () => {
-  it('fits the full mobile week timeline instead of requiring hour-by-hour scrolling', () => {
-    expect(calendar).toContain('WEEK_MOBILE_VERTICAL_CHROME');
-    expect(calendar).toContain('if (weekHourHeight <= 32)');
+  it('keeps all seven phone day timelines with a readable vertical scale', () => {
+    expect(calendar).toContain('const WEEK_MOBILE_HOUR_HEIGHT = 38;');
+    expect(calendar).toContain('if (window.innerWidth <= 620) return WEEK_MOBILE_HOUR_HEIGHT;');
     expect(calendar).toContain('data-hour={WEEK_START_HOUR + index}');
-    expect(css).toContain('Calendar week: the whole 06:00-23:00 range fits in one phone viewport');
-    expect(css).toContain('overflow-y: hidden');
+    expect(css).toContain('Build239 - mobile Week keeps the whole seven-day planner visible');
+    expect(css).toContain('height: clamp(380px, calc(100dvh - 430px), 590px);');
+    expect(css).toContain('overflow-y: auto;');
   });
 
   it('keeps Finance first surfaces low-noise on phones', () => {

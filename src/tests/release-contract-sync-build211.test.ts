@@ -12,12 +12,14 @@ describe('Build211 release contract synchronization', () => {
     expect(today).toContain('showAllWorkCoworkers');
   });
 
-  it('keeps the accepted mobile week density contract', () => {
+  it('keeps the accepted mobile full-week readability contract', () => {
     const calendar = read('src/calendar/CalendarView.tsx');
-    expect(calendar).toContain('if (window.innerWidth <= 620) {');
-    expect(calendar).toContain('window.innerHeight - WEEK_MOBILE_VERTICAL_CHROME');
-    expect(calendar).toContain('return Math.max(26, Math.min(32, Math.floor(availableHeight / hourCount)));');
+    const refinement = read('src/styles/interface-refinement.css');
+    expect(calendar).toContain('const WEEK_MOBILE_HOUR_HEIGHT = 38;');
+    expect(calendar).toContain('if (window.innerWidth <= 620) return WEEK_MOBILE_HOUR_HEIGHT;');
     expect(calendar).toContain('if (window.innerWidth <= 820) return 40;');
+    expect(refinement).toContain('Build239 - mobile Week keeps the whole seven-day planner visible');
+    expect(refinement).toContain('overflow-y: auto;');
   });
 
   it('keeps current Work/Availability compaction wording', () => {

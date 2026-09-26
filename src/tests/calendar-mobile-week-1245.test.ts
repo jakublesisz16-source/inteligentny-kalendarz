@@ -10,18 +10,19 @@ describe('mobile weekly planner contract', () => {
     const responsive = source('../styles/responsive.css');
     const refinement = source('../styles/interface-refinement.css');
     expect(responsive).toContain('1.2.0.45 - mobile-first weekly planner');
-    expect(refinement).toContain('Build208 - final UI polish');
-    expect(refinement).toContain('grid-template-columns: 38px repeat(7, minmax(0, 1fr));');
+    expect(refinement).toContain('Build239 - mobile Week keeps the whole seven-day planner visible');
+    expect(refinement).toContain('grid-template-columns: 32px repeat(7, minmax(0, 1fr));');
+    expect(refinement).toContain('grid-template-columns: repeat(7, minmax(0, 1fr));');
     expect(refinement).toContain('.calendar-week-column,');
-    expect(refinement).toContain('.calendar-week-column.selected');
     expect(refinement).toContain('.calendar-week-all-day-cell,');
   });
 
   it('keeps the phone timeline vertically scrollable and touch-friendly', () => {
     const responsive = source('../styles/responsive.css');
-    expect(responsive).toContain('height: min(68dvh, 650px);');
-    expect(responsive).toContain('overflow-y: auto;');
-    expect(responsive).toContain('-webkit-overflow-scrolling: touch;');
+    const refinement = source('../styles/interface-refinement.css');
+    expect(refinement).toContain('height: clamp(380px, calc(100dvh - 430px), 590px);');
+    expect(refinement).toContain('overflow-y: auto;');
+    expect(refinement).toContain('-webkit-overflow-scrolling: touch;');
     expect(responsive).toContain('width: min(286px, calc(100% - 8px));');
     expect(responsive).toContain('min-height: 42px;');
   });

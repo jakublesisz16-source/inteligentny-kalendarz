@@ -2121,9 +2121,12 @@ export function FinanceDashboardView() {
                                     aria-label={`Zaznacz: ${row.canonicalName}`}
                                   />
                                 ) : null}
-                                {row.productAnalytics ? (
-                                  <button type="button" className="finance-purchase-product-button" aria-label={`Otwórz produkt: ${formatExpenseProductDisplayName(row.canonicalName)}`} onClick={() => openProductEditor(row.productAnalytics!)}>{formatExpenseProductDisplayName(row.canonicalName)}</button>
-                                ) : <strong>{formatExpenseProductDisplayName(row.canonicalName)}</strong>}
+                                <span className="finance-purchase-product-copy">
+                                  {row.productAnalytics ? (
+                                    <button type="button" className="finance-purchase-product-button" aria-label={`Otwórz produkt: ${formatExpenseProductDisplayName(row.canonicalName)}`} onClick={() => openProductEditor(row.productAnalytics!)}>{formatExpenseProductDisplayName(row.canonicalName)}</button>
+                                  ) : <strong>{formatExpenseProductDisplayName(row.canonicalName)}</strong>}
+                                  <small className="finance-purchase-mobile-context">{formatExpenseMerchantDisplayName(row.receipt.merchant)} · {formatShortDate(row.receipt.date)}</small>
+                                </span>
                               </div>
                             </td>
                             <td className="finance-purchase-category-column">

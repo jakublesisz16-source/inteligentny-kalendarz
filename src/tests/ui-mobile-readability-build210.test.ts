@@ -7,11 +7,12 @@ const summary = readFileSync(new URL('../work/WorkSummaryView.tsx', import.meta.
 const css = readFileSync(new URL('../styles/interface-refinement.css', import.meta.url), 'utf8');
 
 describe('Build210 mobile readability polish', () => {
-  it('keeps the seven-day week but renders only concise event labels on phone', () => {
+  it('keeps the seven-day week and uses concise event codes in narrow phone columns', () => {
     expect(calendar).toContain('data-mobile-time=');
-    expect(calendar).toContain('data-mobile-label={event.title.split');
-    expect(css).toContain("content: attr(data-mobile-time) !important");
-    expect(css).toContain("content: attr(data-mobile-label) !important");
+    expect(calendar).toContain('data-mobile-label={mobileWeekEventLabel(event)}');
+    expect(css).toContain("content: attr(data-mobile-time) !important;");
+    expect(css).toContain("content: attr(data-mobile-label) !important;");
+    expect(css).toContain('font-size: .52rem !important;');
   });
 
   it('turns Availability into one clean row per day', () => {

@@ -1,8 +1,8 @@
-# Aktualny stan produktu - Build 233
+# Aktualny stan produktu - Build 241
 
 ## Status
 
-Build233 jest **verified PRIVATE baseline**. Exact XLS 25.09 ma potwierdzony SHA-256, zielony `study:audit`, pełny dependency-complete Windows `check:public` Build232 oraz runtime QA. Public suite: 319/319 wykonanych test files i 1836/1836 wykonanych tests PASS, 2 opcjonalne skips; Vite build, production-audit, service-worker, release-safety, travel i security-release PASS; production dependency audit 0 vulnerabilities przy progu high. Runtime potwierdził `ZWERYFIKOWANY`, profil 7 / 7A / 7B2, 76 wynikowych importowalnych + 3 niepełne, jawny diff/apply oraz zachowany konflikt 08.10.2026. Schemat danych pozostaje 14. Ostatni potwierdzony PUBLIC na GitHub Pages to Build216, commit `5a633d68c7ccfbdc9d29ac315a494a94374e8fb2`; CI i Pages mają status success.
+Build242 jest wąskim cleanupem kontraktów testowych po dependency-complete Windows walidacji Build241. TypeScript przeszedł, a pełny public suite osiągnął 1850 PASS; trzy jedyne FAIL były przestarzałymi asercjami historycznymi, nie regresjami produktu. Build242 aktualizuje stary tekst `Pokaż szczegóły` do zaakceptowanego `Szczegóły`, usuwa dwa piny do Build236 oraz przyszły pin do Build241 w regresji mobilnego Tygodnia. Kod produktu pozostaje bez zmian. Zaakceptowany Build239 mobilny Tydzień, Build237 Work, Build236 Receipt/Finance, Receipt OCR/parser, Study i schema 14 pozostają bez zmian. Ostatni PUBLIC na `main`: Build234, commit `5c05438101b09c70aa6ec92609efbfe7d0dead3c`, CI i Pages success 26.09.2026.
 
 ## Dzisiaj
 
@@ -117,3 +117,40 @@ Build233 nie zmienia produktu. Promuje zamrożony stan do verified PRIVATE po ru
 ## Build234 verified Service Worker closure
 
 Build234 nie zmienia powierzchni użytkownika. Naprawia wyłącznie install-time offline precache: nierozwiązane bundlerowe referencje `${...}` nie są już traktowane jako konkretne URL-e assetów. Dependency-complete Windows QA, Service Worker register/activate, Receipt Scanner first-open lazy boundary, 24-entry transitive cache i installed-PWA offline lazy chunks są zamknięte PASS. Exact Study 25.09 i wszystkie zaakceptowane zachowania produktu pozostają bez zmian.
+
+
+## Build235 mobile Receipt Scanner save reachability
+
+Real-phone review wykazał, że przy długim paragonie dolna nawigacja mogła przykrywać końcowe akcje, bo Receipt Scanner był własnym full-screen dialogiem poza wspólnym kontraktem `modal-open`. Build235 podłączył scanner do wspólnego `modalOpenCount` i safe-area sticky actions. Kolejne real-phone QA potwierdziło zapis: bottom nav jest ukryty, `Zapisz paragon` jest osiągalne, a paragon 42,85 zł / 6 pozycji pojawia się w Finansach.
+
+## Build236 Receipt -> Finance mobile polish
+
+Po potwierdzeniu fixu Build235 usunięto awaryjny duplikat `Zapisz` w nagłówku i pozostawiono jedno sticky CTA na dole. Sugestie kategorii poza parserem OCR rozszerzono o konserwatywne sygnały dla płatków owsianych, `delicje`-style ciastek oraz skrótu `warzywa na patelnię`; na realnym paragonie trzy wcześniej nierozpoznane nazwy przechodzą z `Inne` do `Jedzenie`. Mobilne `Pozycje` pokazują sklep i datę jako mały kontekst pod produktem, bez osobnego trzeciego wiersza, a bulk correction na <=430 px jest niższy. OCR/parser i schema 14 pozostają zamrożone.
+
+
+## Build237 Work shift expansion stability
+
+Po wcześniejszych warstwach CSS dla `<details>[open]` rozwijanie współpracowników nadal mogło zmieniać geometrię wiersza. Build237 usuwa tę zależność strukturalnie: pełny wiersz zmiany jest zwykłym przyciskiem, licznik osób ma stałą szerokość 104 px na desktop/tablet i 84 px na telefonie, a `CoworkerOverlapList` jest osobnym blokiem renderowanym dopiero pod wierszem. Istniejący `expandedShiftId` nadal pilnuje maksymalnie jednej otwartej zmiany.
+
+## Build238 Calendar mobile Week readability
+
+Późniejszy polish mobilnego Tygodnia nadpisał wcześniejszy mobile-first kontrakt i ponownie ścisnął siedem kolumn timeline do szerokości telefonu. Build238 usuwa ten kierunek: siedem dni pozostaje kompaktowym selektorem, ale sam timeline renderuje tylko wybrany dzień na pełnej szerokości. Mobilny `weekHourHeight` wraca do kanonicznych 48 px/h i timeline przewija się pionowo, dzięki czemu nazwy oraz godziny nie są mikroetykietami. Ten sam kompaktowy podgląd wybranego dnia działa w Miesiącu i Tygodniu, a tap na wydarzeniu Tygodnia otwiera istniejący detail sheet. Desktop pozostaje bez zmian.
+
+
+## Build239 Calendar mobile full-week readability
+
+Real-phone QA Build238 pokazał, że pełnoszerokowy timeline jednego dnia usuwa najważniejszą wartość widoku Tydzień. Build239 zachowuje siedem kolumn jednocześnie i poprawia czytelność inną metodą: 38 px/h, pionowy scroll, krótkie kody wydarzeń w siatce oraz pełne nazwy w selected-day preview. Tap wydarzenia nadal otwiera istniejący detail sheet. Month i desktop pozostają bez zmian.
+
+
+## Build240 - Clean handoff checkpoint
+
+Build240 nie zmienia zachowania produktu. Synchronizuje pełny PRIVATE checkpoint po real-phone PASS Build239, usuwa z bieżącego stanu nieaktualny pending Build238/239 visual QA i przygotowuje jedno czyste Source of Truth do kolejnej rozmowy. Następny rozwój ma zaczynać się od konkretnego bounded slice, a małe poprawki nadal są wydawane jako patch-only ZIP-y.
+
+
+## Build242 - stale historical test-contract cleanup
+
+Dependency-complete Windows `check:public` Build241 przeszedł strict TypeScript i wykonał pełny public suite. Wynik 1850 PASS / 3 FAIL / 2 optional skips ujawnił, że trzy blokery były wyłącznie nieaktualnymi asercjami: mobilny Month oczekiwał dawnego `Pokaż szczegóły`, a testy Build235 i Build236 wymagały dokładnie `APP_VERSION = 1.2.0.236`. Dodatkowo regresja Build239 wciąż wymagała `1.2.0.241`, co stworzyłoby identyczny fałszywy blocker przy następnym buildzie. Build242 zmienia tylko testy i metadane wersji: historyczne testy pilnują bieżącej linii `1.2.0.x` oraz schema 14, natomiast dokładna synchronizacja numeru pozostaje w dedykowanym release-contract QA. Produkt i UI nie są zmieniane.
+
+## Build241 - Calendar strict TypeScript release-blocker fix
+
+Dependency-complete Windows preflight Build240 ujawnił jeden rzeczywisty blocker przed promocją: `CalendarView.tsx` zgłaszał TS18048 dla `first` w `mobileWeekEventLabel`, mimo wcześniejszego warunku odrzucającego pustą tablicę. Build241 zastępuje odczyt `words[0]` przez `words[0] ?? ''`, co spełnia strict/noUncheckedIndexedAccess bez zmiany wyniku dla niepustych etykiet. `npm ci` Build240 zakończył się poprawnie, a production dependency audit miał 0 vulnerabilities. Po Build241 wymagane jest ponowne pełne `npm run check:public`; do jego PASS Build241 pozostaje release candidate, nie opublikowanym baseline.

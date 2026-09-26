@@ -1397,7 +1397,7 @@
 /* 1.1.0-dev.3 - local receipt OCR and compact review */
 .expenses-receipt-actions { display: flex; align-items: center; justify-content: flex-end; gap: 8px; flex: 0 0 auto; }
 .expenses-scan-action { white-space: nowrap; }
-.receipt-scan-backdrop { position: fixed; inset: 0; z-index: 120; display: grid; place-items: center; padding: 14px; background: rgba(19,25,23,.54); backdrop-filter: blur(10px); }
+.receipt-scan-backdrop { position: fixed; inset: 0; z-index: 260; display: grid; place-items: center; padding: 14px; background: rgba(19,25,23,.54); backdrop-filter: blur(10px); }
 .receipt-scan-shell { width: min(1180px,100%); height: min(820px,calc(100dvh - 28px)); min-height: 0; display: flex; flex-direction: column; overflow: hidden; border-radius: var(--radius-xl); background: var(--surface); box-shadow: var(--shadow-lg); }
 .receipt-scan-shell-header { flex: 0 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 14px 16px 12px; border-bottom: 1px solid var(--line); }
 .receipt-scan-shell-header .section-kicker { margin: 0 0 2px; }
@@ -2763,7 +2763,8 @@
 .finance-purchase-table tbody tr.is-necessity-review-row:not(.is-category-review-row):hover { background: var(--surface-soft); }
 .finance-purchase-product-cell { min-width: 0; display: flex; align-items: center; gap: 7px; }
 .finance-purchase-product-cell > input { flex: 0 0 auto; }
-.finance-purchase-product-cell > strong { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.finance-purchase-product-cell > strong,
+.finance-purchase-product-copy > strong { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .finance-table-select-all { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
 .finance-category-select { border-color: color-mix(in srgb,var(--line) 72%,transparent); background: color-mix(in srgb,var(--surface-soft) 54%,var(--surface)); }
 .finance-category-select:hover,.finance-category-select:focus-visible { border-color: color-mix(in srgb,var(--accent) 35%,var(--line)); background: var(--surface); }
@@ -2837,7 +2838,8 @@
 .finance-purchase-table th { padding-block: 6px; }
 .finance-purchase-table td { padding-block: 7px; }
 .finance-purchase-product-button,
-.finance-purchase-product-cell > strong { text-transform: none; }
+.finance-purchase-product-cell > strong,
+.finance-purchase-product-copy > strong { text-transform: none; }
 
 
 /* 1.2.0.39 - month calendar readability polish */

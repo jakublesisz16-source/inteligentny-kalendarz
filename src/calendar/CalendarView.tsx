@@ -99,7 +99,7 @@ const WEEK_END_HOUR = 23;
 const WEEK_HOUR_HEIGHT = 48;
 const WEEK_HOUR_MIN_HEIGHT = 30;
 const WEEK_DESKTOP_VERTICAL_CHROME = 225;
-const WEEK_MOBILE_VERTICAL_CHROME = 350;
+const WEEK_MOBILE_HOUR_HEIGHT = 38;
 
 type QuickAddSource = 'WEEK' | 'MONTH';
 type QuickAddState = {
@@ -156,10 +156,7 @@ const MOBILE_WEEK_LONG_PRESS_MS = 450;
 function calculateWeekHourHeight(): number {
   if (typeof window === 'undefined') return WEEK_HOUR_HEIGHT;
   const hourCount = WEEK_END_HOUR - WEEK_START_HOUR;
-  if (window.innerWidth <= 620) {
-    const availableHeight = Math.max(442, window.innerHeight - WEEK_MOBILE_VERTICAL_CHROME);
-    return Math.max(26, Math.min(32, Math.floor(availableHeight / hourCount)));
-  }
+  if (window.innerWidth <= 620) return WEEK_MOBILE_HOUR_HEIGHT;
   if (window.innerWidth <= 820) return 40;
   const availableHeight = Math.max(WEEK_HOUR_MIN_HEIGHT * hourCount, window.innerHeight - WEEK_DESKTOP_VERTICAL_CHROME);
   return Math.max(WEEK_HOUR_MIN_HEIGHT, Math.min(WEEK_HOUR_HEIGHT, Math.floor(availableHeight / hourCount)));
@@ -207,6 +204,18 @@ function formatWeekLabel(start: Date, end: Date): string {
   const startText = start.toLocaleDateString('pl-PL', { day: 'numeric', month: 'short' });
   const endText = end.toLocaleDateString('pl-PL', { day: 'numeric', month: 'short', year: 'numeric' });
   return `${startText} - ${endText}`;
+}
+
+function mobileWeekEventLabel(event: CalendarEvent): string {
+  const title = event.title.trim();
+  const parts = title.split(/\s+-\s+/u).map((part) => part.trim()).filter(Boolean);
+  const source = event.category === 'WORK' && parts.length > 1 ? parts.slice(1).join(' ') : (parts[0] || title);
+  const words = source.replace(/[^\p{L}\p{N}]+/gu, ' ').trim().split(/\s+/u).filter(Boolean);
+  if (!words.length) return 'EVENT';
+  const first = words[0] ?? '';
+  if (words.length > 1 && first.length <= 4 && first === first.toUpperCase()) return first;
+  if (words.length === 1) return first.length <= 5 ? first.toUpperCase() : `${first.slice(0, 4).toUpperCase()}.`;
+  return words.slice(0, 3).map((word) => word[0]?.toUpperCase() ?? '').join('') || first.slice(0, 5).toUpperCase();
 }
 
 function eventMatchesCalendarFilter(event: CalendarEvent, filter: CalendarFilter): boolean {
@@ -914,6 +923,7 @@ export function CalendarView({ events, locations, timeFormat, showPolishHolidays
       return;
     }
     selectDay(day);
+    if (typeof window !== 'undefined' && window.innerWidth <= 620) setMobileDayPanelOpen(true);
   }
 
   function goToToday() {
@@ -1040,6 +1050,21 @@ export function CalendarView({ events, locations, timeFormat, showPolishHolidays
     onEdit(event);
   }
 
+  const mobileSelectedDayPreview = !selectionMode && (selectedEvents.length || selectedIncompleteStudyEntries.length || selectedDayOverlayMarkers.length) ? (
+    <section className={`calendar-mobile-day-preview${displayMode === 'WEEK' ? ' calendar-mobile-week-preview' : ''}`} aria-label={`Podgląd dnia ${selectedDate.toLocaleDateString('pl-PL')}`}>
+      <div className="calendar-mobile-day-preview-head">
+        <div>
+          <strong>{selectedDate.toLocaleDateString('pl-PL', { day: 'numeric', month: 'long' })}</strong>
+          <span>{selectedEvents.length ? `${selectedEvents.length} ${selectedEvents.length === 1 ? 'wydarzenie' : selectedEvents.length >= 2 && selectedEvents.length <= 4 ? 'wydarzenia' : 'wydarzeń'}` : selectedIncompleteStudyEntries.length ? 'Niepełne dane planu' : 'Informacja o dniu'}</span>
+        </div>
+        {(displayMode === 'WEEK' || selectedEvents.length > 3 || selectedIncompleteStudyEntries.length) ? <button type="button" className="text-button" onClick={() => setMobileDayPanelOpen(true)}>Szczegóły</button> : null}
+      </div>
+      {selectedDayOverlayMarkers.length ? <div className="calendar-mobile-day-preview-overlays" aria-label="Informacje o wybranym dniu">{selectedDayOverlayMarkers.map((marker) => <span key={marker.kind} className={`overlay-${marker.kind.toLowerCase()}`}>{marker.label}</span>)}</div> : null}
+      {selectedEvents.length ? <div className="calendar-mobile-day-preview-list">{selectedEvents.slice(0, 3).map((event) => <button key={event.id} type="button" className={`calendar-mobile-day-preview-event category-${event.category.toLowerCase()}`} onClick={() => setMobileDayPanelOpen(true)} aria-label={`Otwórz szczegóły wydarzenia ${event.title}`}><span>{calendarEventTimeLabel(event, selectedKey, timeFormat)}</span><strong>{event.title}</strong><i aria-hidden="true">›</i></button>)}</div> : null}
+      {selectedIncompleteStudyEntries.length ? <button type="button" className="calendar-mobile-day-preview-incomplete" onClick={() => setMobileDayPanelOpen(true)}><span>?</span><strong>Niepełne dane z planu studiów</strong><i aria-hidden="true">›</i></button> : null}
+    </section>
+  ) : null;
+
   return (
     <section className="view-shell calendar-view-shell">
       <header className="view-header calendar-view-header">
@@ -1123,22 +1148,11 @@ export function CalendarView({ events, locations, timeFormat, showPolishHolidays
                 })}
               </div>
             </div>
-              {!selectionMode && (selectedEvents.length || selectedIncompleteStudyEntries.length || selectedDayOverlayMarkers.length) ? (
-                <section className="calendar-mobile-day-preview" aria-label={`Podgląd dnia ${selectedDate.toLocaleDateString('pl-PL')}`}>
-                  <div className="calendar-mobile-day-preview-head">
-                    <div>
-                      <strong>{selectedDate.toLocaleDateString('pl-PL', { day: 'numeric', month: 'long' })}</strong>
-                      <span>{selectedEvents.length ? `${selectedEvents.length} ${selectedEvents.length === 1 ? 'wydarzenie' : selectedEvents.length >= 2 && selectedEvents.length <= 4 ? 'wydarzenia' : 'wydarzeń'}` : selectedIncompleteStudyEntries.length ? 'Niepełne dane planu' : 'Informacja o dniu'}</span>
-                    </div>
-                    {selectedEvents.length > 3 || selectedIncompleteStudyEntries.length ? <button type="button" className="text-button" onClick={() => setMobileDayPanelOpen(true)}>Pokaż szczegóły</button> : null}
-                  </div>
-                  {selectedDayOverlayMarkers.length ? <div className="calendar-mobile-day-preview-overlays" aria-label="Informacje o wybranym dniu">{selectedDayOverlayMarkers.map((marker) => <span key={marker.kind} className={`overlay-${marker.kind.toLowerCase()}`}>{marker.label}</span>)}</div> : null}
-                  {selectedEvents.length ? <div className="calendar-mobile-day-preview-list">{selectedEvents.slice(0, 3).map((event) => <button key={event.id} type="button" className={`calendar-mobile-day-preview-event category-${event.category.toLowerCase()}`} onClick={() => setMobileDayPanelOpen(true)} aria-label={`Otwórz szczegóły wydarzenia ${event.title}`}><span>{calendarEventTimeLabel(event, selectedKey, timeFormat)}</span><strong>{event.title}</strong><i aria-hidden="true">›</i></button>)}</div> : null}
-                  {selectedIncompleteStudyEntries.length ? <button type="button" className="calendar-mobile-day-preview-incomplete" onClick={() => setMobileDayPanelOpen(true)}><span>?</span><strong>Niepełne dane z planu studiów</strong><i aria-hidden="true">›</i></button> : null}
-                </section>
-              ) : null}
+            {mobileSelectedDayPreview}
             </>
           ) : (
+            <>
+            {mobileSelectedDayPreview}
             <div className={`calendar-week-shell calendar-period-swipe-surface${weekHourHeight < 40 ? ' compact-density' : ''}`} onTouchStart={handlePeriodSwipeStart} onTouchEnd={handlePeriodSwipeEnd} onTouchCancel={handlePeriodSwipeCancel} onClickCapture={handlePeriodSwipeClickCapture}>
               <div className="calendar-week-day-headings">
                 <span className="calendar-week-axis-spacer" />
@@ -1157,7 +1171,7 @@ export function CalendarView({ events, locations, timeFormat, showPolishHolidays
                     const dayAllDayEvents = (weekEventsByDate.get(key) ?? []).filter((event) => event.allDay);
                     const hiddenCount = Math.max(0, dayAllDayEvents.length - 2);
                     return <div key={key} className={`calendar-week-all-day-cell${day.getDay() === 0 || day.getDay() === 6 ? ' weekend' : ''}${key === selectedKey ? ' selected' : ''}`}>
-                      {dayAllDayEvents.slice(0, 2).map((event) => <button key={event.id} type="button" className={`calendar-week-all-day-event category-${event.category.toLowerCase()}${conflictEventIds.has(event.id) ? ' conflict' : ''}`} onClick={() => selectDay(day)} title={`${event.title} - cały dzień`}><span>{event.title}</span>{conflictEventIds.has(event.id) ? <i aria-label="Konflikt">!</i> : null}</button>)}
+                      {dayAllDayEvents.slice(0, 2).map((event) => <button key={event.id} type="button" className={`calendar-week-all-day-event category-${event.category.toLowerCase()}${conflictEventIds.has(event.id) ? ' conflict' : ''}`} onClick={() => { selectDay(day); if (typeof window !== 'undefined' && window.innerWidth <= 620) setMobileDayPanelOpen(true); }} title={`${event.title} - cały dzień`}><span>{event.title}</span>{conflictEventIds.has(event.id) ? <i aria-label="Konflikt">!</i> : null}</button>)}
                       {hiddenCount ? <button type="button" className="calendar-week-all-day-more" onClick={() => selectDay(day)} aria-label={`Pokaż wszystkie wydarzenia całodniowe: ${dayAllDayEvents.length}`}>+{hiddenCount}</button> : null}
                     </div>;
                   })}
@@ -1214,7 +1228,7 @@ export function CalendarView({ events, locations, timeFormat, showPolishHolidays
                         const resizeState = weekResize?.eventId === event.id ? weekResize : null;
                         const resizeHeight = resizeState ? Math.max(26, ((resizeState.previewEndMinutes - resizeState.startMinutes) / 60) * weekHourHeight) : position.height;
                         const timeLabel = resizeState ? `${formatMinuteTime(resizeState.startMinutes)}-${formatMinuteTime(resizeState.previewEndMinutes)}` : calendarEventTimeLabel(event, key, timeFormat);
-                        return <button key={event.id} type="button" draggable={draggable && !resizeState} className={`calendar-week-event category-${event.category.toLowerCase()}${position.overlapping ? ' overlapping' : ''}${conflict ? ' conflict' : ''}${draggable ? ' draggable' : ''}${resizable ? ' resizable' : ''}${touchDraggable ? ' touch-draggable' : ''}${weekDrag?.eventId === event.id ? ' dragging' : ''}${resizeState ? ' resizing' : ''}`} style={{ top: position.top, height: resizeHeight, left: `calc(${position.leftPercent}% + 3px)`, width: `calc(${position.widthPercent}% - 6px)`, right: 'auto' }} onDragStart={(dragEvent) => startWeekEventDrag(dragEvent, event)} onDragEnd={finishWeekEventDrag} onTouchStart={(touchEvent) => startMobileWeekLongPress(touchEvent, event, day)} onTouchMove={moveMobileWeekTouchDrag} onTouchEnd={finishMobileWeekTouchDrag} onTouchCancel={cancelMobileWeekTouchDrag} onClick={(clickEvent) => selectWeekEventDay(clickEvent, day)} title={`${title}${draggable ? ' - przeciągnij, aby zmienić termin' : touchDraggable ? ' - przytrzymaj, aby przenieść' : ''}${desktopResizable ? ' - przeciągnij dolną krawędź, aby zmienić czas trwania' : touchResizable ? ' - przeciągnij uchwyt w dół lub w górę, aby zmienić czas trwania' : ''}`}><span data-mobile-time={resizeState ? formatMinuteTime(resizeState.startMinutes) : formatTime(event.startDateTime, timeFormat)}>{timeLabel}</span><strong data-mobile-label={event.title.split(' - ')[0]?.trim() || event.title}>{event.title}</strong>{studyGroupLabel ? <small className="calendar-week-study-group">{studyGroupLabel}</small> : null}{conflict ? <i aria-label="Konflikt">!</i> : null}{resizable ? <span className={`calendar-week-resize-handle${touchResizable ? ' touch-resize-handle' : ''}`} onTouchStart={(touchEvent) => touchEvent.stopPropagation()} onTouchMove={(touchEvent) => touchEvent.stopPropagation()} onTouchEnd={(touchEvent) => touchEvent.stopPropagation()} onPointerDown={(pointerEvent) => startWeekResize(pointerEvent, event)} onPointerMove={updateWeekResize} onPointerUp={(pointerEvent) => { void finishWeekResize(pointerEvent); }} onPointerCancel={cancelWeekResize} onLostPointerCapture={handleWeekResizeLostPointerCapture} aria-hidden="true" /> : null}</button>;
+                        return <button key={event.id} type="button" draggable={draggable && !resizeState} className={`calendar-week-event category-${event.category.toLowerCase()}${position.overlapping ? ' overlapping' : ''}${conflict ? ' conflict' : ''}${draggable ? ' draggable' : ''}${resizable ? ' resizable' : ''}${touchDraggable ? ' touch-draggable' : ''}${weekDrag?.eventId === event.id ? ' dragging' : ''}${resizeState ? ' resizing' : ''}`} style={{ top: position.top, height: resizeHeight, left: `calc(${position.leftPercent}% + 3px)`, width: `calc(${position.widthPercent}% - 6px)`, right: 'auto' }} onDragStart={(dragEvent) => startWeekEventDrag(dragEvent, event)} onDragEnd={finishWeekEventDrag} onTouchStart={(touchEvent) => startMobileWeekLongPress(touchEvent, event, day)} onTouchMove={moveMobileWeekTouchDrag} onTouchEnd={finishMobileWeekTouchDrag} onTouchCancel={cancelMobileWeekTouchDrag} onClick={(clickEvent) => selectWeekEventDay(clickEvent, day)} title={`${title}${draggable ? ' - przeciągnij, aby zmienić termin' : touchDraggable ? ' - przytrzymaj, aby przenieść' : ''}${desktopResizable ? ' - przeciągnij dolną krawędź, aby zmienić czas trwania' : touchResizable ? ' - przeciągnij uchwyt w dół lub w górę, aby zmienić czas trwania' : ''}`}><span data-mobile-time={resizeState ? formatMinuteTime(resizeState.startMinutes) : formatTime(event.startDateTime, timeFormat)}>{timeLabel}</span><strong data-mobile-label={mobileWeekEventLabel(event)}>{event.title}</strong>{studyGroupLabel ? <small className="calendar-week-study-group">{studyGroupLabel}</small> : null}{conflict ? <i aria-label="Konflikt">!</i> : null}{resizable ? <span className={`calendar-week-resize-handle${touchResizable ? ' touch-resize-handle' : ''}`} onTouchStart={(touchEvent) => touchEvent.stopPropagation()} onTouchMove={(touchEvent) => touchEvent.stopPropagation()} onTouchEnd={(touchEvent) => touchEvent.stopPropagation()} onPointerDown={(pointerEvent) => startWeekResize(pointerEvent, event)} onPointerMove={updateWeekResize} onPointerUp={(pointerEvent) => { void finishWeekResize(pointerEvent); }} onPointerCancel={cancelWeekResize} onLostPointerCapture={handleWeekResizeLostPointerCapture} aria-hidden="true" /> : null}</button>;
                       })}
                     </div>;
                   })}
@@ -1223,6 +1237,7 @@ export function CalendarView({ events, locations, timeFormat, showPolishHolidays
               {weekDrag?.inputMode === 'touch' ? <div className="calendar-mobile-drag-status" aria-hidden="true"><strong>{weekDays.find((day) => toLocalDateKey(day) === weekDrag.previewDateKey)?.toLocaleDateString('pl-PL', { weekday: 'short', day: 'numeric', month: 'short' }) ?? weekDrag.previewDateKey}</strong><span>{`${String(Math.floor(weekDrag.previewStartMinutes / 60)).padStart(2, '0')}:${String(weekDrag.previewStartMinutes % 60).padStart(2, '0')}`}</span><small>Puść, aby przenieść</small></div> : null}
               {weekResize?.inputMode === 'touch' ? <div className="calendar-mobile-drag-status calendar-mobile-resize-status" aria-hidden="true"><strong>{`${formatMinuteTime(weekResize.startMinutes)}-${formatMinuteTime(weekResize.previewEndMinutes)}`}</strong><span>{Math.max(15, weekResize.previewEndMinutes - weekResize.startMinutes)} min</span><small>Puść, aby ustawić czas</small></div> : null}
             </div>
+            </>
           )}
         </div>
 

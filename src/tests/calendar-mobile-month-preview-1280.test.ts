@@ -20,7 +20,7 @@ describe('1.2.0.80 mobile month selection and inline day preview', () => {
     expect(calendar).toContain('calendar-mobile-day-preview');
     expect(calendar).toContain('calendar-mobile-day-preview-event');
     expect(calendar).toContain('selectedEvents.slice(0, 3)');
-    expect(calendar).toContain('Pokaż szczegóły');
+    expect(calendar).toContain('>Szczegóły</button>');
     expect(calendar).toContain('Otwórz szczegóły wydarzenia');
   });
 
