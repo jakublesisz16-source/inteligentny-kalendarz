@@ -1,14 +1,17 @@
 # QA i wydanie
 
-## Ostatni opublikowany release - Build242
+## Aktualny `main` - Build244
 
-Build242 został opublikowany 26.09.2026 na `main` jako commit `30de2295f81d60bc07735dfdcad203e6f217ae76`. Windows `npm run check:public` zakończył się 323/323 wykonanych plików testowych i 1853/1853 wykonanych testów PASS z 2 optional skips. Produkcyjny Vite build, production-audit, service-worker, release-safety, travel i security-release były PASS; `npm run security:dependencies` zgłosił 0 vulnerabilities. GitHub workflow `CI` oraz `Deploy GitHub Pages` zakończyły się `success`.
+Build244 został wypchnięty 26.09.2026 na `main` jako commit `c30711bee27ab1b7ebb406ae478f709aa9fe6722`. Windows `npm run check:public` zakończył się 324/324 wykonanych plików testowych i 1857/1857 wykonanych testów PASS z 2 optional skips. Produkcyjny Vite build, production-audit, service-worker, release-safety, travel i security-release były PASS; `npm run security:dependencies` zgłosił 0 vulnerabilities. Push-triggered GitHub CI/Pages Build244 nie został w tej sesji ponownie odczytany przez dostępny connector.
 
-## Bieżący PRIVATE - Build244 stale-test-contract cleanup candidate
 
-Build243 wprowadził wyłącznie uzgodniony mobilny polish Finance Items + Study current-plan. Dependency-complete Windows `check:public` wykonał 1855 testów PASS, 2 optional skips i 2 FAIL; oba FAIL to stale historyczne asercje CSS w Build213/236, nie regresja produktu. `security:dependencies` Build243: 0 vulnerabilities. Lokalny commit `986e1ef` został utworzony, ale GitHub `main` nadal wskazuje Build242, więc release nie został opublikowany.
+## Bieżący PRIVATE - Build248 stale Study test-contract cleanup
 
-Build244 aktualizuje tylko te kontrakty testowe i metadane wersji. Przed promocją wymagany jest ponowny dependency-complete Windows `check:public` + `security:dependencies`; real-phone visual QA nadal dotyczy niezmienionych powierzchni produktu z Build243.
+Windows QA Build247: strict TypeScript PASS. Public suite wykonał 1858 testów PASS, 2 optional skips i 2 FAIL. Oba FAIL były stale source-text assertions: stary `result.groups` w teście UX oraz stary tekst journala recurring-pattern backfillu. `security:dependencies` PASS z 0 vulnerabilities, `release:preflight` PASS, `source:hygiene` PASS (`runtime=151 intentionalNonRuntime=5 removedLegacy=8`). Build248 aktualizuje tylko te dwa kontrakty testowe i metadane. Produkt pozostaje bez zmian. Pełny Windows gate należy powtórzyć przed publikacją.
+
+## Bieżący PRIVATE - Build246 Study assumptions + cleanup candidate
+
+Build246 zachowuje polish Build245 i dodaje post-verification Study recurring-pattern assumptions oraz cleanup Source of Truth. Raw verified-source semantics/fingerprinty nie są zmieniane. Cleanup usuwa superseded player-facing shells i dodaje `source:hygiene`. Przed promocją wymagane są focused/static/release/checkpoint/fresh-unpack gates oraz dependency-complete Windows `check:public` + `security:dependencies`. Exact-source 25.09 enrichment count należy potwierdzić przy następnym dostępie do pliku; nie jest warunkiem poprawności raw parser freeze.
 
 ## Codzienny development
 
@@ -27,6 +30,7 @@ Dodatkowe aktywne QA:
 
 ```powershell
 npm run release:preflight
+npm run source:hygiene
 npm run release:parser-freeze:qa
 npm run release:contract:qa
 npm run checkpoint:state

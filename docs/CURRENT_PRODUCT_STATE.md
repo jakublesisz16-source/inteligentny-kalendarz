@@ -1,8 +1,8 @@
-# Aktualny stan produktu - Build 244
+# Aktualny stan produktu - Build 247
 
 ## Status
 
-Build244 jest wąskim cleanupem kontraktów testowych nad niezmienionym produktem Build243. Build242 pozostaje ostatnim opublikowanym baseline na `main` (`30de2295f81d60bc07735dfdcad203e6f217ae76`). Windows walidacja Build243 wykonała 1855 testów PASS; jedyne 2 FAIL były przestarzałymi asercjami historycznych testów CSS dla starej geometrii Finance Items. Build244 aktualizuje wyłącznie te testy i metadane wersji. Mobilne `Finanse -> Pozycje` oraz nagłówek aktywnego planu `Studia` pozostają dokładnie jak w Build243; parsery, dane i schema 14 są bez zmian.
+Build248 jest wąskim cleanupem dwóch przestarzałych kontraktów testowych na niezmienionym produkcie Build246/247. Windows QA Build247 przeszło strict TypeScript i wykonało 1858 testów PASS; jedyne 2 FAIL były asercjami tekstowymi, które nadal oczekiwały starego `result.groups` sprzed post-verification enrichment oraz starego tekstu journala backfillu. Build248 aktualizuje wyłącznie te testy i metadane wydania. Logika Studiów, recurring-pattern assumptions/backfill, raw parser/fingerprinty i schema 14 są bez zmian. Build244 pozostaje ostatnim opublikowanym baseline na `main`; Build248 przed publikacją wymaga pełnego Windows `check:public` oraz QA aktywnego planu.
 
 ## Dzisiaj
 
@@ -38,6 +38,16 @@ Build244 jest wąskim cleanupem kontraktów testowych nad niezmienionym produkte
 - Kategorie i pozycje, dla których aplikacja ma tylko wartości po przeliczeniu, pozostają w PLN i są jawnie opisane jako PLN.
 - Mobilny clearance list Miesiąca i Wyjazdu uwzględnia stałą dolną nawigację.
 - Katalog produktu, historia cen, eksport oraz `Cofnij` pozostają aktywne.
+
+## Studia — założenia powtarzalnego wzorca Build246
+
+- Surowy XLS/XLSX jest analizowany i verified **przed** inferencją.
+- Brakująca godzina i/lub lokalizacja może zostać uzupełniona tylko z co najmniej 2 zgodnych wystąpień tego samego przedmiotu + typu + grup.
+- Konkurencyjne wzorce blokują uzupełnienie; jawne wartości nie są nadpisywane.
+- Data/dzień nigdy nie są inferowane.
+- `inferredFields`/`inferenceNotes` zachowują pochodzenie założenia w imporcie i UI.
+- Już aktywny plan jest idempotentnie backfillowany z przechowanych surowych `sourceOnly` entries; nowe wydarzenia powstają po restore poincie, a raw entries pozostają bez zmian.
+- Kolejny oficjalny plan ma pierwszeństwo i przechodzi normalny diff.
 
 ## Wspólna warstwa UX
 
@@ -164,3 +174,20 @@ Real-device QA po Build242 ujawnił dwa problemy kompozycji. Mobilne `Finanse ->
 ## Build244 - historical Finance mobile test-contract cleanup
 
 Windows `check:public` Build243 potwierdził 1855 testów PASS i 2 FAIL wynikające wyłącznie z nieaktualnych historycznych asercji CSS: Build236 oczekiwał dawnej pojedynczej reguły ukrycia kolumny daty, a Build213 oczekiwał superseded grid areas `product money` / `category necessity`. Build244 aktualizuje te regresje do kanonicznego layoutu Build243 oraz usuwa exact version pin z testu Build243. Kod produktu i UI nie są zmieniane.
+
+
+## Build245 - minimal status-card accent polish
+
+Real-device QA Kalendarza pokazał pozostawioną z wcześniejszego języka UI czerwono-różową belkę przy lewej krawędzi karty konfliktu. Build245 usuwa ten wzorzec z `consistency-card` oraz z analogicznych `diff-card` Studiów. Obramowanie pozostaje neutralne (`var(--line)`), a semantyka statusu korzysta z istniejących chipów oraz bardzo lekkiego gradientu powierzchni. Nie zmienia to priorytetu, treści, akcji `Edytuj`, akceptacji konfliktu ani danych.
+
+## Build247 - release-blocker fixes after Windows QA
+
+- Test recurring-pattern nie przekazuje już jawnego `undefined` do optional properties przy `exactOptionalPropertyTypes`; brak wartości jest modelowany przez pominięcie/usunięcie pola.
+- `source:hygiene` ignoruje normalne artefakty lokalnego checkoutu i builda (`.git`, `node_modules`, `dist`, coverage/cache oraz root `tsconfig.*.tsbuildinfo`) zamiast traktować je jako błąd źródła.
+- Checkpoint/public package gates nadal odpowiadają za blokowanie tych artefaktów w paczkach.
+- Zero zmian produktu, parsera, założeń Studiów, backfillu i schema 14.
+
+
+## Build248 - stale Study test-contract cleanup
+
+Windows Build247 QA potwierdził strict TypeScript PASS i 1858 testów PASS z dwoma stale source-text assertions. Build248 aktualizuje test UX do `enrichedResult.groups` oraz test backfillu do stabilnych kontraktów zachowania/journala. Produkt pozostaje bez zmian.

@@ -15,6 +15,7 @@ import { buildScheduleDiff, recalculateDiffSummary } from '../study/study-diff';
 import { identifyCandidate, identifyEntry } from '../study/study-identity';
 import { candidatesForSelectedGroups, findStudyScheduleConflicts, findStudyUpdateDecisionConflicts, validateStudyGroupSelection } from '../study/study.service';
 import { completenessForSelectedGroups } from '../study/study-completeness';
+import { applyRecurringPatternToCandidates } from '../study/study-recurring-pattern-assumptions';
 import { formatStudyGroupList, groupSetsIntersect } from '../imports/xlsx/group-normalizer';
 import { validateCandidateForImport } from '../imports/xlsx/import-validation';
 import { sha256Hex } from '../core/sha256';
@@ -330,6 +331,8 @@ function candidateFromEntry(entry: UniversityImportEntry): StudyScheduleCandidat
     ...(entry.locationLabel ? { locationLabel: entry.locationLabel } : {}),
     status: entry.warnings.length ? 'REVIEW_REQUIRED' : 'READY',
     warnings: [...entry.warnings],
+    ...(entry.inferredFields?.length ? { inferredFields: [...entry.inferredFields] } : {}),
+    ...(entry.inferenceNotes?.length ? { inferenceNotes: [...entry.inferenceNotes] } : {}),
     ...(entry.seriesKey ? { seriesKey: entry.seriesKey } : {}),
     ...(entry.occurrenceKey ? { occurrenceKey: entry.occurrenceKey } : {}),
     ...(entry.sourceWeekStart ? { sourceWeekStart: entry.sourceWeekStart } : {}),
@@ -2295,6 +2298,8 @@ function entryFromCandidate(candidate: StudyScheduleCandidate, importId: string,
     ...(identified.address ? { address: identified.address } : {}),
     ...(identified.locationLabel ? { locationLabel: identified.locationLabel } : {}),
     warnings: [...identified.warnings],
+    ...(identified.inferredFields?.length ? { inferredFields: [...identified.inferredFields] } : {}),
+    ...(identified.inferenceNotes?.length ? { inferenceNotes: [...identified.inferenceNotes] } : {}),
     ...(identified.occurrenceKey ? { occurrenceKey: identified.occurrenceKey } : {}),
     ...(identified.seriesKey ? { seriesKey: identified.seriesKey } : {}),
     ...(identified.sourceWeekStart ? { sourceWeekStart: identified.sourceWeekStart } : {}),
@@ -2397,6 +2402,142 @@ function eventFromCandidate(candidate: CompleteImportCandidate, importId: string
     updatedAt: timestamp,
     ...(locationId ? { locationId } : {}),
     ...(description ? { description } : {}),
+  };
+}
+
+export async function applyRecurringAssumptionsToActiveStudyPlan(): Promise<{ inferredCandidateCount: number; addedEventCount: number; updatedEventCount: number }> {
+  const empty = { inferredCandidateCount: 0, addedEventCount: 0, updatedEventCount: 0 };
+  const active = await getActiveUniversityImport();
+  if (!active) return empty;
+
+  const entries = await listUniversityImportEntries(active.id);
+  const sourceEntries = entries.filter((entry) => entry.sourceOnly);
+  if (!sourceEntries.length) return empty;
+
+  // Source-only entries remain untouched. They are the stored raw-source truth used to
+  // reconstruct the user-approved operational assumption without changing provenance.
+  const rawCandidates = sourceEntries.map(candidateFromEntry);
+  const enriched = applyRecurringPatternToCandidates(rawCandidates);
+  if (!enriched.summary.inferredCandidateCount) return empty;
+
+  const selectedCandidates = enriched.candidates
+    .filter((candidate) => candidateMatchesSelectedGroups(candidate, active.selectedGroups))
+    .filter((candidate) => (candidate.inferredFields?.length ?? 0) > 0);
+  const linkedEntries = entries.filter((entry) => !entry.sourceOnly);
+  const linkedByKey = new Map<string, UniversityImportEntry>();
+  for (const entry of linkedEntries) {
+    linkedByKey.set(entry.sourceKey, entry);
+    if (entry.sourceCandidateId) linkedByKey.set(entry.sourceCandidateId, entry);
+  }
+
+  const toAdd: StudyScheduleCandidate[] = [];
+  const toRefresh: Array<{ candidate: StudyScheduleCandidate; entry: UniversityImportEntry }> = [];
+  for (const candidate of selectedCandidates) {
+    const linked = linkedByKey.get(candidate.sourceKey) ?? linkedByKey.get(candidate.id);
+    if (!linked) {
+      if (reviewCandidate(candidate).canImport) toAdd.push(candidate);
+      continue;
+    }
+    if (linked.userDeleted || !linked.eventId) continue;
+    const inferred = candidate.inferredFields ?? [];
+    const fillsMissingOperationalField = inferred.some((field) => !linked[field] && Boolean(candidate[field]));
+    if (fillsMissingOperationalField) toRefresh.push({ candidate, entry: linked });
+  }
+
+  if (!toAdd.length && !toRefresh.length) {
+    return { inferredCandidateCount: enriched.summary.inferredCandidateCount, addedEventCount: 0, updatedEventCount: 0 };
+  }
+
+  const safetyPoint = await createRestorePoint('Przed uzupełnieniem planu z powtarzalnego wzorca', 'BEFORE_STUDY_IMPORT', true);
+  const [existingLocations, existingEvents] = await Promise.all([listLocations(), listEvents()]);
+  const eventById = new Map(existingEvents.map((event) => [event.id, event]));
+  const locationsByKey = locationMap(existingLocations);
+  const timestamp = nowIso();
+  const newLocations: Location[] = [];
+  const newEntries: UniversityImportEntry[] = [];
+  const newEvents: CalendarEvent[] = [];
+  const updatedEntries: UniversityImportEntry[] = [];
+  const updatedEvents: CalendarEvent[] = [];
+
+  for (const candidate of toAdd) {
+    const complete = requireCompleteImportCandidate(candidate);
+    const entryId = createId('university-entry');
+    const locationId = ensureCandidateLocation(candidate, locationsByKey, newLocations, timestamp);
+    const event = eventFromCandidate(complete, active.id, entryId, locationId, timestamp);
+    newEntries.push({ ...entryFromCandidate(candidate, active.id, event.id, false), id: entryId });
+    newEvents.push(event);
+  }
+
+  for (const { candidate, entry } of toRefresh) {
+    const inferred = candidate.inferredFields ?? [];
+    const patch: Partial<UniversityImportEntry> = {};
+    for (const field of inferred) {
+      const value = candidate[field];
+      if (!entry[field] && value) Object.assign(patch, { [field]: value });
+    }
+    const nextFields = [...new Set([...(entry.inferredFields ?? []), ...inferred])];
+    const nextNotes = [...new Set([...(entry.inferenceNotes ?? []), ...(candidate.inferenceNotes ?? [])])];
+    const updatedEntry: UniversityImportEntry = {
+      ...entry,
+      ...patch,
+      warnings: [...candidate.warnings],
+      inferredFields: nextFields,
+      ...(nextNotes.length ? { inferenceNotes: nextNotes } : {}),
+    };
+    updatedEntries.push(updatedEntry);
+
+    const event = entry.eventId ? eventById.get(entry.eventId) : undefined;
+    if (!event) continue;
+    let nextEvent = event;
+    const manualFields = new Set(event.userModifiedFields ?? []);
+    const operationalCandidate = candidateFromEntry(updatedEntry);
+    if (!manualFields.has('locationId') && (inferred.some((field) => field === 'clinic' || field === 'address' || field === 'locationLabel'))) {
+      const locationId = ensureCandidateLocation(operationalCandidate, locationsByKey, newLocations, timestamp);
+      if (locationId && locationId !== event.locationId) nextEvent = { ...nextEvent, locationId, updatedAt: timestamp };
+    }
+    if (!manualFields.has('description') && inferred.some((field) => field === 'clinic' || field === 'room')) {
+      const description = importedEventDescription(operationalCandidate);
+      if (description !== event.description) nextEvent = { ...nextEvent, ...(description ? { description } : {}), updatedAt: timestamp };
+    }
+    if (nextEvent !== event) updatedEvents.push(nextEvent);
+  }
+
+  const updatedEntryById = new Map(updatedEntries.map((entry) => [entry.id, entry]));
+  const existingLinkedEvents = linkedEntries.filter((entry) => Boolean(entry.eventId) && !entry.userDeleted);
+  const nextLinkedEntries = [
+    ...existingLinkedEvents.map((entry) => updatedEntryById.get(entry.id) ?? entry),
+    ...newEntries,
+  ];
+  const nextImport: UniversityScheduleImport = {
+    ...active,
+    importedEventCount: nextLinkedEntries.length,
+    warningCount: nextLinkedEntries.reduce((sum, entry) => sum + entry.warnings.length, 0),
+  };
+
+  const db = await openDatabase();
+  const tx = db.transaction(
+    [STORE_EVENTS, STORE_LOCATIONS, STORE_UNIVERSITY_IMPORTS, STORE_UNIVERSITY_IMPORT_ENTRIES, STORE_CHANGE_JOURNAL],
+    'readwrite',
+  );
+  for (const location of newLocations) tx.objectStore(STORE_LOCATIONS).put(location);
+  for (const event of newEvents) tx.objectStore(STORE_EVENTS).add(event);
+  for (const event of updatedEvents) tx.objectStore(STORE_EVENTS).put(event);
+  for (const entry of newEntries) tx.objectStore(STORE_UNIVERSITY_IMPORT_ENTRIES).add(entry);
+  for (const entry of updatedEntries) tx.objectStore(STORE_UNIVERSITY_IMPORT_ENTRIES).put(entry);
+  tx.objectStore(STORE_UNIVERSITY_IMPORTS).put(nextImport);
+  putJournalEntry(tx, buildJournalEntry({
+    operationType: 'UPDATE_STUDY_PLAN',
+    entityType: 'STUDY_PLAN',
+    entityIds: [active.id, ...newEvents.map((event) => event.id), ...updatedEvents.map((event) => event.id)],
+    description: `Zastosowano powtarzalny wzorzec: +${newEvents.length} wydarzeń, zaktualizowano ${updatedEvents.length}`,
+    restorePointId: safetyPoint.id,
+  }));
+  await transactionDone(tx);
+  await pruneChangeJournal();
+  return {
+    inferredCandidateCount: enriched.summary.inferredCandidateCount,
+    addedEventCount: newEvents.length,
+    updatedEventCount: updatedEvents.length,
   };
 }
 

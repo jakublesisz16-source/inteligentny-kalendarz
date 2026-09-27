@@ -10,6 +10,7 @@ const assert = (condition, message) => { if (!condition) failures.push(message);
 
 for (const path of [
   'CURRENT_PROJECT_RULES.md', 'CURRENT_STATE.json', 'BUILD_INFO.json', 'HANDOFF_NEW_CHAT.md', 'PRIVATE.md',
+  'docs/PROJECT_LEDGER.md', 'docs/PROJECT_FILE_INVENTORY.md',
   'CLEAN_CHECKPOINT_CONTENTS.md', 'package.json', 'package-lock.json', 'src/core/version.ts', 'src/core/build.ts',
   'project-skills/ik-development/SKILL.md', 'project-skills/ik-build-lifecycle/SKILL.md', 'project-skills/ik-private-checkpoint/SKILL.md'
 ]) requireFile(path);

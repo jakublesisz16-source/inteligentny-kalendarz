@@ -28,7 +28,7 @@ Aktualny schemat IndexedDB ma numer `14`.
 - `src/work` - grafik, współpracownicy, dyspozycyjność i podsumowania czasu pracy,
 - `src/finance` - moduły finansowe - lokalne finanse miesiąca i wyjazdów,
 - `src/shopping` - zakupy i lokalne przetwarzanie paragonów,
-- `src/cycle` - lokalne dane cyklu i dziennika,
+- `src/cycle` - zachowane modele/logika danych i predykcji cyklu; superseded player-facing ekran został usunięty,
 - `src/storage` - IndexedDB, migracje, backup, restore points i historia zmian,
 - `src/settings` - ustawienia i transfer danych,
 - `src/safety` - warstwa bezpieczeństwa danych i przywracania.
@@ -37,7 +37,7 @@ Aktualny schemat IndexedDB ma numer `14`.
 
 Plany XLS/XLSX oraz grafiki/załączniki są analizowane po stronie klienta. Do bazy trafiają znormalizowane rekordy potrzebne aplikacji, a nie robocze pliki użytkownika jako część repozytorium.
 
-Aktualizacja planu studiów korzysta z istniejącego mechanizmu diffu. Zmiany nie są stosowane do aktywnego planu bez jawnej akcji użytkownika.
+Aktualizacja planu studiów korzysta z istniejącego mechanizmu diffu. Raw parser pozostaje source-faithful i verified-source fingerprint jest liczony przed warstwą założeń. Po weryfikacji aplikacja może uzupełnić brakującą godzinę/lokalizację z co najmniej dwóch jednoznacznie zgodnych wystąpień tego samego przedmiotu/typu/grup; data/dzień nie są inferowane. Założenia zachowują provenance, a jawne dane z późniejszego oficjalnego planu mają pierwszeństwo. Zmiany nie są stosowane do aktywnego planu bez jawnej akcji użytkownika.
 
 ## Backup i przywracanie
 
@@ -67,3 +67,8 @@ GitHub Actions wykonuje:
 5. audit zależności produkcyjnych.
 
 Publiczne wydanie powinno być tworzone dopiero po zielonym CI oraz Visual QA na desktopie i telefonie.
+
+
+## Higiena źródeł
+
+`npm run source:hygiene` buduje statyczny graf importów runtime + benchmark roots, blokuje nieoczekiwane osierocone moduły, powrót superseded player-facing plików i przypadkowe archiwa/backupi/logi. Celowe moduły poza runtime mają małą jawną allowlistę opisaną w `PROJECT_FILE_INVENTORY.md`.

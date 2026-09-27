@@ -1991,8 +1991,6 @@
   .consistency-toolbar .compact-check { min-height: 34px; padding-left: 2px; font-size: .68rem; }
   .consistency-list { gap: 9px; padding: 0; }
   .consistency-card { padding: 13px; border-radius: 13px; }
-  .consistency-card.impact-blocking { border-left-width: 3px; }
-  .consistency-card.impact-warning { border-left-width: 3px; }
   .consistency-card-top { gap: 8px; }
   .consistency-card-top h3 { margin: 5px 0 3px; font-size: .94rem; line-height: 1.25; }
   .consistency-card-top p,

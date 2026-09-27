@@ -92,9 +92,11 @@ AV7 jest szczególnie ważne: dokładna data 06.11 jest wpisana w komórce znajd
 
 Nagłówek bazowy K3 mówi `pon. - pt. 8.00 - 14.00 (bez dni, w których odbywają się zajęcia u Prof. R. Steca)`.
 
-Kolumny związane z prof. R. Stecem podają jawne dni tygodnia, ale nie podają pełnego zakresu godzin. Nie wolno odziedziczyć dla nich 08:00-14:00 z bazy, ponieważ sama baza jawnie te dni wyłącza.
+**Fakt surowego źródła:** kolumny związane z prof. R. Stecem podają jawne dni tygodnia, ale nie podają pełnego zakresu godzin. Raw parser nie dziedziczy dla nich 08:00-14:00 z K3, ponieważ sama baza jawnie te dni wyłącza. Dlatego verified-source wynik przed założeniami nadal zawiera 84 wpisy `REVIEW_REQUIRED` bez pełnego czasu.
 
-Skutek: 84 wpisy mają poprawną datę i lokalizację, ale pozostają `REVIEW_REQUIRED` bez czasu i nie są automatycznie zapisywane do kalendarza.
+**Założenie aplikacji od Build246:** po zakończeniu raw verified-source weryfikacji brakujące godziny mogą zostać operacyjnie uzupełnione z powtarzalnego wzorca, ale wyłącznie wtedy, gdy ten sam znormalizowany przedmiot + typ zajęć + dokładny zestaw grup ma co najmniej 2 kompletne wystąpienia z identycznym zakresem godzin i nie istnieje konkurencyjny wzorzec. To nie zmienia faktu źródłowego ani fingerprintu. Uzupełnienie jest oznaczone jako założenie i każda późniejsza jawna godzina z oficjalnego planu ma pierwszeństwo.
+
+Analogiczna zasada może uzupełnić brakującą lokalizację, jeśli co najmniej 2 kompletne, kompatybilne wystąpienia wskazują dokładnie tę samą lokalizację. Data/dzień nigdy nie są w ten sposób inferowane.
 
 ### POZ - zajęcia praktyczne
 
@@ -211,7 +213,7 @@ Wszystkie 168 wpisów `REVIEW_REQUIRED` wynika z jawnych braków źródła:
 - 84 x INTERNA / prof. R. Stec - brak pełnego zakresu godzin,
 - 84 x POZ zajęcia praktyczne - brak jednoznacznego dnia i pełnych godzin; część nie ma jeszcze jednoznacznej lokalizacji.
 
-Nie są to wpisy do automatycznego zapisania w kalendarzu.
+W **surowym wyniku parsera** nie są to wpisy do automatycznego zapisania w kalendarzu. Od Build246 post-verification warstwa założeń może odzyskać brakującą godzinę/lokalizację tylko przy rygorystycznym konsensusie opisanym wyżej; raw status/fingerprint pozostaje bez zmian.
 
 ## Przykład walidacji grupy 2
 
@@ -239,7 +241,7 @@ Jeżeli właściwa podgrupa użytkownika to `2B2`, wynik należy liczyć z `G4:2
 - nie poprawiać literówek dat w źródle przez domysł,
 - nie tworzyć wydarzeń dla e-learningu bez konkretnej daty i czasu,
 - nie zgadywać podgrupy G4 użytkownika,
-- brak źródłowej informacji ma pozostać jawnie niepełny, a nie zostać uzupełniony heurystyką.
+- raw parser nie uzupełnia braku źródłowej informacji heurystyką; dopiero po raw verification aplikacyjna warstwa Build246 może uzupełnić brakującą godzinę/lokalizację z >=2 zgodnych wystąpień, z provenance i bez inferowania daty/dnia.
 
 ## Aktualny fingerprint i audyt jakości źródła - Build226
 
@@ -321,6 +323,16 @@ Po zainstalowaniu zależności można uruchomić:
 Runner używa produkcyjnego readera XLS/XLSX i produkcyjnego adapter registry. Nie ma osobnej logiki interpretacji planu. Nowy plan może zmienić liczby audytu; wtedy należy najpierw ustalić, czy jest to rzeczywista zmiana źródła, błąd parsera czy poprawna nowa struktura, a dopiero potem aktualizować `CURRENT_STATE.activeStudyAudit` i tę mapę.
 
 
+
+## Build246 - aplikacyjne założenia powtarzalnego wzorca
+
+Build246 nie zmienia interpretacji surowego XLS/XLSX i nie zmienia `verified-study-plan.ts`. Nowa warstwa działa dopiero po `verifyStudyPlanSource()`.
+
+Reguła jest uniwersalna: ten sam znormalizowany przedmiot, typ zajęć i dokładny zestaw grup musi mieć co najmniej 2 kompletne, zgodne wystąpienia. Tylko wtedy można uzupełnić brakującą godzinę i/lub lokalizację. Konkurencyjne wartości blokują inferencję. Jawna wartość źródłowa nie jest nadpisywana, a brakująca data/dzień pozostają niepełne.
+
+Wynik przechowuje `inferredFields` i `inferenceNotes`, a UI oznacza wpis jako `Założenie z powtarzalnego wzorca`. Przy kolejnym oficjalnym planie jawna wartość ma pierwszeństwo i jest obsługiwana przez normalny diff aktualizacji.
+
+W tej sesji exact plik 25.09 nie był zamontowany do ponownego runtime audytu, dlatego dokument nie deklaruje nowej dokładnej liczby operacyjnie uzupełnionych wpisów. Raw verified counts/fingerprinty pozostają bez zmian; exact-source enrichment count należy potwierdzić przy następnym QA tego pliku.
 
 ## Build228 - Verified Study Plan Runtime Guard
 

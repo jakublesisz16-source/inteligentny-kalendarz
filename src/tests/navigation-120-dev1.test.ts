@@ -26,10 +26,11 @@ describe('1.2.0.x simplified product surface', () => {
     expect(app).not.toContain("view === 'locations'");
   });
 
-  it('preserves the legacy modules on disk for deliberate future reactivation', () => {
-    expect(existsSync(new URL('../shopping/ShoppingView.tsx', import.meta.url))).toBe(true);
-    expect(existsSync(new URL('../cycle/CycleView.tsx', import.meta.url))).toBe(true);
-    expect(existsSync(new URL('../locations/LocationsView.tsx', import.meta.url))).toBe(true);
+  it('removes superseded player-facing legacy views after the Build246 source cleanup', () => {
+    expect(existsSync(new URL('../shopping/ShoppingView.tsx', import.meta.url))).toBe(false);
+    expect(existsSync(new URL('../shopping/ExpensesView.tsx', import.meta.url))).toBe(false);
+    expect(existsSync(new URL('../cycle/CycleView.tsx', import.meta.url))).toBe(false);
+    expect(existsSync(new URL('../locations/LocationsView.tsx', import.meta.url))).toBe(false);
   });
 
   it('keeps the data schema unchanged because this dev only changes product surface and branding', () => {

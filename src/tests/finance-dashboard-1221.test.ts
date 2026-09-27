@@ -36,10 +36,10 @@ describe('finance dashboard foundation regression', () => {
     expect(dashboard).not.toContain('aggregateExpensesByMerchant');
   });
 
-  it('preserves the legacy finance engine instead of deleting it', () => {
-    const legacy = source('../shopping/ExpensesView.tsx');
-    expect(legacy).toContain('ReceiptScanFlow');
-    expect(legacy).toContain('aggregateExpensesByProduct');
-    expect(legacy).toContain('createExpenseCategory');
+  it('uses the canonical Finance dashboard and does not keep the superseded ExpensesView player-facing shell', () => {
+    const dashboard = source('../finance/FinanceDashboardView.tsx');
+    expect(dashboard).toContain('ReceiptScanFlow');
+    expect(dashboard).toContain('createExpenseCategory');
+    expect(dashboard).toContain('FinanceQuickExpenseModal');
   });
 });

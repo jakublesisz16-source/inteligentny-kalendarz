@@ -26,6 +26,8 @@ for (const path of [
   '.github/workflows/ci.yml',
   '.github/workflows/pages.yml',
   'package.json',
+  'docs/PROJECT_LEDGER.md',
+  'docs/PROJECT_FILE_INVENTORY.md',
   'src/core/version.ts',
   'public/manifest.webmanifest',
   'public/service-worker.js',
@@ -34,6 +36,7 @@ for (const path of [
   'scripts/checkpoint-state-gate.mjs',
   'scripts/checkpoint-manifest.mjs',
   'scripts/checkpoint-gate.mjs',
+  'scripts/source-hygiene-gate.mjs',
   'scripts/study-mobile-smoke.mjs',
   'vitest.public.config.ts',
   'vitest.private.config.ts',
@@ -51,7 +54,7 @@ if (!failures.length) {
   const packageJson = JSON.parse(source('package.json'));
   for (const script of [
     'check', 'check:public', 'test:public', 'test:private', 'security:public',
-    'security:dependencies', 'release:preflight', 'release:local', 'study:mobile-smoke', 'checkpoint:state', 'checkpoint:manifest', 'checkpoint:gate'
+    'security:dependencies', 'release:preflight', 'release:local', 'study:mobile-smoke', 'source:hygiene', 'checkpoint:state', 'checkpoint:manifest', 'checkpoint:gate'
   ]) {
     if (!packageJson.scripts?.[script]) failures.push(`package.json missing script: ${script}`);
   }

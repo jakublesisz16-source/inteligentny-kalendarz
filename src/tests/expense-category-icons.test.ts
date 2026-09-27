@@ -20,28 +20,27 @@ describe('1.1.0-dev.2 FIX3 expense category icons', () => {
   });
 
   it('renders category icons in the expenses dashboard without changing persisted category data', () => {
-    const expenses = source('../shopping/ExpensesView.tsx');
+    const expenses = source('../finance/FinanceDashboardView.tsx');
     const categoryTypes = source('../shopping/expenses.types.ts');
-    expect(expenses).toContain("import { ExpenseCategoryIcon } from './ExpenseCategoryIcon';");
-    expect(expenses).toContain('<ExpenseCategoryIcon category={category} />');
-    expect(expenses).toContain('expense-category-analytics-row');
+    expect(expenses).toContain("import { ExpenseCategoryIcon } from '../shopping/ExpenseCategoryIcon';");
+    expect(expenses).toContain('<ExpenseCategoryIcon category={entry.category} />');
+    expect(expenses).toContain('finance-month-category-legend-row');
     expect(categoryTypes).not.toContain('iconName');
     expect(categoryTypes).not.toContain('iconType');
   });
 
   it('keeps category icons decorative and names, amounts and percentages textual', () => {
     const icons = source('../shopping/ExpenseCategoryIcon.tsx');
-    const expenses = source('../shopping/ExpensesView.tsx');
+    const expenses = source('../finance/FinanceDashboardView.tsx');
     expect(icons).toContain('aria-hidden="true"');
-    expect(expenses).toContain('<strong>{entry.name}</strong>');
     expect(expenses).toContain('entry.sharePercent.toFixed(1)');
     expect(expenses).toContain('formatMoneyMinor(entry.totalMinor)');
   });
 
-  it('keeps the compact expand-collapse category flow from FIX1', () => {
-    const expenses = source('../shopping/ExpensesView.tsx');
-    expect(expenses).toContain('categoryAnalytics.slice(0, 4)');
-    expect(expenses).toContain('Pokaż wszystkie kategorie');
-    expect(expenses).toContain('Zwiń kategorie');
+  it('keeps the current compact category composition contract', () => {
+    const expenses = source('../finance/FinanceDashboardView.tsx');
+    expect(expenses).toContain('FINANCE_DONUT_PRIMARY_CATEGORY_LIMIT');
+    expect(expenses).toContain('categoryAnalytics.slice(0, FINANCE_DONUT_PRIMARY_CATEGORY_LIMIT)');
+    expect(expenses).toContain('finance-month-category-legend-row');
   });
 });

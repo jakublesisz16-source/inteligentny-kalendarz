@@ -26,13 +26,4 @@ describe('0.6.0 Cycle Journal isolation', () => {
     expect(serviceWorker).not.toContain('painMedicationTaken');
   });
 
-  it('refreshes journal CRUD locally instead of using global onDataChanged', () => {
-    const view = source('../cycle/CycleView.tsx');
-    const saveBlock = view.slice(view.indexOf('async function saveJournalEditor'), view.indexOf('async function removeJournalEditor'));
-    const removeBlock = view.slice(view.indexOf('async function removeJournalEditor'), view.indexOf('async function saveEndToday'));
-    expect(saveBlock).toContain('refreshJournal()');
-    expect(removeBlock).toContain('refreshJournal()');
-    expect(saveBlock).not.toContain('onDataChanged');
-    expect(removeBlock).not.toContain('onDataChanged');
-  });
 });

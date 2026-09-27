@@ -1,11 +1,11 @@
 {
   "name": "inteligentny-kalendarz",
   "private": true,
-  "version": "1.2.0-private.244",
+  "version": "1.2.0-private.248",
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build && node scripts/production-audit.mjs && node scripts/service-worker-gate.mjs && node scripts/release-safety-gate.mjs && node scripts/travel-release-gate.mjs && node scripts/security-release-gate.mjs",
+    "build": "tsc -b && vite build && node scripts/source-hygiene-gate.mjs && node scripts/production-audit.mjs && node scripts/service-worker-gate.mjs && node scripts/release-safety-gate.mjs && node scripts/travel-release-gate.mjs && node scripts/security-release-gate.mjs",
     "typecheck": "tsc -b --pretty false",
     "test": "npm run test:public",
     "check": "npm run check:public",
@@ -31,7 +31,8 @@
     "checkpoint:manifest": "node scripts/checkpoint-manifest.mjs",
     "checkpoint:gate": "node scripts/checkpoint-gate.mjs",
     "study:mobile-smoke": "node scripts/study-mobile-smoke.mjs",
-    "receipt:corpus:qa": "node scripts/receipt-private-corpus-qa.mjs"
+    "receipt:corpus:qa": "node scripts/receipt-private-corpus-qa.mjs",
+    "source:hygiene": "node scripts/source-hygiene-gate.mjs"
   },
   "dependencies": {
     "react": "^19.1.1",

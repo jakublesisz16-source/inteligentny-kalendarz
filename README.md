@@ -8,10 +8,12 @@ Czytaj w tej kolejności:
 
 1. `CURRENT_PROJECT_RULES.md` - stałe zasady produktu i pracy,
 2. `CURRENT_STATE.json` - maszynowy bieżący stan,
-3. `HANDOFF_NEW_CHAT.md` - co dokładnie jest gotowe i co robić dalej,
-4. `docs/CURRENT_PRODUCT_STATE.md` - obecne zachowanie modułów,
-5. `docs/ROADMAP.md` - przyszłość i priorytety,
-6. właściwy `project-skills/*/SKILL.md` dla rodzaju zadania.
+3. `docs/PROJECT_LEDGER.md` - kanoniczne decyzje, założenia i otwarte punkty,
+4. `docs/PROJECT_FILE_INVENTORY.md` - właściciele plików, cleanup i świadome wyjątki,
+5. `HANDOFF_NEW_CHAT.md` - co dokładnie jest gotowe i co robić dalej,
+6. `docs/CURRENT_PRODUCT_STATE.md` - obecne zachowanie modułów,
+7. `docs/ROADMAP.md` - przyszłość i priorytety,
+8. właściwy `project-skills/*/SKILL.md` dla rodzaju zadania.
 
 Nie rekonstruuj stanu z nazw starych buildów. Aktualny clean checkpoint celowo nie zawiera jednorazowych build-docs ani historycznych proof scripts.
 
@@ -55,7 +57,9 @@ Aktualny katalog `docs/` jest celowo mały:
 - `QA_RELEASE.md` - testy i wydanie,
 - `MILESTONES.md` - skondensowana historia,
 - `PRIVACY.md` - prywatność,
-- `STUDY_PLAN_II_2026_MAPPING.md` - aktywna mapa źródła planu.
+- `STUDY_PLAN_II_2026_MAPPING.md` - aktywna mapa źródła planu,
+- `PROJECT_LEDGER.md` - kanoniczny rejestr decyzji, założeń i otwartych punktów,
+- `PROJECT_FILE_INVENTORY.md` - inwentarz plików, cleanup i świadomie zachowane moduły.
 
 ## PRIVATE / PUBLIC
 

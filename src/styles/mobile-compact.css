@@ -272,8 +272,6 @@
     border-radius: var(--mobile-compact-radius);
     box-shadow: none;
   }
-  .consistency-card.impact-blocking,
-  .consistency-card.impact-warning { border-left-width: 1px; }
   .consistency-impact { min-height: 19px; padding-inline: 6px; font-size: .53rem; }
   .consistency-card-top h3 { margin: 4px 0 2px; font-size: .86rem; }
   .consistency-card-top p,

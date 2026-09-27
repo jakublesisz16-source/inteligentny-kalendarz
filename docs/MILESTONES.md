@@ -183,3 +183,22 @@ Real-device screenshots po Build242 wykazały nakładające się historyczne kon
 ## Build244 - Historical Finance Mobile Test Contract Cleanup
 
 Dependency-complete Windows Build243 validation wykonała 1855 testów PASS i zatrzymała release wyłącznie na dwóch przestarzałych asercjach historycznych CSS. Build244 aktualizuje Build213/236 regression contracts do zaakceptowanej geometrii Build243 i robi Build243 version assertion odporną na kolejne buildy. Produkt pozostaje bez zmian.
+
+
+## Build245 - Minimal Status Accent Polish
+
+Real-device QA po Build244 wskazał niespójny, ciężki kolorowy rail po lewej stronie kart `Spójność kalendarza`. Build245 usuwa kolorowe pionowe status borders zarówno z tych kart, jak i z historycznie podobnych `diff-card` Studiów. Zamiast tego pozostaje neutralny border i bardzo subtelny gradient tła wraz z istniejącym statusem/chipem. Zakres jest wyłącznie wizualny; logika konfliktów i schema 14 bez zmian.
+
+
+## Build246 - Study Recurring Pattern Assumptions + Source Cleanup
+
+Build246 rozdziela raw-source truth od użytkowego założenia planu. `verifyStudyPlanSource()` nadal weryfikuje niezmieniony surowy wynik, a dopiero później `applyRecurringStudyPatternAssumptions()` może wypełnić brakującą godzinę/lokalizację, gdy co najmniej 2 kompletne wystąpienia tego samego przedmiotu, typu i grup wskazują dokładnie tę samą wartość. Nie inferuje daty/dnia, nie nadpisuje jawnych danych i zapisuje provenance. Równolegle usunięto superseded player-facing shells (stare Shopping/Expenses/Cycle/Locations/dekoracje), dodano kanoniczny ledger/inwentarz i `source:hygiene` gate. Schema 14 i frozen Receipt parser bez zmian.
+
+## Build247 - Windows release-blocker closure
+
+Build247 nie zmienia produktu. Po dependency-complete Windows QA Build246 poprawia dwa błędy TS2379 w nowym teście recurring-pattern oraz fałszywe FAIL `source:hygiene` dla lokalnego `.git`, `node_modules` i rootowych `tsbuildinfo`. Odpowiedzialność za brak tych artefaktów w paczkach pozostaje w checkpoint/public package gates.
+
+
+## Build248 - stale Study test-contract cleanup
+
+Build248 nie zmienia produktu. Po Windows QA Build247 aktualizuje dwa historyczne testy tekstowe do aktualnego przepływu `enrichedResult` i stabilnego kontraktu recurring-pattern backfillu. Strict TypeScript, security audit, release preflight i source hygiene były już zielone w Build247; pełny public suite wymaga ponownego uruchomienia po tej korekcie.

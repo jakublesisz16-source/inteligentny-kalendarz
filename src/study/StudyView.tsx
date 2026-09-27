@@ -4,6 +4,7 @@ import { validateCandidateForImport } from '../imports/xlsx/import-validation';
 import { readSpreadsheetFile } from '../imports/xlsx/spreadsheet-reader';
 import { canonicalizeStudyGroupSelection, formatStudyGroupList, normalizeStudyGroupSelectionForAvailableGroups, studyGroupCompactLabel, studyGroupDisplayLabel } from '../imports/xlsx/group-normalizer';
 import {
+  applyRecurringAssumptionsToActiveStudyPlan,
   applyUniversityScheduleUpdate,
   cancelScheduleUpdate,
   commitUniversityImport,
@@ -27,6 +28,7 @@ import { identifyCandidate } from './study-identity';
 import { candidatesForSelectedGroups, findStudyScheduleConflicts, hashFile, validateStudyGroupSelection } from './study.service';
 import { completenessForSelectedGroups } from './study-completeness';
 import { verifyStudyPlanSource } from './verified-study-plan';
+import { applyRecurringStudyPatternAssumptions } from './study-recurring-pattern-assumptions';
 import { ScheduleDiffView } from './ScheduleDiffView';
 import { StudyGroupPreviewPanel } from './StudyGroupPreviewPanel';
 import { StudyGroupChoiceFields, studyGroupChoiceProgress } from './StudyGroupChoiceFields';
@@ -79,6 +81,14 @@ function candidateLabel(candidate: StudyScheduleCandidate): string {
       : 'brak daty';
   const time = candidate.startTime && candidate.endTime ? `${candidate.startTime}-${candidate.endTime}` : 'brak godzin';
   return `${date} - ${time}`;
+}
+
+function candidateInferenceLabel(candidate: StudyScheduleCandidate): string {
+  const fields = candidate.inferredFields ?? [];
+  const labels: string[] = [];
+  if (fields.includes('startTime') || fields.includes('endTime')) labels.push('godziny');
+  if (fields.some((field) => field === 'clinic' || field === 'address' || field === 'locationLabel' || field === 'room')) labels.push('lokalizacja');
+  return labels.length ? `Założenie z powtarzalnego wzorca: ${labels.join(' + ')}` : '';
 }
 
 function seriesPeerCount(candidates: StudyScheduleCandidate[], candidate: StudyScheduleCandidate): number {
@@ -192,6 +202,7 @@ export function StudyView({ onDataChanged }: StudyViewProps) {
   useEffect(() => { void refreshStudyData(); }, []);
 
   async function refreshStudyData() {
+    const assumptionUpdate = await applyRecurringAssumptionsToActiveStudyPlan();
     const [loadedImports, profile, active, latestUpdate] = await Promise.all([
       listUniversityImports(),
       getStudyProfile(),
@@ -202,6 +213,7 @@ export function StudyView({ onDataChanged }: StudyViewProps) {
     setProfileGroups(profile?.selectedGroups ?? []);
     setActiveImport(active ?? null);
     setLatestAppliedUpdate(latestUpdate ?? null);
+    if (assumptionUpdate.addedEventCount > 0 || assumptionUpdate.updatedEventCount > 0) await onDataChanged();
   }
 
   async function processFile(file: File) {
@@ -242,24 +254,25 @@ export function StudyView({ onDataChanged }: StudyViewProps) {
         setDiagnostics(verification.reasons);
         return;
       }
-      setAnalysis(result);
+      const enrichedResult = applyRecurringStudyPatternAssumptions(result);
+      setAnalysis(enrichedResult);
       setFileMeta({ file, hash, verification });
 
       const preferredGroups = normalizeStudyGroupSelectionForAvailableGroups(
-        result.groups,
-        canonicalizeStudyGroupSelection((profileGroups.length ? profileGroups : activeImport?.selectedGroups ?? []).filter((group) => result.groups.includes(group))),
+        enrichedResult.groups,
+        canonicalizeStudyGroupSelection((profileGroups.length ? profileGroups : activeImport?.selectedGroups ?? []).filter((group) => enrichedResult.groups.includes(group))),
       );
-      if (!result.groups.length) {
-        preparePreview(result, []);
+      if (!enrichedResult.groups.length) {
+        preparePreview(enrichedResult, []);
         return;
       }
-      if (result.groups.length === 1) {
-        preparePreview(result, [result.groups[0]!]);
+      if (enrichedResult.groups.length === 1) {
+        preparePreview(enrichedResult, [enrichedResult.groups[0]!]);
         return;
       }
-      const rememberedValidation = validateStudyGroupSelection(result.groups, preferredGroups);
+      const rememberedValidation = validateStudyGroupSelection(enrichedResult.groups, preferredGroups);
       if (preferredGroups.length && rememberedValidation.valid) {
-        preparePreview(result, preferredGroups);
+        preparePreview(enrichedResult, preferredGroups);
         return;
       }
       setSelectedGroups(preferredGroups);
@@ -379,6 +392,7 @@ export function StudyView({ onDataChanged }: StudyViewProps) {
   const selectedWarningCount = useMemo(() => workingCandidates.filter((candidate) => candidate.include && reviewCandidate(candidate).state === 'WARNING').length, [workingCandidates]);
   const manuallyExcludedCount = useMemo(() => workingCandidates.filter((candidate) => !candidate.include && reviewCandidate(candidate).canImport).length, [workingCandidates]);
   const reviewedCount = workingCandidates.filter((candidate) => candidate.manuallyReviewed && candidate.include).length;
+  const inferredPreviewCount = workingCandidates.filter((candidate) => (candidate.inferredFields?.length ?? 0) > 0).length;
 
   async function continueAfterPreview() {
     if (!analysis || !fileMeta || invalidIncluded.length || !importable.length) return;
@@ -582,7 +596,7 @@ export function StudyView({ onDataChanged }: StudyViewProps) {
             <summary><span><strong>Szczegóły</strong><small>{attentionCount ? `${attentionCount} uwag` : `${workingCandidates.length} wpisów`}</small></span><span className="study-details-action">Pokaż</span></summary>
             <div className="study-review-details-body">
               {analysis.information.length || analysis.warnings.length ? <details className="study-source-notes-v207"><summary><strong>Informacje z planu</strong><span>{analysis.information.length + analysis.warnings.length}</span></summary><div>{analysis.information.map((item) => <div key={item.id} className="study-information"><strong>{item.title}</strong><span>{item.message}</span></div>)}{analysis.warnings.map((warning) => <div key={warning} className="study-information warning-info">{warning}</div>)}</div></details> : null}
-              {selectedCompleteness ? <details className="study-source-audit-v207" open={!selectedCompleteness.safe}><summary><strong>Kontrola źródła</strong><span>{selectedCompleteness.completeBlockCount}/{selectedCompleteness.sourceBlockCount} bloków · {selectedCompleteness.incompleteSourceBlockCount} niepełnych · godziny {strictHourAudits.filter((audit) => audit.status === 'MATCH').length}/{strictHourAudits.length}</span></summary><div className="study-source-audit-body-v207">{incompleteHourAudits.length ? <div className="study-completeness-note"><strong>{incompleteHourAudits.length} bilansów godzin jest niepełnych.</strong><span>Te pozycje pozostają tylko do wglądu.</span></div> : null}{advisoryHourInconsistencies.length ? <div className="study-completeness-note advisory"><strong>{advisoryHourInconsistencies.length} deklaracji godzin nie zgadza się z terminami.</strong><span>Zachowujemy daty i godziny z planu.</span></div> : null}{selectedCompleteness.reasons.length ? <div className="inline-error">{selectedCompleteness.reasons.join(' ')}</div> : null}</div></details> : null}
+              {selectedCompleteness ? <details className="study-source-audit-v207" open={!selectedCompleteness.safe}><summary><strong>Kontrola źródła</strong><span>{selectedCompleteness.completeBlockCount}/{selectedCompleteness.sourceBlockCount} bloków · {selectedCompleteness.incompleteSourceBlockCount} niepełnych · godziny {strictHourAudits.filter((audit) => audit.status === 'MATCH').length}/{strictHourAudits.length}</span></summary><div className="study-source-audit-body-v207">{incompleteHourAudits.length ? <div className="study-completeness-note"><strong>{incompleteHourAudits.length} bilansów godzin jest niepełnych.</strong><span>{inferredPreviewCount ? `${inferredPreviewCount} wpisów uzupełniono z jednoznacznego powtarzalnego wzorca; pozostałe braki nadal wymagają weryfikacji.` : 'Te pozycje pozostają tylko do wglądu.'}</span></div> : null}{advisoryHourInconsistencies.length ? <div className="study-completeness-note advisory"><strong>{advisoryHourInconsistencies.length} deklaracji godzin nie zgadza się z terminami.</strong><span>Zachowujemy daty i godziny z planu.</span></div> : null}{selectedCompleteness.reasons.length ? <div className="inline-error">{selectedCompleteness.reasons.join(' ')}</div> : null}</div></details> : null}
 
               <div className="preview-toolbar study-review-toolbar study-review-toolbar-v207"><div><h3>Wpisy</h3></div><div className="preview-filters" role="group" aria-label="Filtr wpisów"><button type="button" className={previewFilter === 'all' ? 'filter-button active' : 'filter-button'} onClick={() => setPreviewFilter('all')}>Wszystkie {workingCandidates.length}</button>{warningPreviewCount ? <button type="button" className={previewFilter === 'warning' ? 'filter-button active' : 'filter-button'} onClick={() => setPreviewFilter('warning')}>Do sprawdzenia {warningPreviewCount}</button> : null}{incompletePreviewCount ? <button type="button" className={previewFilter === 'incomplete' ? 'filter-button active' : 'filter-button'} onClick={() => setPreviewFilter('incomplete')}>Niepełne {incompletePreviewCount}</button> : null}{blockingPreviewCount ? <button type="button" className={previewFilter === 'blocking' ? 'filter-button active' : 'filter-button'} onClick={() => setPreviewFilter('blocking')}>Do poprawy {blockingPreviewCount}</button> : null}</div></div>
               <section className="preview-selection preview-selection-v207" aria-label="Wybór wpisów do importu"><div className="preview-selection-summary"><strong>{importable.length} wybranych</strong><span>{manuallyExcludedCount ? `${manuallyExcludedCount} pominiętych ręcznie` : 'Bezpieczne wpisy są już zaznaczone'}</span></div>{manuallyExcludedCount ? <button type="button" className="button button-secondary button-small" onClick={() => setWorkingCandidates((current) => selectAllImportable(current))}>Przywróć wybór</button> : null}</section>
@@ -602,7 +616,7 @@ export function StudyView({ onDataChanged }: StudyViewProps) {
                         <div className="candidate-copy">
                           <div className="candidate-title-row"><h3>{candidate.subject || 'Nieustalony przedmiot'}</h3><span className={`status-pill ${stateClass}`}>{statusLabel}</span>{peerCount > 1 ? <span className="series-pill">Seria: {peerCount}</span> : null}</div>
                           <strong className="candidate-date">{candidateLabel(candidate)}</strong>
-                          <div className="candidate-meta">{candidate.activityType ? <span>{candidate.activityType}</span> : null}{candidate.groupTags.length ? <span>Grupy: {formatStudyGroupList(candidate.groupTags)}</span> : null}{candidate.clinic ? <span>{candidate.clinic}</span> : null}{candidate.room ? <span>{candidate.room}</span> : null}{candidate.address || candidate.locationLabel ? <span>{candidate.address ?? candidate.locationLabel}</span> : null}</div>
+                          <div className="candidate-meta">{candidate.activityType ? <span>{candidate.activityType}</span> : null}{candidate.groupTags.length ? <span>Grupy: {formatStudyGroupList(candidate.groupTags)}</span> : null}{candidate.clinic ? <span>{candidate.clinic}</span> : null}{candidate.room ? <span>{candidate.room}</span> : null}{candidate.address || candidate.locationLabel ? <span>{candidate.address ?? candidate.locationLabel}</span> : null}{candidate.inferredFields?.length ? <span className="candidate-pattern-assumption">{candidateInferenceLabel(candidate)}</span> : null}</div>
                           {review.issues.length ? <div className={`candidate-issues ${review.state === 'BLOCKING' ? 'blocking' : review.state === 'INCOMPLETE' ? 'incomplete' : 'warning'}`}><strong>{review.state === 'BLOCKING' ? 'Przed importem popraw:' : review.state === 'INCOMPLETE' ? 'Brak danych w planie źródłowym:' : 'Brakujące lub niepewne dane:'}</strong><ul>{review.issues.map((issue) => <li key={`${issue.code}-${issue.source ?? ''}`}><span>{issue.label}</span>{issue.source && issue.source !== issue.label ? <small>{issue.source}</small> : null}</li>)}</ul></div> : null}
                           <small className="source-ref">Źródło: {candidate.sourceSheet} {candidate.sourceRange}</small>
                         </div>

@@ -4,13 +4,13 @@ import { describe, expect, it } from 'vitest';
 function source(path: string): string { return readFileSync(new URL(path, import.meta.url), 'utf8'); }
 
 describe('1.1.0-dev.3 receipt OCR review contract', () => {
-  it('keeps scan separate from manual + Paragon and uses explicit review/save', () => {
-    const expenses = source('../shopping/ExpensesView.tsx');
+  it('keeps receipt scanning behind the canonical Finance surface and preserves explicit review/save', () => {
+    const finance = source('../finance/FinanceDashboardView.tsx');
     const flow = source('../shopping/receipt-ocr/ReceiptScanFlow.tsx');
     const review = source('../shopping/receipt-ocr/ReceiptScanReview.tsx');
-    expect(expenses).toContain('Skanuj paragon');
-    expect(expenses).toContain('+ Paragon');
-    expect(expenses).toContain("await createReceipt({ ...draft, source: 'receipt' })");
+    expect(finance).toContain('finance-scan-receipt');
+    expect(finance).toContain('openReceiptScan');
+    expect(finance).toContain("source: 'manual'");
     expect(review).toContain('Sprawdź paragon');
     expect(review).toContain('Zapisz paragon');
     expect(flow).not.toContain('createReceipt(');

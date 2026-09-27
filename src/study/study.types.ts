@@ -59,6 +59,7 @@ export interface ParsedStudyLocation {
 }
 
 export type StudyCandidateManualField = 'subject' | 'date' | 'startTime' | 'endTime' | 'room' | 'address' | 'clinic' | 'locationLabel';
+export type StudyCandidateInferredField = 'startTime' | 'endTime' | 'clinic' | 'room' | 'address' | 'locationLabel';
 
 export interface StudyScheduleCandidate {
   id: string;
@@ -84,6 +85,8 @@ export interface StudyScheduleCandidate {
   include?: boolean;
   manuallyReviewed?: boolean;
   manuallyModifiedFields?: StudyCandidateManualField[];
+  inferredFields?: StudyCandidateInferredField[];
+  inferenceNotes?: string[];
   occurrenceKey?: string;
   seriesKey?: string;
   sourceWeekStart?: string;
@@ -118,6 +121,9 @@ export interface ScheduleDiagnostics {
   suspiciousUnparsedWeekRows?: number[];
   unappliedDateExceptionCount?: number;
   unappliedDateExceptionSamples?: string[];
+  recurringPatternInferredCandidateCount?: number;
+  recurringPatternInferredTimeCandidateCount?: number;
+  recurringPatternInferredLocationCandidateCount?: number;
 }
 
 export interface ScheduleAnalysis {
@@ -178,6 +184,8 @@ export interface UniversityImportEntry {
   address?: string;
   locationLabel?: string;
   warnings: string[];
+  inferredFields?: StudyCandidateInferredField[];
+  inferenceNotes?: string[];
   occurrenceKey?: string;
   seriesKey?: string;
   userDeleted?: boolean;

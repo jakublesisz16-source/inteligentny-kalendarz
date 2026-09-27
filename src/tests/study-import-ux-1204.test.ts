@@ -25,10 +25,10 @@ describe('1.2.0.4 simplified Study import flow', () => {
 
   it('skips group selection when it is unnecessary or a remembered selection remains valid', () => {
     const view = source('../study/StudyView.tsx');
-    expect(view).toContain('if (!result.groups.length)');
-    expect(view).toContain('if (result.groups.length === 1)');
+    expect(view).toContain('if (!enrichedResult.groups.length)');
+    expect(view).toContain('if (enrichedResult.groups.length === 1)');
     expect(view).toContain('rememberedValidation.valid');
-    expect(view).toContain('preparePreview(result, preferredGroups)');
+    expect(view).toContain('preparePreview(enrichedResult, preferredGroups)');
   });
 
   it('shows a compact summary before write and keeps detailed corrections available on demand', () => {
