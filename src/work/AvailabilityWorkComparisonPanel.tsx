@@ -82,11 +82,11 @@ export function AvailabilityWorkComparisonPanel({ plans, workEvents, workImports
   const comparison = useMemo(() => snapshot ? compareAvailabilityWithWorkSchedule(snapshot, relevantWorkEvents.map((event) => ({ id: event.id, startDateTime: event.startDateTime, endDateTime: event.endDateTime }))) : undefined, [relevantWorkEvents, snapshot]);
 
   if (!sentPlans.length) {
-    return <section className="panel work-comparison-card"><div className="panel-heading compact-heading"><div><span className="section-kicker">Zgodność z dyspozycyjnością</span><h2>Brak wysłanej wersji</h2></div></div><div className="work-comparison-empty-action"><p className="muted-copy">Oznacz zaakceptowaną dyspozycyjność jako wysłaną, aby porównać ją z grafikiem.</p><button type="button" className="button button-secondary button-small" onClick={onOpenAvailability}>Przejdź do Dyspozycyjności</button></div></section>;
+    return <section className="panel work-comparison-card work-comparison-card-empty"><div className="panel-heading compact-heading"><div><span className="section-kicker">Zgodność z dyspozycyjnością</span><h2>Brak wysłanej wersji</h2></div></div><div className="work-comparison-empty-action"><p className="muted-copy">Oznacz zaakceptowaną dyspozycyjność jako wysłaną, aby porównać ją z grafikiem.</p><button type="button" className="button button-secondary button-small" onClick={onOpenAvailability}>Przejdź do Dyspozycyjności</button></div></section>;
   }
 
   if (!activeImport) {
-    return <section className="panel work-comparison-card"><div className="panel-heading compact-heading"><div><span className="section-kicker">Zgodność z dyspozycyjnością</span><h2>Grafik jeszcze niezaimportowany</h2></div></div><p className="muted-copy">Dyspozycyjność jest zapisana. Zaimportuj grafik pracy, aby sprawdzić zgodność.</p><button type="button" className="button button-secondary button-small" onClick={onImportClick}>Importuj grafik PDF</button></section>;
+    return <section className="panel work-comparison-card work-comparison-card-empty"><div className="panel-heading compact-heading"><div><span className="section-kicker">Zgodność z dyspozycyjnością</span><h2>Grafik jeszcze niezaimportowany</h2></div></div><p className="muted-copy">Dyspozycyjność jest zapisana. Zaimportuj grafik pracy, aby sprawdzić zgodność.</p><button type="button" className="button button-secondary button-small" onClick={onImportClick}>Importuj grafik PDF</button></section>;
   }
 
   if (!plan || !snapshot || !comparison) return null;

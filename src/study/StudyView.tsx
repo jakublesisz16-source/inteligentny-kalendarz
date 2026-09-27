@@ -568,7 +568,7 @@ export function StudyView({ onDataChanged }: StudyViewProps) {
           <div className="form-flow-body">
             <StudyGroupChoiceFields availableGroups={analysis.groups} selectedGroups={selectedGroups} onChange={setSelectedGroups} ariaLabel="Wybór grup do importu" />
             {!groupSelectionValidation.valid ? <div className="inline-validation warning" role="status"><strong>Uzupełnij wybór</strong><span>{groupSelectionValidation.errors.join(' ')}</span></div> : null}
-            <section className="context-note"><strong>Jak aplikacja łączy grupy?</strong><p>Grupa 4-osobowa automatycznie obejmuje odpowiadającą jej grupę 8-osobową i grupę główną. Grupę 12-osobową wybierasz osobno.</p></section>
+            <section className="context-note"><strong>Jak wybierane są zajęcia?</strong><p>Każdy przydział wybierasz niezależnie. Aplikacja dodaje tylko zajęcia przypisane w Excelu do wskazanej grupy głównej, 12-osobowej, 8-osobowej i 4-osobowej.</p></section>
           </div>
           <footer className="panel-action-footer"><button type="button" className="button button-secondary" onClick={() => resetFlow()}>Wybierz inny plik</button><button type="button" className="button button-primary" disabled={!groupSelectionValidation.valid} onClick={goToPreview}>Pokaż mój plan</button></footer>
         </section>

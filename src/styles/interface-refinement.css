@@ -4586,3 +4586,144 @@ body.modal-open { overflow: hidden; }
     margin-top: 4px;
   }
 }
+
+
+/* Build249 - final mobile polish + Study reality-check closure. */
+.work-overview-simple .work-comparison-card-empty {
+  border-color: color-mix(in srgb, var(--line) 72%, transparent);
+  background: linear-gradient(145deg, color-mix(in srgb, var(--surface-soft) 42%, var(--surface)) 0%, var(--surface) 72%);
+  box-shadow: none;
+}
+.work-overview-simple .work-comparison-card-empty .section-kicker {
+  color: var(--text-muted);
+  font-size: .62rem;
+  font-weight: 700;
+  letter-spacing: .015em;
+  text-transform: none;
+}
+.work-overview-simple .work-comparison-card-empty h2 {
+  margin-top: 2px;
+  font-size: .92rem;
+}
+.work-overview-simple .work-comparison-card-empty .work-comparison-empty-action {
+  align-items: start;
+}
+
+@media (max-width: 620px) {
+  /* Finance rows stay directly editable, but controls read as quiet metadata until tapped. */
+  .finance-expense-section-v177 .finance-purchase-table tbody tr,
+  .finance-expense-section-v177 .finance-purchase-table tbody tr.is-category-review-row,
+  .finance-expense-section-v177 .finance-purchase-table tbody tr.is-necessity-review-row:not(.is-category-review-row) {
+    row-gap: 5px;
+    padding: 10px 10px 9px;
+  }
+  .finance-expense-section-v177 .finance-purchase-category-column,
+  .finance-expense-section-v177 .finance-purchase-necessity-column {
+    align-self: center;
+  }
+  .finance-expense-section-v177 .finance-category-select,
+  .finance-expense-section-v177 .finance-necessity-select {
+    min-height: 32px;
+    padding-block: 3px;
+    border-color: color-mix(in srgb, var(--line) 68%, transparent);
+    background: color-mix(in srgb, var(--surface-soft) 54%, var(--surface));
+    box-shadow: none;
+    font-size: .62rem;
+    font-weight: 680;
+  }
+  .finance-expense-section-v177 .finance-category-select:not(.is-review),
+  .finance-expense-section-v177 .finance-necessity-select:not(.is-assessment) {
+    color: color-mix(in srgb, var(--text) 88%, var(--text-muted));
+  }
+  .finance-expense-section-v177 .finance-category-select.is-review,
+  .finance-expense-section-v177 .finance-necessity-select.is-assessment {
+    border-color: color-mix(in srgb, var(--accent) 28%, var(--line));
+    background: color-mix(in srgb, var(--accent-soft) 42%, var(--surface));
+  }
+  .finance-expense-section-v177 .finance-category-select:focus-visible,
+  .finance-expense-section-v177 .finance-necessity-select:focus-visible {
+    border-color: color-mix(in srgb, var(--accent) 52%, var(--line));
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent-soft) 68%, transparent);
+    outline: 0;
+  }
+
+  /* Empty Work comparison is guidance, not an alert card. */
+  .work-overview-simple .work-comparison-card-empty {
+    padding: 10px 11px;
+  }
+  .work-overview-simple .work-comparison-card-empty .panel-heading {
+    margin-bottom: 4px;
+  }
+  .work-overview-simple .work-comparison-card-empty .work-comparison-empty-action {
+    display: grid;
+    justify-items: start;
+    gap: 7px;
+  }
+  .work-overview-simple .work-comparison-card-empty .muted-copy {
+    max-width: 34rem;
+    font-size: .66rem;
+    line-height: 1.4;
+  }
+  .work-overview-simple .work-comparison-card-empty .work-comparison-empty-action .button {
+    width: auto;
+    min-height: 34px;
+    padding-inline: 11px;
+    border-color: color-mix(in srgb, var(--line) 78%, transparent);
+    background: color-mix(in srgb, var(--surface) 84%, transparent);
+    font-size: .65rem;
+  }
+
+  /* Calendar header: keep controls available but let the month/week grid dominate. */
+  .calendar-view-shell .calendar-view-header {
+    gap: 5px;
+    margin-bottom: 5px;
+  }
+  .calendar-primary-controls-minimal {
+    gap: 5px;
+  }
+  .calendar-primary-controls-minimal .calendar-view-switch {
+    padding: 1px;
+    border-color: color-mix(in srgb, var(--line) 68%, transparent);
+    background: color-mix(in srgb, var(--surface-soft) 58%, transparent);
+  }
+  .calendar-primary-controls-minimal .calendar-view-switch button,
+  .calendar-mobile-filter-actions .calendar-filter-select select,
+  .calendar-mobile-filter-actions .calendar-mobile-explicit-add {
+    min-height: 34px;
+  }
+  .calendar-primary-controls-minimal .calendar-view-switch button {
+    padding-inline: 7px;
+    border-radius: 9px;
+    font-size: .67rem;
+  }
+  .calendar-mobile-filter-actions .calendar-filter-select select {
+    border-color: color-mix(in srgb, var(--line) 72%, transparent);
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--surface) 92%, transparent);
+    font-size: .67rem;
+  }
+  .calendar-mobile-filter-actions .calendar-mobile-explicit-add {
+    min-width: 68px;
+    padding-inline: 9px;
+    border-radius: 10px;
+    font-size: .66rem;
+  }
+  .calendar-view-shell .calendar-toolbar-modern {
+    gap: 4px;
+    padding-block: 1px 6px;
+  }
+  .calendar-view-shell .calendar-toolbar-modern .icon-button.soft {
+    width: 30px;
+    height: 30px;
+    border-color: transparent;
+    background: color-mix(in srgb, var(--accent-soft) 32%, transparent);
+    box-shadow: none;
+  }
+  .calendar-toolbar-modern .calendar-today-button {
+    min-height: 30px;
+    padding-inline: 8px;
+    border-color: color-mix(in srgb, var(--line) 72%, transparent);
+    background: transparent;
+    font-size: .64rem;
+  }
+}

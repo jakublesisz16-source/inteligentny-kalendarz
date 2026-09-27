@@ -127,38 +127,15 @@ export function sortStudyGroups(groups: string[]): string[] {
 }
 
 export function canonicalizeStudyGroupSelection(groups: string[]): string[] {
-  const uniqueGroups = [...new Set(groups)];
-  const g4Numbers = new Set(
-    uniqueGroups
-      .map(parseStudyGroupKey)
-      .filter((group) => group.kind === 'G4' && group.number)
-      .map((group) => group.number!),
-  );
-
-  // G4 jednoznacznie określa odpowiadającą grupę G8. Nie przechowujemy więc
-  // drugiego, ręcznego wyboru G8 dla tej samej grupy głównej - zapobiega to
-  // ukrytym/starym kombinacjom typu G4:2B1 + G8:2A.
-  return sortStudyGroups(uniqueGroups.filter((group) => {
-    const parsed = parseStudyGroupKey(group);
-    return !(parsed.kind === 'G8' && parsed.number && g4Numbers.has(parsed.number));
-  }));
+  // Każdy poziom grupy jest niezależnym przydziałem ze źródła. Nie wyprowadzamy
+  // G8 z G4 ani żadnego innego poziomu z kształtu etykiety.
+  return sortStudyGroups([...new Set(groups)]);
 }
 
-export function normalizeStudyGroupSelectionForAvailableGroups(availableGroups: string[], groups: string[]): string[] {
-  const canonical = canonicalizeStudyGroupSelection(groups);
-  const mainNumbersWithG4 = new Set(
-    availableGroups
-      .map(parseStudyGroupKey)
-      .filter((group) => group.kind === 'G4' && group.number)
-      .map((group) => group.number!),
-  );
-
-  // Jeżeli dany plan udostępnia dokładny podział G4, G8 jest informacją pochodną
-  // i nie może pozostać ukrytym wyborem z wcześniejszego profilu lub buildu.
-  return sortStudyGroups(canonical.filter((group) => {
-    const parsed = parseStudyGroupKey(group);
-    return !(parsed.kind === 'G8' && parsed.number && mainNumbersWithG4.has(parsed.number));
-  }));
+export function normalizeStudyGroupSelectionForAvailableGroups(_availableGroups: string[], groups: string[]): string[] {
+  // Normalizacja porządkuje i deduplikuje wybór, ale nie usuwa niezależnych
+  // przydziałów. Nieznane grupy pozostają widoczne dla warstwy walidacji.
+  return canonicalizeStudyGroupSelection(groups);
 }
 
 function hasExplicitGroupContext(text: string): boolean {
@@ -240,19 +217,9 @@ export function normalizeGroupText(text: string, allowBare = false): NormalizedG
 }
 
 function encodedGroupMatches(candidate: ParsedStudyGroupKey, selected: ParsedStudyGroupKey): boolean {
-  if (candidate.kind === selected.kind && candidate.label === selected.label) return true;
-  if (!candidate.number || !selected.number || candidate.number !== selected.number) return false;
-
-  // Zajęcia całej grupy głównej dotyczą każdej podgrupy o tym samym numerze.
-  if (candidate.kind === 'MAIN') return true;
-
-  // Grupa 4-osobowa jest jednoznacznie częścią odpowiadającej jej grupy 8-osobowej.
-  if (candidate.kind === 'G8' && selected.kind === 'G4') {
-    return Boolean(candidate.letter && candidate.letter === selected.letter);
-  }
-
-  // Podział 12-osobowy przecina podział 8-osobowy, więc nie wolno go wyprowadzać z litery.
-  return false;
+  // Runtime selection is source-exact: type + label must match the independently
+  // selected assignment. No cross-partition inference is allowed.
+  return candidate.kind === selected.kind && candidate.label === selected.label;
 }
 
 export function groupSetsIntersect(candidateGroups: string[], selectedGroups: string[]): boolean {

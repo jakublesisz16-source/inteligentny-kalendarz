@@ -9,7 +9,7 @@ const privateExtensions = new Set(['.xls', '.xlsx', '.pdf', '.ikbackup', '.zip',
 const textExtensions = new Set(['.ts', '.tsx', '.js', '.mjs', '.cjs', '.json', '.md', '.txt', '.html', '.css', '.svg', '.webmanifest', '.ps1', '.yml', '.yaml']);
 
 const verifiedLocalStudySource = {
-  relativePath: 'licencjat-ii-rok-piel.-25.09.2026.xls',
+  relativePath: 'private-fixtures/study/licencjat-ii-rok-piel.-25.09.2026.xls',
   sizeBytes: 148_992,
   sha256: 'b6279b96e8cdfc7a95b9c7199686db424ef84e315215a03545957aee413964e4',
 };

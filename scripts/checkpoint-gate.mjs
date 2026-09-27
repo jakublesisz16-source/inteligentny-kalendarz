@@ -14,8 +14,12 @@ if (stateGate.status !== 0) failures.push((stateGate.stderr || stateGate.stdout 
 const hygieneGate = spawnSync(process.execPath, ['scripts/checkpoint-hygiene-gate.mjs'], { cwd: root, encoding: 'utf8' });
 if (hygieneGate.status !== 0) failures.push((hygieneGate.stderr || hygieneGate.stdout || 'checkpoint hygiene gate failed').trim());
 
+const studySourceGate = spawnSync(process.execPath, ['scripts/study-private-source-gate.mjs'], { cwd: root, encoding: 'utf8' });
+if (studySourceGate.status !== 0) failures.push((studySourceGate.stderr || studySourceGate.stdout || 'private Study source gate failed').trim());
+
 const forbiddenDirs = new Set(['node_modules', 'dist', 'coverage', '.git', '.benchmark-dist', '_PRIVATE_HISTORY', '_LOCAL_ONLY']);
 const forbiddenExt = new Set(['.zip', '.7z', '.rar', '.xls', '.xlsx', '.pdf', '.ikbackup', '.tsbuildinfo', '.log', '.tmp', '.orig', '.rej']);
+const allowedPrivateSpreadsheet = 'private-fixtures/study/licencjat-ii-rok-piel.-25.09.2026.xls';
 
 function filesUnder(dir) {
   const result = [];
@@ -29,7 +33,7 @@ function filesUnder(dir) {
     } else {
       const dot = name.lastIndexOf('.');
       const ext = dot >= 0 ? name.slice(dot).toLowerCase() : '';
-      if (forbiddenExt.has(ext)) failures.push(`forbidden checkpoint file: ${rel}`);
+      if (forbiddenExt.has(ext) && rel !== allowedPrivateSpreadsheet) failures.push(`forbidden checkpoint file: ${rel}`);
       result.push(full);
     }
   }

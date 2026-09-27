@@ -1604,9 +1604,9 @@
   border-radius: 999px;
   display: inline-flex;
   align-items: center;
-  background: var(--warning-soft);
-  color: var(--warning);
-  border: 1px solid color-mix(in srgb, var(--warning) 24%, transparent);
+  background: var(--surface-soft);
+  color: var(--text-muted);
+  border: 1px solid var(--line);
   font-size: .58rem;
   font-weight: 900;
 }
@@ -1617,14 +1617,14 @@
   justify-content: space-between;
   gap: 10px;
   padding: 11px 12px;
-  border: 1px solid color-mix(in srgb, var(--warning) 28%, var(--line));
+  border: 1px solid var(--line);
   border-radius: 12px;
-  background: color-mix(in srgb, var(--warning-soft) 72%, var(--surface));
+  background: var(--surface-soft);
 }
 .study-incomplete-card > div { display: grid; gap: 3px; min-width: 0; }
 .study-incomplete-card strong { font-size: .76rem; }
 .study-incomplete-card span { color: var(--text-muted); font-size: .68rem; line-height: 1.4; }
-.study-incomplete-card small { flex: 0 0 auto; color: var(--warning); font-size: .62rem; font-weight: 800; }
+.study-incomplete-card small { flex: 0 0 auto; color: var(--text-muted); font-size: .62rem; font-weight: 800; }
 
 /* 1.1.0-rc.9 - source completeness summary */
 .study-completeness-panel { display: grid; gap: 14px; }
@@ -4809,3 +4809,49 @@ button.finance-overview-category-chip.is-active { background: var(--surface-soft
 .finance-receipt-edit-currency-context span { color: var(--text-muted); font-size: .63rem; }
 .finance-receipt-edit-currency-context strong { font-size: .82rem; overflow-wrap: anywhere; }
 .finance-receipt-edit-currency-context p { margin: 0; color: var(--text-muted); font-size: .66rem; line-height: 1.45; }
+
+/* 1.2.0.253 - Study source information stays visible without inventing dates or times. */
+.calendar-week-study-source-strip {
+  display: grid;
+  grid-template-columns: 58px minmax(0, 1fr);
+  min-width: 760px;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface-soft);
+}
+.calendar-week-study-source-label {
+  min-height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  border-right: 1px solid var(--line);
+  color: var(--text-muted);
+  font-size: .55rem;
+  font-weight: 850;
+}
+.calendar-week-study-source-list {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px;
+  overflow-x: auto;
+}
+.calendar-week-study-source-entry {
+  min-width: 0;
+  max-width: min(520px, 100%);
+  min-height: 28px;
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  padding: 4px 7px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+  cursor: default;
+}
+.calendar-week-study-source-entry strong { flex: 0 0 auto; font-size: .62rem; }
+.calendar-week-study-source-entry small { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-muted); font-size: .58rem; }
+.study-incomplete-meta { color: var(--text-muted) !important; font-size: .62rem !important; }
+.study-incomplete-source-hint { color: var(--text) !important; font-weight: 700; }

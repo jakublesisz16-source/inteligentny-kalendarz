@@ -72,3 +72,7 @@ Publiczne wydanie powinno być tworzone dopiero po zielonym CI oraz Visual QA na
 ## Higiena źródeł
 
 `npm run source:hygiene` buduje statyczny graf importów runtime + benchmark roots, blokuje nieoczekiwane osierocone moduły, powrót superseded player-facing plików i przypadkowe archiwa/backupi/logi. Celowe moduły poza runtime mają małą jawną allowlistę opisaną w `PROJECT_FILE_INVENTORY.md`.
+
+### Study group assignment contract - Build250
+
+For the active WUM plan, group selection is not a hierarchy. `MAIN`, `G12`, `G8` and `G4` are independent source dimensions. Runtime matching is exact on encoded kind + label. The UI may scope available labels to the selected MAIN number because that grouping exists in the source, but it must not infer G8 from G4 or mutate one partition when another is changed. Future workbook layouts are re-audited manually before adapter/mapping changes.

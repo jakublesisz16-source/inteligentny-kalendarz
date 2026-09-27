@@ -67,31 +67,26 @@ describe('normalizeGroupText hardening', () => {
     expect(groupSetsIntersect(['13A'], ['13A'])).toBe(true);
   });
 
-  it('rozróżnia grupy 12-, 8- i 4-osobowe i dziedziczy tylko relacje jednoznaczne', () => {
-    expect(groupSetsIntersect(['MAIN:13'], ['G4:13A1'])).toBe(true);
-    expect(groupSetsIntersect(['G8:13A'], ['G4:13A1'])).toBe(true);
+  it('traktuje MAIN, G12, G8 i G4 jako niezależne przydziały', () => {
+    expect(groupSetsIntersect(['MAIN:13'], ['G4:13A1'])).toBe(false);
+    expect(groupSetsIntersect(['G8:13A'], ['G4:13A1'])).toBe(false);
     expect(groupSetsIntersect(['G12:13A'], ['G4:13A1'])).toBe(false);
     expect(groupSetsIntersect(['G12:13A'], ['G8:13A'])).toBe(false);
+    expect(groupSetsIntersect(['G8:13A'], ['G8:13A'])).toBe(true);
     expect(groupSetsIntersect(['G4:13A1'], ['G4:13A2'])).toBe(false);
   });
 
 
-  it('usuwa redundantny wybór G8, gdy dokładna grupa G4 już go wyznacza', () => {
-    expect(canonicalizeStudyGroupSelection(['MAIN:2', 'G12:2A', 'G8:2B', 'G4:2B1'])).toEqual([
-      'MAIN:2', 'G12:2A', 'G4:2B1',
-    ]);
-    expect(canonicalizeStudyGroupSelection(['MAIN:2', 'G12:2A', 'G8:2B'])).toEqual([
-      'MAIN:2', 'G12:2A', 'G8:2B',
+  it('zachowuje wszystkie niezależne wybory grup', () => {
+    expect(canonicalizeStudyGroupSelection(['MAIN:2', 'G12:2A', 'G8:2C', 'G4:2B1'])).toEqual([
+      'MAIN:2', 'G12:2A', 'G8:2C', 'G4:2B1',
     ]);
   });
 
-  it('usuwa ukryty stary wybór G8, jeśli aktualny plan wymaga dokładnego G4', () => {
-    const available = ['MAIN:2', 'G12:2A', 'G8:2A', 'G8:2B', 'G4:2A1', 'G4:2A2', 'G4:2B1', 'G4:2B2'];
-    expect(normalizeStudyGroupSelectionForAvailableGroups(available, ['MAIN:2', 'G12:2A', 'G8:2B'])).toEqual([
-      'MAIN:2', 'G12:2A',
-    ]);
-    expect(normalizeStudyGroupSelectionForAvailableGroups(['MAIN:2', 'G12:2A', 'G8:2B'], ['MAIN:2', 'G12:2A', 'G8:2B'])).toEqual([
-      'MAIN:2', 'G12:2A', 'G8:2B',
+  it('nie usuwa G8 tylko dlatego, że plan ma także G4', () => {
+    const available = ['MAIN:2', 'G12:2A', 'G8:2A', 'G8:2B', 'G8:2C', 'G4:2A1', 'G4:2A2', 'G4:2B1', 'G4:2B2'];
+    expect(normalizeStudyGroupSelectionForAvailableGroups(available, ['MAIN:2', 'G12:2A', 'G8:2C', 'G4:2A1'])).toEqual([
+      'MAIN:2', 'G12:2A', 'G8:2C', 'G4:2A1',
     ]);
   });
 

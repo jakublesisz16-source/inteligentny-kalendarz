@@ -2789,3 +2789,14 @@
     scrollbar-gutter: auto;
   }
 }
+
+/* 1.2.0.253 - phone Week keeps source information compact and explicit. */
+@media (max-width: 620px) {
+  .calendar-week-study-source-strip { grid-template-columns: 50px minmax(0, 1fr); min-width: 0; }
+  .calendar-week-study-source-label { min-width: 0; padding-inline: 2px; font-size: .49rem; }
+  .calendar-week-study-source-list { padding: 4px; }
+  .calendar-week-study-source-entry { width: 100%; max-width: none; align-items: flex-start; flex-direction: column; gap: 1px; }
+  .calendar-week-study-source-entry strong { font-size: .63rem; }
+  .calendar-week-study-source-entry small { width: 100%; font-size: .56rem; }
+  .study-incomplete-marker { max-width: calc(100% - 8px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+}

@@ -7,6 +7,7 @@ import { analyzeScheduleWorkbook } from '../imports/xlsx/adapter-registry';
 import { readSpreadsheetFile } from '../imports/xlsx/spreadsheet-reader';
 import { auditSelectedStudyProfile, buildStudySourceAudit } from '../study/study-source-audit';
 import { candidatesForSelectedGroups } from '../study/study.service';
+import { applyRecurringStudyPatternAssumptions } from '../study/study-recurring-pattern-assumptions';
 import { candidateSemanticFingerprint } from '../study/verified-study-plan';
 
 const sourcePath = process.env.IK_STUDY_XLS_PATH;
@@ -51,8 +52,8 @@ describe('optional real study source QA audit', () => {
     expect(report.groupKinds.GENERIC).toBe(0);
 
     // Jeżeli testujemy dokładnie aktywne źródło bieżącego checkpointu, raport musi
-    // pozostać zgodny z zapisaną bazą QA. Sam XLS nie trafia do repozytorium -
-    // test korzysta z pliku podanego przez IK_STUDY_XLS_PATH.
+    // pozostać zgodny z zapisaną bazą QA. Dokładny XLS jest przechowywany wyłącznie
+    // w PRIVATE recovery i test korzysta z pliku podanego przez IK_STUDY_XLS_PATH.
     const state = existsSync('CURRENT_STATE.json') ? JSON.parse(await readFile('CURRENT_STATE.json', 'utf8')) as {
       activeStudySourceFingerprint?: { sha256?: string };
       activeStudyAudit?: Record<string, unknown>;
@@ -70,6 +71,18 @@ describe('optional real study source QA audit', () => {
       activeStudySemanticReference?: {
         allCandidatesSha256?: string;
         selectedProfileCandidatesSha256?: string;
+      };
+      activeStudyOperationalProfile?: {
+        selectedGroups: string[];
+        candidateCount: number;
+        importableCount: number;
+        readyCount: number;
+        warningCount: number;
+        incompleteCount: number;
+        blockingCount: number;
+        conflictCount: number;
+        importableMonthCounts: Record<string, number>;
+        candidatesSha256?: string;
       };
     } : null;
     if (state?.activeStudySourceFingerprint?.sha256?.toLowerCase() === hash) {
@@ -95,6 +108,27 @@ describe('optional real study source QA audit', () => {
         if (state.activeStudySemanticReference?.selectedProfileCandidatesSha256) {
           expect(await candidateSemanticFingerprint(candidatesForSelectedGroups(analysis!, state.activeStudyQaProfile.selectedGroups)))
             .toBe(state.activeStudySemanticReference.selectedProfileCandidatesSha256);
+        }
+      }
+      if (state.activeStudyOperationalProfile) {
+        const enriched = applyRecurringStudyPatternAssumptions(analysis!);
+        const operational = auditSelectedStudyProfile(enriched, state.activeStudyOperationalProfile.selectedGroups);
+        expect(operational).toEqual({
+          selectedGroups: state.activeStudyOperationalProfile.selectedGroups,
+          valid: true,
+          validationErrors: [],
+          candidateCount: state.activeStudyOperationalProfile.candidateCount,
+          importableCount: state.activeStudyOperationalProfile.importableCount,
+          readyCount: state.activeStudyOperationalProfile.readyCount,
+          warningCount: state.activeStudyOperationalProfile.warningCount,
+          incompleteCount: state.activeStudyOperationalProfile.incompleteCount,
+          blockingCount: state.activeStudyOperationalProfile.blockingCount,
+          conflictCount: state.activeStudyOperationalProfile.conflictCount,
+          importableMonthCounts: state.activeStudyOperationalProfile.importableMonthCounts,
+        });
+        if (state.activeStudyOperationalProfile.candidatesSha256) {
+          expect(await candidateSemanticFingerprint(candidatesForSelectedGroups(enriched, state.activeStudyOperationalProfile.selectedGroups)))
+            .toBe(state.activeStudyOperationalProfile.candidatesSha256);
         }
       }
     }

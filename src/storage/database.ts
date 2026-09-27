@@ -3274,8 +3274,15 @@ export async function prepareGroupRecalculation(selectedGroups: string[]): Promi
     }
   }
   const correctionRules = await listStudyCorrectionRules();
+  // Build249: group recalculation is another operational materialization path.
+  // Keep raw source entries untouched, but apply the same post-verification recurring
+  // assumptions used by import/backfill before selecting the target group set.
+  const operationalSourceAnalysis = {
+    ...sourceAnalysis,
+    candidates: applyRecurringPatternToCandidates(sourceAnalysis.candidates).candidates,
+  };
   const correctedTargetCandidates = applyCorrectionRules(
-    candidatesForSelectedGroups(sourceAnalysis, selectedGroups).map(identifyCandidate),
+    candidatesForSelectedGroups(operationalSourceAnalysis, selectedGroups).map(identifyCandidate),
     correctionRules,
   ).candidates;
   const targetCandidates = correctedTargetCandidates.filter((candidate) => reviewCandidate(candidate).canImport && candidate.date && candidate.startTime && candidate.endTime);
@@ -4829,7 +4836,11 @@ export async function buildStudyGroupPreview(selectedGroups: string[]): Promise<
     information: [],
     warnings: [],
   } satisfies import('../study/study.types').ScheduleAnalysis;
-  const candidates = candidatesForSelectedGroups(analysis, selectedGroups).map(identifyCandidate);
+  const operationalAnalysis = {
+    ...analysis,
+    candidates: applyRecurringPatternToCandidates(analysis.candidates).candidates,
+  };
+  const candidates = candidatesForSelectedGroups(operationalAnalysis, selectedGroups).map(identifyCandidate);
   return {
     activeImportId: active.id,
     sourceFileName: active.fileName,

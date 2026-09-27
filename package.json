@@ -1,7 +1,7 @@
 {
   "name": "inteligentny-kalendarz",
   "private": true,
-  "version": "1.2.0-private.248",
+  "version": "1.2.0-private.254",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -32,7 +32,8 @@
     "checkpoint:gate": "node scripts/checkpoint-gate.mjs",
     "study:mobile-smoke": "node scripts/study-mobile-smoke.mjs",
     "receipt:corpus:qa": "node scripts/receipt-private-corpus-qa.mjs",
-    "source:hygiene": "node scripts/source-hygiene-gate.mjs"
+    "source:hygiene": "node scripts/source-hygiene-gate.mjs",
+    "study:current-source:qa": "node scripts/study-current-source-audit.mjs"
   },
   "dependencies": {
     "react": "^19.1.1",

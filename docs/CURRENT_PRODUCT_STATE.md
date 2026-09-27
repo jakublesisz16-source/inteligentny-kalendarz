@@ -82,11 +82,11 @@ Build248 jest wąskim cleanupem dwóch przestarzałych kontraktów testowych na 
 
 ## Studia
 
-- Aktywny plan referencyjny: II rok pielęgniarstwa, semestr zimowy 2026/2027, źródło `licencjat-ii-rok-piel.-25.09.2026.xls` poza checkpointem. Exact plik jest rozpoznawany po SHA-256 i dopiero pełna zgodność fingerprintu wszystkich kandydatów, audytu MAIN/G12/G8/G4 oraz profilu 7/7A/7B2 daje status `ZWERYFIKOWANY`.
+- Aktywny plan referencyjny: II rok pielęgniarstwa, semestr zimowy 2026/2027, źródło `licencjat-ii-rok-piel.-25.09.2026.xls` poza checkpointem. Exact plik jest rozpoznawany po SHA-256 i dopiero pełna zgodność fingerprintu wszystkich kandydatów, audytu MAIN/G12/G8/G4 oraz profilu `7 / 7A / 7B / 7B2` daje status `ZWERYFIKOWANY`.
 - Znane bajty z inną semantyką są blokowane. Plik o tej samej nazwie i innym SHA-256 jest nowym źródłem, nie dziedziczy statusu verified.
 - Przyszły Excel korzysta z uniwersalnego parsera i istniejącego `prepareUniversityScheduleUpdate`, który pokazuje diff dat, czasu, lokalizacji, grup, dodań i usunięć przed zapisem.
 - Aktywna mapa: `docs/STUDY_PLAN_II_2026_MAPPING.md`; runtime reference: `src/study/verified-study-plan.ts`.
-- Model grup MAIN/G12/G8/G4 i bezpieczny review importu pozostają bez zmian. Nie utrzymujemy drugiej statycznej kopii 2313 rekordów.
+- Model grup MAIN/G12/G8/G4 pozostaje zgodny ze źródłem, ale od Build250 wszystkie cztery partycje są wybierane niezależnie i ręcznie. Nie utrzymujemy drugiej statycznej kopii 2313 rekordów.
 
 ## Dane i prywatność
 
@@ -121,7 +121,7 @@ Build232 nie dodaje Excela do repozytorium ani checkpointu. Security gate akcept
 
 ## Build233 verified Study closure
 
-Build233 nie zmienia produktu. Promuje zamrożony stan do verified PRIVATE po runtime QA exact źródła 25.09. Dla profilu 7 / 7A / 7B2 zmiana grup z wcześniej zaimportowanych 72 zdarzeń pokazała `+54 / -50 / 22 bez zmian`, czyli 76 zdarzeń po zastosowaniu, oraz 3 niepełne wpisy pozostające poza kalendarzem. Konflikt 08.10.2026 `POZ seminaria 12:00-15:45` vs `CHIRURGIA 15:00-16:30` został zachowany, oba wydarzenia są w Kalendarzu, a UI pokazuje warning o 45-minutowym overlapie.
+Build233 nie zmienia produktu. Promuje zamrożony stan do verified PRIVATE po runtime QA exact źródła 25.09. Dla profilu 7 / 7A / 7B / 7B2 zmiana grup z wcześniej zaimportowanych 72 zdarzeń pokazała `+54 / -50 / 22 bez zmian`, czyli 76 zdarzeń po zastosowaniu, oraz 3 niepełne wpisy pozostające poza kalendarzem. Konflikt 08.10.2026 `POZ seminaria 12:00-15:45` vs `CHIRURGIA 15:00-16:30` został zachowany, oba wydarzenia są w Kalendarzu, a UI pokazuje warning o 45-minutowym overlapie.
 
 
 ## Build234 verified Service Worker closure
@@ -191,3 +191,42 @@ Real-device QA Kalendarza pokazał pozostawioną z wcześniejszego języka UI cz
 ## Build248 - stale Study test-contract cleanup
 
 Windows Build247 QA potwierdził strict TypeScript PASS i 1858 testów PASS z dwoma stale source-text assertions. Build248 aktualizuje test UX do `enrichedResult.groups` oraz test backfillu do stabilnych kontraktów zachowania/journala. Produkt pozostaje bez zmian.
+
+
+## Build249 - mobile polish + Study operational consistency
+
+- Mobile Finance Items keeps direct category/necessity editing but renders those controls as quieter metadata rather than large form fields.
+- Empty Work availability-comparison states are guidance cards, not warning/status cards: neutral border/background, smaller copy and compact action.
+- Mobile Calendar keeps the same controls and behavior but reduces visual weight in the view/filter/add row and period navigation so the grid remains dominant.
+- Group recalculation and alternate-group preview now use the same post-verification recurring-pattern assumption layer as normal import and active backfill. Stored raw `sourceOnly` entries remain unchanged.
+- No change to raw XLS/XLSX parsing, exact verified 25.09 fingerprints, Receipt OCR/parser or IndexedDB schema 14.
+- Real-device screenshots on 27.09 show the Study group controls as 10 / 10B / 10B2, but this visual observation is not treated as canonical persisted active-import proof until runtime data is checked.
+
+## Build250 - canonical Study group selection
+
+- Active 25.09 mapping remains the canonical current-plan reference. The raw parser and all-candidate verified fingerprint are unchanged.
+- The previous UI/runtime shortcut G4 -> G8 is removed. MAIN, G12, G8 and G4 are independent assignments coming from the Excel structure.
+- Current-plan group counts remain MAIN 14, G12 28, G8 42, G4 84. For one MAIN group this means one MAIN choice plus 2 possible G12, 3 possible G8 and 6 possible G4 labels.
+- Runtime event filtering uses exact partition kind + exact label. An intentionally mixed assignment such as `10 / 10A / 10C / 10A2` is valid when those four labels exist in their respective partitions.
+- Existing profiles that were saved under the old three-field UI are not silently inferred. If G8 exists in the source and is missing from the stored selection, Study shows the missing assignment and requires an explicit manual choice before recalculation.
+- Verified QA profile is now written explicitly as `MAIN:7 + G12:7A + G8:7B + G4:7B2`, preserving the previously verified candidate set without cross-partition inference.
+
+
+## Build251 - Study exact source state
+
+Aktualny plan 25.09 jest teraz samowystarczalnie zachowany w PRIVATE recovery i chroniony przez hash gate. Dla profilu `MAIN 4 / G12 4A / G8 4B / G4 4C1` exact XLS daje 79 wpisów surowych, 76 od razu importowalnych i 3 niepełne. Recurring-pattern assumptions uzupełniają godzinę dwóch terminów Interny 17-18.12, więc stan operacyjny ma 78 wydarzeń i 1 nierozstrzygnięty wpis POZ praktyczne. Publiczny runtime parser i schema 14 pozostają bez zmian.
+
+
+## Build252 - Study copy fix
+
+Model MAIN/G12/G8/G4, exact XLS 25.09 i wynik 78 operacyjnych wydarzeń pozostają bez zmian. Build252 poprawia wyłącznie gramatykę komunikatu walidacji, gdy użytkownik wybierze więcej niż jedną grupę w tej samej partycji.
+
+## Build253 - wierne informacje źródłowe w Kalendarzu
+
+Kalendarz pokazuje teraz source-only informacje ze Studiów bez poziomów pewności i bez zgadywania. Jeżeli Excel wskazuje dokładny dzień, wpis pozostaje przy tym dniu. Jeżeli wskazuje wyłącznie tydzień, informacja jest prezentowana jako neutralna informacja dotycząca całego tygodnia, a nie jako sztuczne wydarzenie w konkretnym dniu. Dla POZ `G4:4C1` z 12-16.10 pokazywane są wyłącznie dane obecne w źródle, w tym wymiar 40 godz. i notatka o pierwszym spotkaniu od 8:30. Nie jest dopisywany wymyślony dzień ani pełny zakres godzin.
+
+
+
+## Build254 - stale kontrakt testu Studiów
+
+Windows Build253 ujawnił jedną nieaktualną asercję tekstową: test wymagał superseded zdania `to nie jest potwierdzone wydarzenie`, mimo że zaakceptowany Build253 celowo używa neutralnego `Informacja z planu` / `Informacja z planu studiów`. Build254 zmienia wyłącznie ten kontrakt testowy. Zachowanie Kalendarza i wszystkie dane planu pozostają bez zmian.

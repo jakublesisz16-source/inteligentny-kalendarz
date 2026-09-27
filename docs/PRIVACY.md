@@ -42,3 +42,8 @@ Przed przygotowaniem GitHub source działa sanitizator i public-package gate. Bl
 - sekrety i pliki środowiskowe,
 - niezatwierdzone zdjęcia, screenshoty, audio i wideo,
 - lokalne buildy, cache i archiwa.
+
+
+## Wyjątek świadomie zachowanego aktywnego planu Studiów - Build251
+
+Na jawną prośbę użytkownika aktualny `licencjat-ii-rok-piel.-25.09.2026.xls` jest zachowywany w PRIVATE recovery, aby kolejne rozmowy mogły wykonywać exact-source QA bez ponownego uploadu. Ten wyjątek dotyczy tylko prywatnego checkpointu. Plik nie może znaleźć się w PUBLIC, patchu PUBLIC ani repozytorium GitHub. Integralność jest sprawdzana przez nazwę, rozmiar 148992 B i SHA-256 `b6279b96e8cdfc7a95b9c7199686db424ef84e315215a03545957aee413964e4`.

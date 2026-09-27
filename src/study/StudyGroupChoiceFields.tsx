@@ -2,10 +2,10 @@ import { normalizeStudyGroupSelectionForAvailableGroups, parseStudyGroupKey, stu
 import { StudyGroupSelector } from './StudyGroupSelector';
 
 const STUDY_GROUP_PARTITIONS: Array<{ kind: Exclude<StudyGroupKind, 'GENERIC'>; label: string; helper: string }> = [
-  { kind: 'MAIN', label: 'Grupa główna', helper: 'Najpierw wybierz swoją grupę' },
-  { kind: 'G12', label: 'Grupa 12-osobowa', helper: 'Niezależny podział zajęć' },
-  { kind: 'G8', label: 'Grupa 8-osobowa', helper: 'Tylko gdy plan nie ma podziału 4-os.' },
-  { kind: 'G4', label: 'Grupa 4-osobowa', helper: 'Wyznacza też grupę 8-osobową' },
+  { kind: 'MAIN', label: 'Grupa główna', helper: '24-osobowa w obecnym planie' },
+  { kind: 'G12', label: 'Grupa 12-osobowa', helper: 'Niezależny przydział z planu' },
+  { kind: 'G8', label: 'Grupa 8-osobowa', helper: 'Niezależny przydział z planu' },
+  { kind: 'G4', label: 'Grupa 4-osobowa', helper: 'Niezależny przydział z planu' },
 ];
 
 interface StudyGroupChoiceFieldsProps {
@@ -32,9 +32,6 @@ function visiblePartitions(availableGroups: string[], selectedGroups: string[]) 
   return STUDY_GROUP_PARTITIONS.flatMap((partition) => {
     if (partition.kind !== 'MAIN' && !mainNumber) return [];
     const scopedGroups = parsedAvailable.filter(({ parsed }) => partition.kind === 'MAIN' || parsed.number === mainNumber);
-    const hasG4ForMain = scopedGroups.some(({ parsed }) => parsed.kind === 'G4');
-    if (partition.kind === 'G8' && hasG4ForMain) return [];
-    if (partition.kind === 'G4' && !hasG4ForMain) return [];
     const options = scopedGroups.filter(({ parsed }) => parsed.kind === partition.kind);
     if (!options.length) return [];
     return [{ ...partition, options }];

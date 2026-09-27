@@ -67,33 +67,19 @@ export function validateStudyGroupSelection(availableGroups: string[], selectedG
   const availableForMain = available.filter((group) => group.number === mainNumber);
   const selectedForMain = selected.filter((group) => group.number === mainNumber);
 
-  const requiredPartition = (kind: 'G12' | 'G8' | 'G4', label: string) => {
+  const requiredPartition = (kind: 'MAIN' | 'G12' | 'G8' | 'G4', label: string, accusativeLabel: string) => {
     if (!availableForMain.some((group) => group.kind === kind)) return;
     const count = selectedForMain.filter((group) => group.kind === kind).length;
     if (count === 0) errors.push(`Brakuje przypisania: ${label}.`);
-    if (count > 1) errors.push(`Wybrano więcej niż jedną ${label.toLowerCase()}. Wybierz dokładnie jedną.`);
+    if (count > 1) errors.push(`Wybrano więcej niż jedną ${accusativeLabel}. Wybierz dokładnie jedną.`);
   };
 
-  // Podział 4-osobowy jednoznacznie określa podział 8-osobowy, więc nie wymagamy osobnego kliknięcia G8.
-  // Podział 12-osobowy przecina podział 8-osobowy i zawsze musi być wskazany niezależnie, jeżeli występuje w planie.
-  requiredPartition('G12', 'grupa 12-osobowa');
-  const hasG4 = availableForMain.some((group) => group.kind === 'G4');
-  if (hasG4) requiredPartition('G4', 'grupa 4-osobowa');
-  else requiredPartition('G8', 'grupa 8-osobowa');
-
-  // G4 jednoznacznie wyznacza G8, dlatego przy planach z G4 wybór G8 jest opcjonalny.
-  // Jeżeli użytkownik mimo to zaznaczy G8, może wskazać najwyżej jedną i musi ona być
-  // zgodna z literą wybranej G4. Kilka G8 naraz oznaczałoby zajęcia różnych osób.
-  if (hasG4) {
-    const g8Count = selectedForMain.filter((group) => group.kind === 'G8').length;
-    if (g8Count > 1) errors.push('Wybrano więcej niż jedną grupę 8-osobową. Wybierz najwyżej jedną.');
-  }
-
-  const chosenG4 = selectedForMain.find((group) => group.kind === 'G4');
-  const chosenG8 = selectedForMain.find((group) => group.kind === 'G8');
-  if (chosenG4?.letter && chosenG8?.letter && chosenG4.letter !== chosenG8.letter) {
-    errors.push(`Grupa 4-osobowa ${chosenG4.label} należy do podgrupy ${mainNumber}${chosenG4.letter}, a wybrano inną grupę 8-osobową ${chosenG8.label}.`);
-  }
+  // Każdy podział obecny w Excelu jest niezależnym, ręcznym przydziałem.
+  // Nazwy grup nie tworzą hierarchii i nie mogą służyć do wyliczania innych wyborów.
+  requiredPartition('MAIN', 'grupa główna', 'grupę główną');
+  requiredPartition('G12', 'grupa 12-osobowa', 'grupę 12-osobową');
+  requiredPartition('G8', 'grupa 8-osobowa', 'grupę 8-osobową');
+  requiredPartition('G4', 'grupa 4-osobowa', 'grupę 4-osobową');
 
   return { valid: errors.length === 0, errors: [...new Set(errors)], mainNumber };
 }

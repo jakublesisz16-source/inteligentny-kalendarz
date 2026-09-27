@@ -8,10 +8,10 @@ interface StudyGroupSelectorProps {
 }
 
 const SECTION_ORDER: Array<{ kind: StudyGroupKind; title: string; description: string }> = [
-  { kind: 'MAIN', title: 'Grupa główna', description: 'Zajęcia wspólne dla całej grupy.' },
-  { kind: 'G12', title: 'Podgrupa 12-osobowa', description: 'Wybierz ją osobno - nie da się jej bezpiecznie wyliczyć z grupy 8- ani 4-osobowej.' },
-  { kind: 'G8', title: 'Podgrupa 8-osobowa', description: 'Jest automatycznie uwzględniana po wyborze odpowiadającej jej grupy 4-osobowej.' },
-  { kind: 'G4', title: 'Podgrupa 4-osobowa', description: 'Najdokładniejsze przypisanie - obejmuje też odpowiadającą grupę 8-osobową i grupę główną.' },
+  { kind: 'MAIN', title: 'Grupa główna', description: 'Niezależny przydział główny z planu zajęć.' },
+  { kind: 'G12', title: 'Grupa 12-osobowa', description: 'Niezależny przydział dokładnie z planu zajęć.' },
+  { kind: 'G8', title: 'Grupa 8-osobowa', description: 'Niezależny przydział dokładnie z planu zajęć.' },
+  { kind: 'G4', title: 'Grupa 4-osobowa', description: 'Niezależny przydział dokładnie z planu zajęć.' },
   { kind: 'GENERIC', title: 'Pozostałe grupy', description: 'Oznaczenia bez jednoznacznej informacji o wielkości grupy.' },
 ];
 

@@ -11,15 +11,18 @@ describe('1.2.0.146 Study mobile release smoke', () => {
     expect(smoke).toContain("await cdp.send('DOM.setFileInputFiles'");
   });
 
-  it('checks the exact group model and does not expose G8 when G4 is available', () => {
+  it('checks all four independent group assignments from the Excel', () => {
     expect(smoke).toContain("main: args.get('main') || process.env.STUDY_MAIN || ''");
     expect(smoke).toContain("g12: args.get('g12') || process.env.STUDY_G12 || ''");
+    expect(smoke).toContain("g8: args.get('g8') || process.env.STUDY_G8 || ''");
     expect(smoke).toContain("g4: args.get('g4') || process.env.STUDY_G4 || ''");
     expect(smoke).not.toContain("'MAIN:10'");
     expect(smoke).not.toContain("'G12:10A'");
+    expect(smoke).not.toContain("'G8:10B'");
     expect(smoke).not.toContain("'G4:10B2'");
-    expect(smoke).toContain('Grupa 8-osobowa');
-    expect(smoke).toContain("fail('G8 jest nadal ręcznym wyborem mimo dostępnego G4')");
+    expect(smoke).toContain('Wybierz: Grupa 8-osobowa');
+    expect(smoke).toContain('expectedGroups.g8');
+    expect(smoke).not.toContain('G8 jest nadal ręcznym wyborem mimo dostępnego G4');
   });
 
   it('verifies preview counts, committed IndexedDB events and Calendar handoff', () => {

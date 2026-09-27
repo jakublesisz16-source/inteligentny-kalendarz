@@ -17,6 +17,7 @@ const debugPort = Number(args.get('port') || 9444);
 const expectedGroups = {
   main: args.get('main') || process.env.STUDY_MAIN || '',
   g12: args.get('g12') || process.env.STUDY_G12 || '',
+  g8: args.get('g8') || process.env.STUDY_G8 || '',
   g4: args.get('g4') || process.env.STUDY_G4 || '',
 };
 const expectedImportableRaw = args.get('events') || process.env.STUDY_EVENTS || '';
@@ -93,7 +94,7 @@ async function shutdownBrowser(browserProcess, cdp, profile) {
 
 if (!studyFile) fail('podaj --file=... albo ustaw STUDY_FILE na aktywny XLS/XLSX');
 if (!existsSync(studyFile)) fail(`nie znaleziono pliku planu: ${studyFile}`);
-if (!expectedGroups.main || !expectedGroups.g12 || !expectedGroups.g4) fail('podaj --main=..., --g12=... i --g4=... (lub STUDY_MAIN/STUDY_G12/STUDY_G4)');
+if (!expectedGroups.main || !expectedGroups.g12 || !expectedGroups.g8 || !expectedGroups.g4) fail('podaj --main=..., --g12=..., --g8=... i --g4=... (lub STUDY_MAIN/STUDY_G12/STUDY_G8/STUDY_G4)');
 if (!expectedImportableRaw || !Number.isFinite(expectedImportable) || expectedImportable < 1) fail('podaj prawidłowe --events=... albo STUDY_EVENTS');
 if (!expectedIncompleteRaw || !Number.isFinite(expectedIncomplete) || expectedIncomplete < 0) fail('podaj prawidłowe --incomplete=... albo STUDY_INCOMPLETE');
 
@@ -380,17 +381,17 @@ async function runStudySmoke(cdp, width, height) {
   await chooseGroup(cdp, 'Wybierz: Grupa główna', expectedGroups.main);
   await waitFor(cdp, `Boolean(document.querySelector('select[aria-label="Wybierz: Grupa 12-osobowa"]'))`, 'select grupy 12-osobowej');
   await chooseGroup(cdp, 'Wybierz: Grupa 12-osobowa', expectedGroups.g12);
+  await waitFor(cdp, `Boolean(document.querySelector('select[aria-label="Wybierz: Grupa 8-osobowa"]'))`, 'select grupy 8-osobowej');
+  await chooseGroup(cdp, 'Wybierz: Grupa 8-osobowa', expectedGroups.g8);
   await waitFor(cdp, `Boolean(document.querySelector('select[aria-label="Wybierz: Grupa 4-osobowa"]'))`, 'select grupy 4-osobowej');
   await chooseGroup(cdp, 'Wybierz: Grupa 4-osobowa', expectedGroups.g4);
 
-  const groupState = await waitFor(cdp, `(() => {
+  await waitFor(cdp, `(() => {
     const progress = document.querySelector('.selection-progress')?.textContent?.trim() || '';
     const button = [...document.querySelectorAll('button')].find((item) => item.textContent?.trim() === 'Pokaż mój plan');
-    if (progress !== 'Wybór kompletny' || !button || button.disabled) return false;
-    const g8Visible = Boolean(document.querySelector('select[aria-label="Wybierz: Grupa 8-osobowa"]'));
-    return { progress, g8Visible, buttonDisabled: button.disabled };
-  })()`, 'kompletny wybór grup');
-  if (groupState.g8Visible) fail('G8 jest nadal ręcznym wyborem mimo dostępnego G4');
+    const g8 = document.querySelector('select[aria-label="Wybierz: Grupa 8-osobowa"]');
+    return progress === 'Wybór kompletny' && Boolean(button) && !button.disabled && Boolean(g8);
+  })()`, 'kompletny niezależny wybór czterech grup');
   await capture(cdp, `study-groups-mobile-${width}x${height}.png`);
 
   const previewClicked = await evaluate(cdp, `(() => {
@@ -437,7 +438,7 @@ async function runStudySmoke(cdp, width, height) {
   const database = await verifyDatabase(cdp);
   if (database.studyEventCount !== expectedImportable) fail(`IndexedDB ma ${database.studyEventCount} wydarzeń STUDY zamiast ${expectedImportable}`);
   if (database.importCount !== 1 || database.importedEventCount !== expectedImportable) fail(`rekord importu nie potwierdza ${expectedImportable} wydarzeń`);
-  const expected = [expectedGroups.main, expectedGroups.g12, expectedGroups.g4].sort();
+  const expected = [expectedGroups.main, expectedGroups.g12, expectedGroups.g8, expectedGroups.g4].sort();
   const stored = [...database.selectedGroups].sort();
   if (JSON.stringify(stored) !== JSON.stringify(expected)) fail(`zapisane grupy różnią się od oczekiwanych: ${stored.join(', ')}`);
   if (database.profileGroups.length && JSON.stringify([...database.profileGroups].sort()) !== JSON.stringify(expected)) fail('profil Studiów nie zachował tego samego wyboru grup');

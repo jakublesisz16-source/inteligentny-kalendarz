@@ -48,9 +48,11 @@ Aktualny plan ma cztery poziomy przypisania. Parser rozpoznaje łącznie 168 ide
 | G8 | grupa 8-osobowa | 42 | `G8:2B` |
 | G4 | grupa 4-osobowa | 84 | `G4:2B1` |
 
-Dla planu zawierającego G4 użytkownik wskazuje grupę główną, jedną grupę 12-osobową oraz jedną grupę 4-osobową. Grupa G4 jednoznacznie określa odpowiadającą jej grupę G8, dlatego UI nie pokazuje G8 jako osobnego wyboru. W planach bez G4 wybór G8 pozostaje dostępny.
+Dla aktualnego planu użytkownik wskazuje **cztery niezależne przydziały**: grupę główną, grupę 12-osobową, grupę 8-osobową i grupę 4-osobową. Nazwy nie tworzą hierarchii. `G4:10A2` nie wyznacza `G8:10A`, a wspólna litera nie jest podstawą do automatycznego łączenia podziałów.
 
-Przykład: jeśli osoba należy do grupy głównej 2, podziału 12-osobowego 2A oraz podziału 8-osobowego 2B, aplikacja nadal potrzebuje informacji, czy dokładną grupą 4-osobową jest `2B1` czy `2B2`. Tego nie wolno zgadywać.
+W obecnym planie układ liczebności 14 MAIN / 28 G12 / 42 G8 / 84 G4 odpowiada odpowiednio grupie głównej (24-osobowej), dwóm grupom 12-osobowym, trzem grupom 8-osobowym i sześciu grupom 4-osobowym na każdą grupę główną. UI pokazuje wszystkie cztery wybory. Przydział może być np. `MAIN:10 + G12:10A + G8:10C + G4:10A2` i jest traktowany jako poprawny, jeżeli dokładnie takie oznaczenia istnieją w Excelu.
+
+Każde wydarzenie jest filtrowane wyłącznie po typie podziału i dokładnej etykiecie przypisanej w Excelu. Nie wolno wyprowadzać jednego wyboru z drugiego.
 
 ## Mapa sekcji arkusza PLAN ZAJĘĆ
 
@@ -98,6 +100,13 @@ Nagłówek bazowy K3 mówi `pon. - pt. 8.00 - 14.00 (bez dni, w których odbywaj
 
 Analogiczna zasada może uzupełnić brakującą lokalizację, jeśli co najmniej 2 kompletne, kompatybilne wystąpienia wskazują dokładnie tę samą lokalizację. Data/dzień nigdy nie są w ten sposób inferowane.
 
+
+### Build249 - spójność ścieżek operacyjnych
+
+Warstwa założeń z Build246 obowiązuje jednakowo w czterech ścieżkach operacyjnych: nowy import, idempotentny backfill aktywnego planu, przeliczenie aktywnego planu po zmianie grup oraz podgląd innej grupy. `sourceOnly` pozostaje surowym zapisem źródła. Dzięki temu zmiana grup lub podgląd nie może tracić wpisów tylko dlatego, że pełna godzina/lokalizacja została wcześniej bezpiecznie odtworzona z powtarzalnego wzorca.
+
+Ta zmiana nie aktualizuje fingerprintów verified source i nie zmienia zasad raw parsera. Dokładny plik 25.09 nadal jest potrzebny do pełnego runtime reality-checku bieżącego profilu.
+
 ### POZ - zajęcia praktyczne
 
 Nagłówek AW3 podaje jedynie, że pierwsze spotkanie to szkolenie RODO/BHP od 08:30 oraz że adresy jednostek zostaną opublikowane później. W samych tygodniach są przypisania grup, ale źródło nie rozstrzyga pełnego dnia i godzin.
@@ -113,7 +122,7 @@ W źródle 25.09 reguła została zmieniona względem 18.09. Reguły nadal są z
 - BE: piątki 16.10-30.10 `sala 210 w NZJ`,
 - BE: piątki 06.11-29.01 `sala 104, ul. Litewska 14/16`.
 
-Wtorek-czwartek nie dziedziczą sali z reguły piątkowej lub poniedziałkowej. Dla aktualnego profilu `7 / 7A / 7B2` oznacza to m.in. salę 202 w NZA 14.12.2026 i brak sali 18.12.2026.
+Wtorek-czwartek nie dziedziczą sali z reguły piątkowej lub poniedziałkowej. Dla aktualnego profilu `7 / 7A / 7B / 7B2` oznacza to m.in. salę 202 w NZA 14.12.2026 i brak sali 18.12.2026.
 
 
 ### Aktualizacja źródła 25.09.2026 - dokładne terminy CSM
@@ -217,19 +226,20 @@ W **surowym wyniku parsera** nie są to wpisy do automatycznego zapisania w kale
 
 ## Przykład walidacji grupy 2
 
-Dla przykładowego wyboru:
+Dla historycznego profilu regresyjnego odpowiadającego temu samemu zestawowi zajęć wybór jest zapisany jawnie:
 
 - `MAIN:2`,
 - `G12:2A`,
-- `G4:2B1`,
+- `G8:2B`,
+- `G4:2B1`.
 
-wybór jest poprawny i automatycznie obejmuje zajęcia `G8:2B`. Parser zwraca 80 kandydatów dla tej osoby, z czego 77 jest `READY`, a 3 pozostają do weryfikacji źródła:
+G8 jest podane ręcznie, nie wyliczone z G4. Dla tego zestawu parser zwraca ten sam historycznie zweryfikowany zestaw 80 kandydatów, z czego 77 jest `READY`, a 3 pozostają do weryfikacji źródła:
 
 - INTERNA 22.10.2026 - brak pełnych godzin,
 - INTERNA 23.10.2026 - brak pełnych godzin,
 - POZ w tygodniu 04.01-08.01.2027 - brak dokładnego dnia/godzin/lokalizacji.
 
-Jeżeli właściwa podgrupa użytkownika to `2B2`, wynik należy liczyć z `G4:2B2`; aplikacja nie może sama wybrać między `2B1` i `2B2`.
+Każdy z czterech przydziałów jest wybierany ręcznie zgodnie z odgórnym przydziałem. Zmiana `G4:2B1` na `G4:2B2` nie może automatycznie zmienić G8, G12 ani MAIN.
 
 ## Reguły, których nie wolno łamać przy kolejnych aktualizacjach parsera
 
@@ -254,7 +264,7 @@ Aktywny plik:
 Fingerprint jest częścią `CURRENT_STATE.json`. Ta sama nazwa pliku przy innym SHA-256 oznacza nowe źródło i wymaga ponownego audytu. Dodatkowo Build226 zapisuje dwa skróty semantyczne wyniku parsera, bez umieszczania prywatnego planu w checkpointcie:
 
 - wszystkie kandydaty: `ba9be8db4573567662b6fa2eba588e486b32709f68535c2fe4fcdeb903df443e`,
-- aktualny profil `MAIN:7 + G12:7A + G4:7B2`: `a2df44543641c2f699d8a053a981eb2a6cc25c9f5fa7584082b5ad6bbe0a66f6`.
+- aktualny profil `MAIN:7 + G12:7A + G8:7B + G4:7B2`: `a2df44543641c2f699d8a053a981eb2a6cc25c9f5fa7584082b5ad6bbe0a66f6`.
 
 Deterministyczny audyt produkcyjnym readerem i adapterem potwierdza:
 - 861 bloków źródłowych,
@@ -267,14 +277,14 @@ Deterministyczny audyt produkcyjnym readerem i adapterem potwierdza:
 - 0 niepogodzonych wyjątków daty,
 - completeness `safe`,
 - 16 nieblokujących anomalii bilansu godzin,
-- 168 poprawnych kombinacji profilu MAIN + G12 + G4,
+- 168 historycznych kombinacji audytu verified-source; Build250 zapisuje odpowiadające G8 jawnie, aby zachować wcześniejszy fingerprint audytu do czasu ponownego exact-source audytu 25.09,
 - 52 kombinacje z co najmniej jednym konfliktem godzin,
 - 5 unikalnych sygnatur konfliktu,
 - 5 rozbieżności daty z nagłówkiem dnia tygodnia.
 
 Dwie dodatkowe rozbieżności względem wcześniejszego audytu nie są błędem parsera: to dokładne źródłowe przesunięcia CSM `09.11.` oraz `04.01.` wpisane w kolumnie opisanej jako `ŚRODY`. Dokładna data jest zachowana zgodnie ze źródłem.
 
-Aktualny profil regresyjny odpowiada bieżącemu wyborowi `7 / 7A / 7B2`: 79 kandydatów, 76 importowalnych, 3 niepełne, 0 blokujących i 1 konflikt źródłowy. Konflikt 08.10.2026 to POZ seminaria 12:00-15:45 nakładające się na wykład CHIRURGIA 15:00-16:30; aplikacja ma go pokazać, a nie samodzielnie poprawiać źródło.
+Aktualny profil regresyjny odpowiada bieżącemu wyborowi `7 / 7A / 7B / 7B2`: 79 kandydatów, 76 importowalnych, 3 niepełne, 0 blokujących i 1 konflikt źródłowy. Konflikt 08.10.2026 to POZ seminaria 12:00-15:45 nakładające się na wykład CHIRURGIA 15:00-16:30; aplikacja ma go pokazać, a nie samodzielnie poprawiać źródło.
 
 `safe` oznacza, że parser nie wykrył blokującej utraty semantyki źródła. Nie oznacza, że uczelniany arkusz nie zawiera sprzeczności.
 
@@ -292,7 +302,7 @@ Nie wolno automatycznie usuwać drugiego terminu `G12:2A` ani wydłużać/skróc
 
 ### Konflikty godzin - pięć unikalnych sygnatur
 
-Audyt enumeruje wszystkie 168 poprawnych kombinacji MAIN + G12 + G4 i liczy konflikty dopiero po filtrze pojedynczej osoby. Nie należy interpretować 52 kombinacji jako 52 faktycznych studentów.
+Historyczny audyt verified-source enumeruje 168 profili opartych na MAIN + G12 + G4; od Build250 odpowiadające G8 jest w tych profilach zapisane jawnie zamiast inferowane w runtime. Ten zestaw jest utrzymany wyłącznie jako fingerprint wcześniejszej weryfikacji do czasu ponownego exact-source audytu pliku 25.09. Nie należy interpretować 52 kombinacji jako 52 faktycznych studentów ani jako pełnej przestrzeni niezależnych przydziałów Build250.
 
 - 08.10.2026 - CHIRURGIA 15:00-16:30 vs POZ seminaria 12:00-15:45 - dotyczy 36 kombinacji,
 - 18.11.2026 - PEDIATRIA 08:00-14:00 vs POZ ćw. 12:00-15:45 - 2 kombinacje,
@@ -346,7 +356,7 @@ Dla exact SHA-256 `b6279b96e8cdfc7a95b9c7199686db424ef84e315215a03545957aee41396
 - 168 poprawnych kombinacji profilu, 52 z co najmniej jedną kolizją i 5 unikalnych sygnatur konfliktu,
 - 5 źródłowych rozbieżności dnia tygodnia, 0 nierozpoznanych przypisań i 0 niezaaplikowanych wyjątków dat,
 - pełny fingerprint `ba9be8db4573567662b6fa2eba588e486b32709f68535c2fe4fcdeb903df443e`,
-- profil `MAIN:7 + G12:7A + G4:7B2` = 79/76/3/1 i fingerprint `a2df44543641c2f699d8a053a981eb2a6cc25c9f5fa7584082b5ad6bbe0a66f6`.
+- profil `MAIN:7 + G12:7A + G8:7B + G4:7B2` = 79/76/3/1 i fingerprint `a2df44543641c2f699d8a053a981eb2a6cc25c9f5fa7584082b5ad6bbe0a66f6`.
 
 Jeżeli hash pliku jest znany, ale którykolwiek z tych warunków nie pasuje, import jest blokowany jako `BLOCKED_REFERENCE_DRIFT`. Jeżeli nazwa wygląda jak 25.09, ale SHA-256 jest inny, plik jest traktowany jako nowe źródło. Nie wolno odziedziczyć verified po nazwie.
 
@@ -356,11 +366,11 @@ Nie zapisujemy w kodzie drugiej statycznej listy 2313 rekordów. Taki eksport by
 
 ## Release QA - Build 137
 
-Historyczne źródło użyte przy Release QA Build137: `licencjat-ii-rok-piel.-18.09.2026.xls`, SHA-256 `2f3a36e9f4ec2baa0b3962ac1c5f4b01a5adb03150955eabb7deacd6c7b9d363`, 147968 B. Nie jest już aktywnym źródłem. Bieżące źródło referencyjne to 25.09.2026 opisane wyżej; żaden XLS nie jest dołączany do repozytorium ani checkpointu.
+Historyczne źródło użyte przy Release QA Build137: `licencjat-ii-rok-piel.-18.09.2026.xls`, SHA-256 `2f3a36e9f4ec2baa0b3962ac1c5f4b01a5adb03150955eabb7deacd6c7b9d363`, 147968 B. Nie jest już aktywnym źródłem. Bieżące źródło referencyjne to 25.09.2026 opisane wyżej. Od Build251 dokładny aktywny XLS jest, za jawną zgodą użytkownika, zachowywany wyłącznie w PRIVATE recovery pod `private-fixtures/study/`; nigdy nie trafia do PUBLIC ani repozytorium GitHub.
 
 Produkcyny parser na tym źródle daje deterministycznie: 2313 kandydatów, 2145 READY, 168 REVIEW_REQUIRED, 168 grup, 861 bloków źródłowych, 16 anomalii bilansu godzin, 168 poprawnych kombinacji profili, 52 kombinacje z co najmniej jedną kolizją, 5 unikalnych sygnatur kolizji i 3 rozbieżności dnia tygodnia w źródle. Integrity pozostaje `safe`; brak nieprzetworzonych przypisań grup i brak niezaaplikowanych wyjątków daty.
 
-Referencyjny profil QA `MAIN:10 + G12:10A + G4:10B2` nie jest ustawieniem domyślnym aplikacji. Służy wyłącznie jako regresja end-to-end obecnego źródła: 75 pozycji źródłowych, 72 importowalne, 3 niepełne, 0 konfliktów. Importowalne zajęcia rozkładają się na 21 w październiku 2026, 14 w listopadzie, 9 w grudniu i 28 w styczniu 2027.
+Referencyjny profil QA `MAIN:10 + G12:10A + G8:10B + G4:10B2` nie jest ustawieniem domyślnym aplikacji. Służy wyłącznie jako regresja end-to-end obecnego źródła: 75 pozycji źródłowych, 72 importowalne, 3 niepełne, 0 konfliktów. Importowalne zajęcia rozkładają się na 21 w październiku 2026, 14 w listopadzie, 9 w grudniu i 28 w styczniu 2027.
 
 Build 137 dodaje też fail-closed dla zduplikowanych `candidate.id`, zduplikowanych `sourceKey` i niespójnych referencji `StudySourceBlock -> candidate`. Są to reguły uniwersalne - nie zależą od nazw przedmiotów, grup ani tego semestru.
 
@@ -370,11 +380,11 @@ Build 138 nie zmienia interpretacji arkusza. Dodaje powtarzalny mobile smoke pra
 
 Po uruchomieniu Vite na `http://127.0.0.1:5174`:
 
-`npm run study:mobile-smoke -- --file="<ścieżka>/licencjat-ii-rok-piel.-18.09.2026.xls" --main=MAIN:10 --g12=G12:10A --g4=G4:10B2 --events=72 --incomplete=3`
+`npm run study:mobile-smoke -- --file="<ścieżka>/licencjat-ii-rok-piel.-18.09.2026.xls" --main=MAIN:10 --g12=G12:10A --g8=G8:10B --g4=G4:10B2 --events=72 --incomplete=3`
 
-Prywatny release reference dla tego źródła sprawdza `MAIN:10 + G12:10A + G4:10B2`, 72 importowalne wydarzenia i 3 wpisy niepełne na viewportach `390x844` oraz `360x800`. Wartości nie są zaszyte jako domyślne w runnerze. Sprawdza też, że G8 nie wraca jako ręczny wybór, gdy wybrana G4 jednoznacznie go wyznacza, oraz że zapisane dane w IndexedDB odpowiadają podglądowi. Screenshoty trafiają do `artifacts/visual-qa/study-mobile-smoke` i nie są częścią checkpointu.
+Prywatny release reference dla tego źródła sprawdza `MAIN:10 + G12:10A + G8:10B + G4:10B2`, 72 importowalne wydarzenia i 3 wpisy niepełne na viewportach `390x844` oraz `360x800`. Wartości nie są zaszyte jako domyślne w runnerze. Sprawdza też, że G8 jest osobnym ręcznym wyborem oraz że wszystkie cztery przydziały zapisane w IndexedDB odpowiadają podglądowi. Screenshoty trafiają do `artifacts/visual-qa/study-mobile-smoke` i nie są częścią checkpointu.
 
-Dla przyszłego planu oczekiwane grupy i liczby można podać argumentami `--main`, `--g12`, `--g4`, `--events`, `--incomplete`. Zmiana tych wartości jest zmianą oczekiwań testu dla konkretnego źródła, a nie zmianą reguł parsera. Runner ma failować, jeśli struktura interfejsu lub zapis danych nie pozwalają przejść tego samego rzeczywistego flow.
+Dla przyszłego planu oczekiwane grupy i liczby można podać argumentami `--main`, `--g12`, `--g8`, `--g4`, `--events`, `--incomplete`. Zmiana tych wartości jest zmianą oczekiwań testu dla konkretnego źródła, a nie zmianą reguł parsera. Runner ma failować, jeśli struktura interfejsu lub zapis danych nie pozwalają przejść tego samego rzeczywistego flow.
 
 
 
@@ -391,12 +401,39 @@ Dlatego run Build 138 nie jest dowodem PASS mimo dojścia do `390x844`. Wymagany
 
 ## Build 142 - regresje uniwersalności przed PUBLIC
 
-Pełny lokalny `npm run check` po zielonym mobile smoke ujawnił 10 wcześniejszych regresji parsera w syntetycznych wariantach planów. Build 142 naprawia je bez zmiany wyniku aktywnego źródła. Produkcyjny audyt `licencjat-ii-rok-piel.-18.09.2026.xls` pozostaje dokładnie: 2313 kandydatów, 2145 READY, 168 REVIEW_REQUIRED, 168 grup, 861 bloków, 16 anomalii godzin, 168 kombinacji profili, 52 kombinacje z konfliktem, 5 unikalnych sygnatur konfliktu i 3 rozbieżności dnia tygodnia. Profil `MAIN:10 + G12:10A + G4:10B2` pozostaje 75/72/3/0.
+Pełny lokalny `npm run check` po zielonym mobile smoke ujawnił 10 wcześniejszych regresji parsera w syntetycznych wariantach planów. Build 142 naprawia je bez zmiany wyniku aktywnego źródła. Produkcyjny audyt `licencjat-ii-rok-piel.-18.09.2026.xls` pozostaje dokładnie: 2313 kandydatów, 2145 READY, 168 REVIEW_REQUIRED, 168 grup, 861 bloków, 16 anomalii godzin, 168 kombinacji profili, 52 kombinacje z konfliktem, 5 unikalnych sygnatur konfliktu i 3 rozbieżności dnia tygodnia. Profil `MAIN:10 + G12:10A + G8:10B + G4:10B2` pozostaje 75/72/3/0.
 
 Dodatkowy regression proof na `licencjat-ii-rok-piel.-01.09.2026.xls` wykazał semantycznie identyczny zestaw grup i kandydatów względem Build 141. Naprawy dotyczą rozróżniania zakresów czasu/dat, małych kompletnych macierzy, priorytetu jawnego typu grupy, lokalnych reguł sal/adresów oraz odmiany nazw w stopkach - nie hardkodują aktywnego planu.
 ## Build 143 - domknięcie fail-closed na krawędzi pasma tygodni
 
 Pełny lokalny `npm run check` Build 142 pozostawił jeden FAIL: uszkodzony pierwszy wiersz tygodnia z wieloma prawidłowymi przypisaniami grup był pomijany, bo diagnostyka podejrzanych wierszy działała tylko między pierwszym i ostatnim poprawnie rozpoznanym tygodniem. Build 143 wykrywa taki przypadek także na pierwszej lub ostatniej krawędzi, ale poza pasmem reaguje wyłącznie na wiele realnych przypisań grup połączonych z jawnym, nierozpoznawalnym sygnałem tygodnia. Zakres `8.00 - 14.00` sam w sobie nie jest takim sygnałem.
 
-Focused proof obejmuje obie krawędzie (`A8` i `A10`). Aktywny `licencjat-ii-rok-piel.-18.09.2026.xls` nadal daje 2313 kandydatów, 2145 READY, 168 REVIEW_REQUIRED, 168 grup i 861 bloków; profil `MAIN:10 + G12:10A + G4:10B2` nadal daje 75/72/3/0. Starszy XLS 01.09.2026 pozostaje rozpoznawany bez podejrzanych nierozpoznanych wierszy tygodni.
+Focused proof obejmuje obie krawędzie (`A8` i `A10`). Aktywny `licencjat-ii-rok-piel.-18.09.2026.xls` nadal daje 2313 kandydatów, 2145 READY, 168 REVIEW_REQUIRED, 168 grup i 861 bloków; profil `MAIN:10 + G12:10A + G8:10B + G4:10B2` nadal daje 75/72/3/0. Starszy XLS 01.09.2026 pozostaje rozpoznawany bez podejrzanych nierozpoznanych wierszy tygodni.
 
+## Build250 - kanoniczny model wyboru grup dla planu 25.09
+
+Build250 usuwa ostatnie uproszczenie, które nie pochodziło z Excela: zależność G4 -> G8. Aktualny plan 25.09 pozostaje ręcznie udokumentowaną i kryptograficznie zweryfikowaną referencją, ale wybór osoby jest teraz w pełni jawny:
+
+- MAIN - grupa główna (24-osobowa w tym planie),
+- G12 - niezależny przydział 12-osobowy,
+- G8 - niezależny przydział 8-osobowy,
+- G4 - niezależny przydział 4-osobowy.
+
+Aplikacja nie tworzy relacji na podstawie liter/cyfr nazw. Przykład `10 / 10A / 10C / 10A2` jest prawidłowym profilem, jeśli wszystkie cztery etykiety istnieją w odpowiednich sekcjach Excela. Zajęcia MAIN, G12, G8 i G4 są wybierane wyłącznie przez dokładne dopasowanie `typ podziału + etykieta`.
+
+Verified source pozostaje source-faithful. Pełny semantic fingerprint 2313 kandydatów nie jest zmieniany. Referencyjny profil QA zapisuje teraz jawnie G8 (`MAIN:7 + G12:7A + G8:7B + G4:7B2`), co odtwarza ten sam historycznie zweryfikowany zestaw kandydatów bez runtime inference.
+
+Przyszły plan nie musi zachować tego samego układu Excela. Po publikacji nowego arkusza wykonujemy ręczny audit jego struktury i aktualizujemy mapę/adapter dopiero na podstawie realnego źródła. Nie próbujemy zgadywać nowego layoutu przez relacje nazw grup.
+
+
+## Build251 - exact-source closure dla aktywnego profilu
+
+Dokładny `licencjat-ii-rok-piel.-25.09.2026.xls` został ponownie dostarczony i potwierdzony byte-for-byte: 148992 B, SHA-256 `b6279b96e8cdfc7a95b9c7199686db424ef84e315215a03545957aee413964e4`. Za jawną decyzją użytkownika źródło jest od teraz utrzymywane wyłącznie w PRIVATE recovery, razem z deterministycznym snapshotem `private-fixtures/study/active-profile-audit.json`.
+
+Pełny surowy parser na exact source nadal daje bez zmian: 2313 kandydatów, 2145 READY, 168 REVIEW_REQUIRED, 168 grup, 861 source blocks, 0 nierozpoznanych przypisań, 0 niezaaplikowanych wyjątków dat i pełny fingerprint `ba9be8db4573567662b6fa2eba588e486b32709f68535c2fe4fcdeb903df443e`.
+
+Aktualny rzeczywisty profil użytkownika jest jawnie niezależny: `MAIN:4 + G12:4A + G8:4B + G4:4C1`. Surowy profil: 79 kandydatów, 76 importowalnych, 3 niepełne, fingerprint `af2cdb31113c337365e0a30417de44a9771f3be5456ec1db2ba50053860f0c1d`. Po uzgodnionej warstwie recurring-pattern assumptions: 78 importowalnych, 1 niepełny, fingerprint `aca13a8f1d7c1f03a0febaa0b8d3eafb00472b8ebaef491305d2b76954172c6a`.
+
+Warstwa założeń uzupełnia dla tego profilu dokładnie dwa wpisy: INTERNA `2026-12-17` i `2026-12-18`, oba `08:00-14:00`, grupa `G8:4B`, adres `ul. Banacha 1a`. Jest to zgodne z powtarzalnym wzorcem tego samego przedmiotu, typu zajęć i grupy.
+
+Dokładnie jeden wpis pozostaje celowo nierozstrzygnięty: `POZ`, zajęcia praktyczne, `G4:4C1`, source range `AW8`, tydzień `2026-10-12 - 2026-10-16`. Excel przypisuje grupę do tygodnia, ale nie podaje jednoznacznego dnia, pełnych godzin ani lokalizacji. Aplikacja nie ma prawa wymyślić terminu. To jest ograniczenie źródła, nie luka parsera.

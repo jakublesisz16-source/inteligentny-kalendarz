@@ -60,31 +60,54 @@ describe('validateStudyGroupSelection', () => {
     'MAIN:14', 'G12:14A', 'G4:14A1',
   ];
 
-  it('wymaga niezależnie grupy 12-osobowej i 4-osobowej', () => {
-    expect(validateStudyGroupSelection(structured, ['G4:13A1'])).toMatchObject({ valid: false, mainNumber: 13 });
-    expect(validateStudyGroupSelection(structured, ['G4:13A1', 'G12:13B'])).toEqual({ valid: true, errors: [], mainNumber: 13 });
+  it('wymaga każdego podziału, który istnieje w Excelu dla wybranej grupy głównej', () => {
+    const incomplete = validateStudyGroupSelection(structured, ['MAIN:13', 'G12:13B', 'G4:13A1']);
+    expect(incomplete.valid).toBe(false);
+    expect(incomplete.errors.join(' ')).toContain('grupa 8-osobowa');
+
+    expect(validateStudyGroupSelection(structured, ['MAIN:13', 'G12:13B', 'G8:13C', 'G4:13A1'])).toEqual({ valid: true, errors: [], mainNumber: 13 });
   });
 
   it('odrzuca mieszanie różnych grup głównych', () => {
-    const result = validateStudyGroupSelection(structured, ['G4:13A1', 'G12:14A']);
+    const result = validateStudyGroupSelection(structured, ['MAIN:13', 'G12:14A', 'G8:13C', 'G4:13A1']);
     expect(result.valid).toBe(false);
     expect(result.errors.join(' ')).toContain('różnych grup głównych');
   });
 
-  it('nie wymaga osobnego G8, gdy wybrano jednoznaczne G4', () => {
-    expect(validateStudyGroupSelection(structured, ['G4:13B2', 'G12:13A']).valid).toBe(true);
+  it('akceptuje niezależny przydział G8 i G4 nawet gdy litery się różnią', () => {
+    expect(validateStudyGroupSelection(structured, ['MAIN:13', 'G12:13A', 'G8:13C', 'G4:13A1'])).toEqual({ valid: true, errors: [], mainNumber: 13 });
   });
 
-  it('odrzuca zaznaczenie kilku grup 8-osobowych mimo obecności G4', () => {
-    const result = validateStudyGroupSelection(structured, ['G4:13A1', 'G8:13A', 'G8:13B', 'G12:13B']);
+  it('wymaga dokładnie jednego wyboru w każdym dostępnym podziale', () => {
+    const result = validateStudyGroupSelection(structured, ['MAIN:13', 'G12:13A', 'G8:13A', 'G8:13B', 'G4:13A1']);
     expect(result.valid).toBe(false);
     expect(result.errors.join(' ')).toContain('więcej niż jedną grupę 8-osobową');
   });
 
-  it('odrzuca jawnie wybraną G8 niezgodną z G4', () => {
-    const result = validateStudyGroupSelection(structured, ['G4:13A1', 'G8:13B', 'G12:13A']);
-    expect(result.valid).toBe(false);
-    expect(result.errors.join(' ')).toContain('należy do podgrupy');
+  it('nie wymaga G8 dla planu, który rzeczywiście nie ma podziału G8', () => {
+    expect(validateStudyGroupSelection(structured, ['MAIN:14', 'G12:14A', 'G4:14A1'])).toEqual({ valid: true, errors: [], mainNumber: 14 });
+  });
+});
+
+describe('independent Study group assignment filtering', () => {
+  const independent: ScheduleAnalysis = {
+    adapterId: 'test', sheetNames: ['PLAN'], information: [], warnings: [],
+    groups: ['MAIN:10', 'G12:10A', 'G12:10B', 'G8:10A', 'G8:10B', 'G8:10C', 'G4:10A1', 'G4:10A2', 'G4:10C1'],
+    candidates: [
+      candidate('main-10', ['MAIN:10']),
+      candidate('g12-10a', ['G12:10A']),
+      candidate('g12-10b', ['G12:10B']),
+      candidate('g8-10a', ['G8:10A']),
+      candidate('g8-10c', ['G8:10C']),
+      candidate('g4-10a2', ['G4:10A2']),
+      candidate('g4-10c1', ['G4:10C1']),
+      candidate('common', [], 'ALL'),
+    ],
+  };
+
+  it('dla 10 / 10A / 10C / 10A2 wybiera dokładnie cztery niezależne przypisania z Excela', () => {
+    const result = candidatesForSelectedGroups(independent, ['MAIN:10', 'G12:10A', 'G8:10C', 'G4:10A2']);
+    expect(result.map((item) => item.id).sort()).toEqual(['common', 'g12-10a', 'g4-10a2', 'g8-10c', 'main-10']);
   });
 });
 

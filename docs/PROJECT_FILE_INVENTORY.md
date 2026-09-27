@@ -1,4 +1,4 @@
-# Project File Inventory — Build246
+# Project File Inventory - Build249
 
 Celem inwentarza jest utrzymanie małego, zrozumiałego Source of Truth i uniknięcie powrotu starych ekranów, backupów lub przypadkowych artefaktów.
 
@@ -86,3 +86,20 @@ Nie usuwamy pliku tylko dlatego, że nie jest importowany przez `src/main.tsx`. 
 ## Build247 hygiene ownership clarification
 
 `scripts/source-hygiene-gate.mjs` jest gate'em grafu źródeł i repozytoryjnej higieny kodu. Ignoruje normalne workspace/generated paths (`.git`, `node_modules`, `dist`, coverage/cache, root `tsconfig.*.tsbuildinfo`). Ich nieobecność w PRIVATE/PUBLIC ZIP-ach egzekwują `checkpoint:hygiene`, `checkpoint:gate` i public package/release gates.
+
+
+## Build249 ownership note
+
+- `src/study/study-recurring-pattern-assumptions.ts` remains the single owner of recurring-pattern inference. Group recalculation and alternate-group preview call this same layer instead of implementing parallel rules.
+- `src/tests/mobile-polish-study-reality-build249.test.ts` protects the mobile polish markers and verifies that group preview/recalculation receive the same operational assumptions as normal import/backfill.
+- No new source-hygiene allowlist entries are introduced.
+
+- Build250 group-selection ownership: `src/imports/xlsx/group-normalizer.ts` owns exact group-key matching/canonicalization; `src/study/StudyGroupChoiceFields.tsx` owns the four explicit selectors; `src/study/study.service.ts` owns validation/filtering. No other module may reintroduce G4 -> G8 inference.
+
+
+## Build251 - prywatne fixture Studiów
+
+- `private-fixtures/study/licencjat-ii-rok-piel.-25.09.2026.xls` - exact aktywne źródło, PRIVATE only, hash-gated, świadomie zachowane na prośbę użytkownika.
+- `private-fixtures/study/active-profile-audit.json` - deterministyczny snapshot pełnego audytu źródła i aktualnego profilu raw/operational.
+- `scripts/study-private-source-gate.mjs` - bez-zależnościowy gate obecności i integralności prywatnego źródła.
+- `scripts/study-current-source-audit.mjs` - dependency-complete runner exact-source QA po `npm ci`.

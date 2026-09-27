@@ -10,6 +10,7 @@ import {
 } from '../storage/database';
 import { reviewCandidate } from './import-review';
 import { identifyCandidate } from './study-identity';
+import { applyRecurringStudyPatternAssumptions } from './study-recurring-pattern-assumptions';
 import { StudyPreviewCalendar } from './StudyPreviewCalendar';
 import { StudyGroupChoiceFields } from './StudyGroupChoiceFields';
 import { candidatesForSelectedGroups, validateStudyGroupSelection } from './study.service';
@@ -95,8 +96,9 @@ export function StudyGroupPreviewPanel({ activeImport, primaryGroups }: StudyGro
     setPreview(null);
     try {
       const workbook = await readSpreadsheetFile(file);
-      const result = analyzeScheduleWorkbook(workbook);
-      if (!result) throw new Error('Nie rozpoznano formatu planu. Plik nie został zapisany ani użyty do zmiany kalendarza.');
+      const rawResult = analyzeScheduleWorkbook(workbook);
+      if (!rawResult) throw new Error('Nie rozpoznano formatu planu. Plik nie został zapisany ani użyty do zmiany kalendarza.');
+      const result = applyRecurringStudyPatternAssumptions(rawResult);
       setLocalAnalysis(result);
       setLocalFileName(file.name);
       setSelectedGroups((current) => current.filter((group) => result.groups.includes(group)));

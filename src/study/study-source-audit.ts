@@ -100,9 +100,20 @@ function structuredProfileSelections(groups: string[]): string[][] {
     const firstPartition = g12.length ? g12 : [undefined];
     const secondPartition = g4.length ? g4 : g8.length ? g8 : [undefined];
 
+    // This source-audit enumeration intentionally preserves the historical
+    // 168-profile verified-source baseline. When G4 exists we add the matching
+    // G8 explicitly instead of relying on runtime inference. User-facing group
+    // selection remains fully independent.
     for (const first of firstPartition) {
       for (const second of secondPartition) {
-        const selection = [main, first, second].filter((value): value is string => Boolean(value));
+        const secondParsed = second ? parseStudyGroupKey(second) : undefined;
+        const matchingG8 = secondParsed?.kind === 'G4' && secondParsed.letter
+          ? g8.find((value) => {
+              const parsedG8 = parseStudyGroupKey(value);
+              return parsedG8.letter === secondParsed.letter;
+            })
+          : undefined;
+        const selection = [main, first, matchingG8, second].filter((value): value is string => Boolean(value));
         if (validateStudyGroupSelection(groups, selection).valid) profiles.push(selection);
       }
     }

@@ -25,7 +25,7 @@ Ten dokument jest trwałym rejestrem decyzji projektowych, założeń i otwartyc
 
 Aktywnym referencyjnym źródłem jest `licencjat-ii-rok-piel.-25.09.2026.xls`, trzymany poza checkpointem. Zweryfikowany SHA-256: `b6279b96e8cdfc7a95b9c7199686db424ef84e315215a03545957aee413964e4`.
 
-Surowy parser pozostaje source-faithful. Dla exact źródła 25.09 verified reference nadal opisuje wynik **przed** założeniami aplikacji: 2313 kandydatów, 2145 READY, 168 REVIEW_REQUIRED; wybrany profil `MAIN:7 + G12:7A + G4:7B2` = 79 kandydatów, 76 importowalnych, 3 niepełne i 1 konflikt źródłowy. Te liczby/fingerprinty nie są zmieniane przez Build246.
+Surowy parser pozostaje source-faithful. Dla exact źródła 25.09 verified reference nadal opisuje wynik **przed** założeniami aplikacji: 2313 kandydatów, 2145 READY, 168 REVIEW_REQUIRED; wybrany profil `MAIN:7 + G12:7A + G8:7B + G4:7B2` = 79 kandydatów, 76 importowalnych, 3 niepełne i 1 konflikt źródłowy. Te liczby/fingerprinty nie są zmieniane przez Build246.
 
 ### 3.2 Build246 — zasada powtarzalnego wzorca
 
@@ -96,7 +96,7 @@ Benchmarki w `src/benchmarks` są osobnymi rootami narzędziowymi i nie są trak
 - żeby allowlista celowych modułów nie zestarzała się,
 - żeby źródło nie zawierało archiwów, backupów, logów, plików tymczasowych i katalogów build/cache.
 
-Checkpoint/public gates nadal osobno blokują prywatne XLS/XLSX/PDF, screenshoty, `.git`, `node_modules`, `dist`, cache i inne artefakty.
+Checkpoint/public gates nadal blokują przypadkowe XLS/XLSX/PDF; jedynym wyjątkiem jest jawnie dozwolony exact aktywny Study XLS w PRIVATE recovery, nigdy w PUBLIC, screenshoty, `.git`, `node_modules`, `dist`, cache i inne artefakty.
 
 ## 7. Frozen / chronione obszary
 
@@ -124,3 +124,53 @@ Checkpoint/public gates nadal osobno blokują prywatne XLS/XLSX/PDF, screenshoty
 ## 10. Build248 - test-contract cleanup po Windows QA Build247
 
 Windows Build247: typecheck PASS, 1858 testów PASS, 2 optional skips, 2 stale source-text assertions FAIL. Build248 aktualizuje tylko te asercje. Nie zmienia reguły recurring-pattern, aktywnego backfillu, raw parsera, verified fingerprintów, danych ani schema 14.
+
+
+## Build249 - mobile polish + Study reality-check
+
+- Real-device screenshots from 27.09 confirm the overall visual direction is stable. No broad redesign is opened.
+- Finance Items: keep the two-row mobile structure from Build243, but reduce border/background weight of category and necessity selects. Direct editing stays available.
+- Work: empty `Zgodność z dyspozycyjnością` is guidance, not an alert. Use neutral surface, compact copy and smaller action.
+- Calendar: preserve Month/Week/filter/add behavior, but reduce visual weight of mobile controls. The grid remains the primary surface.
+- Study: recurring-pattern assumptions are an operational post-verification layer and must be applied consistently to import, active backfill, group recalculation and alternate-group preview. Raw source-only entries are never rewritten.
+- Reality-check observation: current phone screenshots show Study selectors 10 / 10B / 10B2. A separate Calendar screenshot previously showed a G12:7B event. This is recorded as a possible persisted-group/calendar consistency issue, not as a confirmed parser error. Runtime active-import data must decide it; do not change verified fingerprints or hardcode a repair from screenshots alone.
+- Build248 Windows closure is green: 325 executed test files PASS, 1860 tests PASS, 2 optional skips, production/release gates PASS, 0 production dependency vulnerabilities. Local commit `2206680` was created, but the shown push command had a `mainm` typo, so publication was not confirmed in that log.
+- Build249 final local proof: static operational/UI contract 13/13 PASS; source hygiene, release contract, raw parser freeze, release preflight, Service Worker, release safety, travel, security release, checkpoint state/hygiene PASS; syntax/JSON proof PASS. Windows dependency-complete gates and persisted active-plan group/calendar QA remain blockers before publication.
+
+## 11. Build250 - niezależne przydziały grup z Excela
+
+- Decyzja użytkownika: aktualny plan 25.09 ma być dopracowany jako kanoniczna referencja, nawet jeśli przyszłe plany będą wymagały ręcznego dopasowania nowego layoutu.
+- MAIN/G12/G8/G4 są czterema niezależnymi przydziałami. Nie wyliczamy G8 z G4 ani żadnego innego poziomu z nazwy grupy.
+- Dla aktualnego planu UI pokazuje cztery pola. Grupa główna jest 24-osobowa w tym konkretnym źródle.
+- Profile takie jak `10 / 10A / 10C / 10A2` są dozwolone, jeśli etykiety istnieją w odpowiednich partycjach źródła.
+- Filtrowanie wydarzeń jest exact: `kind + label`. G4 nie wybiera wydarzeń G8.
+- Stare zapisane profile bez G8 nie są automatycznie naprawiane. UI ma pokazać brakujący wybór i użytkownik wskazuje oficjalny przydział ręcznie, po czym może zastosować przeliczenie planu.
+- Raw parser, full candidate fingerprint exact 25.09, schema 14 i Receipt OCR/parser pozostają zamrożone. Referencyjne profile QA dostają jawny G8, aby odtworzyć ten sam zweryfikowany zestaw wydarzeń bez runtime inference.
+
+
+## Build251 - decyzja o retencji aktywnego planu i exact-source QA
+
+- Użytkownik jawnie zdecydował, że aktualny plan 25.09 ma być zachowany jako prywatne źródło referencyjne.
+- Exact XLS wolno przechowywać tylko w PRIVATE recovery pod `private-fixtures/study/licencjat-ii-rok-piel.-25.09.2026.xls`.
+- PUBLIC, patch PUBLIC i GitHub nie mogą zawierać tego pliku.
+- PRIVATE checkpoint gate dopuszcza tylko ten jeden konkretny XLS i weryfikuje jego nazwę, rozmiar oraz SHA-256.
+- Snapshot `active-profile-audit.json` utrwala wynik surowy i operacyjny aktualnego profilu bez potrzeby ręcznego odtwarzania ustaleń z rozmowy.
+- Jedyny nierozstrzygnięty wpis bieżącego profilu to POZ G4:4C1 w tygodniu 12-16.10, bez dokładnego dnia/godzin/lokalizacji w źródle. Nie wolno go automatycznie datować.
+
+
+## Build252 - korekta komunikatu walidacji grup
+
+Windows Build251 wykonał 1864 testy PASS i zatrzymał się na jednej regresji copy: komunikat o wielokrotnym wyborze używał mianownika po `więcej niż jedną`. Build252 poprawia wyłącznie formy biernika dla MAIN/G12/G8/G4. Semantyka czterech niezależnych przydziałów i exact-source Study QA nie zmieniają się.
+
+## Build253 - source truth w Kalendarzu
+
+Po doprecyzowaniu kontraktu przez użytkownika usunięto koncepcję poziomów pewności. Zasada jest prosta: Kalendarz pokazuje tylko dane możliwe do odczytania z Excela. Wpis tygodniowy nie jest powielany jako wydarzenie każdego dnia. Widok Tydzień ma neutralny pasek `Plan` z zakresem źródłowym, wymiarem godzin i notatką źródłową, a Miesiąc kotwiczy taką informację jeden raz na początku zakresu z etykietą `tydz.`. Dane operacyjne, parser i fingerprint źródła nie są zmieniane.
+
+
+
+## Build254 - stale Study readability contract closure
+
+- Windows Build253: typecheck PASS, 1867 testów PASS poza jednym stale source-text assertion, 2 optional skips.
+- Jedyny FAIL wymagał tekstu `to nie jest potwierdzone wydarzenie`, który został świadomie usunięty w Build253 zgodnie z minimalistycznym source-truth UI.
+- Build254 aktualizuje wyłącznie test do aktualnego kontraktu `Informacja z planu` / `Informacja z planu studiów` oraz week-level source strip.
+- Produkt, parser, exact XLS 25.09, 78 operacyjnych wydarzeń, MAIN/G12/G8/G4, recurring-pattern assumptions, Receipt OCR/parser i schema 14 pozostają bez zmian.

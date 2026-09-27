@@ -91,7 +91,7 @@ Po kolejnych real-data screenshotach Build220 nie zmieniono modelu wykresu, tylk
 
 - aktywna referencja Studiów została zmieniona na oficjalny plan `25.09.2026`,
 - parser obsługuje dedykowane dokładne daty CSM jako bardziej szczegółowe od szerokiego nagłówka sąsiedniej komórki, także przy jawnych przesunięciach dnia,
-- bieżący profil `7/7A/7B2` ma deterministyczny fingerprint semantyczny i zachowuje jeden konflikt pochodzący ze źródła,
+- bieżący profil `7/7A/7B/7B2` ma deterministyczny fingerprint semantyczny i zachowuje jeden konflikt pochodzący ze źródła,
 - wrześniowy PDF Pracy przeszedł realny source QA; parser Pracy nie wymagał zmiany,
 - Receipt Scanner pozostał zamrożony.
 
@@ -99,7 +99,7 @@ Po kolejnych real-data screenshotach Build220 nie zmieniono modelu wykresu, tylk
 ## Build228 - Verified Study Plan Runtime Guard
 
 - exact plan WUM 25.09.2026 jest w runtime rozpoznawany po SHA-256, nie po nazwie pliku,
-- znany plik musi odtworzyć pełny fingerprint 2313 kandydatów, audyt MAIN/G12/G8/G4 oraz fingerprint profilu 7/7A/7B2; drift blokuje import fail-closed,
+- znany plik musi odtworzyć pełny fingerprint 2313 kandydatów, audyt MAIN/G12/G8/G4 oraz fingerprint profilu 7/7A/7B/7B2; drift blokuje import fail-closed,
 - real-source test korzysta z tej samej implementacji fingerprintu co runtime,
 - nowy Excel nadal używa uniwersalnego parsera i istniejącego diffu aktualizacji Kalendarza; nie powstał drugi statyczny owner planu,
 - UI pokazuje `ZWERYFIKOWANY` tylko po pełnym PASS referencji,
@@ -129,7 +129,7 @@ Dependency-complete Windows QA Build231: 319/319 wykonanych public test files PA
 
 ## Build233 - Verified Study runtime closure
 
-Build232 przeszedł dependency-complete Windows QA w całości: 319/319 wykonanych public test files, 1836/1836 wykonanych tests, Vite build oraz production-audit/service-worker/release-safety/travel/security-release PASS, a production dependency audit zgłosił 0 vulnerabilities przy progu high. Runtime QA exact źródła 25.09 potwierdził `ZWERYFIKOWANY`, profil 7/7A/7B2, 76 wynikowych importowalnych + 3 niepełne, jawny diff/apply i zapis do Kalendarza. Konflikt 08.10.2026 POZ 12:00-15:45 vs CHIRURGIA 15:00-16:30 pozostał zachowany i widoczny jako 45-minutowa niespójność źródła. Build233 nie zmienia produktu; synchronizuje closure metadata i staje się verified PRIVATE baseline.
+Build232 przeszedł dependency-complete Windows QA w całości: 319/319 wykonanych public test files, 1836/1836 wykonanych tests, Vite build oraz production-audit/service-worker/release-safety/travel/security-release PASS, a production dependency audit zgłosił 0 vulnerabilities przy progu high. Runtime QA exact źródła 25.09 potwierdził `ZWERYFIKOWANY`, profil 7/7A/7B/7B2, 76 wynikowych importowalnych + 3 niepełne, jawny diff/apply i zapis do Kalendarza. Konflikt 08.10.2026 POZ 12:00-15:45 vs CHIRURGIA 15:00-16:30 pozostał zachowany i widoczny jako 45-minutowa niespójność źródła. Build233 nie zmienia produktu; synchronizuje closure metadata i staje się verified PRIVATE baseline.
 
 
 ## Build234 - Installed-PWA Service Worker Template Fix
@@ -202,3 +202,8 @@ Build247 nie zmienia produktu. Po dependency-complete Windows QA Build246 popraw
 ## Build248 - stale Study test-contract cleanup
 
 Build248 nie zmienia produktu. Po Windows QA Build247 aktualizuje dwa historyczne testy tekstowe do aktualnego przepływu `enrichedResult` i stabilnego kontraktu recurring-pattern backfillu. Strict TypeScript, security audit, release preflight i source hygiene były już zielone w Build247; pełny public suite wymaga ponownego uruchomienia po tej korekcie.
+
+
+## Build249 - Mobile polish + Study operational consistency
+
+Real-device review after Build248 keeps the accepted product structure and only reduces visual weight in Finance Items, the empty Work availability comparison and Calendar mobile controls. Study group recalculation and alternate-group preview now use the same post-verification recurring-pattern assumptions as import/backfill, preventing path-dependent loss of safely inferred time/location. Raw parser semantics, verified source fingerprints, Receipt OCR/parser and schema 14 remain unchanged.

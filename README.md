@@ -66,3 +66,12 @@ Aktualny katalog `docs/` jest celowo mały:
 PRIVATE jest jedynym źródłem developmentu i nigdy nie trafia bezpośrednio na GitHub. PUBLIC powstaje dopiero z zamrożonego PRIVATE i nie zawiera private-only dokumentacji, `project-skills`, danych użytkownika ani checkpoint manifestu.
 
 Stały katalog publikacyjny użytkownika: `D:\Projekty\inteligentny-kalendarz-publish`. Istniejący `.git` ma pozostać. Szczegóły: `docs/QA_RELEASE.md` i `project-skills/ik-release-final/SKILL.md`.
+
+## Build253
+
+Study source-only information is shown in Calendar exactly as supported by the retained source plan. Week-only entries remain week-level information and never receive invented dates or full times.
+
+
+## Build254
+
+Test-contract only. Aligns the older Study readability regression with the accepted Build253 neutral source-information UI. No runtime behavior change.
