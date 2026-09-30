@@ -1,5 +1,9 @@
 # Inteligentny Kalendarz
 
+## Public release - Build260
+
+Aktualne wydanie publiczne obejmuje zaakceptowany UI polish oraz obsługę oficjalnego planu Studiów 30.09.2026. Schema danych pozostaje 14; aplikacja pozostaje local-first i privacy-first.
+
 Lokalna PWA łącząca kalendarz, plan studiów, grafik pracy, dyspozycyjność, finanse i codzienne zadania. Projekt jest local-first: dane użytkownika są przechowywane głównie w IndexedDB przeglądarki, bez własnego backendu i konta.
 
 ## Start dla nowej rozmowy / developera

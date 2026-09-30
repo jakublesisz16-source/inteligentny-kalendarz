@@ -248,6 +248,45 @@ describe('legacy study schema and current lifecycle', () => {
     await expect(applyUniversityScheduleUpdate(tampered)).rejects.toThrow(/bramki kompletności|brakuje.*oczekiwanych dni/i);
   });
 
+  it('aktualizacja źródła bez zmian wydarzeń nadal aktywuje nowy oficjalny plik i przepina istniejące zajęcia', async () => {
+    await initializeDatabase();
+    const original = candidate('same-a', '13A');
+    const first = await commitUniversityImport({
+      fileName: 'plan-25.09.xls', fileSize: 100, fileHash: 'same-plan-v1', adapterId: 'nursing-plan-v1', sheetNames: ['PRAKTYKI'],
+      selectedGroups: ['13A'], availableGroups: ['13A'], candidates: [original], allCandidates: [original],
+    });
+    const [before] = await listEvents();
+    if (!before) throw new Error('Brak wydarzenia przed aktualizacją.');
+
+    const unchanged = candidate('same-a', '13A');
+    const preview = await prepareUniversityScheduleUpdate({
+      fileName: 'plan-30.09.xls', fileSize: 101, fileHash: 'same-plan-v2', adapterId: 'nursing-plan-v1', sheetNames: ['PRAKTYKI'],
+      selectedGroups: ['13A'], availableGroups: ['13A'], candidates: [unchanged], allCandidates: [unchanged],
+    });
+    expect(preview.summary.added).toBe(0);
+    expect(preview.summary.changed).toBe(0);
+    expect(preview.summary.removed).toBe(0);
+    expect(preview.summary.unchanged).toBe(1);
+
+    const result = await applyUniversityScheduleUpdate(preview);
+    expect(result.added).toBe(0);
+    expect(result.changed).toBe(0);
+    expect(result.removed).toBe(0);
+
+    const active = await getActiveUniversityImport();
+    expect(active?.fileName).toBe('plan-30.09.xls');
+    expect(active?.fileHash).toBe('same-plan-v2');
+    expect(active?.replacedImportId).toBe(first.importRecord.id);
+    const imports = await listUniversityImports();
+    expect(imports.find((item) => item.id === first.importRecord.id)?.lifecycleStatus).toBe('HISTORICAL');
+
+    const [after] = await listEvents();
+    expect(after?.id).toBe(before.id);
+    expect(after?.sourceImportId).toBe(active?.id);
+    expect(after?.startDateTime).toBe(before.startDateTime);
+    expect(after?.endDateTime).toBe(before.endDateTime);
+  });
+
   it('aktualizacja planu zachowuje ręcznie zmienione pole, a aktualizuje niezależną godzinę', async () => {
     await initializeDatabase();
     await commitUniversityImport({

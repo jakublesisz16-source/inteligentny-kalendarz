@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { ScheduleAnalysis, StudyScheduleCandidate } from '../study/study.types';
 import {
   candidateSemanticFingerprint,
-  VERIFIED_STUDY_PLAN_2026_09_25,
+  VERIFIED_STUDY_PLAN_2026_09_30,
   verifyStudyPlanAgainstReference,
   verifyStudyPlanSource,
 } from '../study/verified-study-plan';
@@ -124,8 +124,8 @@ describe('Verified Study Plan', () => {
 
   it('nie dziedziczy statusu verified po samej nazwie pliku', async () => {
     const result = await verifyStudyPlanSource({
-      fileName: VERIFIED_STUDY_PLAN_2026_09_25.sourceName,
-      fileSize: VERIFIED_STUDY_PLAN_2026_09_25.sizeBytes,
+      fileName: VERIFIED_STUDY_PLAN_2026_09_30.sourceName,
+      fileSize: VERIFIED_STUDY_PLAN_2026_09_30.sizeBytes,
       fileHash: '0'.repeat(64),
       analysis: analysis(),
     });

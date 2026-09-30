@@ -5,14 +5,14 @@ import { candidatesForSelectedGroups } from './study.service';
 import { auditSelectedStudyProfile, buildStudySourceAudit } from './study-source-audit';
 import type { ScheduleAnalysis, StudyScheduleCandidate } from './study.types';
 
-export const VERIFIED_STUDY_PLAN_2026_09_25 = {
-  id: 'wum-nursing-year2-2026-09-25',
-  sourceName: 'licencjat-ii-rok-piel.-25.09.2026.xls',
-  sourceUpdatedAt: '2026-09-25T14:59:00+02:00',
-  sizeBytes: 148_992,
-  sha256: 'b6279b96e8cdfc7a95b9c7199686db424ef84e315215a03545957aee413964e4',
+export const VERIFIED_STUDY_PLAN_2026_09_30 = {
+  id: 'wum-nursing-year2-2026-09-30',
+  sourceName: 'licencjat-ii-rok-piel.-30.09.2026.xls',
+  sourceUpdatedAt: '2026-09-30T00:00:00+02:00',
+  sizeBytes: 147_968,
+  sha256: '357da00714b71345ae289266dad6bac6430d225657a294ce2d05844e1861f391',
   adapterId: 'nursing-week-matrix-v2',
-  allCandidatesSha256: 'ba9be8db4573567662b6fa2eba588e486b32709f68535c2fe4fcdeb903df443e',
+  allCandidatesSha256: 'b4590403b484b2602d83d3f9c27e1825abfb76d2a29def5ac164356d3e15aec9',
   selectedProfile: {
     selectedGroups: ['MAIN:7', 'G12:7A', 'G8:7B', 'G4:7B2'],
     candidatesSha256: 'a2df44543641c2f699d8a053a981eb2a6cc25c9f5fa7584082b5ad6bbe0a66f6',
@@ -31,16 +31,16 @@ export const VERIFIED_STUDY_PLAN_2026_09_25 = {
     },
   },
   audit: {
-    candidateCount: 2313,
-    readyCount: 2145,
-    reviewRequiredCount: 168,
-    groupCount: 168,
-    groupKinds: { MAIN: 14, G12: 28, G8: 42, G4: 84, GENERIC: 0 },
-    sourceBlockCount: 861,
+    candidateCount: 2163,
+    readyCount: 2007,
+    reviewRequiredCount: 156,
+    groupCount: 156,
+    groupKinds: { MAIN: 13, G12: 26, G8: 39, G4: 78, GENERIC: 0 },
+    sourceBlockCount: 815,
     completenessSafe: true,
-    incompleteSourceBlockCount: 168,
+    incompleteSourceBlockCount: 156,
     hourAnomalyCount: 16,
-    profileCombinationCount: 168,
+    profileCombinationCount: 156,
     affectedProfileCombinationCount: 52,
     uniqueConflictSignatureCount: 5,
     weekdayMismatchCount: 5,
@@ -218,7 +218,7 @@ export async function verifyStudyPlanSource(input: VerifyStudyPlanInput): Promis
     return {
       state: 'NEW_SOURCE',
       reasons: input.fileName.toLowerCase() === reference.sourceName.toLowerCase()
-        ? ['Nazwa odpowiada zweryfikowanej wersji 25.09.2026, ale zawartość pliku ma inny SHA-256. Traktuję go jako nową wersję i nie dziedziczę statusu zweryfikowanego.']
+        ? ['Nazwa odpowiada zweryfikowanej wersji 30.09.2026, ale zawartość pliku ma inny SHA-256. Traktuję go jako nową wersję i nie dziedziczę statusu zweryfikowanego.']
         : [],
     };
   }

@@ -4727,3 +4727,159 @@ body.modal-open { overflow: hidden; }
     font-size: .64rem;
   }
 }
+
+/* Build256 - Desktop/mobile polish without functional changes.
+ * Preserve accepted flows; improve geometry, hierarchy, readability and interaction feedback only.
+ */
+@media (min-width: 821px) {
+  /* Wider utility surfaces use desktop space better without stretching to the viewport edges. */
+  .today-view { max-width: 1180px; }
+  .study-view,
+  .work-view,
+  .settings-minimal-view { max-width: 1320px; }
+  .finance-view { max-width: 1280px; }
+
+  .today-view .event-content { max-width: none; }
+  .today-view .event-coworkers > span { width: min(100%, 860px); }
+
+  /* Four related Study group choices belong to one desktop row. Mobile keeps its own row contract. */
+  .study-profile-group-picker .study-group-choice-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 10px;
+  }
+  .study-profile-group-picker .study-group-choice-card { min-width: 0; }
+  .study-profile-group-picker .study-group-choice-card select { min-height: 42px; }
+
+  /* Work keeps the same information but gives the actual shift time more visual weight. */
+  .work-roster-direct .work-shift-row-details > button.work-shift-row-trigger { min-height: 46px; }
+  .work-shift-main-line span { font-size: .8rem; }
+  .work-shift-main-line small { font-size: .65rem; }
+
+  /* Settings secondary sections read as compact settings rows, not isolated hairlines. */
+  .settings-collapsible-section > summary {
+    padding-inline: 10px;
+    border-radius: 10px;
+  }
+  .settings-summary-action { min-width: 52px; text-align: right; }
+
+  /* Finance readability: metadata stays secondary, but no longer microscopic on large screens. */
+  .finance-month-dashboard-v177 .finance-month-metric-grid > button > span,
+  .finance-trip-dashboard-v148 .finance-trip-metric-grid > div > span,
+  .finance-trip-dashboard-v148 .finance-trip-metric-grid > button > span {
+    font-size: .66rem;
+    line-height: 1.25;
+  }
+  .finance-month-dashboard-v177 .finance-month-metric-grid > button > strong,
+  .finance-trip-dashboard-v148 .finance-trip-metric-grid > div > strong,
+  .finance-trip-dashboard-v148 .finance-trip-metric-grid > button > strong { font-size: .82rem; }
+  .finance-month-insight-copy small,
+  .finance-month-transaction-copy small,
+  .finance-expense-heading-tools > span { font-size: .68rem; }
+}
+
+@media (max-width: 620px) {
+  /* Mobile space is saved in chrome/metadata, not by shrinking the core information. */
+  .study-current-plan-main strong { font-size: .75rem; line-height: 1.32; }
+  .study-current-plan-main small,
+  .study-current-plan-change { font-size: .65rem; line-height: 1.35; }
+  .study-current-plan-change { font-weight: 760; }
+
+  .finance-month-dashboard-v177 .finance-month-metric-grid button:first-child span { font-size: .62rem; }
+  .finance-month-dashboard-v177 .finance-month-metric-grid button:first-child strong { font-size: .78rem; }
+  .finance-month-insight-copy small,
+  .finance-month-transaction-copy small,
+  .finance-expense-heading-tools > span { font-size: .64rem; }
+
+  .work-roster-direct .work-shift-row-details > button.work-shift-row-trigger { min-height: 44px; }
+}
+
+/* Hover belongs to pointer devices. Touch keeps immediate active/focus feedback without sticky decoration. */
+@media (hover: hover) and (pointer: fine) {
+  .settings-collapsible-section > summary:hover,
+  .study-compact-details > summary:hover {
+    background: color-mix(in srgb, var(--accent-surface) 34%, transparent);
+  }
+  .work-roster-direct .work-shift-row-details > button.work-shift-row-trigger:hover {
+    background: color-mix(in srgb, var(--accent-surface) 42%, transparent);
+  }
+}
+
+/* Motion is supportive only; accessibility wins over decorative transitions. */
+@media (prefers-reduced-motion: reduce) {
+  :where(.button, .icon-button, .nav-item, .bottom-nav-item, .filter-button, .text-button,
+    .settings-collapsible-section > summary, .study-compact-details > summary,
+    .work-shift-row-trigger) {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
+
+/* Build257 - second bounded visual QA pass.
+ * Presentation only: no domain, data, parser, schema or flow changes.
+ */
+@media (min-width: 821px) {
+  /* Today: keep the wider Build256 geometry, but restore a tighter reading measure. */
+  .today-view { max-width: 1120px; }
+  .today-view .event-coworkers > span { width: min(100%, 780px); }
+
+  /* Work roster: reduce the long eye-travel between date and time on wide desktops. */
+  .work-roster-direct { width: min(100%, 820px); }
+}
+
+@media (max-width: 620px) {
+  /* Today: when the day is empty but future context exists, do not inherit the tall timeline minimum. */
+  .today-view.is-empty .today-plan-panel.today-single-surface {
+    min-height: 0;
+  }
+  .today-view.is-empty .today-plan-panel.today-single-surface > .empty-state {
+    min-height: 68px;
+    padding: 8px 0;
+  }
+  .today-view.is-empty .today-plan-panel.today-single-surface > .empty-state .empty-state-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 9px;
+  }
+  .today-view.is-empty .today-plan-panel.today-single-surface > .empty-state .empty-state-icon svg {
+    width: 18px;
+    height: 18px;
+  }
+  .today-view.is-empty .today-plan-panel.today-single-surface > .empty-state h3 {
+    margin: 0;
+    font-size: .82rem;
+  }
+
+  /* Mobile Week: keep a small inner finish; outer view clearance already protects the fixed bottom nav. */
+  .calendar-week-scroll {
+    box-sizing: border-box;
+    padding-bottom: max(12px, env(safe-area-inset-bottom));
+    scroll-padding-bottom: max(12px, env(safe-area-inset-bottom));
+  }
+
+  /* Study: recover vertical space around chrome while keeping touch targets intact. */
+  .study-view .study-upload-dashboard {
+    gap: 8px;
+    padding-block: 6px 8px;
+  }
+  .study-groups-primary { margin-top: 3px; }
+  .study-groups-visible-heading { padding: 6px 0 3px; }
+  .study-profile-group-picker .study-group-choice-card {
+    min-height: 48px;
+    gap: 6px;
+    padding-block: 4px;
+  }
+  .study-profile-group-picker .study-group-choice-card select { min-height: 40px; }
+  .study-profile-group-picker .compact-study-actions { padding-top: 6px; }
+
+  /* Work availability: fixed work is two readable tokens, never glued text. */
+  .availability-week-editor-clean .availability-fixed-work-chip { gap: 4px; }
+
+  /* Finance: secondary data remains secondary, but not microscopic on a real phone. */
+  .finance-month-dashboard-v218 .finance-month-category-copy > strong { font-size: .61rem; }
+  .finance-month-dashboard-v218 .finance-month-category-value small { font-size: .52rem; }
+  .finance-month-dashboard-v218 .finance-month-category-value strong { font-size: .6rem; }
+  .finance-month-dashboard-v218 .finance-month-metric-grid-v218 > button > span { font-size: .56rem; }
+  .finance-month-dashboard-v218 .finance-month-metric-grid-v218 > button > small { font-size: .53rem; }
+  .finance-insights-v219 .finance-month-insight-copy small { font-size: .54rem; }
+}
