@@ -213,7 +213,7 @@ export async function verifyStudyPlanAgainstReference(
 
 export async function verifyStudyPlanSource(input: VerifyStudyPlanInput): Promise<StudyPlanVerification> {
   const normalizedHash = input.fileHash.toLowerCase();
-  const reference = VERIFIED_STUDY_PLAN_2026_09_25;
+  const reference = VERIFIED_STUDY_PLAN_2026_09_30;
   if (normalizedHash !== reference.sha256) {
     return {
       state: 'NEW_SOURCE',
