@@ -16,7 +16,7 @@ import { identifyCandidate, identifyEntry } from '../study/study-identity';
 import { candidatesForSelectedGroups, findStudyScheduleConflicts, findStudyUpdateDecisionConflicts, validateStudyGroupSelection } from '../study/study.service';
 import { completenessForSelectedGroups } from '../study/study-completeness';
 import { applyRecurringPatternToCandidates } from '../study/study-recurring-pattern-assumptions';
-import { ENGLISH_MONDAY_SUPPLEMENT_END, ENGLISH_MONDAY_SUPPLEMENT_META_KEY, ENGLISH_MONDAY_SUPPLEMENT_SERIES_ID, ENGLISH_MONDAY_SUPPLEMENT_START, ENGLISH_MONDAY_SUPPLEMENT_TITLE, englishMondaySupplementDates, matchesEnglishMondaySupplementProfile } from '../study/user-confirmed-study-supplements';
+import { ENGLISH_MONDAY_SUPPLEMENT_END, ENGLISH_MONDAY_SUPPLEMENT_LEGACY_DESCRIPTION, ENGLISH_MONDAY_SUPPLEMENT_META_KEY, ENGLISH_MONDAY_SUPPLEMENT_SERIES_ID, ENGLISH_MONDAY_SUPPLEMENT_START, ENGLISH_MONDAY_SUPPLEMENT_TITLE, englishMondaySupplementDates, matchesEnglishMondaySupplementProfile } from '../study/user-confirmed-study-supplements';
 import { formatStudyGroupList, groupSetsIntersect } from '../imports/xlsx/group-normalizer';
 import { validateCandidateForImport } from '../imports/xlsx/import-validation';
 import { sha256Hex } from '../core/sha256';
@@ -823,6 +823,16 @@ export async function ensureEnglishMondayStudySupplement(): Promise<{ addedEvent
   const datesToAdd = targetDates.filter((date) => !existingSeriesDates.has(date) && !equivalentManualDates.has(date));
   const timestamp = nowIso();
   const template = seriesEvents[0];
+  const cleanedSeriesEvents = seriesEvents
+    .filter((event) => event.description === ENGLISH_MONDAY_SUPPLEMENT_LEGACY_DESCRIPTION)
+    .map((event) => {
+      const updated: CalendarEvent = { ...event, updatedAt: timestamp };
+      delete updated.description;
+      return updated;
+    });
+  const templateDescription = template?.description && template.description !== ENGLISH_MONDAY_SUPPLEMENT_LEGACY_DESCRIPTION
+    ? template.description
+    : undefined;
   const createdEvents: CalendarEvent[] = datesToAdd.map((date) => ({
     id: `event-${ENGLISH_MONDAY_SUPPLEMENT_SERIES_ID}-${date}`,
     title: template?.title ?? ENGLISH_MONDAY_SUPPLEMENT_TITLE,
@@ -837,9 +847,7 @@ export async function ensureEnglishMondayStudySupplement(): Promise<{ addedEvent
     seriesType: 'MANUAL_MULTI_DATE',
     createdAt: timestamp,
     updatedAt: timestamp,
-    ...(template?.description
-      ? { description: template.description }
-      : { description: 'Stałe zajęcia potwierdzone przez użytkownika. Poniedziałki 17:15-18:45. Sala i adres do uzupełnienia.' }),
+    ...(templateDescription ? { description: templateDescription } : {}),
     ...(template?.locationId ? { locationId: template.locationId } : {}),
     ...(template?.locationText ? { locationText: template.locationText } : {}),
   }));
@@ -855,11 +863,26 @@ export async function ensureEnglishMondayStudySupplement(): Promise<{ addedEvent
     appliedAt: priorMeta?.appliedAt ?? timestamp,
   };
 
-  const storeNames = createdEvents.length ? [STORE_EVENTS, STORE_META, STORE_CHANGE_JOURNAL] : [STORE_META];
+  const hasEventChanges = createdEvents.length > 0 || cleanedSeriesEvents.length > 0;
+  const storeNames = hasEventChanges ? [STORE_EVENTS, STORE_META, STORE_CHANGE_JOURNAL] : [STORE_META];
   const tx = db.transaction(storeNames, 'readwrite');
-  if (createdEvents.length) {
+  if (hasEventChanges) {
     const eventStore = tx.objectStore(STORE_EVENTS);
+    for (const event of cleanedSeriesEvents) eventStore.put(event);
     for (const event of createdEvents) eventStore.put(event);
+  }
+  if (cleanedSeriesEvents.length) {
+    putJournalEntry(tx, buildJournalEntry({
+      operationType: 'UPDATE_MANUAL_SERIES',
+      entityType: 'MANUAL_SERIES',
+      entityIds: cleanedSeriesEvents.map((event) => event.id),
+      description: `Uproszczono opis serii: ${ENGLISH_MONDAY_SUPPLEMENT_TITLE}`,
+      beforeState: seriesEvents.filter((event) => event.description === ENGLISH_MONDAY_SUPPLEMENT_LEGACY_DESCRIPTION),
+      afterState: cleanedSeriesEvents,
+      groupId: ENGLISH_MONDAY_SUPPLEMENT_SERIES_ID,
+    }));
+  }
+  if (createdEvents.length) {
     putJournalEntry(tx, buildJournalEntry({
       operationType: 'CREATE_MANUAL_SERIES',
       entityType: 'MANUAL_SERIES',
@@ -872,7 +895,7 @@ export async function ensureEnglishMondayStudySupplement(): Promise<{ addedEvent
   }
   tx.objectStore(STORE_META).put({ key: ENGLISH_MONDAY_SUPPLEMENT_META_KEY, value: JSON.stringify(meta) } satisfies MetaRecord);
   await transactionDone(tx);
-  if (createdEvents.length) await pruneChangeJournal();
+  if (hasEventChanges) await pruneChangeJournal();
 
   return {
     addedEventCount: createdEvents.length,

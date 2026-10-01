@@ -4,6 +4,7 @@ import type { StudyScheduleCandidate, UniversityImportEntry } from './study.type
 export const ENGLISH_MONDAY_SUPPLEMENT_SERIES_ID = 'study-user-confirmed-english-monday-v1';
 export const ENGLISH_MONDAY_SUPPLEMENT_META_KEY = 'studySupplement.englishMonday.v1';
 export const ENGLISH_MONDAY_SUPPLEMENT_TITLE = 'Język angielski';
+export const ENGLISH_MONDAY_SUPPLEMENT_LEGACY_DESCRIPTION = 'Stałe zajęcia potwierdzone przez użytkownika. Poniedziałki 17:15-18:45. Sala i adres do uzupełnienia.';
 export const ENGLISH_MONDAY_SUPPLEMENT_START = '17:15';
 export const ENGLISH_MONDAY_SUPPLEMENT_END = '18:45';
 export const ENGLISH_MONDAY_SUPPLEMENT_PROFILE = ['MAIN:11'] as const;

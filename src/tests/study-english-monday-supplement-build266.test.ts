@@ -86,6 +86,7 @@ describe('Build266 - potwierdzony język angielski w poniedziałki', () => {
     expect(english.every((event) => event.startDateTime.slice(11, 16) === ENGLISH_MONDAY_SUPPLEMENT_START)).toBe(true);
     expect(english.every((event) => event.endDateTime.slice(11, 16) === ENGLISH_MONDAY_SUPPLEMENT_END)).toBe(true);
     expect(english.every((event) => !event.locationId && !event.locationText)).toBe(true);
+    expect(english.every((event) => !event.description)).toBe(true);
     expect(english.map((event) => event.startDateTime.slice(0, 10))).not.toContain('2026-10-05');
     expect(english.map((event) => event.startDateTime.slice(0, 10))).not.toContain('2026-12-21');
     expect(english.map((event) => event.startDateTime.slice(0, 10))).not.toContain('2026-12-28');
