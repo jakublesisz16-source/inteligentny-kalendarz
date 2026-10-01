@@ -5,6 +5,7 @@ import { readSpreadsheetFile } from '../imports/xlsx/spreadsheet-reader';
 import { canonicalizeStudyGroupSelection, formatStudyGroupList, normalizeStudyGroupSelectionForAvailableGroups, studyGroupCompactLabel, studyGroupDisplayLabel } from '../imports/xlsx/group-normalizer';
 import {
   applyRecurringAssumptionsToActiveStudyPlan,
+  ensureEnglishMondayStudySupplement,
   applyUniversityScheduleUpdate,
   cancelScheduleUpdate,
   commitUniversityImport,
@@ -203,6 +204,7 @@ export function StudyView({ onDataChanged }: StudyViewProps) {
 
   async function refreshStudyData() {
     const assumptionUpdate = await applyRecurringAssumptionsToActiveStudyPlan();
+    const supplementUpdate = await ensureEnglishMondayStudySupplement();
     const [loadedImports, profile, active, latestUpdate] = await Promise.all([
       listUniversityImports(),
       getStudyProfile(),
@@ -213,7 +215,7 @@ export function StudyView({ onDataChanged }: StudyViewProps) {
     setProfileGroups(profile?.selectedGroups ?? []);
     setActiveImport(active ?? null);
     setLatestAppliedUpdate(latestUpdate ?? null);
-    if (assumptionUpdate.addedEventCount > 0 || assumptionUpdate.updatedEventCount > 0) await onDataChanged();
+    if (assumptionUpdate.addedEventCount > 0 || assumptionUpdate.updatedEventCount > 0 || supplementUpdate.addedEventCount > 0) await onDataChanged();
   }
 
   async function processFile(file: File) {

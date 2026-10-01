@@ -16,6 +16,7 @@ import { identifyCandidate, identifyEntry } from '../study/study-identity';
 import { candidatesForSelectedGroups, findStudyScheduleConflicts, findStudyUpdateDecisionConflicts, validateStudyGroupSelection } from '../study/study.service';
 import { completenessForSelectedGroups } from '../study/study-completeness';
 import { applyRecurringPatternToCandidates } from '../study/study-recurring-pattern-assumptions';
+import { ENGLISH_MONDAY_SUPPLEMENT_END, ENGLISH_MONDAY_SUPPLEMENT_META_KEY, ENGLISH_MONDAY_SUPPLEMENT_SERIES_ID, ENGLISH_MONDAY_SUPPLEMENT_START, ENGLISH_MONDAY_SUPPLEMENT_TITLE, englishMondaySupplementDates, matchesEnglishMondaySupplementProfile } from '../study/user-confirmed-study-supplements';
 import { formatStudyGroupList, groupSetsIntersect } from '../imports/xlsx/group-normalizer';
 import { validateCandidateForImport } from '../imports/xlsx/import-validation';
 import { sha256Hex } from '../core/sha256';
@@ -752,6 +753,133 @@ export async function updateEvent(id: string, draft: EventDraft): Promise<Calend
   await transactionDone(tx);
   await pruneChangeJournal();
   return updated;
+}
+
+interface EnglishMondaySupplementMeta {
+  version: 1;
+  sourceHash: string;
+  sourceStart?: string;
+  sourceEnd?: string;
+  seriesId: string;
+  createdDates: string[];
+  skippedDaysOff: string[];
+  appliedAt: string;
+}
+
+function parseEnglishMondaySupplementMeta(record: MetaRecord | undefined): EnglishMondaySupplementMeta | undefined {
+  if (!record || typeof record.value !== 'string') return undefined;
+  try {
+    const parsed = JSON.parse(record.value) as Partial<EnglishMondaySupplementMeta>;
+    if (parsed.version !== 1 || parsed.seriesId !== ENGLISH_MONDAY_SUPPLEMENT_SERIES_ID || !Array.isArray(parsed.createdDates)) return undefined;
+    return parsed as EnglishMondaySupplementMeta;
+  } catch {
+    return undefined;
+  }
+}
+
+function eventDateKey(event: CalendarEvent): string {
+  return event.startDateTime.slice(0, 10);
+}
+
+function eventTimeKey(event: CalendarEvent): string {
+  return `${event.startDateTime.slice(11, 16)}-${event.endDateTime.slice(11, 16)}`;
+}
+
+export async function ensureEnglishMondayStudySupplement(): Promise<{ addedEventCount: number; targetDateCount: number; skippedDayOffCount: number; suppressed: boolean }> {
+  const empty = { addedEventCount: 0, targetDateCount: 0, skippedDayOffCount: 0, suppressed: false };
+  const active = await getActiveUniversityImport();
+  if (!active || !matchesEnglishMondaySupplementProfile(active.selectedGroups)) return empty;
+
+  const [entries, events] = await Promise.all([listUniversityImportEntries(active.id), listEvents()]);
+  const sourceEntries = entries.filter((entry) => entry.sourceOnly);
+  const horizonSource = sourceEntries.length ? sourceEntries : entries;
+  const schedule = englishMondaySupplementDates(horizonSource);
+  if (!schedule.dates.length) return { ...empty, skippedDayOffCount: schedule.skippedDaysOff.length };
+
+  const db = await openDatabase();
+  const metaTx = db.transaction(STORE_META, 'readonly');
+  const metaRecord = await requestToPromise(metaTx.objectStore(STORE_META).get(ENGLISH_MONDAY_SUPPLEMENT_META_KEY) as IDBRequest<MetaRecord | undefined>);
+  await transactionDone(metaTx);
+  const priorMeta = parseEnglishMondaySupplementMeta(metaRecord);
+  const seriesEvents = events.filter((event) => event.source === 'MANUAL' && event.seriesType === 'MANUAL_MULTI_DATE' && event.seriesId === ENGLISH_MONDAY_SUPPLEMENT_SERIES_ID);
+
+  // Marker bez żywej serii oznacza, że użytkownik usunął tę automatycznie dodaną serię.
+  // Nie przywracamy jej samoczynnie przy każdym uruchomieniu aplikacji.
+  if (priorMeta && !seriesEvents.length) {
+    return { addedEventCount: 0, targetDateCount: schedule.dates.length, skippedDayOffCount: schedule.skippedDaysOff.length, suppressed: true };
+  }
+
+  const existingSeriesDates = new Set(seriesEvents.map(eventDateKey));
+  const equivalentManualDates = new Set(events
+    .filter((event) => event.source === 'MANUAL'
+      && event.title.trim().toLocaleLowerCase('pl-PL') === ENGLISH_MONDAY_SUPPLEMENT_TITLE.toLocaleLowerCase('pl-PL')
+      && eventTimeKey(event) === `${ENGLISH_MONDAY_SUPPLEMENT_START}-${ENGLISH_MONDAY_SUPPLEMENT_END}`)
+    .map(eventDateKey));
+
+  const previousHorizonEnd = priorMeta?.sourceEnd;
+  const targetDates = priorMeta && previousHorizonEnd
+    ? schedule.dates.filter((date) => date > previousHorizonEnd)
+    : schedule.dates;
+  const datesToAdd = targetDates.filter((date) => !existingSeriesDates.has(date) && !equivalentManualDates.has(date));
+  const timestamp = nowIso();
+  const template = seriesEvents[0];
+  const createdEvents: CalendarEvent[] = datesToAdd.map((date) => ({
+    id: `event-${ENGLISH_MONDAY_SUPPLEMENT_SERIES_ID}-${date}`,
+    title: template?.title ?? ENGLISH_MONDAY_SUPPLEMENT_TITLE,
+    startDateTime: `${date}T${template?.startDateTime.slice(11, 16) ?? ENGLISH_MONDAY_SUPPLEMENT_START}`,
+    endDateTime: `${date}T${template?.endDateTime.slice(11, 16) ?? ENGLISH_MONDAY_SUPPLEMENT_END}`,
+    allDay: false,
+    spanType: 'SINGLE_DAY',
+    category: template?.category ?? 'STUDY',
+    source: 'MANUAL',
+    availabilityImpact: template?.availabilityImpact ?? 'BLOCKING',
+    seriesId: ENGLISH_MONDAY_SUPPLEMENT_SERIES_ID,
+    seriesType: 'MANUAL_MULTI_DATE',
+    createdAt: timestamp,
+    updatedAt: timestamp,
+    ...(template?.description
+      ? { description: template.description }
+      : { description: 'Stałe zajęcia potwierdzone przez użytkownika. Poniedziałki 17:15-18:45. Sala i adres do uzupełnienia.' }),
+    ...(template?.locationId ? { locationId: template.locationId } : {}),
+    ...(template?.locationText ? { locationText: template.locationText } : {}),
+  }));
+
+  const meta: EnglishMondaySupplementMeta = {
+    version: 1,
+    sourceHash: active.fileHash,
+    ...(schedule.sourceStart ? { sourceStart: schedule.sourceStart } : {}),
+    ...(schedule.sourceEnd ? { sourceEnd: schedule.sourceEnd } : {}),
+    seriesId: ENGLISH_MONDAY_SUPPLEMENT_SERIES_ID,
+    createdDates: [...new Set([...(priorMeta?.createdDates ?? []), ...createdEvents.map(eventDateKey)])].sort(),
+    skippedDaysOff: [...schedule.skippedDaysOff],
+    appliedAt: priorMeta?.appliedAt ?? timestamp,
+  };
+
+  const storeNames = createdEvents.length ? [STORE_EVENTS, STORE_META, STORE_CHANGE_JOURNAL] : [STORE_META];
+  const tx = db.transaction(storeNames, 'readwrite');
+  if (createdEvents.length) {
+    const eventStore = tx.objectStore(STORE_EVENTS);
+    for (const event of createdEvents) eventStore.put(event);
+    putJournalEntry(tx, buildJournalEntry({
+      operationType: 'CREATE_MANUAL_SERIES',
+      entityType: 'MANUAL_SERIES',
+      entityIds: createdEvents.map((event) => event.id),
+      description: `Dodano potwierdzoną serię „${ENGLISH_MONDAY_SUPPLEMENT_TITLE}” (${createdEvents.length} terminów)`,
+      afterState: createdEvents,
+      groupId: ENGLISH_MONDAY_SUPPLEMENT_SERIES_ID,
+      metadata: { source: 'USER_CONFIRMED_STUDY_SUPPLEMENT', sourceHash: active.fileHash, skippedDaysOff: schedule.skippedDaysOff },
+    }));
+  }
+  tx.objectStore(STORE_META).put({ key: ENGLISH_MONDAY_SUPPLEMENT_META_KEY, value: JSON.stringify(meta) } satisfies MetaRecord);
+  await transactionDone(tx);
+  if (createdEvents.length) await pruneChangeJournal();
+
+  return {
+    addedEventCount: createdEvents.length,
+    targetDateCount: schedule.dates.length,
+    skippedDayOffCount: schedule.skippedDaysOff.length,
+    suppressed: false,
+  };
 }
 
 export async function createManualEventSeries(draft: ManualMultiDateDraft): Promise<CalendarEvent[]> {

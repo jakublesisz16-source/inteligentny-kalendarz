@@ -94,6 +94,10 @@ export function wumAcademicMarkerForDate(key: string): CalendarOverlayMarker | u
   return marker ? { kind: marker.kind, label: marker.label, shortLabel: marker.shortLabel } : undefined;
 }
 
+export function isKnownStudyDayOff(key: string): boolean {
+  return Boolean(polishHolidayForDate(key) || wumAcademicMarkerForDate(key));
+}
+
 export function calendarOverlayMarkersForDate(
   key: string,
   options: { showPolishHolidays: boolean; showWumAcademicCalendar: boolean },

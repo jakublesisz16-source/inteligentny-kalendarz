@@ -29,6 +29,7 @@ import {
   getActiveUniversityImport,
   listUniversityImportEntries,
   initializeDatabase,
+  ensureEnglishMondayStudySupplement,
   listEvents,
   listLocations,
   listDayConstraints,
@@ -132,6 +133,7 @@ export function App() {
   async function bootstrap() {
     try {
       await initializeDatabase();
+      await ensureEnglishMondayStudySupplement();
       const [loadedEvents, loadedLocations, loadedSettings, loadedConstraints, loadedAttributes, loadedIssues, loadedAvailability, activeStudyImport] = await Promise.all([
         listEvents(),
         listLocations(),
