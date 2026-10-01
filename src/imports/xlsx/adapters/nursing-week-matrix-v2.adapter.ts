@@ -3,7 +3,7 @@ import type { ScheduleAdapter, ScheduleAdapterMatch } from '../adapter.types';
 import type { SheetCellSnapshot, SheetMergeSnapshot, SheetSnapshot, WorkbookSnapshot } from '../xlsx.types';
 import { academicYearLabel, detectAcademicYear, detectTerm, looksLikeDateExpression, parseDateExpression, type AcademicYearContext } from '../date-parser';
 import { inferStudyGroupKind, normalizeGroupText, sortStudyGroups, studyGroupKey, type StudyGroupKind } from '../group-normalizer';
-import { explicitUnitCodes, findBestFooterHint, findFooterHintByExplicitUnitCode, findUnambiguousFooterHint, parseLocationText, type FooterLocationHint, type LocationParseResult } from '../location-parser';
+import { explicitUnitCodes, findBestFooterHint, findFooterHintByExplicitUnitCode, findUnambiguousFooterHint, normalizeLocationIdentity, parseLocationText, type FooterLocationHint, type LocationParseResult } from '../location-parser';
 import { compactWhitespace, foldPolishText } from '../parser-normalization';
 import { parseTimeRange, type ParsedTimeRange } from '../time-parser';
 import { auditStudyScheduleCompleteness } from '../../../study/study-completeness';
@@ -619,15 +619,27 @@ function workbookExplicitUnitLocationHints(workbook: WorkbookSnapshot): FooterLo
 
 function enrichCandidateAddressFromExplicitUnit(candidate: StudyScheduleCandidate, hints: FooterLocationHint[]): StudyScheduleCandidate {
   const explicitLocation = [candidate.room, candidate.locationLabel].filter(Boolean).join(' | ');
-  if (!explicitLocation || explicitUnitCodes(explicitLocation).length !== 1) return candidate;
+  const codes = explicitUnitCodes(explicitLocation);
+  if (!explicitLocation || codes.length !== 1) return candidate;
+  const code = codes[0]!;
   const hint = findFooterHintByExplicitUnitCode(explicitLocation, hints);
   if (!hint?.address) return candidate;
 
   // Jawny kod jednostki w konkretnej sali/lokalizacji jest silniejszym kluczem
-  // niż miękkie dopasowanie stopki po nazwie przedmiotu. Nie wolno jednak
-  // nadpisywać adresu wpisanego wprost w źródłowym nagłówku/wyjątku.
-  const explicitSourceAddress = parseLocationText(candidate.originalText).address;
-  if (candidate.address && explicitSourceAddress) return candidate;
+  // niż miękkie dopasowanie stopki po nazwie przedmiotu. Chronimy jednak adres
+  // podany wprost razem z tym samym, pojedynczym kodem jednostki w jednym
+  // fragmencie źródła. Dzięki temu ogólny adres przedmiotu nie może wygrać z
+  // późniejszym, dniowym wpisem typu "sala 126 w CD".
+  const candidateAddressIdentity = candidate.address ? normalizeLocationIdentity(candidate.address) : '';
+  const sourcePairsCodeWithCandidateAddress = Boolean(candidate.address) && candidate.originalText
+    .split(/\s*\|\s*|\n+/u)
+    .some((segment) => {
+      const segmentCodes = explicitUnitCodes(segment);
+      if (segmentCodes.length !== 1 || segmentCodes[0] !== code) return false;
+      const segmentAddress = parseLocationText(segment).address;
+      return Boolean(segmentAddress && normalizeLocationIdentity(segmentAddress) === candidateAddressIdentity);
+    });
+  if (sourcePairsCodeWithCandidateAddress) return candidate;
 
   return candidate.address === hint.address ? candidate : { ...candidate, address: hint.address };
 }

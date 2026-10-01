@@ -54,7 +54,7 @@ describe('study import readability contract', () => {
     expect(calendar).not.toContain('to nie jest potwierdzone wydarzenie');
     expect(calendar).toContain('Do sprawdzenia - plan studiów');
     expect(calendar).toContain('calendar-week-study-source-strip');
-    expect(calendar).toContain('Informacja z planu');
+    expect(calendar).toContain('selected-day-study-incomplete');
     expect(view).toContain('Kontrola źródła');
     expect(view).toContain('study-source-audit-v207');
     expect(view).toContain('Te pozycje pozostają tylko do wglądu.');
