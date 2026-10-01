@@ -94,7 +94,7 @@ describe('1.1.0-dev.3 FIX1 local OCR architecture', () => {
   });
 
   it('matches every runtime file against the committed SHA-256 inventory', () => {
-    const manifest = JSON.parse(source('../../public/ocr/tesseract/ASSET_MANIFEST.json')) as AssetManifest;
+    const manifest = JSON.parse(source('./fixtures/tesseract-asset-manifest.json')) as AssetManifest;
     expect(manifest.status).toBe('complete');
     const byPath = new Map(manifest.runtime.map((entry) => [entry.path, entry.sha256]));
     for (const relative of REQUIRED_RUNTIME) {

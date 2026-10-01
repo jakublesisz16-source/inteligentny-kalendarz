@@ -8,11 +8,18 @@ const excludedFiles = new Set(['SHA256SUMS.txt', 'CHECKPOINT_MANIFEST.sha256', '
 const privateExtensions = new Set(['.xls', '.xlsx', '.pdf', '.ikbackup', '.zip', '.7z', '.rar', '.pem', '.key', '.p12', '.pfx', '.jks', '.keystore']);
 const textExtensions = new Set(['.ts', '.tsx', '.js', '.mjs', '.cjs', '.json', '.md', '.txt', '.html', '.css', '.svg', '.webmanifest', '.ps1', '.yml', '.yaml']);
 
-const verifiedLocalStudySource = {
-  relativePath: 'private-fixtures/study/licencjat-ii-rok-piel.-30.09.2026.xls',
-  sizeBytes: 147_968,
-  sha256: '357da00714b71345ae289266dad6bac6430d225657a294ce2d05844e1861f391',
-};
+let verifiedLocalStudySource = null;
+const currentStatePath = join(root, 'CURRENT_STATE.json');
+if (existsSync(currentStatePath)) {
+  const state = JSON.parse(readFileSync(currentStatePath, 'utf8'));
+  if (state.activeStudySource && state.activeStudySourceFingerprint?.sha256 && Number.isFinite(Number(state.activeStudySourceFingerprint?.sizeBytes))) {
+    verifiedLocalStudySource = {
+      relativePath: `private-fixtures/study/${state.activeStudySource}`,
+      sizeBytes: Number(state.activeStudySourceFingerprint.sizeBytes),
+      sha256: String(state.activeStudySourceFingerprint.sha256),
+    };
+  }
+}
 
 const secretPatterns = [
   ['private key', /-----BEGIN (?:RSA |EC |OPENSSH |DSA )?PRIVATE KEY-----/u],
@@ -32,7 +39,7 @@ function sha256File(file) {
 }
 
 function isVerifiedLocalStudySource(file, rel) {
-  if (rel !== verifiedLocalStudySource.relativePath) return false;
+  if (!verifiedLocalStudySource || rel !== verifiedLocalStudySource.relativePath) return false;
   const stat = statSync(file);
   if (stat.size !== verifiedLocalStudySource.sizeBytes) {
     fail(`verified local Study source size mismatch: ${rel} (got ${stat.size}, expected ${verifiedLocalStudySource.sizeBytes})`);
@@ -71,7 +78,7 @@ for (const file of files) {
   }
   if (privateExtensions.has(extension)) {
     if (isVerifiedLocalStudySource(file, rel)) continue;
-    if (process.exitCode && rel === verifiedLocalStudySource.relativePath) continue;
+    if (process.exitCode && verifiedLocalStudySource && rel === verifiedLocalStudySource.relativePath) continue;
     fail(`private or archive file present outside _PRIVATE_HISTORY: ${rel}`);
     continue;
   }

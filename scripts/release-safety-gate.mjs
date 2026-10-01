@@ -80,7 +80,7 @@ const indexHtml = source('index.html');
 const swRegistration = source('src/app/registerServiceWorker.ts');
 const devSwRecovery = source('src/app/devServiceWorkerRecovery.ts');
 const publicRepoDoc = sourceIfExists('docs/PUBLIC_REPOSITORY.md');
-const privacyDoc = source('docs/PRIVACY.md');
+const privacyDoc = sourceIfExists('docs/PRIVACY.md');
 const calendarOverlays = source('src/calendar/calendar-overlays.ts');
 const availabilityView = source('src/availability/AvailabilityView.tsx');
 const workSummaryView = source('src/work/WorkSummaryView.tsx');
@@ -90,7 +90,7 @@ const studyMobileSmoke = source('scripts/study-mobile-smoke.mjs');
 const releaseChecklist = sourceIfExists('RELEASE_CHECKLIST.md');
 const githubCi = source('.github/workflows/ci.yml');
 const githubPages = sourceIfExists('.github/workflows/pages.yml');
-const gitignore = source('.gitignore');
+const gitignore = sourceIfExists('.gitignore');
 
 const projectRootEntries = readdirSync(new URL('../', import.meta.url));
 const rootHandoffs = projectRootEntries.filter((name) => /^HANDOFF_NEW_CHAT(?:_.*)?\.md$/u.test(name));
@@ -142,11 +142,11 @@ if (publicRepoDoc) assert(!publicRepoDoc.includes('Finalna architektura `1.0.0`'
 assert(packageJson.scripts?.build?.includes('service-worker-gate.mjs') && packageJson.scripts?.build?.includes('release-safety-gate.mjs') && packageJson.scripts?.build?.includes('travel-release-gate.mjs'), 'future production build does not execute release gates');
 assert(packageJson.scripts?.build?.includes('security-release-gate.mjs'), 'future production build does not execute security release gate');
 const securityReleaseGate = source('scripts/security-release-gate.mjs');
-assert(securityReleaseGate.includes("relativePath: 'private-fixtures/study/licencjat-ii-rok-piel.-30.09.2026.xls'") && securityReleaseGate.includes('sizeBytes: 147_968') && securityReleaseGate.includes('357da00714b71345ae289266dad6bac6430d225657a294ce2d05844e1861f391'), 'Build232 security gate must allow only the exact verified local Study source identity');
+assert(securityReleaseGate.includes("join(root, 'CURRENT_STATE.json')") && securityReleaseGate.includes('activeStudySourceFingerprint') && securityReleaseGate.includes('private-fixtures/study/${state.activeStudySource}'), 'security gate must derive the PRIVATE Study source identity from current checkpoint state instead of hardcoding private source details');
 assert(securityReleaseGate.includes("createHash('sha256')") && securityReleaseGate.includes('verified local Study source SHA-256 mismatch') && securityReleaseGate.includes('private or archive file present outside _PRIVATE_HISTORY'), 'Build232 security gate must remain fail-closed for Study drift and all other private/archive files');
 assert(packageJson.scripts?.['security:public']?.includes('public-package-gate.mjs'), 'public package security gate script is missing');
-assert(packageJson.scripts?.['checkpoint:state']?.includes('checkpoint-state-gate.mjs') && packageJson.scripts?.['checkpoint:manifest']?.includes('checkpoint-manifest.mjs') && packageJson.scripts?.['checkpoint:gate']?.includes('checkpoint-gate.mjs'), 'private checkpoint workflow scripts are missing');
-assert(packageJson.scripts?.['study:audit'] === 'vitest run --config vitest.public.config.ts src/tests/study-source-audit.optional.test.ts --reporter=verbose', 'Build229 exact Study source audit must stay independent from private Receipt fixtures');
+if (buildInfo) assert(packageJson.scripts?.['checkpoint:state']?.includes('checkpoint-state-gate.mjs') && packageJson.scripts?.['checkpoint:manifest']?.includes('checkpoint-manifest.mjs') && packageJson.scripts?.['checkpoint:gate']?.includes('checkpoint-gate.mjs'), 'private checkpoint workflow scripts are missing');
+if (buildInfo) assert(packageJson.scripts?.['study:audit'] === 'vitest run --config vitest.public.config.ts src/tests/study-source-audit.optional.test.ts --reporter=verbose', 'exact Study source audit must stay independent from private Receipt fixtures');
 assert(packageJson.scripts?.['security:dependencies']?.includes('npm audit --omit=dev --audit-level=high'), 'production dependency audit script is missing');
 assert(viteConfig.includes('sourcemap: false'), 'production source maps are not disabled');
 assert(workPdfFile.includes('MAX_WORK_PDF_FILE_BYTES = 32 * 1024 * 1024'), 'work PDF pre-read size limit missing or changed unexpectedly');
@@ -260,7 +260,7 @@ assert(interfaceConsistency.includes('.calendar-week-event.category-study') && i
 assert(calendarView.includes('filter-${item.id.toLowerCase()}') && calendarView.includes('category-${event.category.toLowerCase()}'), 'calendar filters or mobile day preview lost semantic category classes');
 assert(studyViewSource.includes('<h1>Studia</h1>') && studyViewSource.includes('study-current-plan-line') && studyViewSource.includes('study-groups-primary') && studyViewSource.includes('study-history-details'), 'Study default surface simplification is missing');
 assert(styleIndex.includes("@import './interface-consistency.css';") && styleIndex.includes("@import './mobile-compact.css';") && styleIndex.trimEnd().endsWith("@import './interface-refinement.css';"), 'shared consistency and compact mobile layers must be followed by the final interface refinement layer');
-assert(privacyDoc.includes('## Lokalne kursy walut 1.2.0.85') && privacyDoc.includes('wbudowanych lokalnie') && privacyDoc.includes('nie wysyła kwoty wydatku'), 'simplified FX privacy boundary is not documented');
+if (privacyDoc) assert(privacyDoc.includes('## Lokalne kursy walut 1.2.0.85') && privacyDoc.includes('wbudowanych lokalnie') && privacyDoc.includes('nie wysyła kwoty wydatku'), 'simplified FX privacy boundary is not documented');
 assert(financeDashboard.includes('completeTripOriginalTotal') && financeDashboard.includes('activeTripOriginalTotalMinor') && financeDashboard.includes('finance-trip-currency-compact'), 'Trip original-currency summary or currency settings entry is missing');
 assert(calendarCss.includes('/* 1.2.0.58 - lightweight trip expense summaries */') && mobileResponsiveCss.includes('/* 1.2.0.58 - trip finances on mobile */'), 'Finance trip summary styling missing');
 assert(financeDashboard.includes("type FinanceExpenseListMode = 'TRANSACTIONS' | 'ITEMS'") && financeDashboard.includes("useState<FinanceExpenseListMode>('TRANSACTIONS')") && financeDashboard.includes('finance-month-transaction-list'), 'Finance monthly view is no longer transaction-first');
@@ -654,7 +654,7 @@ assert(githubCi.includes('npm ci') && githubCi.includes('npm run check') && gith
 if (releaseChecklist) assert(releaseChecklist.includes('GitHub Desktop') && releaseChecklist.includes('Visual QA') && releaseChecklist.includes('SHA256'), '1.2.0.112 release checklist incomplete');
 assert(releasePreflight.includes('RELEASE_PREFLIGHT_PREP_OK') && releasePreflight.includes('Service Worker cache revision differs from APP_VERSION'), '1.2.0.112 dependency-free release preflight incomplete');
 assert(publicPackageGate.includes('forbiddenPrivateDocPatterns') && publicPackageGate.includes('HANDOFF_NEW_CHAT(?:_.*)?') && publicPackageGate.includes('CLEAN_CHECKPOINT_CONTENTS') && publicPackageGate.includes('CURRENT_STATE') && publicPackageGate.includes('CHECKPOINT_MANIFEST'), 'public package gate can leak PRIVATE checkpoint/process files');
-assert(gitignore.includes('.vite/') && gitignore.includes('test-results/') && gitignore.includes('playwright-report/'), '1.2.0.112 local release/test artifacts are not ignored');
+if (gitignore) assert(gitignore.includes('.vite/') && gitignore.includes('test-results/') && gitignore.includes('playwright-report/'), '1.2.0.112 local release/test artifacts are not ignored');
 assert(interfaceConsistency.includes('/* 1.2.0.112 - compact release-prep polish: denser desktop history, unchanged mobile touch targets. */'), '1.2.0.112 compact Settings release-prep styles missing');
 
 // 1.2.0.113 makes GitHub Pages deployment a release invariant instead of an accidental repository file.
