@@ -4883,3 +4883,135 @@ body.modal-open { overflow: hidden; }
   .finance-month-dashboard-v218 .finance-month-metric-grid-v218 > button > small { font-size: .53rem; }
   .finance-insights-v219 .finance-month-insight-copy small { font-size: .54rem; }
 }
+
+/* Build262 - mobile readability polish.
+ * Presentation only: stronger hierarchy without changing flows, data or touch targets.
+ */
+@media (max-width: 620px) {
+  /* Today: a free-day status and the next event are two different information levels.
+   * Keep them visually separate instead of wrapping both in one large undifferentiated surface.
+   */
+  .today-view.is-empty .today-plan-panel.today-single-surface {
+    display: grid;
+    gap: 11px;
+    min-height: 0;
+    overflow: visible;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .today-view.is-empty .today-plan-panel.today-single-surface > .empty-state {
+    min-height: 150px;
+    padding: 22px 16px 20px;
+    border: 1px solid color-mix(in srgb, var(--line-strong) 72%, var(--line));
+    border-radius: 18px;
+    background: linear-gradient(155deg, color-mix(in srgb, var(--accent-surface) 62%, var(--surface)) 0%, var(--surface) 76%);
+    box-shadow: 0 7px 22px rgba(83, 59, 69, .045);
+  }
+
+  .today-view.is-empty .today-plan-panel.today-single-surface > .empty-state .empty-state-icon {
+    width: 44px;
+    height: 44px;
+    margin-bottom: 11px;
+    border: 1px solid color-mix(in srgb, var(--accent) 24%, var(--line));
+    border-radius: 13px;
+    background: color-mix(in srgb, var(--accent-soft) 72%, var(--surface));
+    box-shadow: none;
+  }
+
+  .today-view.is-empty .today-plan-panel.today-single-surface > .empty-state .empty-state-icon svg {
+    width: 22px;
+    height: 22px;
+  }
+
+  .today-view.is-empty .today-plan-panel.today-single-surface > .empty-state h3 {
+    margin: 0;
+    font-size: 1rem;
+    line-height: 1.2;
+    font-weight: 850;
+    letter-spacing: -.012em;
+  }
+
+  .today-plan-panel .today-next-strip.today-future-preview {
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 3px 10px;
+    margin: 0;
+    padding: 12px 14px 13px;
+    border: 1px solid color-mix(in srgb, var(--line-strong) 68%, var(--line));
+    border-radius: 16px;
+    background: var(--surface);
+    box-shadow: 0 5px 18px rgba(83, 59, 69, .035);
+  }
+
+  .today-plan-panel .today-next-strip.today-future-preview .today-next-label {
+    color: var(--accent-strong);
+    font-size: .66rem;
+    font-weight: 820;
+    letter-spacing: 0;
+    text-transform: none;
+  }
+
+  .today-plan-panel .today-next-strip.today-future-preview .today-next-when {
+    color: color-mix(in srgb, var(--text-muted) 86%, var(--text));
+    font-size: .67rem;
+    font-weight: 740;
+  }
+
+  .today-plan-panel .today-next-strip.today-future-preview > strong {
+    grid-column: 1 / -1;
+    margin-top: 2px;
+    overflow: visible;
+    white-space: normal;
+    text-overflow: clip;
+    font-size: .88rem;
+    line-height: 1.25;
+  }
+
+  .today-plan-panel .today-next-strip.today-future-preview > small {
+    grid-column: 1 / -1;
+    max-width: none;
+    color: color-mix(in srgb, var(--text-muted) 90%, var(--text));
+    font-size: .68rem;
+    line-height: 1.35;
+    text-align: left;
+  }
+
+  .today-header-minimal {
+    margin-bottom: 10px;
+  }
+
+  .today-header-minimal h1 {
+    letter-spacing: -.018em;
+  }
+
+  .today-header-add {
+    border-color: color-mix(in srgb, var(--line-strong) 72%, var(--line));
+    background: color-mix(in srgb, var(--surface) 92%, var(--accent-surface));
+  }
+
+  /* Small cross-screen readability corrections. They only strengthen existing hierarchy. */
+  .finance-first-expense-empty,
+  .study-import-summary-v207,
+  .study-review-details-v207,
+  .work-overview-simple .work-comparison-card-empty {
+    border-color: color-mix(in srgb, var(--line-strong) 68%, var(--line));
+  }
+
+  .finance-first-expense-copy p:last-child,
+  .work-overview-simple .work-comparison-card-empty .muted-copy,
+  .study-import-summary-v207 .study-import-summary-heading p,
+  .study-import-summary-line-v207,
+  .study-summary-note-v207 {
+    color: color-mix(in srgb, var(--text-muted) 88%, var(--text));
+  }
+
+  .study-profile-group-picker .study-group-choice-card {
+    border-bottom-color: color-mix(in srgb, var(--line-strong) 62%, var(--line));
+  }
+
+  .work-roster-direct .work-shift-row-minimal {
+    border-bottom-color: color-mix(in srgb, var(--line-strong) 58%, var(--line));
+  }
+}
