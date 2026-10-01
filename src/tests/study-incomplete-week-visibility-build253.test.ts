@@ -39,7 +39,7 @@ describe('Build253 truthful Study source visibility', () => {
     const entry = weekEntry();
     expect(incompleteStudyEntrySourceHint(entry)).toContain('RODO i BHP od godz. 8.30');
     expect(incompleteStudyEntryRangeLabel(entry)).toBe('12.10.2026 - 16.10.2026');
-    expect(incompleteStudyEntryMarkerLabel(entry)).toBe('POZ · tydz.');
+    expect(incompleteStudyEntryMarkerLabel(entry)).toBe('POZ · sprawdź');
   });
 
   it('uses neutral source wording in Month, Week and details instead of certainty levels', () => {
@@ -47,10 +47,11 @@ describe('Build253 truthful Study source visibility', () => {
     const css = readFileSync('src/styles/components.css', 'utf8');
     expect(calendar).toContain('calendar-week-study-source-strip');
     expect(calendar).toContain('calendar-week-study-source-list');
-    expect(calendar).toContain('Informacja z planu');
+    expect(calendar).toContain('Do sprawdzenia - plan studiów');
+    expect(calendar).toContain('Sprawdź');
     expect(calendar).toContain('Wymiar w planie: {entry.declaredTeachingHours} godz.');
     expect(calendar).not.toContain('Plan wymaga potwierdzenia');
     expect(calendar).not.toContain('Niepełne dane z planu studiów');
-    expect(css).toContain('1.2.0.253 - Study source information stays visible without inventing dates or times');
+    expect(css).toContain('1.2.0.264 - incomplete Study source data is visibly marked as requiring review');
   });
 });

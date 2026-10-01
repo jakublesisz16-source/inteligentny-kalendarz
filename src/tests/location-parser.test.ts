@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { findBestFooterHint, normalizeLocationIdentity, parseLocationText } from '../imports/xlsx/location-parser';
+import { explicitUnitCodes, findBestFooterHint, findFooterHintByExplicitUnitCode, normalizeLocationIdentity, parseLocationText } from '../imports/xlsx/location-parser';
 
 describe('location parser hardening', () => {
   it.each([
@@ -67,6 +67,19 @@ describe('location parser hardening', () => {
   it('zachowuje dopasowanie jednowyrazowego identyfikatora mimo dopisku godzin', () => {
     const hints = [{ key: 'POZ seminaria, ul. Testowa 3', rawText: '', address: 'ul. Testowa 3' }];
     expect(findBestFooterHint('POZ seminaria 15g', hints)?.address).toBe('ul. Testowa 3');
+  });
+
+  it('wiąże skrót CD z jednoznacznym adresem Centrum Dydaktycznego', () => {
+    const hints = [
+      { key: 'WYKŁADY A1', rawText: 'Centrum Dydaktyczne, ul. Trojdena 2a', address: 'ul. Trojdena 2a' },
+      { key: 'WYKŁADY A19', rawText: 'Centrum Dydaktyczne, ul. Trojdena 2a', address: 'ul. Trojdena 2a' },
+    ];
+    expect(explicitUnitCodes('sala 126 w CD')).toEqual(['CD']);
+    expect(findFooterHintByExplicitUnitCode('sala 126 w CD', hints)?.address).toBe('ul. Trojdena 2a');
+  });
+
+  it('nie wiąże komórki zawierającej kilka kodów jednostek z jednym adresem', () => {
+    expect(explicitUnitCodes('pon. sala 126 w CD, pt. sala 210 w NZJ')).toEqual(['CD', 'NZJ']);
   });
 
 });

@@ -676,14 +676,31 @@ describe('nursing-week-matrix-v2 II year 2026/2027 current layout hardening', ()
   it('stosuje lokalizację z dnia tylko do tego dnia i respektuje zakresy dat w tej samej komórce', () => {
     const workbook = wideWorkbook();
     const plan = workbook.sheets[0]!;
-    plan.cells.push(cell(5, 2, 'pon. - sala 126 w CD pt. - 10.10. - 24.10. - sala 210 w NZJ'));
+    plan.cells.push(
+      cell(5, 2, 'pon. - sala 126 w CD pt. - 10.10. - 24.10. - sala 210 w NZJ'),
+      cell(22, 2, 'Zakład Rozwoju Pielęgniarstwa (NZJ), ul. Ciołka 27'),
+    );
 
     const result = nursingWeekMatrixV2Adapter.analyze(workbook);
     const group = result.candidates.filter((candidate) => candidate.groupTags.includes('G8:1A'));
-    expect(group.find((candidate) => candidate.date === '2025-10-06')).toMatchObject({ room: 'sala 126 w CD' });
+    expect(group.find((candidate) => candidate.date === '2025-10-06')).toMatchObject({ room: 'sala 126 w CD', address: 'ul. Akademicka 2' });
     expect(group.find((candidate) => candidate.date === '2025-10-07')?.room).toBeUndefined();
-    expect(group.find((candidate) => candidate.date === '2025-10-10')).toMatchObject({ room: 'sala 210 w NZJ' });
-    expect(group.find((candidate) => candidate.date === '2025-10-17')).toMatchObject({ room: 'sala 210 w NZJ' });
+    expect(group.find((candidate) => candidate.date === '2025-10-07')?.address).toBeUndefined();
+    expect(group.find((candidate) => candidate.date === '2025-10-10')).toMatchObject({ room: 'sala 210 w NZJ', address: 'ul. Ciołka 27' });
+    expect(group.find((candidate) => candidate.date === '2025-10-17')).toMatchObject({ room: 'sala 210 w NZJ', address: 'ul. Ciołka 27' });
+  });
+
+  it('nie nadpisuje jawnego adresu źródłowego adresem przypisanym do kodu jednostki', () => {
+    const workbook = wideWorkbook();
+    const plan = workbook.sheets[0]!;
+    plan.cells.push(
+      cell(5, 2, 'pon. - sala 126 w CD, ul. Jawna 99'),
+      cell(22, 2, 'Centrum Dydaktyczne (CD), ul. Akademicka 2'),
+    );
+
+    const result = nursingWeekMatrixV2Adapter.analyze(workbook);
+    const monday = result.candidates.find((candidate) => candidate.groupTags.includes('G8:1A') && candidate.date === '2025-10-06');
+    expect(monday).toMatchObject({ room: 'sala 126 w CD', address: 'ul. Jawna 99' });
   });
 
   it('wiąże jawny kod jednostki NZJ z jednoznacznym adresem ze stopki bez zgadywania po przedmiocie', () => {

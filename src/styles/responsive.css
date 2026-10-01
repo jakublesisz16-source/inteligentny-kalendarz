@@ -2800,3 +2800,15 @@
   .calendar-week-study-source-entry small { width: 100%; font-size: .56rem; }
   .study-incomplete-marker { max-width: calc(100% - 8px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 }
+
+/* 1.2.0.264 - mobile Study review cue matches Month/Week. */
+@media (max-width: 820px) {
+  .calendar-mobile-day-preview-incomplete {
+    background: color-mix(in srgb, var(--accent-surface) 46%, var(--surface));
+    border-color: color-mix(in srgb, var(--accent-strong) 22%, var(--line));
+  }
+  .calendar-mobile-day-preview-incomplete > span {
+    color: var(--accent-strong);
+    font-weight: 900;
+  }
+}

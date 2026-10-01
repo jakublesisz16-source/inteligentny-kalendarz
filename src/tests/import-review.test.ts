@@ -67,6 +67,20 @@ describe('klasyfikacja problemów importu', () => {
     expect(found?.severity).toBe('WARNING');
   });
 
+
+  it('jawna nazwa fizycznej jednostki bez adresu pozostaje importowalnym ostrzeżeniem', () => {
+    const value = candidate({ locationLabel: 'CBI' });
+    expect(reviewCandidate(value).state).toBe('WARNING');
+    expect(codes(value)).toContain('MISSING_ADDRESS');
+    expect(reviewCandidate(value).canImport).toBe(true);
+  });
+
+  it('lokalizacja zdalna Teams nie wymaga ulicy', () => {
+    const value = candidate({ locationLabel: 'Microsoft Teams' });
+    expect(reviewCandidate(value).state).toBe('READY');
+    expect(codes(value)).not.toContain('MISSING_ADDRESS');
+  });
+
   it('brak daty jest BLOCKING', () => {
     const value = candidate({ date: undefined, status: 'REVIEW_REQUIRED' });
     expect(reviewCandidate(value).state).toBe('BLOCKING');

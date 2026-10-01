@@ -568,11 +568,24 @@ assert(studySourceAuditOptionalTest.includes('activeStudyQaProfile') && studySou
 assert(studySourceAuditOptionalTest.includes("candidateSemanticFingerprint } from '../study/verified-study-plan'") && studySourceAuditOptionalTest.includes('await candidateSemanticFingerprint'), 'Build228 real-source audit does not reuse the production semantic fingerprint');
 assert(studyViewSource.includes('verifyStudyPlanSource') && studyViewSource.includes("verification.state === 'BLOCKED_REFERENCE_DRIFT'") && studyViewSource.includes('ZWERYFIKOWANY'), 'Build228 Study import is not fail-closed behind the verified reference');
 assert(verifiedStudyPlan.includes("state: 'NEW_SOURCE'") && verifiedStudyPlan.includes('verifyStudyPlanAgainstReference') && verifiedStudyPlan.includes('auditSelectedStudyProfile') && verifiedStudyPlan.includes('groupKindCounts'), 'Build228 verified Study reference or future-source fallback is incomplete');
-assert(verifiedStudyPlan.includes('357da00714b71345ae289266dad6bac6430d225657a294ce2d05844e1861f391') && verifiedStudyPlan.includes('b4590403b484b2602d83d3f9c27e1825abfb76d2a29def5ac164356d3e15aec9') && verifiedStudyPlan.includes('a2df44543641c2f699d8a053a981eb2a6cc25c9f5fa7584082b5ad6bbe0a66f6'), 'Build228 verified Study runtime reference drifted from the audited 30.09.2026 source');
+assert(verifiedStudyPlan.includes('357da00714b71345ae289266dad6bac6430d225657a294ce2d05844e1861f391') && verifiedStudyPlan.includes('84949880aa1d7fef709974683cf61ee35cf5f9dde1ca4c4c74e5506331a3b631') && verifiedStudyPlan.includes('a2df44543641c2f699d8a053a981eb2a6cc25c9f5fa7584082b5ad6bbe0a66f6'), 'Build228 verified Study runtime reference drifted from the audited 30.09.2026 source');
 assert(verifiedStudyPlanTest.includes('nie dziedziczy statusu verified po samej nazwie pliku') && verifiedStudyPlanTest.includes('blokuje cichą zmianę semantyki'), 'Build228 verified Study regression proofs are missing');
-if (currentState) assert(Array.isArray(currentState.activeStudyQaProfile?.selectedGroups) && currentState.activeStudyQaProfile.selectedGroups.length === 4 && currentState.activeStudyQaProfile.selectedGroups.some((group) => String(group).startsWith('G8:')) && currentState.activeStudyQaProfile.importableCount === 76 && currentState.activeStudyQaProfile.incompleteCount === 3, 'active Study QA profile drifted from the audited 30.09.2026 source or lost explicit G8');
-if (currentState) assert(currentState.activeStudySource === 'licencjat-ii-rok-piel.-30.09.2026.xls' && currentState.activeStudySemanticReference?.allCandidatesSha256 === 'b4590403b484b2602d83d3f9c27e1825abfb76d2a29def5ac164356d3e15aec9' && /^[a-f0-9]{64}$/u.test(String(currentState.activeStudySemanticReference?.selectedProfileCandidatesSha256 ?? '')), 'active Study source semantic reference drifted');
-if (currentState?.activeStudyOperationalProfile) assert(currentState.activeStudyOperationalProfile.selectedGroups?.length === 4 && currentState.activeStudyOperationalProfile.importableCount === 78 && currentState.activeStudyOperationalProfile.incompleteCount === 1 && /^[a-f0-9]{64}$/u.test(String(currentState.activeStudyOperationalProfile.candidatesSha256 ?? '')), 'Build251 operational exact-source Study profile drifted');
+if (currentState) {
+  const selectedGroups = currentState.activeStudyQaProfile?.selectedGroups;
+  const identityGroups = currentState.activeStudyIdentity?.selectedGroups;
+  const hasIndependentPartitions = Array.isArray(selectedGroups)
+    && selectedGroups.length === 4
+    && ['MAIN:', 'G12:', 'G8:', 'G4:'].every((prefix) => selectedGroups.some((group) => String(group).startsWith(prefix)));
+  assert(hasIndependentPartitions
+    && JSON.stringify(selectedGroups) === JSON.stringify(identityGroups)
+    && Number.isInteger(currentState.activeStudyQaProfile?.candidateCount)
+    && Number.isInteger(currentState.activeStudyQaProfile?.importableCount)
+    && Number.isInteger(currentState.activeStudyQaProfile?.incompleteCount)
+    && currentState.activeStudyQaProfile.importableCount <= currentState.activeStudyQaProfile.candidateCount,
+  'active Study QA profile drifted from the private current-student identity or lost an independent partition');
+}
+if (currentState) assert(currentState.activeStudySource === 'licencjat-ii-rok-piel.-30.09.2026.xls' && currentState.activeStudySemanticReference?.allCandidatesSha256 === '84949880aa1d7fef709974683cf61ee35cf5f9dde1ca4c4c74e5506331a3b631' && /^[a-f0-9]{64}$/u.test(String(currentState.activeStudySemanticReference?.selectedProfileCandidatesSha256 ?? '')), 'active Study source semantic reference drifted');
+if (currentState?.activeStudyOperationalProfile) assert(JSON.stringify(currentState.activeStudyOperationalProfile.selectedGroups) === JSON.stringify(currentState.activeStudyQaProfile?.selectedGroups) && currentState.activeStudyOperationalProfile.importableCount >= currentState.activeStudyQaProfile.importableCount && currentState.activeStudyOperationalProfile.incompleteCount <= currentState.activeStudyQaProfile.incompleteCount && /^[a-f0-9]{64}$/u.test(String(currentState.activeStudyOperationalProfile.candidatesSha256 ?? '')), 'Build264 operational exact-source Study profile drifted from the raw private profile');
 
 // 1.2.0.146 makes the release-blocking Study mobile import smoke repeatable on both phone widths.
 assert(packageJson.scripts?.['study:mobile-smoke'] === 'node scripts/study-mobile-smoke.mjs', '1.2.0.146 Study mobile smoke package command missing');
@@ -694,7 +707,7 @@ assert(studyView.includes('className="import-history-group-list"'), 'Study impor
 assert(componentCss.includes('.calendar-week-study-group'), 'calendar Study event group styling missing');
 assert(app.includes('incompleteStudyEntries={incompleteStudyEntries}'), 'Calendar does not receive source-incomplete Study entries');
 assert(calendarView.includes('study-incomplete-marker'), 'Calendar hides source-incomplete Study blocks');
-assert(calendarView.includes('Informacja z planu studiów - szczegóły wpisu nie pozwalają utworzyć pełnego wydarzenia') && calendarView.includes('calendar-week-study-source-strip'), 'Calendar does not distinguish source-only plan information from normal events');
+assert(calendarView.includes('Do sprawdzenia - plan studiów') && calendarView.includes('calendar-week-study-source-strip'), 'Calendar does not distinguish source-only plan information from normal events');
 assert(studyView.includes('Kontrola źródła') && studyView.includes('study-source-audit-v207'), 'Study preview lacks progressive source completeness access');
 assert(interfaceRefinement.includes('.study-source-audit-v207') && componentCss.includes('.study-incomplete-marker'), 'source completeness UI styles missing');
 

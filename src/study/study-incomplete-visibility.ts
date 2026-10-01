@@ -64,5 +64,5 @@ export function incompleteStudyEntryMarkerLabel(entry: UniversityImportEntry): s
   const subject = entry.subject.trim();
   const short = subject.length <= 8 ? subject : `${subject.slice(0, 7).trim()}.`;
   if (!short) return 'Plan';
-  return entry.date ? short : `${short} · tydz.`;
+  return `${short} · sprawdź`;
 }

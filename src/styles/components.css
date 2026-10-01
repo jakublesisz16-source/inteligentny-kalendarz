@@ -4855,3 +4855,20 @@ button.finance-overview-category-chip.is-active { background: var(--surface-soft
 .calendar-week-study-source-entry small { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-muted); font-size: .58rem; }
 .study-incomplete-meta { color: var(--text-muted) !important; font-size: .62rem !important; }
 .study-incomplete-source-hint { color: var(--text) !important; font-weight: 700; }
+
+/* 1.2.0.264 - incomplete Study source data is visibly marked as requiring review. */
+.study-incomplete-marker {
+  background: color-mix(in srgb, var(--accent-surface) 72%, var(--surface));
+  color: var(--text);
+  border-color: color-mix(in srgb, var(--accent-strong) 24%, var(--line));
+}
+.calendar-week-study-source-strip {
+  background: color-mix(in srgb, var(--accent-surface) 38%, var(--surface-soft));
+}
+.calendar-week-study-source-label {
+  color: var(--text);
+  font-weight: 900;
+}
+.calendar-week-study-source-entry {
+  border-color: color-mix(in srgb, var(--accent-strong) 20%, var(--line));
+}

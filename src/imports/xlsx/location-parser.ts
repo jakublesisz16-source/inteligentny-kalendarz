@@ -133,20 +133,40 @@ function footerMatchTokens(text: string): Set<string> {
   return new Set(canonical.filter((token) => token !== 'podst'));
 }
 
+const EXPLICIT_UNIT_CODE_ALIASES: Readonly<Record<string, readonly RegExp[]>> = {
+  CD: [/\bCD\b/iu, /\bCentrum\s+Dydaktyczne\b/iu],
+  CBI: [/\bCBI\b/iu, /\bCentrum\s+Biblioteczno[- ]Informacyjne\b/iu],
+  CSM: [/\bCSM\b/iu, /\bCentrum\s+Symulacji\s+Medycznych\b/iu],
+};
+
+export function explicitUnitCodes(text: string): string[] {
+  return [...new Set((text.toUpperCase().match(/\b(?:NZ[A-Z]{1,3}|CBI|CSM|CD)\b/g) ?? []))];
+}
+
+function unitCodeMatchesText(code: string, text: string): boolean {
+  const aliases = EXPLICIT_UNIT_CODE_ALIASES[code];
+  if (aliases?.some((pattern) => pattern.test(text))) return true;
+  const escaped = code.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return new RegExp(`\\b${escaped}\\b`, 'iu').test(text);
+}
+
 export function findFooterHintByExplicitUnitCode(text: string, hints: FooterLocationHint[]): FooterLocationHint | undefined {
-  const codes = [...new Set((text.toUpperCase().match(/\b(?:NZ[A-Z]{1,3}|CBI|CSM|CD)\b/g) ?? []))];
+  const codes = explicitUnitCodes(text);
   // A code is a safe join key only when the header names exactly one unit.
   // Composite notes such as "CD ... NZJ ..." must stay date/day scoped instead
   // of lending one footer address to the whole column.
   if (codes.length !== 1) return undefined;
   const code = codes[0]!;
-  const codePattern = new RegExp(`\\b${code.replace(/[.*+?^${}()|[\\]\\]/g, '\\$&')}\\b`, 'i');
-  const matches = hints.filter((hint) => codePattern.test(hint.rawText || hint.key) && Boolean(hint.address || hint.label));
+  const matches = hints.filter((hint) => unitCodeMatchesText(code, hint.rawText || hint.key) && Boolean(hint.address || hint.label));
   if (!matches.length) return undefined;
   const identities = new Map<string, FooterLocationHint>();
   for (const hint of matches) {
-    const identity = [hint.address ?? '', hint.label ?? ''].join('|');
-    if (!identity.replace(/\|/g, '')) continue;
+    const identity = hint.address
+      ? `address:${normalizeLocationIdentity(hint.address)}`
+      : hint.label
+        ? `label:${normalizeSemanticText(hint.label)}`
+        : '';
+    if (!identity) continue;
     identities.set(identity, hint);
   }
   return identities.size === 1 ? [...identities.values()][0] : undefined;

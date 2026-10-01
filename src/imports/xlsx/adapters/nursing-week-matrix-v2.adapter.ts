@@ -3,7 +3,7 @@ import type { ScheduleAdapter, ScheduleAdapterMatch } from '../adapter.types';
 import type { SheetCellSnapshot, SheetMergeSnapshot, SheetSnapshot, WorkbookSnapshot } from '../xlsx.types';
 import { academicYearLabel, detectAcademicYear, detectTerm, looksLikeDateExpression, parseDateExpression, type AcademicYearContext } from '../date-parser';
 import { inferStudyGroupKind, normalizeGroupText, sortStudyGroups, studyGroupKey, type StudyGroupKind } from '../group-normalizer';
-import { findBestFooterHint, findFooterHintByExplicitUnitCode, findUnambiguousFooterHint, parseLocationText, type FooterLocationHint, type LocationParseResult } from '../location-parser';
+import { explicitUnitCodes, findBestFooterHint, findFooterHintByExplicitUnitCode, findUnambiguousFooterHint, parseLocationText, type FooterLocationHint, type LocationParseResult } from '../location-parser';
 import { compactWhitespace, foldPolishText } from '../parser-normalization';
 import { parseTimeRange, type ParsedTimeRange } from '../time-parser';
 import { auditStudyScheduleCompleteness } from '../../../study/study-completeness';
@@ -593,6 +593,43 @@ function mergeLocation(primary: LocationParseResult, fallback?: FooterLocationHi
     ...(primary.address ? { address: primary.address } : {}),
     ...(primary.label ? { label: primary.label } : {}),
   };
+}
+
+function workbookExplicitUnitLocationHints(workbook: WorkbookSnapshot): FooterLocationHint[] {
+  const hints: FooterLocationHint[] = [];
+  for (const sheet of workbook.sheets) {
+    for (const cell of sheet.cells) {
+      const parsed = parseLocationText(cell.value);
+      if (!parsed.address) continue;
+      // A cell that names several unit codes and only one later address is not a
+      // safe global join source. Example: a weekday room table can mention CD,
+      // NZJ and then a separate Litewska address in the same cell.
+      if (explicitUnitCodes(cell.value).length > 1) continue;
+      hints.push({
+        key: `${sheet.name} ${cell.address} ${cell.value}`,
+        rawText: cell.value,
+        ...(parsed.room ? { room: parsed.room } : {}),
+        address: parsed.address,
+        ...(parsed.label ? { label: parsed.label } : {}),
+      });
+    }
+  }
+  return hints;
+}
+
+function enrichCandidateAddressFromExplicitUnit(candidate: StudyScheduleCandidate, hints: FooterLocationHint[]): StudyScheduleCandidate {
+  const explicitLocation = [candidate.room, candidate.locationLabel].filter(Boolean).join(' | ');
+  if (!explicitLocation || explicitUnitCodes(explicitLocation).length !== 1) return candidate;
+  const hint = findFooterHintByExplicitUnitCode(explicitLocation, hints);
+  if (!hint?.address) return candidate;
+
+  // Jawny kod jednostki w konkretnej sali/lokalizacji jest silniejszym kluczem
+  // niż miękkie dopasowanie stopki po nazwie przedmiotu. Nie wolno jednak
+  // nadpisywać adresu wpisanego wprost w źródłowym nagłówku/wyjątku.
+  const explicitSourceAddress = parseLocationText(candidate.originalText).address;
+  if (candidate.address && explicitSourceAddress) return candidate;
+
+  return candidate.address === hint.address ? candidate : { ...candidate, address: hint.address };
 }
 
 function footerHints(sheet: SheetSnapshot, afterRow: number): FooterContextHint[] {
@@ -1457,11 +1494,13 @@ export const nursingWeekMatrixV2Adapter: ScheduleAdapter = {
     const matrixData = matrixSignalsHandled(matrix)
       ? buildMatrixCandidates(matrix.sheet, matrix)
       : { candidates: [] as StudyScheduleCandidate[], sourceBlocks: [] as StudySourceBlock[], unappliedDateExceptions: [] as UnappliedDateException[] };
-    const matrixCandidates = matrixData.candidates;
     const lectureData = lecture && lecture.sectionCount >= 1 && lecture.timedEntryCount >= 3
       ? buildLectureCandidates(lecture.sheet, lecture.academicYear ?? matrix?.academicYear ?? null)
       : { candidates: [] as StudyScheduleCandidate[], information: [] as ScheduleInformation[] };
-    const candidates = [...matrixCandidates, ...lectureData.candidates];
+    const explicitUnitHints = workbookExplicitUnitLocationHints(workbook);
+    const matrixCandidates = matrixData.candidates.map((candidate) => enrichCandidateAddressFromExplicitUnit(candidate, explicitUnitHints));
+    const lectureCandidates = lectureData.candidates.map((candidate) => enrichCandidateAddressFromExplicitUnit(candidate, explicitUnitHints));
+    const candidates = [...matrixCandidates, ...lectureCandidates];
     const groups = sortStudyGroups([...new Set(matrixCandidates.flatMap((candidate) => candidate.groupTags))]);
     const academicYear = matrix?.academicYear ?? lecture?.academicYear ?? null;
     const termTexts = workbook.sheets.flatMap((sheet) => sheet.cells.filter((cell) => cell.row <= Math.min(sheet.maxRow, sheet.minRow + 19)).map((cell) => cell.value));

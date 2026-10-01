@@ -146,9 +146,11 @@ export function classifyCandidateIssues(candidate: StudyScheduleCandidate): Impo
     addUnique(issues, issue(code, warning));
   }
 
-  // In this adapter lack of any usable location was the main reason for REVIEW_REQUIRED.
-  // It is useful to import the class anyway, but the UI must clearly expose the missing data.
-  if (!candidate.address && !candidate.locationLabel) {
+  // A named unit/building is still useful enough to import, but a physical
+  // location without an exact address must remain visibly reviewable. Online
+  // destinations such as Teams are complete without a street address.
+  const remoteLocation = Boolean(candidate.locationLabel && /(?:microsoft\s+)?teams|online|e-learning/iu.test(candidate.locationLabel));
+  if (!candidate.address && !remoteLocation) {
     addUnique(issues, issue('MISSING_ADDRESS'));
   }
 

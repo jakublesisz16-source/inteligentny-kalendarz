@@ -8,7 +8,8 @@ const versioningWorkflow = readFileSync('src/tests/versioning-workflow-12133.tes
 
 describe('public release self-containment', () => {
   it('does not require private CURRENT_STATE metadata in the sanitized public tree', () => {
-    expect(releaseSafety).toContain('if (currentState) assert(Array.isArray(currentState.activeStudyQaProfile?.selectedGroups)');
+    expect(releaseSafety).toContain('const selectedGroups = currentState.activeStudyQaProfile?.selectedGroups;');
+    expect(releaseSafety).toContain('const identityGroups = currentState.activeStudyIdentity?.selectedGroups;');
     expect(releaseSafety).not.toContain('assert(Array.isArray(currentState?.activeStudyQaProfile?.selectedGroups)');
   });
 
