@@ -12,10 +12,10 @@ export const VERIFIED_STUDY_PLAN_2026_09_30 = {
   sizeBytes: 147_968,
   sha256: '357da00714b71345ae289266dad6bac6430d225657a294ce2d05844e1861f391',
   adapterId: 'nursing-week-matrix-v2',
-  allCandidatesSha256: '84949880aa1d7fef709974683cf61ee35cf5f9dde1ca4c4c74e5506331a3b631',
+  allCandidatesSha256: '7f3de764d14a8c92f1cf782e7195ff65c61f3ef192f3867390cb577f898936d5',
   selectedProfile: {
     selectedGroups: ['MAIN:7', 'G12:7A', 'G8:7B', 'G4:7B2'],
-    candidatesSha256: 'a2df44543641c2f699d8a053a981eb2a6cc25c9f5fa7584082b5ad6bbe0a66f6',
+    candidatesSha256: 'e321f1243051d3bf3047a3844397715c82135eb2f30aa767c8d59fb4bbee304a',
     candidateCount: 79,
     importableCount: 76,
     readyCount: 69,
