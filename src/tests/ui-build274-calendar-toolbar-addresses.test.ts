@@ -37,7 +37,7 @@ describe('Build274 calendar utility polish', () => {
   });
 
   it('advances only the build and keeps schema 14', () => {
-    expect(version).toContain("APP_VERSION = '1.2.0.274'");
+    expect(version).toContain("APP_VERSION = '1.2.0.275'");
     expect(version).toContain('DATABASE_SCHEMA_VERSION = 14');
   });
 });

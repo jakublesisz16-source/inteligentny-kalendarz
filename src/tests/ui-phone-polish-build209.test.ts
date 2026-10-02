@@ -11,7 +11,7 @@ describe('Build209 real-phone polish', () => {
   it('keeps all seven phone day timelines with a readable vertical scale', () => {
     expect(calendar).toContain('const WEEK_MOBILE_HOUR_HEIGHT = 38;');
     expect(calendar).toContain('if (window.innerWidth <= 620) return WEEK_MOBILE_HOUR_HEIGHT;');
-    expect(calendar).toContain('data-hour={WEEK_START_HOUR + index}');
+    expect(calendar).toContain('data-hour={hour}');
     expect(css).toContain('Build239 - mobile Week keeps the whole seven-day planner visible');
     expect(css).toContain('height: clamp(380px, calc(100dvh - 430px), 590px);');
     expect(css).toContain('overflow-y: auto;');
