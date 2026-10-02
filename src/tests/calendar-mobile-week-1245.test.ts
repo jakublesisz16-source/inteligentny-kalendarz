@@ -17,12 +17,13 @@ describe('mobile weekly planner contract', () => {
     expect(refinement).toContain('.calendar-week-all-day-cell,');
   });
 
-  it('keeps the phone timeline vertically scrollable and touch-friendly', () => {
+  it('keeps the phone timeline in the natural page scroll and touch-friendly', () => {
     const responsive = source('../styles/responsive.css');
     const refinement = source('../styles/interface-refinement.css');
-    expect(refinement).toContain('height: clamp(380px, calc(100dvh - 430px), 590px);');
-    expect(refinement).toContain('overflow-y: auto;');
-    expect(refinement).toContain('-webkit-overflow-scrolling: touch;');
+    expect(refinement).toContain('Build277 - mobile Week uses one natural page scroll');
+    expect(refinement).toContain('height: auto !important;');
+    expect(refinement).toContain('overflow-y: visible !important;');
+    expect(refinement).toContain('touch-action: pan-y;');
     expect(responsive).toContain('width: min(286px, calc(100% - 8px));');
     expect(responsive).toContain('min-height: 42px;');
   });

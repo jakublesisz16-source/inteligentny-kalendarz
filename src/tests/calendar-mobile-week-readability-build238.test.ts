@@ -15,13 +15,13 @@ describe('Build239 mobile Calendar full-week readability', () => {
     expect(calendar).toContain("displayMode === 'WEEK' ? ' calendar-mobile-week-preview' : ''");
   });
 
-  it('uses a readable scroll density and compact event codes instead of full titles in narrow columns', () => {
+  it('uses a readable page-scroll density and compact event codes instead of full titles in narrow columns', () => {
     expect(calendar).toContain('const WEEK_MOBILE_HOUR_HEIGHT = 38;');
     expect(calendar).toContain('return WEEK_MOBILE_HOUR_HEIGHT;');
     expect(calendar).toContain('function mobileWeekEventLabel(event: CalendarEvent): string');
     expect(calendar).toContain('data-mobile-label={mobileWeekEventLabel(event)}');
-    expect(refinement).toContain('height: clamp(380px, calc(100dvh - 430px), 590px);');
-    expect(refinement).toContain('overflow-y: auto;');
+    expect(refinement).toContain('Build277 - mobile Week uses one natural page scroll');
+    expect(refinement).toContain('overflow-y: visible !important;');
     expect(refinement).toContain('attr(data-mobile-time-start)');
     expect(refinement).toContain('attr(data-mobile-time-end)');
     expect(refinement).toContain('content: attr(data-mobile-label) !important;');

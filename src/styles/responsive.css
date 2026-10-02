@@ -1291,12 +1291,11 @@
     grid-template-columns: 50px minmax(0, 1fr);
     min-width: 0;
     width: 100%;
-    height: min(68dvh, 650px);
-    overflow-x: hidden;
-    overflow-y: auto;
-    overscroll-behavior: contain;
-    scrollbar-gutter: stable;
-    -webkit-overflow-scrolling: touch;
+    height: auto;
+    overflow: visible;
+    overscroll-behavior: auto;
+    scrollbar-gutter: auto;
+    touch-action: pan-y;
   }
   .calendar-week-time-axis {
     min-height: 816px;
@@ -1488,9 +1487,9 @@
   .calendar-side-study-context { display: none !important; }
   .calendar-side-column.is-empty { display: none; }
 
-  /* Week remains readable: page itself stays compact, timeline owns the scrolling. */
+  /* Week remains readable: the page owns vertical scrolling, not a nested timeline viewport. */
   .calendar-week-scroll {
-    height: clamp(360px, calc(100dvh - 332px), 610px);
+    height: auto;
     max-height: none;
   }
 

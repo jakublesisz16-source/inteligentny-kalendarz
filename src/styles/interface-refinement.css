@@ -1994,13 +1994,12 @@
     grid-template-columns: 32px minmax(0, 1fr);
     min-width: 0;
     width: 100%;
-    height: clamp(380px, calc(100dvh - 430px), 590px);
+    height: auto;
     max-height: none;
-    overflow-x: hidden;
-    overflow-y: auto;
-    overscroll-behavior: contain;
-    scrollbar-gutter: stable;
-    -webkit-overflow-scrolling: touch;
+    overflow: visible;
+    overscroll-behavior: auto;
+    scrollbar-gutter: auto;
+    touch-action: pan-y;
   }
   .calendar-week-time-axis span { left: 3px; font-size: .5rem; }
   .calendar-week-time-axis span:nth-child(even) { display: block; }
@@ -5497,3 +5496,23 @@ body.modal-open { overflow: hidden; }
     scroll-margin-bottom: calc(var(--mobile-bottom-nav-clearance) + 16px);
   }
 }
+
+/* Build277 - mobile Week uses one natural page scroll, never a nested vertical timeline scroller. */
+@media (max-width: 620px) {
+  .calendar-week-scroll {
+    height: auto !important;
+    max-height: none !important;
+    overflow-x: visible !important;
+    overflow-y: visible !important;
+    overscroll-behavior: auto;
+    scrollbar-gutter: auto;
+    touch-action: pan-y;
+    -webkit-overflow-scrolling: auto;
+  }
+  .calendar-week-time-axis,
+  .calendar-week-columns,
+  .calendar-week-column.selected {
+    min-height: 0 !important;
+  }
+}
+

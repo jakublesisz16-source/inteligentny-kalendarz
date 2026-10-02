@@ -116,7 +116,6 @@ type MobileWeekTouchSession = {
   grabOffsetMinutes: number;
   previewDateKey: string;
   previewStartMinutes: number;
-  startScrollTop: number;
   startWindowScrollY: number;
   activated: boolean;
 };
@@ -436,22 +435,6 @@ export function CalendarView({ events, locations, timeFormat, showPolishHolidays
     setQuickEditEventId(null);
   }, [selectedKey]);
   const selectedDayIssues = issuesByDate.get(selectedKey) ?? [];
-  useEffect(() => {
-    if (displayMode !== 'WEEK' || typeof window === 'undefined' || !window.matchMedia('(max-width: 620px)').matches) return;
-    const container = weekScrollRef.current;
-    if (!container) return;
-    if (weekHourHeight <= 32) {
-      window.requestAnimationFrame(() => { container.scrollTop = 0; });
-      return;
-    }
-    const selectedEventsForWeek = weekEventsByDate.get(selectedKey) ?? [];
-    const firstTimed = selectedEventsForWeek.find((event) => !event.allDay);
-    const firstHour = firstTimed ? Number(firstTimed.startDateTime.slice(11, 13)) : undefined;
-    const targetHour = selectedKey === todayKey ? currentTime.getHours() - 1 : firstHour !== undefined ? firstHour - 1 : 8;
-    const clampedHour = Math.max(WEEK_START_HOUR, Math.min(targetHour, WEEK_END_HOUR - 3));
-    window.requestAnimationFrame(() => { container.scrollTop = Math.max(0, (clampedHour - WEEK_START_HOUR) * weekHourHeight); });
-  }, [displayMode, selectedKey, todayKey, weekEventsByDate, weekHourHeight]);
-
   const locationMap = new Map(locations.map((location) => [location.id, location]));
   const conflictEventIds = useMemo(() => new Set(consistencyIssues.filter((issue) => !issue.acknowledged && !(issue.type === 'TOUCHING' && issue.planningImpact === 'INFO')).flatMap((issue) => issue.eventIds)), [consistencyIssues]);
   const periodLabel = displayMode === 'MONTH' ? formatMonthLabel(visibleMonth) : formatWeekLabel(weekDays[0] ?? selectedDate, weekDays[6] ?? selectedDate);
@@ -548,13 +531,9 @@ export function CalendarView({ events, locations, timeFormat, showPolishHolidays
     if (!session || session.pointerId !== event.pointerId) return;
     event.preventDefault();
     event.stopPropagation();
-    if (session.inputMode === 'touch') {
-      const scroll = weekScrollRef.current;
-      if (scroll) {
-        const scrollRect = scroll.getBoundingClientRect();
-        if (event.clientY < scrollRect.top + 56) scroll.scrollTop = Math.max(0, scroll.scrollTop - 18);
-        else if (event.clientY > scrollRect.bottom - 56) scroll.scrollTop += 18;
-      }
+    if (session.inputMode === 'touch' && typeof window !== 'undefined') {
+      if (event.clientY < 72) window.scrollBy({ top: -18, behavior: 'auto' });
+      else if (event.clientY > window.innerHeight - 88) window.scrollBy({ top: 18, behavior: 'auto' });
     }
     const previewEndMinutes = computeWeekResizeEndMinutes({
       clientY: event.clientY,
@@ -736,7 +715,6 @@ export function CalendarView({ events, locations, timeFormat, showPolishHolidays
       grabOffsetMinutes,
       previewDateKey: originDateKey,
       previewStartMinutes,
-      startScrollTop: weekScrollRef.current?.scrollTop ?? 0,
       startWindowScrollY: window.scrollY,
       activated: false,
     };
@@ -745,8 +723,7 @@ export function CalendarView({ events, locations, timeFormat, showPolishHolidays
       mobileWeekLongPressTimerRef.current = null;
       const session = mobileWeekTouchSessionRef.current;
       if (!session || session.eventId !== calendarEvent.id || session.activated) return;
-      const scrollTop = weekScrollRef.current?.scrollTop ?? session.startScrollTop;
-      if (Math.abs(scrollTop - session.startScrollTop) > 1 || Math.abs(window.scrollY - session.startWindowScrollY) > 1) {
+      if (Math.abs(window.scrollY - session.startWindowScrollY) > 1) {
         mobileWeekTouchSessionRef.current = null;
         return;
       }
@@ -766,24 +743,14 @@ export function CalendarView({ events, locations, timeFormat, showPolishHolidays
     }, MOBILE_WEEK_LONG_PRESS_MS);
   }
 
-  function handleMobileWeekScroll() {
-    const session = mobileWeekTouchSessionRef.current;
-    if (!session || session.activated) return;
-    const scrollTop = weekScrollRef.current?.scrollTop ?? session.startScrollTop;
-    if (Math.abs(scrollTop - session.startScrollTop) <= 1) return;
-    clearMobileWeekLongPressTimer();
-    mobileWeekTouchSessionRef.current = null;
-  }
-
   function updateMobileWeekTouchPosition(touch: Pick<React.Touch, 'clientX' | 'clientY'>) {
     const session = mobileWeekTouchSessionRef.current;
     if (!session?.activated) return;
     const scroll = weekScrollRef.current;
     const selectedColumn = scroll?.querySelector<HTMLElement>('.calendar-week-column.selected');
     if (!scroll || !selectedColumn) return;
-    const scrollRect = scroll.getBoundingClientRect();
-    if (touch.clientY < scrollRect.top + 54) scroll.scrollTop = Math.max(0, scroll.scrollTop - 18);
-    else if (touch.clientY > scrollRect.bottom - 54) scroll.scrollTop += 18;
+    if (touch.clientY < 72) window.scrollBy({ top: -18, behavior: 'auto' });
+    else if (touch.clientY > window.innerHeight - 88) window.scrollBy({ top: 18, behavior: 'auto' });
 
     const columnRect = selectedColumn.getBoundingClientRect();
     const previewStartMinutes = computeWeekDropStartMinutes({
@@ -1154,7 +1121,7 @@ export function CalendarView({ events, locations, timeFormat, showPolishHolidays
                   })}
                 </div>
               ) : null}
-              <div ref={weekScrollRef} className="calendar-week-scroll" onScroll={handleMobileWeekScroll} style={weekHourHeight < WEEK_HOUR_HEIGHT ? { height: weekTimelineHeight } : undefined}>
+              <div ref={weekScrollRef} className="calendar-week-scroll" style={weekHourHeight < WEEK_HOUR_HEIGHT ? { height: weekTimelineHeight } : undefined}>
                 <div className="calendar-week-time-axis" style={weekHourHeight < WEEK_HOUR_HEIGHT ? { height: weekTimelineHeight } : undefined}>
                   {Array.from({ length: WEEK_END_HOUR - WEEK_START_HOUR + 1 }, (_, index) => {
                     const hour = WEEK_START_HOUR + index;

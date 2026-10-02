@@ -13,8 +13,8 @@ describe('Build209 real-phone polish', () => {
     expect(calendar).toContain('if (window.innerWidth <= 620) return WEEK_MOBILE_HOUR_HEIGHT;');
     expect(calendar).toContain('data-hour={hour}');
     expect(css).toContain('Build239 - mobile Week keeps the whole seven-day planner visible');
-    expect(css).toContain('height: clamp(380px, calc(100dvh - 430px), 590px);');
-    expect(css).toContain('overflow-y: auto;');
+    expect(css).toContain('Build277 - mobile Week uses one natural page scroll');
+    expect(css).toContain('overflow-y: visible !important;');
   });
 
   it('keeps Finance first surfaces low-noise on phones', () => {

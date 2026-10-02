@@ -19,7 +19,8 @@ describe('Build211 release contract synchronization', () => {
     expect(calendar).toContain('if (window.innerWidth <= 620) return WEEK_MOBILE_HOUR_HEIGHT;');
     expect(calendar).toContain('if (window.innerWidth <= 820) return 40;');
     expect(refinement).toContain('Build239 - mobile Week keeps the whole seven-day planner visible');
-    expect(refinement).toContain('overflow-y: auto;');
+    expect(refinement).toContain('Build277 - mobile Week uses one natural page scroll');
+    expect(refinement).toContain('overflow-y: visible !important;');
   });
 
   it('keeps current Work/Availability compaction wording', () => {

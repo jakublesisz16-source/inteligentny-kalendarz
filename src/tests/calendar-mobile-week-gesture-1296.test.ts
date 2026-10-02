@@ -6,18 +6,18 @@ const responsive = readFileSync('src/styles/responsive.css', 'utf8');
 const version = readFileSync('src/core/version.ts', 'utf8');
 
 describe('1.2.0.96 mobile week gesture hardening', () => {
-  it('attaches the scroll ref required by mobile drag, resize auto-scroll and initial week positioning', () => {
+  it('keeps the Week ref for selected-column geometry while page scrolling owns vertical movement', () => {
     expect(calendar).toContain('ref={weekScrollRef} className="calendar-week-scroll"');
     expect(calendar).toContain('const scroll = weekScrollRef.current;');
+    expect(calendar).toContain("window.scrollBy({ top: 18, behavior: 'auto' })");
     expect(calendar).toContain("scroll?.querySelector<HTMLElement>('.calendar-week-column.selected')");
   });
 
-  it('cancels a pending long press if the week or page starts scrolling before activation', () => {
-    expect(calendar).toContain('startScrollTop: weekScrollRef.current?.scrollTop ?? 0');
+  it('cancels a pending long press if the page starts scrolling before activation', () => {
+    expect(calendar).not.toContain('startScrollTop: weekScrollRef.current?.scrollTop ?? 0');
     expect(calendar).toContain('startWindowScrollY: window.scrollY');
-    expect(calendar).toContain('Math.abs(scrollTop - session.startScrollTop) > 1');
     expect(calendar).toContain('Math.abs(window.scrollY - session.startWindowScrollY) > 1');
-    expect(calendar).toContain('onScroll={handleMobileWeekScroll}');
+    expect(calendar).not.toContain('onScroll={handleMobileWeekScroll}');
   });
 
   it('keeps resize explicit while leaving most of the event surface available for normal scrolling', () => {
