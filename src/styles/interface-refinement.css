@@ -5457,3 +5457,43 @@ body.modal-open { overflow: hidden; }
     transform: translateY(-100%);
   }
 }
+
+/* Build276 - one overlap warning per shared time range, compact Week ending and bottom-nav safety. */
+.calendar-week-overlap-conflict-marker {
+  right: 3px;
+}
+.calendar-week-event.overlapping > .calendar-week-event-time,
+.calendar-week-event.overlapping > strong {
+  padding-right: 15px;
+}
+
+@media (max-width: 620px) {
+  .calendar-week-time-axis {
+    min-height: 0 !important;
+  }
+  .calendar-week-columns,
+  .calendar-week-column.selected {
+    min-height: 0;
+  }
+  .calendar-week-event > .calendar-week-event-time::after {
+    min-height: 2.05em;
+  }
+  .calendar-week-event > strong {
+    margin-top: 1px;
+  }
+  .calendar-week-event.overlapping > .calendar-week-event-time,
+  .calendar-week-event.overlapping > strong {
+    padding-right: 10px;
+  }
+  .calendar-week-overlap-conflict-marker {
+    right: 1px;
+    width: 10px;
+    height: 10px;
+    font-size: .42rem;
+  }
+  .calendar-view-shell .consistency-center {
+    margin-top: 16px;
+    margin-bottom: calc(var(--mobile-bottom-nav-clearance) + 12px);
+    scroll-margin-bottom: calc(var(--mobile-bottom-nav-clearance) + 16px);
+  }
+}

@@ -2038,9 +2038,13 @@
   cursor: pointer;
   box-shadow: 0 2px 7px rgba(39,32,35,.05);
 }
-.calendar-week-event-time { position: relative; z-index: 2; font-size: .56rem; font-weight: 800; color: var(--text-muted); white-space: nowrap; }
+.calendar-week-event-time { position: relative; z-index: 2; min-height: 1.05em; font-size: .56rem; font-weight: 800; color: var(--text-muted); white-space: nowrap; }
 .calendar-week-event > strong { position: relative; z-index: 2; font-size: .64rem; line-height: 1.18; overflow: hidden; }
 .calendar-week-event-overlap-zone { position: absolute; z-index: 1; left: 0; right: 0; display: block; pointer-events: none; background: color-mix(in srgb, var(--accent) 24%, transparent); border-top: 1px solid color-mix(in srgb, var(--accent-strong) 18%, transparent); border-bottom: 1px solid color-mix(in srgb, var(--accent-strong) 18%, transparent); }
+
+.calendar-week-overlap-conflict-marker { position: absolute; z-index: 12; right: 3px; width: 14px; height: 14px; display: grid; place-items: center; pointer-events: none; border-radius: 50%; background: color-mix(in srgb, var(--warning-soft) 94%, var(--surface)); color: var(--warning); box-shadow: 0 0 0 1px color-mix(in srgb, var(--warning) 18%, transparent); font-size: .52rem; font-style: normal; font-weight: 900; }
+.calendar-week-event.overlapping > .calendar-week-event-time,
+.calendar-week-event.overlapping > strong { padding-right: 15px; box-sizing: border-box; }
 .calendar-week-conflict-badge { position: absolute; z-index: 4; right: 3px; top: 3px; width: 14px; height: 14px; display: grid; place-items: center; border-radius: 50%; background: color-mix(in srgb, var(--warning-soft) 92%, var(--surface)); color: var(--warning); box-shadow: 0 0 0 1px color-mix(in srgb, var(--warning) 18%, transparent); font-size: .52rem; font-style: normal; font-weight: 900; }
 .calendar-week-event.conflict > .calendar-week-event-time,
 .calendar-week-event.conflict > strong { padding-right: 15px; box-sizing: border-box; }

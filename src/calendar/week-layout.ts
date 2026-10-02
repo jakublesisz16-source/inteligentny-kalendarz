@@ -6,6 +6,11 @@ export interface WeekTimedEventOverlapSegment {
   heightPercent: number;
 }
 
+export interface WeekTimedOverlapMarker {
+  top: number;
+  height: number;
+}
+
 export interface WeekTimedEventLayout {
   top: number;
   height: number;
@@ -14,6 +19,7 @@ export interface WeekTimedEventLayout {
   overlapping: boolean;
   overlapSegments: WeekTimedEventOverlapSegment[];
   stackIndex: number;
+  sameStartIndex: number;
 }
 
 interface LayoutCandidate {
@@ -63,6 +69,19 @@ function candidateForDay(
   };
 }
 
+function buildCandidates(
+  events: CalendarEvent[],
+  dateKey: string,
+  startHour: number,
+  endHour: number,
+  hourHeight: number,
+): LayoutCandidate[] {
+  return events
+    .map((event) => candidateForDay(event, dateKey, startHour, endHour, hourHeight))
+    .filter((candidate): candidate is LayoutCandidate => Boolean(candidate))
+    .sort((a, b) => a.start - b.start || b.end - a.end || a.event.title.localeCompare(b.event.title, 'pl'));
+}
+
 function mergeRanges(ranges: MinuteRange[]): MinuteRange[] {
   if (!ranges.length) return [];
   const sorted = [...ranges].sort((a, b) => a.start - b.start || a.end - b.end);
@@ -90,10 +109,40 @@ function overlapSegmentsForCandidate(candidate: LayoutCandidate, group: LayoutCa
   }));
 }
 
+function overlapRangesForGroup(group: LayoutCandidate[]): MinuteRange[] {
+  const ranges: MinuteRange[] = [];
+  for (let left = 0; left < group.length; left += 1) {
+    for (let right = left + 1; right < group.length; right += 1) {
+      const start = Math.max(group[left]!.start, group[right]!.start);
+      const end = Math.min(group[left]!.end, group[right]!.end);
+      if (end > start) ranges.push({ start, end });
+    }
+  }
+  return mergeRanges(ranges);
+}
+
+function groupedCandidates(candidates: LayoutCandidate[]): LayoutCandidate[][] {
+  const groups: LayoutCandidate[][] = [];
+  let group: LayoutCandidate[] = [];
+  let groupMaxEnd = -1;
+  for (const candidate of candidates) {
+    if (group.length && candidate.start >= groupMaxEnd) {
+      groups.push(group);
+      group = [];
+      groupMaxEnd = -1;
+    }
+    group.push(candidate);
+    groupMaxEnd = Math.max(groupMaxEnd, candidate.end);
+  }
+  if (group.length) groups.push(group);
+  return groups;
+}
+
 function commitOverlapGroup(group: LayoutCandidate[], result: Map<string, WeekTimedEventLayout>): void {
   if (!group.length) return;
   for (const [stackIndex, candidate] of group.entries()) {
     const overlapSegments = overlapSegmentsForCandidate(candidate, group);
+    const sameStartIndex = group.filter((other) => other.start === candidate.start).findIndex((other) => other.event.id === candidate.event.id);
     result.set(candidate.event.id, {
       top: candidate.top,
       height: candidate.height,
@@ -102,6 +151,7 @@ function commitOverlapGroup(group: LayoutCandidate[], result: Map<string, WeekTi
       overlapping: overlapSegments.length > 0,
       overlapSegments,
       stackIndex,
+      sameStartIndex: Math.max(0, sameStartIndex),
     });
   }
 }
@@ -113,24 +163,23 @@ export function buildWeekTimedEventLayout(
   endHour: number,
   hourHeight: number,
 ): Map<string, WeekTimedEventLayout> {
-  const candidates = events
-    .map((event) => candidateForDay(event, dateKey, startHour, endHour, hourHeight))
-    .filter((candidate): candidate is LayoutCandidate => Boolean(candidate))
-    .sort((a, b) => a.start - b.start || b.end - a.end || a.event.title.localeCompare(b.event.title, 'pl'));
-
+  const candidates = buildCandidates(events, dateKey, startHour, endHour, hourHeight);
   const result = new Map<string, WeekTimedEventLayout>();
-  let group: LayoutCandidate[] = [];
-  let groupMaxEnd = -1;
-
-  for (const candidate of candidates) {
-    if (group.length && candidate.start >= groupMaxEnd) {
-      commitOverlapGroup(group, result);
-      group = [];
-      groupMaxEnd = -1;
-    }
-    group.push(candidate);
-    groupMaxEnd = Math.max(groupMaxEnd, candidate.end);
-  }
-  commitOverlapGroup(group, result);
+  for (const group of groupedCandidates(candidates)) commitOverlapGroup(group, result);
   return result;
+}
+
+export function buildWeekTimedOverlapMarkers(
+  events: CalendarEvent[],
+  dateKey: string,
+  startHour: number,
+  endHour: number,
+  hourHeight: number,
+): WeekTimedOverlapMarker[] {
+  const dayStart = startHour * 60;
+  const candidates = buildCandidates(events, dateKey, startHour, endHour, hourHeight);
+  return groupedCandidates(candidates).flatMap((group) => overlapRangesForGroup(group).map((range) => ({
+    top: ((range.start - dayStart) / 60) * hourHeight,
+    height: ((range.end - range.start) / 60) * hourHeight,
+  })));
 }
