@@ -26,10 +26,11 @@ describe('1.2.0.23 calendar viewport-first layout', () => {
   it('has desktop and responsive viewport-first styling without a schema migration', () => {
     const components = source('../styles/components.css');
     const responsive = source('../styles/responsive.css');
+    const refinement = source('../styles/interface-refinement.css');
     const version = source('../core/version.ts');
     expect(components).toContain('1.2.0.23 - calendar viewport-first');
     expect(components).toContain('padding-top: 10px;');
-    expect(components).toContain('.calendar-toolbar-actions');
+    expect(refinement).toContain('.calendar-toolbar-actions');
     expect(responsive).toContain('1.2.0.23 - calendar viewport-first');
     expect(version).toMatch(/APP_VERSION\s*=\s*'\d+\.\d+\.\d+\.\d+'/u);
     expect(version).toContain('DATABASE_SCHEMA_VERSION = 14');
