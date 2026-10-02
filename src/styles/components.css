@@ -518,6 +518,7 @@
 .category-count.category-personal { color: var(--category-personal); background: var(--category-personal-soft); border-color: color-mix(in srgb, var(--category-personal) 20%, transparent); }
 .category-count.category-other { color: var(--category-other); background: var(--category-other-soft); border-color: color-mix(in srgb, var(--category-other) 20%, transparent); }
 .calendar-conflict-badge { position: absolute; right: 5px; bottom: 5px; min-height: 18px; padding: 0 5px; border-radius: 999px; display: inline-flex; align-items: center; background: var(--warning-soft); color: var(--warning); font-size: .58rem; font-weight: 900; border: 1px solid rgba(163,107,47,.18); }
+.calendar-travel-hint { position: absolute; right: 5px; bottom: 5px; width: 18px; height: 18px; border-radius: 999px; display: grid; place-items: center; background: color-mix(in srgb, var(--warning-soft) 54%, var(--surface)); color: color-mix(in srgb, var(--warning) 78%, var(--text-muted)); border: 1px solid color-mix(in srgb, var(--warning) 24%, var(--line)); font-size: .56rem; font-weight: 850; font-style: normal; }
 .trading-sunday-marker { position: absolute; top: 6px; right: 6px; min-width: 17px; height: 17px; border-radius: 50%; display: grid; place-items: center; background: var(--success-soft); color: var(--success); font-size: .55rem; font-weight: 900; }
 
 /* Bardzo delikatna tekstura tylko w obszarze kalendarza. */
@@ -526,6 +527,16 @@
 
 .consistency-center { margin-top: 22px; padding-bottom: 22px; scroll-margin-top: 20px; }
 .consistency-center .panel-heading p { margin: 6px 0 0; color: var(--text-muted); font-size: .8rem; }
+.consistency-center.info-only { padding: 13px 18px 14px; display: grid; gap: 8px; }
+.consistency-info-only-head { display: flex; align-items: baseline; gap: 10px; min-width: 0; }
+.consistency-info-only-head .section-kicker { flex: 0 0 auto; }
+.consistency-info-only-head strong { min-width: 0; font-size: .78rem; }
+.consistency-info-only-list { display: grid; gap: 5px; }
+.consistency-info-only-item { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 8px 12px; align-items: baseline; color: var(--text-muted); }
+.consistency-info-only-item + .consistency-info-only-item { border-top: 1px solid color-mix(in srgb, var(--line) 46%, transparent); padding-top: 5px; }
+.consistency-info-only-item > span { white-space: nowrap; font-size: .61rem; font-weight: 760; }
+.consistency-info-only-item > p { margin: 0; font-size: .67rem; line-height: 1.35; }
+.consistency-info-only-list > small { color: var(--text-muted); font-size: .6rem; }
 .consistency-toolbar { display: flex; justify-content: space-between; gap: 14px; padding: 16px 24px; align-items: center; flex-wrap: wrap; }
 .consistency-filters { display: flex; flex-wrap: wrap; gap: 7px; }
 .compact-check { display: inline-flex; gap: 8px; align-items: center; font-size: .72rem; font-weight: 700; color: var(--text-muted); }

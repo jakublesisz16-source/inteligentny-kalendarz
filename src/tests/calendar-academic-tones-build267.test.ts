@@ -23,14 +23,24 @@ describe('Build267 academic calendar tones', () => {
     expect(wumAcademicMarkerForDate('2027-09-06')?.label).toContain('sesja poprawkowa letnia');
     expect(calendarDayToneForDate('2027-02-03', allLayers)).toBe('SESSION');
     expect(calendarDayToneForDate('2027-09-06', allLayers)).toBe('SESSION');
+    expect(calendarDayToneForDate('2027-07-20', allLayers)).toBe('VACATION');
     expect(isKnownStudyDayOff('2027-02-03')).toBe(false);
   });
 
   it('renders the month-cell tones as owned subtle surfaces and preserves selected-day priority', () => {
     expect(calendar).toContain("dayTone === 'DAY_OFF' ? ' day-off'");
     expect(calendar).toContain("dayTone === 'SESSION' ? ' session-period'");
+    expect(calendar).toContain("dayTone === 'VACATION' ? ' vacation-period'");
     expect(styles).toContain('.calendar-day.day-off:not(.selected):not(.multi-selected)');
     expect(styles).toContain('.calendar-day.session-period:not(.selected):not(.multi-selected)');
+    expect(styles).toContain('.calendar-day.vacation-period:not(.selected):not(.multi-selected)');
     expect(styles).toContain('.overlay-wum_session');
+    expect(styles).toContain('var(--calendar-day-off) 86%');
+    expect(styles).toContain('var(--calendar-session) 46%');
+    expect(styles).toContain('var(--calendar-vacation-border) 72%');
+    expect(calendar).toContain('const exceptionalOverlayMarkers = dayTone ? [] : overlayMarkers;');
+    expect(styles).toContain('.calendar-week-day-heading.day-off:not(.selected)');
+    expect(styles).toContain('.calendar-week-day-heading.session-period:not(.selected)');
+    expect(styles).toContain('.calendar-week-day-heading.vacation-period:not(.selected)');
   });
 });

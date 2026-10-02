@@ -6,13 +6,13 @@ const eventForm = readFileSync('src/events/EventForm.tsx', 'utf8');
 const styles = readFileSync('src/styles/components.css', 'utf8');
 
 describe('1.2.0.12 fast calendar UX', () => {
-  it('keeps the main calendar focused on month/week, today and four simple filters', () => {
+  it('keeps the main calendar focused on month/week, today and the full agenda', () => {
     expect(calendar).toContain("type CalendarDisplayMode = 'MONTH' | 'WEEK'");
-    expect(calendar).toContain("{ id: 'ALL', label: 'Wszystko' }");
-    expect(calendar).toContain("{ id: 'STUDY', label: 'Studia' }");
-    expect(calendar).toContain("{ id: 'WORK', label: 'Praca' }");
-    expect(calendar).toContain("{ id: 'MY', label: 'Moje' }");
+    expect(calendar).toContain('calendar-view-switch-inline');
     expect(calendar).toContain('>Dzisiaj</button>');
+    expect(calendar).not.toContain("label: 'Studia'");
+    expect(calendar).not.toContain("label: 'Praca'");
+    expect(calendar).not.toContain("label: 'Moje'");
   });
 
   it('supports quick add from an empty hour without changing the database model', () => {

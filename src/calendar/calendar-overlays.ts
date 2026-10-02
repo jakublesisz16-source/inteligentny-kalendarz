@@ -1,5 +1,5 @@
-export type CalendarOverlayKind = 'POLISH_HOLIDAY' | 'WUM_BREAK' | 'WUM_RECTOR_DAY' | 'WUM_SESSION';
-export type CalendarDayTone = 'DAY_OFF' | 'SESSION';
+export type CalendarOverlayKind = 'POLISH_HOLIDAY' | 'WUM_BREAK' | 'WUM_RECTOR_DAY' | 'WUM_SESSION' | 'WUM_VACATION';
+export type CalendarDayTone = 'DAY_OFF' | 'SESSION' | 'VACATION';
 
 export interface CalendarOverlayMarker {
   kind: CalendarOverlayKind;
@@ -12,7 +12,7 @@ interface DateRangeMarker {
   end: string;
   label: string;
   shortLabel: string;
-  kind: Extract<CalendarOverlayKind, 'WUM_BREAK' | 'WUM_RECTOR_DAY' | 'WUM_SESSION'>;
+  kind: Extract<CalendarOverlayKind, 'WUM_BREAK' | 'WUM_RECTOR_DAY' | 'WUM_SESSION' | 'WUM_VACATION'>;
 }
 
 // Ustawa o dniach wolnych od pracy - tekst jednolity Dz.U. 2025 poz. 296.
@@ -43,7 +43,7 @@ const WUM_2026_2027: DateRangeMarker[] = [
   { start: '2027-06-21', end: '2027-07-11', kind: 'WUM_SESSION', label: 'WUM - sesja egzaminacyjna letnia', shortLabel: 'Sesja' },
   // Poprawka ma pierwszeństwo wizualne przed obejmującą ją przerwą wakacyjną.
   { start: '2027-08-30', end: '2027-09-19', kind: 'WUM_SESSION', label: 'WUM - sesja poprawkowa letnia', shortLabel: 'Sesja' },
-  { start: '2027-07-12', end: '2027-09-30', kind: 'WUM_BREAK', label: 'WUM - przerwa wakacyjna', shortLabel: 'WUM' },
+  { start: '2027-07-12', end: '2027-09-30', kind: 'WUM_VACATION', label: 'WUM - przerwa wakacyjna', shortLabel: 'Wakacje' },
 ];
 
 function dateKey(year: number, month: number, day: number): string {
@@ -103,7 +103,7 @@ export function wumAcademicMarkerForDate(key: string): CalendarOverlayMarker | u
 }
 
 export function isKnownStudyDayOff(key: string): boolean {
-  const wumDayOff = WUM_2026_2027.some((entry) => key >= entry.start && key <= entry.end && (entry.kind === 'WUM_BREAK' || entry.kind === 'WUM_RECTOR_DAY'));
+  const wumDayOff = WUM_2026_2027.some((entry) => key >= entry.start && key <= entry.end && (entry.kind === 'WUM_BREAK' || entry.kind === 'WUM_RECTOR_DAY' || entry.kind === 'WUM_VACATION'));
   return Boolean(polishHolidayForDate(key) || wumDayOff);
 }
 
@@ -111,10 +111,10 @@ export function calendarDayToneForDate(
   key: string,
   options: { showPolishHolidays: boolean; showWumAcademicCalendar: boolean },
 ): CalendarDayTone | undefined {
-  if (options.showPolishHolidays && polishHolidayForDate(key)) return 'DAY_OFF';
-  if (!options.showWumAcademicCalendar) return undefined;
-  const wum = wumAcademicMarkerForDate(key);
+  const wum = options.showWumAcademicCalendar ? wumAcademicMarkerForDate(key) : undefined;
   if (wum?.kind === 'WUM_SESSION') return 'SESSION';
+  if (options.showPolishHolidays && polishHolidayForDate(key)) return 'DAY_OFF';
+  if (wum?.kind === 'WUM_VACATION') return 'VACATION';
   if (wum?.kind === 'WUM_BREAK' || wum?.kind === 'WUM_RECTOR_DAY') return 'DAY_OFF';
   return undefined;
 }

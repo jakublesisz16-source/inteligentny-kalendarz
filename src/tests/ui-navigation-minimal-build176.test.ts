@@ -15,12 +15,11 @@ describe('Build 176 minimal navigation and density', () => {
     expect(today).not.toContain('Najbliższa praca');
   });
 
-  it('uses one compact filter control on phones without changing desktop filters', () => {
-    expect(calendar).toContain('calendar-filter-desktop');
-    expect(calendar).toContain('calendar-filter-select');
-    expect(calendar).toContain("setFilter(event.target.value as CalendarFilter)");
-    expect(styles).toContain('.calendar-filter-desktop { display: none !important; }');
-    expect(styles).toContain('.calendar-filter-select');
+  it('keeps mobile Calendar controls compact without category filtering', () => {
+    expect(calendar).toContain('calendar-view-switch-inline');
+    expect(calendar).toContain('calendar-mobile-explicit-add');
+    expect(calendar).not.toContain('CalendarFilter');
+    expect(calendar).not.toContain('calendar-filter-select');
   });
 
   it('removes redundant mobile panel chrome and keeps all six destinations', () => {

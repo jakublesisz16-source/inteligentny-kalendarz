@@ -17,10 +17,9 @@ describe('1.2.0.85 interface consistency and semantic category contrast', () => 
     expect(consistency).toContain('.calendar-week-event.category-personal');
   });
 
-  it('carries semantic categories into calendar filters and mobile day preview', () => {
-    expect(calendar).toContain('filter-${item.id.toLowerCase()}');
+  it('carries semantic categories into event rendering without a category-filter toolbar', () => {
     expect(calendar).toContain('category-${event.category.toLowerCase()}');
-    expect(consistency).toContain('.calendar-filter-chip.filter-study.active');
+    expect(calendar).not.toContain('filter-${item.id.toLowerCase()}');
     expect(consistency).toContain('.calendar-mobile-day-preview-event { padding-left: 0; }');
     expect(consistency).not.toContain('.calendar-mobile-day-preview-event.category-work { border-left-color:');
   });

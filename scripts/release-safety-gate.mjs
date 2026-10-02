@@ -227,13 +227,16 @@ assert(!eventCard.includes('event-coworker-mobile-more'), 'Calendar/Today must n
 assert(workView.includes('nearestCoworkers.map((person)') && !workView.includes('nearestCoworkers.slice('), 'Work nearest-shift teammate list must remain complete');
 assert(!mobileResponsiveCss.includes('.selected-day-panel .event-coworker-line:nth-child(n+5)'), 'mobile selected-day panel must not hide coworkers after the fourth row');
 assert(financeDashboard.includes('>+ Wydatek</button>') && financeDashboard.includes('Brak wydatków w'), 'Finance primary expense action or empty state is not concise');
-// 1.2.0.100 removes duplicate empty-state expense actions at render time on every viewport, not only via mobile CSS.
+// 1.2.0.272 keeps the primary Month action in the header on every viewport and removes the duplicate empty-card CTA.
 assert(financeDashboard.includes("const isEmptyMonth = financeScope === 'MONTH' && monthSummary.receiptCount === 0;"), 'Finance empty-month render guard missing');
 assert(financeDashboard.includes("const isEmptyActiveTrip = financeScope === 'TRIPS' && Boolean(activeTripName) && activeTripReceipts.length === 0;"), 'Finance empty-trip render guard missing');
-assert(financeDashboard.includes('!isEmptyMonth ? <button type="button" className="button button-primary finance-manual-expense"'), 'empty Month can render the duplicated header + Wydatek action');
+assert(financeDashboard.includes("financeScope === 'MONTH' ? (") && financeDashboard.includes('className="button button-primary finance-manual-expense" onClick={openQuickExpense}>+ Wydatek</button>'), 'Month primary + Wydatek action must remain in the header');
+assert(!financeDashboard.includes('!isEmptyMonth ? <button type="button" className="button button-primary finance-manual-expense"'), 'obsolete empty-Month header suppression returned');
 assert(financeDashboard.includes('activeTripName && !isEmptyActiveTrip ? ('), 'empty active Trip can render a duplicated header action group');
 assert(!financeDashboard.includes(`{financeScope === 'MONTH' || activeTripName ? <div className="finance-dashboard-actions finance-core-actions">`), 'obsolete unconditional Finance header action group returned');
-assert(financeDashboard.includes('<div><button type="button" className="button button-primary" onClick={openQuickExpense}>+ Wydatek</button></div>'), 'empty Month lost its single primary + Wydatek CTA');
+const emptyMonthSection = /<section className="panel finance-trip-empty finance-month-empty"[\s\S]*?<\/section>/.exec(financeDashboard)?.[0] ?? '';
+assert(emptyMonthSection.includes('Po pierwszym wydatku pojawi się podsumowanie miesiąca.'), 'compact empty Month guidance missing');
+assert(!emptyMonthSection.includes('openQuickExpense'), 'empty Month duplicates the primary + Wydatek CTA');
 assert(financeDashboard.includes('className="button button-secondary finance-scan-receipt" onClick={openReceiptScan}') && financeDashboard.includes('finance-scan-receipt-long'), 'Finance receipt scanner action missing');
 assert(financeDashboard.includes("type FinanceScope = 'MONTH' | 'TRIPS'") && financeDashboard.includes('finance-trip-summary') && financeDashboard.includes('finance-trip-expense-list'), 'Finance trip summaries are missing');
 assert(financeDashboard.includes("financeScope === 'TRIPS' ? normalizeTripName(activeTripName) : ''") && db.includes("const tripName = normalizeExpenseText(draft.tripName ?? '')"), 'Trip expense assignment or receipt persistence is missing');
@@ -257,7 +260,7 @@ assert(interfaceConsistency.includes('--ui-page-title-size: 1.82rem') && interfa
 assert(tokensCss.includes('--category-study: #b95d84') && tokensCss.includes('--category-work: #2f7382') && tokensCss.includes('--category-personal: #695591'), 'semantic Study/Work/Personal colors are not sufficiently distinct');
 assert(interfaceConsistency.includes('/* 1.2.0.85 - one hierarchy and stronger semantic event categories. */') && interfaceConsistency.includes('.study-view > .view-header h1') && interfaceConsistency.includes('.work-view > .view-header h1') && interfaceConsistency.includes('.settings-minimal-view > .view-header h1'), '1.2.0.85 cross-module hierarchy is missing');
 assert(interfaceConsistency.includes('.calendar-week-event.category-study') && interfaceConsistency.includes('.calendar-week-event.category-work') && interfaceConsistency.includes('.calendar-week-event.category-personal') && interfaceConsistency.includes('.selected-day-panel .event-card.category-work'), 'semantic event contrast does not cover calendar and selected-day surfaces');
-assert(calendarView.includes('filter-${item.id.toLowerCase()}') && calendarView.includes('category-${event.category.toLowerCase()}'), 'calendar filters or mobile day preview lost semantic category classes');
+assert(!calendarView.includes('CalendarFilter') && !calendarView.includes('calendar-filter-select') && calendarView.includes('category-${event.category.toLowerCase()}') && calendarView.includes('calendar-view-switch-inline'), 'calendar full-agenda toolbar or semantic event classes regressed');
 assert(studyViewSource.includes('<h1>Studia</h1>') && studyViewSource.includes('study-current-plan-line') && studyViewSource.includes('study-groups-primary') && studyViewSource.includes('study-history-details'), 'Study default surface simplification is missing');
 assert(styleIndex.includes("@import './interface-consistency.css';") && styleIndex.includes("@import './mobile-compact.css';") && styleIndex.trimEnd().endsWith("@import './interface-refinement.css';"), 'shared consistency and compact mobile layers must be followed by the final interface refinement layer');
 if (privacyDoc) assert(privacyDoc.includes('## Lokalne kursy walut 1.2.0.85') && privacyDoc.includes('wbudowanych lokalnie') && privacyDoc.includes('nie wysyła kwoty wydatku'), 'simplified FX privacy boundary is not documented');
@@ -632,9 +635,9 @@ assert(calendarView.includes('>Dodaj wydarzenie</button>') && calendarView.inclu
 // 1.2.0.181 gives the always-visible coworker list only a hairline row separation, not chips/cards.
 assert(interfaceConsistency.includes('/* 1.2.0.181 - selected-day coworkers stay fully visible but get only a hairline separation for scanability. */') && interfaceConsistency.includes('.calendar-view-shell .selected-day-panel .event-coworker-line + .event-coworker-line {') && interfaceConsistency.includes('border-top: 1px solid color-mix(in srgb, var(--line) 26%, transparent);'), 'Build181 subtle selected-day coworker separation missing');
 
-// 1.2.0.182 keeps the mobile Calendar filter and explicit Add together and prevents compact Work duration wrapping.
-assert(calendarView.includes('className="calendar-mobile-filter-actions"') && calendarView.indexOf('calendar-filter-select') < calendarView.indexOf('calendar-mobile-explicit-add'), 'Build182 mobile Calendar filter/Add grouping missing');
-assert(interfaceConsistency.includes('/* 1.2.0.182 - mobile Calendar keeps filter and explicit Add on one row; compact Work duration never wraps. */') && interfaceConsistency.includes('grid-template-columns: minmax(100px, 1fr) auto;') && interfaceConsistency.includes('min-width: 2.35rem;'), 'Build182 mobile Calendar/Work detail styles missing');
+// Build274 supersedes the old mobile category-filter grouping while preserving explicit Add and compact Work duration.
+assert(calendarView.includes('calendar-mobile-header-actions') && calendarView.includes('calendar-mobile-explicit-add') && calendarView.includes('calendar-view-switch-inline') && !calendarView.includes('calendar-filter-select'), 'Build274 mobile Calendar header/toolbar contract missing');
+assert(interfaceConsistency.includes('compact Work duration never wraps') && interfaceConsistency.includes('min-width: 2.35rem;'), 'compact Work duration guard missing');
 // 1.2.0.183 gives the mobile day sheet exclusive scroll ownership while it is open.
 assert(calendarView.includes("body.classList.add('calendar-day-sheet-open')") && calendarView.includes("body.style.position = 'fixed'") && calendarView.includes('window.scrollTo(0, scrollY)'), 'Build183 mobile Calendar background scroll lock missing');
 assert(responsiveCss.includes('/* 1.2.0.183 - mobile selected-day sheet owns scrolling; background and nested coworker scroll stay locked. */') && responsiveCss.includes('max-height: min(72dvh, 640px);') && responsiveCss.includes('max-height: none;\n    overflow: visible;'), 'Build183 single-sheet mobile overflow contract missing');
@@ -648,7 +651,7 @@ assert(!navigation.includes('window.visualViewport') && !navigation.includes('ge
 assert(!interfaceConsistency.includes('--mobile-nav-viewport-lift') && interfaceConsistency.includes('/* 1.2.0.186 - startup-safe mobile nav rollback: no runtime viewport measurement.'), 'Build186 startup-safe mobile nav rollback missing');
 assert(responsiveCss.includes('bottom: max(8px, env(safe-area-inset-bottom));') && responsiveCss.includes('grid-template-columns: repeat(6, minmax(0, 1fr));'), 'Build186 proven CSS-only mobile navigation contract missing');
 assert(app.includes('calendarEvents={events}') && eventForm.includes('event-conflict-warning') && eventForm.includes('findEventConflicts') && eventConflicts.includes("event.availabilityImpact !== 'NON_BLOCKING'"), '1.2.0.109 non-blocking event collision warning is not wired safely');
-assert(calendarView.includes('className="calendar-overlay-dots" role="img"') && calendarView.includes('aria-label={overlayMarkers.map((marker) => marker.label)'), '1.2.0.109 calendar overlay meaning is hidden from assistive technology');
+assert(calendarView.includes('className="calendar-overlay-dots" role="img"') && calendarView.includes('aria-label={exceptionalOverlayMarkers.map((marker) => marker.label)'), '1.2.0.109 calendar overlay meaning is hidden from assistive technology');
 assert(interfaceConsistency.includes('/* 1.2.0.109 - focused usability: Today glance dashboard, non-blocking collision warning and manual-only trip expenses. */'), '1.2.0.109 focused usability styles missing');
 
 // 1.2.0.110 makes calendar overlay dots understandable on mobile after selecting the marked day.

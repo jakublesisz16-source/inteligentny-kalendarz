@@ -1603,7 +1603,7 @@ export function FinanceDashboardView() {
         ) : null}
         {financeScope === 'MONTH' ? (
           <div className="finance-dashboard-actions finance-core-actions">
-            {!isEmptyMonth ? <button type="button" className="button button-primary finance-manual-expense" onClick={openQuickExpense}>+ Wydatek</button> : null}
+            <button type="button" className="button button-primary finance-manual-expense" onClick={openQuickExpense}>+ Wydatek</button>
             <button type="button" className="button button-secondary finance-scan-receipt" onClick={openReceiptScan}><span className="finance-scan-receipt-short">Skanuj</span><span className="finance-scan-receipt-long">paragon</span></button>
           </div>
         ) : activeTripName && !isEmptyActiveTrip ? (
@@ -1803,15 +1803,13 @@ export function FinanceDashboardView() {
               <div className="finance-overview-summary-copy finance-month-summary-copy">
                 <span className="section-kicker">Miesiąc</span>
                 <h2>{formatMonthLabel(monthKey)}</h2>
-                <div className="finance-overview-summary-meta"><span>Brak wydatków</span></div>
               </div>
               <div className="finance-overview-summary-total"><strong>{formatMoneyMinor(0)}</strong></div>
             </div>
           </section>
           <section className="panel finance-trip-empty finance-month-empty" aria-label="Brak wydatków w wybranym miesiącu">
             <h2>Dodaj pierwszy wydatek</h2>
-            <p>Po zapisie pojawią się tutaj podsumowanie, kategorie i lista wydatków.</p>
-            <div><button type="button" className="button button-primary" onClick={openQuickExpense}>+ Wydatek</button></div>
+            <p>Po pierwszym wydatku pojawi się podsumowanie miesiąca.</p>
           </section>
         </div>
       ) : (

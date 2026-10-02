@@ -11,13 +11,11 @@ const work = readFileSync(new URL('../work/WorkView.tsx', import.meta.url), 'utf
 const version = readFileSync(new URL('../core/version.ts', import.meta.url), 'utf8');
 
 describe('Build268 bounded UI polish', () => {
-  it('keeps academic meaning visible with a tiny month legend', () => {
-    expect(calendar).toContain('calendar-academic-legend');
-    expect(calendar).toContain('Wolne');
-    expect(calendar).toContain('Sesja');
-    expect(consistency).toContain('.calendar-academic-legend');
-    expect(consistency).toContain('.legend-day-off');
-    expect(consistency).toContain('.legend-session');
+  it('keeps academic meaning in day surfaces without requiring a persistent month legend', () => {
+    expect(calendar).not.toContain('calendar-academic-legend');
+    expect(consistency).not.toContain('.calendar-academic-legend');
+    expect(calendar).toContain('dayToneClass');
+    expect(calendar).toContain('overlayMarkers.map((marker) => marker.label)');
   });
 
   it('compacts desktop empty Today without changing the mobile contract', () => {
@@ -48,7 +46,7 @@ describe('Build268 bounded UI polish', () => {
   });
 
   it('advances the normal build while keeping schema 14', () => {
-    expect(version).toContain("APP_VERSION = '1.2.0.268'");
+    expect(version).toMatch(/APP_VERSION\s*=\s*'1\.2\.0\.\d+'/u);
     expect(version).toContain('DATABASE_SCHEMA_VERSION = 14');
   });
 });

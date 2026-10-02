@@ -1,28 +1,18 @@
 import type { CalendarEvent } from '../events/event.types';
 import type { CalendarConsistencyIssue, ConsistencyAcknowledgement, DailyRoutineRule, PlanningImpact } from './planning.types';
-import { travelBufferMinutesForEvent } from '../availability/availability-travel';
+import { approximateTransitMinutesBetweenAddresses, approximateTravelSignalForGap, MAX_APPROXIMATE_TRAVEL_MINUTES } from './approximate-travel';
 
 
 export interface ConsistencyTravelOptions {
-  commuteMinutes?: number;
-  workLocationId?: string;
+  locationAddressesById?: Record<string, string>;
 }
 
-function requiredTravelMinutesBetween(a: CalendarEvent, b: CalendarEvent, options: ConsistencyTravelOptions): number {
-  const commute = Math.max(0, Math.round(options.commuteMinutes ?? 0));
-  if (!commute) return 0;
-  const work = a.category === 'WORK' ? a : b.category === 'WORK' ? b : undefined;
-  const other = work === a ? b : work === b ? a : undefined;
-  if (work && other) {
-    const workLocationId = work.locationId ?? options.workLocationId;
-    // Consistency warnings must be evidence-based: if either location is unknown,
-    // do not claim that the user lacks commute time. The Work optimizer may still
-    // reserve a conservative travel allowance for planning its own proposals.
-    if (!workLocationId || !other.locationId) return 0;
-    return travelBufferMinutesForEvent(other, workLocationId, commute);
-  }
-  if (a.locationId && b.locationId && a.locationId !== b.locationId) return commute;
-  return 0;
+function requiredTravelMinutesBetween(a: CalendarEvent, b: CalendarEvent, options: ConsistencyTravelOptions): number | undefined {
+  if (!a.locationId || !b.locationId || a.locationId === b.locationId) return undefined;
+  const firstAddress = options.locationAddressesById?.[a.locationId];
+  const secondAddress = options.locationAddressesById?.[b.locationId];
+  if (!firstAddress || !secondAddress) return undefined;
+  return approximateTransitMinutesBetweenAddresses(firstAddress, secondAddress);
 }
 
 function localMs(value: string): number {
@@ -56,7 +46,7 @@ function pairTitle(a: CalendarEvent, b: CalendarEvent, studyStudy: boolean): str
 }
 
 function pairDescription(a: CalendarEvent, b: CalendarEvent, minutes: number, studyStudy: boolean): string {
-  if (studyStudy) return `${a.title} i ${b.title} nachodzą na siebie przez ${minutes} min. To może wynikać z błędu planu, przypisania grup lub odczytu danych.`;
+  if (studyStudy) return `${a.title} i ${b.title} nachodzą na siebie przez ${minutes} min.`;
   return `${a.title} i ${b.title} nachodzą na siebie przez ${minutes} min.`;
 }
 
@@ -104,8 +94,7 @@ export function analyzeCalendarConsistency(
       const b = activeEvents[j]!;
       if (!a.allDay && localMs(b.startDateTime) > localMs(a.endDateTime)) {
         const gap = Math.round((localMs(b.startDateTime) - localMs(a.endDateTime)) / 60000);
-        const maxCommute = Math.max(0, Math.round(travelOptions.commuteMinutes ?? 0));
-        if (gap > maxCommute) break;
+        if (gap > MAX_APPROXIMATE_TRAVEL_MINUTES) break;
       }
       if (a.id === b.id) continue;
 
@@ -132,7 +121,18 @@ export function analyzeCalendarConsistency(
       const overlap = minutesBetween(start, end);
       const orderedGap = localMs(a.endDateTime) <= localMs(b.startDateTime) ? minutesBetween(a.endDateTime, b.startDateTime) : 0;
       const requiredTravel = requiredTravelMinutesBetween(a, b, travelOptions);
-      const insufficientTravel = overlap === 0 && localMs(a.endDateTime) <= localMs(b.startDateTime) && requiredTravel > orderedGap;
+      const sameDayTransition = a.endDateTime.slice(0, 10) === b.startDateTime.slice(0, 10);
+      const hasIntermediateTimedEvent = activeEvents.slice(i + 1, j).some((candidate) => !candidate.allDay
+        && candidate.startDateTime.slice(0, 10) === b.startDateTime.slice(0, 10)
+        && localMs(candidate.startDateTime) >= localMs(a.endDateTime)
+        && localMs(candidate.startDateTime) <= localMs(b.startDateTime));
+      const travelSignal = overlap === 0
+        && sameDayTransition
+        && !hasIntermediateTimedEvent
+        && localMs(a.endDateTime) <= localMs(b.startDateTime)
+        && requiredTravel !== undefined
+        ? approximateTravelSignalForGap(orderedGap, requiredTravel)
+        : undefined;
 
       if (overlap > 0) {
         const studyStudy = a.source === 'UNIVERSITY_XLSX' && b.source === 'UNIVERSITY_XLSX';
@@ -147,13 +147,14 @@ export function analyzeCalendarConsistency(
           issues.push(makeIssue({ type: 'POTENTIAL_DUPLICATE', planningImpact: 'WARNING', eventIds: [a.id, b.id], startDateTime: start, endDateTime: end, overlapMinutes: overlap,
             categories: [a.category, b.category], sources: [a.source, b.source], title: 'Możliwy duplikat pracy', description: 'Ręczna praca i grafik PDF mają identyczny przedział. Sprawdź, czy to ten sam obowiązek.' }, ack));
         }
-      } else if (insufficientTravel) {
+      } else if (travelSignal) {
         const startGap = a.endDateTime;
         const endGap = b.startDateTime;
-        const missing = Math.max(0, requiredTravel - orderedGap);
-        const travelDescription = `${a.title} kończy się ${orderedGap} min przed ${b.title}. Ustawiony czas dojazdu to ${requiredTravel} min - brakuje ${missing} min.`;
-        issues.push(makeIssue({ type: 'TOUCHING', planningImpact: 'WARNING', eventIds: [a.id, b.id], startDateTime: startGap, endDateTime: endGap, overlapMinutes: 0, gapMinutes: orderedGap,
-          categories: [a.category, b.category], sources: [a.source, b.source], title: 'Za mało czasu na dojazd', description: travelDescription }, ack));
+        const clearlyTooShort = travelSignal === 'CLEARLY_TOO_SHORT';
+        issues.push(makeIssue({ type: 'TOUCHING', planningImpact: clearlyTooShort ? 'WARNING' : 'INFO', eventIds: [a.id, b.id], startDateTime: startGap, endDateTime: endGap, overlapMinutes: 0, gapMinutes: orderedGap,
+          categories: [a.category, b.category], sources: [a.source, b.source],
+          title: 'Mało czasu na dojazd',
+          description: 'Przerwa między wydarzeniami może być krótka na dojazd.' }, ack));
       }
     }
   }

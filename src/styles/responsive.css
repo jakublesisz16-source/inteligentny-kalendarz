@@ -223,6 +223,10 @@
   .category-count-row { gap: 2px; }
   .category-count { min-width: 18px; height: 17px; padding: 0 4px; font-size: .56rem; gap: 2px; }
   .calendar-conflict-badge { right: 3px; bottom: 3px; min-height: 15px; font-size: .5rem; padding: 0 4px; }
+  .calendar-travel-hint { right: 3px; bottom: 3px; width: 15px; height: 15px; font-size: .49rem; }
+  .consistency-center.info-only { padding: 11px 12px 12px; }
+  .consistency-info-only-head { display: grid; gap: 2px; }
+  .consistency-info-only-item { grid-template-columns: 1fr; gap: 2px; }
   .trading-sunday-marker { top: 3px; right: 3px; min-width: 14px; height: 14px; font-size: .48rem; }
   .calendar-texture-surface::before { inset: 6px 2px 24px; background-size: 16px 16px, 100% 100%; }
   .consistency-list { padding: 0 12px; }
@@ -1781,7 +1785,8 @@
   .calendar-mobile-day-preview-overlays .overlay-polish_holiday { background: color-mix(in srgb, var(--accent-soft) 72%, var(--surface)); color: var(--accent-strong); }
   .calendar-mobile-day-preview-overlays .overlay-wum_break,
   .calendar-mobile-day-preview-overlays .overlay-wum_rector_day { background: color-mix(in srgb, var(--calendar-day-off) 82%, var(--surface)); color: var(--category-personal); }
-  .calendar-mobile-day-preview-overlays .overlay-wum_session { background: color-mix(in srgb, var(--calendar-session) 88%, var(--surface)); color: var(--calendar-session-strong); }
+  .calendar-mobile-day-preview-overlays .overlay-wum_vacation { background: color-mix(in srgb, var(--calendar-vacation) 76%, var(--surface)); color: var(--calendar-vacation-strong); }
+  .calendar-mobile-day-preview-overlays .overlay-wum_session { background: color-mix(in srgb, var(--calendar-session) 72%, var(--surface)); color: var(--calendar-session-strong); }
   .calendar-mobile-day-preview-list { display: grid; gap: 8px; }
   .calendar-mobile-day-preview-event,
   .calendar-mobile-day-preview-incomplete {
@@ -2326,13 +2331,12 @@
  * 1.2.0.94 narrowed the hidden control to the duplicated manual-expense CTA.
  */
 @media (max-width: 820px) {
-  .finance-month-is-empty > .finance-dashboard-controls-v1258 .finance-manual-expense,
   .finance-trip-is-empty > .finance-dashboard-controls-v1258 .finance-core-actions {
     display: none;
   }
 
-  /* 1.2.0.95 - the compact mobile rule from 1.2.0.86 hides scanners globally;
-   * empty Month must explicitly expose the remaining scanner action after + Wydatek is removed.
+  /* Build272 - empty Month keeps the same primary action hierarchy as populated months.
+   * Older compact rules hide scanners globally, so keep the secondary scanner reachable here.
    */
   .finance-month-is-empty > .finance-dashboard-controls-v1258 .finance-core-actions .finance-scan-receipt {
     display: inline-flex;

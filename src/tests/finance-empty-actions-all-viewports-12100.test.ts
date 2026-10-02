@@ -6,11 +6,12 @@ const responsive = readFileSync(new URL('../styles/responsive.css', import.meta.
 const version = readFileSync(new URL('../core/version.ts', import.meta.url), 'utf8');
 
 describe('1.2.0.100 Finance empty-state actions on all viewports', () => {
-  it('does not render the header manual-expense action for an empty month', () => {
+  it('renders the primary manual-expense action in the header even for an empty month', () => {
     expect(dashboard).toContain("const isEmptyMonth = financeScope === 'MONTH' && monthSummary.receiptCount === 0;");
-    expect(dashboard).toContain('!isEmptyMonth ? <button type="button" className="button button-primary finance-manual-expense"');
+    expect(dashboard).not.toContain('!isEmptyMonth ? <button type="button" className="button button-primary finance-manual-expense"');
+    expect(dashboard).toContain('<button type="button" className="button button-primary finance-manual-expense" onClick={openQuickExpense}>+ Wydatek</button>');
     expect(dashboard).toContain('<section className="panel finance-trip-empty finance-month-empty"');
-    expect(dashboard).toContain('<div><button type="button" className="button button-primary" onClick={openQuickExpense}>+ Wydatek</button></div>');
+    expect(dashboard).toContain('Po pierwszym wydatku pojawi się podsumowanie miesiąca.');
   });
 
   it('keeps receipt scanning reachable in the empty month on desktop and mobile', () => {

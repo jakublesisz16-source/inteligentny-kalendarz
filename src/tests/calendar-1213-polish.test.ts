@@ -23,9 +23,10 @@ describe('1.2.0.13 calendar polish', () => {
     expect(consistency).toContain('Edytuj serię');
   });
 
-  it('reuses Work commute time for calendar consistency warnings', () => {
-    expect(consistencyLogic).toContain('travelBufferMinutesForEvent');
-    expect(consistencyLogic).toContain("title: 'Za mało czasu na dojazd'");
-    expect(database).toContain('planningProfile?.defaultBufferMinutes ?? 30');
+  it('keeps calendar commute warnings lightweight and address-based', () => {
+    expect(consistencyLogic).toContain('approximateTransitMinutesBetweenAddresses');
+    expect(consistencyLogic).toContain("title: 'Mało czasu na dojazd'");
+    expect(consistencyLogic).not.toContain('travelBufferMinutesForEvent');
+    expect(database).toContain('locationAddressesById');
   });
 });

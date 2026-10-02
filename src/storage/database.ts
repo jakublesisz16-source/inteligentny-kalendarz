@@ -4776,16 +4776,14 @@ export async function acknowledgeConsistencyIssue(issue: CalendarConsistencyIssu
 }
 
 export async function listCalendarConsistencyIssues(): Promise<CalendarConsistencyIssue[]> {
-  const [events, routines, acknowledgements, planningProfile, workProfile] = await Promise.all([
+  const [events, routines, acknowledgements, locations] = await Promise.all([
     listEvents(),
     listDailyRoutineRules(),
     listConsistencyAcknowledgements(),
-    getDayPlanningProfile(),
-    getWorkProfile(),
+    listLocations(),
   ]);
   return analyzeCalendarConsistency(events, routines, acknowledgements, {
-    commuteMinutes: planningProfile?.defaultBufferMinutes ?? 30,
-    ...(workProfile?.locationId ? { workLocationId: workProfile.locationId } : {}),
+    locationAddressesById: Object.fromEntries(locations.filter((location) => location.address.trim()).map((location) => [location.id, location.address])),
   });
 }
 

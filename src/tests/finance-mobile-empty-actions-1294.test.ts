@@ -6,11 +6,11 @@ const responsive = readFileSync(new URL('../styles/responsive.css', import.meta.
 const version = readFileSync(new URL('../core/version.ts', import.meta.url), 'utf8');
 
 describe('1.2.0.94 mobile empty Finance actions', () => {
-  it('keeps receipt scanning reachable in an empty month while removing only the duplicate manual expense action', () => {
+  it('keeps both the primary manual expense action and secondary receipt scanner reachable in an empty month', () => {
     expect(dashboard).toContain('className="button button-primary finance-manual-expense"');
     expect(dashboard).toContain('className="button button-secondary finance-scan-receipt"');
     expect(responsive).toContain('.finance-month-is-empty > .finance-dashboard-controls-v1258 .finance-manual-expense');
-    expect(responsive).not.toContain('.finance-month-is-empty > .finance-dashboard-controls-v1258 .finance-core-actions,');
+    expect(responsive).toContain('.finance-month-is-empty > .finance-dashboard-controls-v1258 .finance-core-actions .finance-scan-receipt');
   });
 
   it('still hides the duplicated full header action group for an empty active trip because the trip empty card owns both actions', () => {

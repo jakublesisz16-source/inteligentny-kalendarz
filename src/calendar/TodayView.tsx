@@ -1,4 +1,4 @@
-import { addDaysToDateKey, eventOccursOnDate, formatLongDate, formatShortDateKey, formatTime, sortEventsForDay, toLocalDateKey } from './date.utils';
+import { addDaysToDateKey, eventOccursOnDate, formatLongDate, formatTime, sortEventsForDay, toLocalDateKey } from './date.utils';
 import type { CalendarEvent } from '../events/event.types';
 import type { Location } from '../locations/location.types';
 import type { TimeFormat } from '../settings/settings.types';
@@ -40,7 +40,11 @@ function upcomingWhenLabel(event: CalendarEvent, todayKey: string, timeFormat: T
   if (!event.allDay && eventKey === todayKey && startsAt <= now.getTime() && endsAt >= now.getTime()) {
     return `Teraz · do ${formatTime(event.endDateTime, timeFormat)}`;
   }
-  const dayLabel = eventKey === todayKey ? 'Dzisiaj' : eventKey === tomorrowKey ? 'Jutro' : formatShortDateKey(eventKey);
+  const dayLabel = eventKey === todayKey
+    ? 'Dzisiaj'
+    : eventKey === tomorrowKey
+      ? 'Jutro'
+      : new Date(`${eventKey}T12:00:00`).toLocaleDateString('pl-PL', { weekday: 'long', day: 'numeric', month: 'short' });
   return `${dayLabel} · ${event.allDay ? 'cały dzień' : formatTime(event.startDateTime, timeFormat)}`;
 }
 
