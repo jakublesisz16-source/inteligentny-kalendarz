@@ -19,7 +19,7 @@ describe('Build276 Week conflict marker and mobile ending', () => {
 
   it('uses only a small horizontal offset when events start at exactly the same time', () => {
     expect(layout).toContain('sameStartIndex');
-    expect(calendar).toContain('Math.min(position.sameStartIndex, 2) * 4');
+    expect(calendar).toContain('Math.min(position.sameStartIndex * 3, 4)');
     expect(calendar).toContain('width: `calc(100% - ${6 + overlapLayerInset}px)`');
   });
 
