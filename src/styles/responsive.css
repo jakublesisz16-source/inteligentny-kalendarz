@@ -1324,7 +1324,7 @@
     border-radius: 9px;
     touch-action: manipulation;
   }
-  .calendar-week-event span { font-size: .61rem; }
+  .calendar-week-event-time { font-size: .61rem; }
   .calendar-week-event strong { font-size: .7rem; line-height: 1.2; }
   .calendar-week-event.overlapping strong { font-size: .65rem; }
 

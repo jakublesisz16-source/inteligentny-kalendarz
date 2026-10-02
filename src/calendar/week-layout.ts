@@ -1,12 +1,19 @@
 import type { CalendarEvent } from '../events/event.types';
 import { toLocalDateKey } from './date.utils';
 
+export interface WeekTimedEventOverlapSegment {
+  topPercent: number;
+  heightPercent: number;
+}
+
 export interface WeekTimedEventLayout {
   top: number;
   height: number;
   leftPercent: number;
   widthPercent: number;
   overlapping: boolean;
+  overlapSegments: WeekTimedEventOverlapSegment[];
+  stackIndex: number;
 }
 
 interface LayoutCandidate {
@@ -15,6 +22,11 @@ interface LayoutCandidate {
   end: number;
   top: number;
   height: number;
+}
+
+interface MinuteRange {
+  start: number;
+  end: number;
 }
 
 function minuteOfDay(value: string): number {
@@ -51,31 +63,45 @@ function candidateForDay(
   };
 }
 
+function mergeRanges(ranges: MinuteRange[]): MinuteRange[] {
+  if (!ranges.length) return [];
+  const sorted = [...ranges].sort((a, b) => a.start - b.start || a.end - b.end);
+  const merged: MinuteRange[] = [];
+  for (const range of sorted) {
+    const last = merged.at(-1);
+    if (!last || range.start > last.end) {
+      merged.push({ ...range });
+      continue;
+    }
+    last.end = Math.max(last.end, range.end);
+  }
+  return merged;
+}
+
+function overlapSegmentsForCandidate(candidate: LayoutCandidate, group: LayoutCandidate[]): WeekTimedEventOverlapSegment[] {
+  const ranges = mergeRanges(group
+    .filter((other) => other.event.id !== candidate.event.id)
+    .map((other) => ({ start: Math.max(candidate.start, other.start), end: Math.min(candidate.end, other.end) }))
+    .filter((range) => range.end > range.start));
+  const duration = Math.max(1, candidate.end - candidate.start);
+  return ranges.map((range) => ({
+    topPercent: ((range.start - candidate.start) / duration) * 100,
+    heightPercent: ((range.end - range.start) / duration) * 100,
+  }));
+}
+
 function commitOverlapGroup(group: LayoutCandidate[], result: Map<string, WeekTimedEventLayout>): void {
   if (!group.length) return;
-  const columnEnds: number[] = [];
-  const assignments: Array<{ candidate: LayoutCandidate; column: number }> = [];
-
-  for (const candidate of group) {
-    let column = columnEnds.findIndex((end) => end <= candidate.start);
-    if (column < 0) {
-      column = columnEnds.length;
-      columnEnds.push(candidate.end);
-    } else {
-      columnEnds[column] = candidate.end;
-    }
-    assignments.push({ candidate, column });
-  }
-
-  const columnCount = Math.max(1, columnEnds.length);
-  const widthPercent = 100 / columnCount;
-  for (const { candidate, column } of assignments) {
+  for (const [stackIndex, candidate] of group.entries()) {
+    const overlapSegments = overlapSegmentsForCandidate(candidate, group);
     result.set(candidate.event.id, {
       top: candidate.top,
       height: candidate.height,
-      leftPercent: column * widthPercent,
-      widthPercent,
-      overlapping: columnCount > 1,
+      leftPercent: 0,
+      widthPercent: 100,
+      overlapping: overlapSegments.length > 0,
+      overlapSegments,
+      stackIndex,
     });
   }
 }

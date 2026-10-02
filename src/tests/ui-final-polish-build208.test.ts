@@ -15,7 +15,7 @@ describe('Build208 final UI polish', () => {
   it('shows the complete seven-day week on phones with compact mobile labels', () => {
     expect(css).toContain('grid-template-columns: 32px repeat(7, minmax(0, 1fr));');
     expect(css).toContain('.calendar-week-column,');
-    expect(calendar).toContain('data-mobile-time=');
+    expect(calendar).toContain('data-mobile-time-start=');
     expect(calendar).toContain('data-mobile-label={mobileWeekEventLabel(event)}');
   });
 

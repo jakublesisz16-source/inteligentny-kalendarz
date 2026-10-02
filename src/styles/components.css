@@ -1997,7 +1997,9 @@
   font-size: .6rem;
   font-weight: 700;
 }
-.calendar-week-columns { display: grid; grid-template-columns: repeat(7, minmax(92px, 1fr)); }
+.calendar-week-time-axis span.calendar-week-time-end { transform: translateY(-100%); }
+
+.calendar-week-columns { display: grid; grid-template-columns: repeat(7, minmax(92px, 1fr)); box-shadow: inset 0 -1px var(--line); }
 .calendar-week-column {
   position: relative;
   height: 816px;
@@ -2023,6 +2025,7 @@
   right: 4px;
   min-height: 26px;
   overflow: hidden;
+  isolation: isolate;
   display: grid;
   align-content: start;
   gap: 1px;
@@ -2035,9 +2038,12 @@
   cursor: pointer;
   box-shadow: 0 2px 7px rgba(39,32,35,.05);
 }
-.calendar-week-event span { font-size: .56rem; font-weight: 800; color: var(--text-muted); white-space: nowrap; }
-.calendar-week-event strong { font-size: .64rem; line-height: 1.18; overflow: hidden; }
-.calendar-week-event i { position: absolute; right: 4px; top: 3px; width: 15px; height: 15px; display: grid; place-items: center; border-radius: 50%; background: var(--warning-soft); color: var(--warning); font-size: .56rem; font-style: normal; font-weight: 900; }
+.calendar-week-event-time { position: relative; z-index: 2; font-size: .56rem; font-weight: 800; color: var(--text-muted); white-space: nowrap; }
+.calendar-week-event > strong { position: relative; z-index: 2; font-size: .64rem; line-height: 1.18; overflow: hidden; }
+.calendar-week-event-overlap-zone { position: absolute; z-index: 1; left: 0; right: 0; display: block; pointer-events: none; background: color-mix(in srgb, var(--accent) 24%, transparent); border-top: 1px solid color-mix(in srgb, var(--accent-strong) 18%, transparent); border-bottom: 1px solid color-mix(in srgb, var(--accent-strong) 18%, transparent); }
+.calendar-week-conflict-badge { position: absolute; z-index: 4; right: 3px; top: 3px; width: 14px; height: 14px; display: grid; place-items: center; border-radius: 50%; background: color-mix(in srgb, var(--warning-soft) 92%, var(--surface)); color: var(--warning); box-shadow: 0 0 0 1px color-mix(in srgb, var(--warning) 18%, transparent); font-size: .52rem; font-style: normal; font-weight: 900; }
+.calendar-week-event.conflict > .calendar-week-event-time,
+.calendar-week-event.conflict > strong { padding-right: 15px; box-sizing: border-box; }
 .calendar-week-event.category-study { background: var(--category-study-soft); }
 .calendar-week-event.category-work { background: #eef4f5; }
 .calendar-week-event.category-personal { background: var(--category-personal-soft); }
@@ -2959,7 +2965,7 @@
   border-radius: 50%;
   background: var(--surface-strong);
 }
-.calendar-week-event span { font-size: .59rem; }
+.calendar-week-event-time { font-size: .59rem; }
 .calendar-week-event strong { font-size: .67rem; line-height: 1.2; }
 
 .event-form-minimal { gap: 13px; }
@@ -3244,13 +3250,13 @@
   padding-right: 4px;
   box-shadow: 0 2px 7px rgba(39,32,35,.07);
 }
-.calendar-week-event.overlapping span {
+.calendar-week-event.overlapping > .calendar-week-event-time {
   overflow: hidden;
   text-overflow: ellipsis;
   font-size: .54rem;
 }
-.calendar-week-event.overlapping strong { font-size: .61rem; }
-.calendar-week-event.overlapping i {
+.calendar-week-event.overlapping > strong { font-size: .61rem; }
+.calendar-week-event.overlapping .calendar-week-conflict-badge {
   right: 2px;
   top: 2px;
   width: 12px;
@@ -3342,7 +3348,7 @@
   padding: 2px 4px;
   gap: 0;
 }
-.calendar-week-shell.compact-density .calendar-week-event span { font-size: .55rem; line-height: 1.05; }
+.calendar-week-shell.compact-density .calendar-week-event-time { font-size: .55rem; line-height: 1.05; }
 .calendar-week-shell.compact-density .calendar-week-event strong {
   font-size: .64rem;
   line-height: 1.1;

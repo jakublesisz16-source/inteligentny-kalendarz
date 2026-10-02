@@ -24,30 +24,35 @@ describe('1.2.0.44 weekly planner layout', () => {
       event('b', '2026-09-14T10:00', '2026-09-14T11:00'),
     ], '2026-09-14', 6, 23, 48);
 
-    expect(layout.get('a')).toMatchObject({ leftPercent: 0, widthPercent: 100, overlapping: false });
-    expect(layout.get('b')).toMatchObject({ leftPercent: 0, widthPercent: 100, overlapping: false });
+    expect(layout.get('a')).toMatchObject({ leftPercent: 0, widthPercent: 100, overlapping: false, overlapSegments: [] });
+    expect(layout.get('b')).toMatchObject({ leftPercent: 0, widthPercent: 100, overlapping: false, overlapSegments: [] });
   });
 
-  it('places overlapping events side by side instead of hiding one behind another', () => {
+  it('keeps overlapping events full width and marks only the shared time range', () => {
     const layout = buildWeekTimedEventLayout([
       event('a', '2026-09-14T09:00', '2026-09-14T11:00'),
       event('b', '2026-09-14T09:30', '2026-09-14T10:30'),
     ], '2026-09-14', 6, 23, 48);
 
-    expect(layout.get('a')).toMatchObject({ leftPercent: 0, widthPercent: 50, overlapping: true });
-    expect(layout.get('b')).toMatchObject({ leftPercent: 50, widthPercent: 50, overlapping: true });
+    expect(layout.get('a')).toMatchObject({ leftPercent: 0, widthPercent: 100, overlapping: true });
+    expect(layout.get('a')?.overlapSegments[0]).toEqual({ topPercent: 25, heightPercent: 50 });
+    expect(layout.get('b')).toMatchObject({ leftPercent: 0, widthPercent: 100, overlapping: true });
+    expect(layout.get('b')?.overlapSegments[0]).toEqual({ topPercent: 0, heightPercent: 100 });
   });
 
-  it('reuses a free overlap column when touching events do not overlap', () => {
+  it('does not treat touching events as overlapping while preserving overlap with a longer event', () => {
     const layout = buildWeekTimedEventLayout([
       event('a', '2026-09-14T09:00', '2026-09-14T12:00'),
       event('b', '2026-09-14T09:00', '2026-09-14T10:00'),
       event('c', '2026-09-14T10:00', '2026-09-14T11:00'),
     ], '2026-09-14', 6, 23, 48);
 
-    expect(layout.get('a')?.widthPercent).toBe(50);
-    expect(layout.get('b')?.leftPercent).toBe(50);
-    expect(layout.get('c')?.leftPercent).toBe(50);
+    expect(layout.get('a')).toMatchObject({ widthPercent: 100, overlapping: true });
+    expect(layout.get('b')).toMatchObject({ widthPercent: 100, overlapping: true });
+    expect(layout.get('c')).toMatchObject({ widthPercent: 100, overlapping: true });
+    expect(layout.get('a')?.overlapSegments).toHaveLength(1);
+    expect(layout.get('a')?.overlapSegments[0]?.topPercent).toBe(0);
+    expect(layout.get('a')?.overlapSegments[0]?.heightPercent).toBeCloseTo(66.6666666667);
   });
 
   it('keeps all-day events outside the timed layout', () => {

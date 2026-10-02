@@ -22,7 +22,8 @@ describe('Build239 mobile Calendar full-week readability', () => {
     expect(calendar).toContain('data-mobile-label={mobileWeekEventLabel(event)}');
     expect(refinement).toContain('height: clamp(380px, calc(100dvh - 430px), 590px);');
     expect(refinement).toContain('overflow-y: auto;');
-    expect(refinement).toContain('content: attr(data-mobile-time) !important;');
+    expect(refinement).toContain('attr(data-mobile-time-start)');
+    expect(refinement).toContain('attr(data-mobile-time-end)');
     expect(refinement).toContain('content: attr(data-mobile-label) !important;');
   });
 

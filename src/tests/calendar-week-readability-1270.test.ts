@@ -13,7 +13,7 @@ describe('1.2.0.70 compact week event readability', () => {
   });
 
   it('keeps compact hour events readable without changing their geometry', () => {
-    expect(css).toContain('.calendar-week-shell.compact-density .calendar-week-event span { font-size: .55rem;');
+    expect(css).toContain('.calendar-week-shell.compact-density .calendar-week-event-time { font-size: .55rem;');
     expect(css).toContain('font-size: .64rem;');
     expect(css).toContain('white-space: nowrap;');
     expect(css).toContain('text-overflow: ellipsis;');

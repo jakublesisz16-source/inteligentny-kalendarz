@@ -2025,27 +2025,27 @@
     border-radius: 6px;
     box-shadow: none;
   }
-  .calendar-week-event > span:first-child {
+  .calendar-week-event > .calendar-week-event-time {
     display: block !important;
     max-width: 100%;
-    overflow: hidden !important;
+    overflow: visible !important;
     color: transparent !important;
     font-size: 0 !important;
     line-height: 0 !important;
     text-indent: -9999px !important;
     white-space: nowrap !important;
   }
-  .calendar-week-event > span:first-child::after {
-    content: attr(data-mobile-time) !important;
+  .calendar-week-event > .calendar-week-event-time::after {
+    content: attr(data-mobile-time-start) "-\A" attr(data-mobile-time-end) !important;
     display: block !important;
     overflow: hidden;
     color: var(--text-muted) !important;
-    font-size: .46rem !important;
+    font-size: .44rem !important;
     font-weight: 850;
-    line-height: 1.05 !important;
+    line-height: 1.02 !important;
     text-indent: 0 !important;
     text-overflow: clip;
-    white-space: nowrap;
+    white-space: pre-line;
   }
   .calendar-week-event > strong {
     display: block !important;
@@ -2250,7 +2250,7 @@
   .calendar-week-scroll { grid-template-columns: 30px minmax(0, 1fr); }
   .calendar-week-day-heading span { font-size: .43rem; }
   .calendar-week-day-heading strong { width: 20px; height: 20px; font-size: .64rem; }
-  .calendar-week-event > span:first-child::after { font-size: .43rem !important; }
+  .calendar-week-event > .calendar-week-event-time::after { font-size: .41rem !important; }
   .calendar-week-event > strong::after { font-size: .49rem !important; }
   .finance-dashboard-controls-v1258 .finance-core-actions .button { padding-inline: 8px; font-size: .62rem; }
   .work-roster-direct .work-shift-main-line { padding-right: 110px; }
@@ -4850,11 +4850,11 @@ body.modal-open { overflow: hidden; }
     font-size: .82rem;
   }
 
-  /* Mobile Week: keep a small inner finish; outer view clearance already protects the fixed bottom nav. */
+  /* Build275 - Week ends on the final grid line; bottom-nav clearance belongs to the outer view, not inside the timeline. */
   .calendar-week-scroll {
     box-sizing: border-box;
-    padding-bottom: max(12px, env(safe-area-inset-bottom));
-    scroll-padding-bottom: max(12px, env(safe-area-inset-bottom));
+    padding-bottom: 0;
+    scroll-padding-bottom: 8px;
   }
 
   /* Study: recover vertical space around chrome while keeping touch targets intact. */
@@ -5415,4 +5415,45 @@ body.modal-open { overflow: hidden; }
 
   .consistency-card { padding: 12px; }
   .consistency-event-address { font-size: .64rem; }
+}
+
+
+/* Build275 - one overlap language on desktop and mobile: full cards, darker shared time, safe warning badge. */
+.calendar-week-event.overlapping {
+  padding-left: 5px;
+  padding-right: 5px;
+}
+.calendar-week-event-overlap-zone {
+  background: color-mix(in srgb, var(--accent) 28%, transparent);
+}
+.calendar-week-time-axis span.calendar-week-time-end {
+  transform: translateY(-100%);
+}
+
+@media (max-width: 620px) {
+  .calendar-week-event {
+    padding: 3px 2px 4px;
+  }
+  .calendar-week-event.conflict > .calendar-week-event-time,
+  .calendar-week-event.conflict > strong {
+    padding-right: 10px;
+  }
+  .calendar-week-conflict-badge,
+  .calendar-week-event.overlapping .calendar-week-conflict-badge {
+    right: 1px;
+    top: 2px;
+    width: 10px;
+    height: 10px;
+    font-size: .42rem;
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--warning) 16%, transparent);
+  }
+  .calendar-week-event-overlap-zone {
+    background: color-mix(in srgb, var(--accent) 32%, transparent);
+  }
+  .calendar-week-columns {
+    box-shadow: inset 0 -1px color-mix(in srgb, var(--line-strong) 70%, var(--line));
+  }
+  .calendar-week-time-axis span.calendar-week-time-end {
+    transform: translateY(-100%);
+  }
 }

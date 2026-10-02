@@ -8,9 +8,10 @@ const css = readFileSync(new URL('../styles/interface-refinement.css', import.me
 
 describe('Build210 mobile readability polish', () => {
   it('keeps the seven-day week and uses concise event codes in narrow phone columns', () => {
-    expect(calendar).toContain('data-mobile-time=');
+    expect(calendar).toContain('data-mobile-time-start=');
     expect(calendar).toContain('data-mobile-label={mobileWeekEventLabel(event)}');
-    expect(css).toContain("content: attr(data-mobile-time) !important;");
+    expect(css).toContain('attr(data-mobile-time-start)');
+    expect(css).toContain('attr(data-mobile-time-end)');
     expect(css).toContain("content: attr(data-mobile-label) !important;");
     expect(css).toContain('font-size: .52rem !important;');
   });
