@@ -1,4 +1,5 @@
-export type CalendarOverlayKind = 'POLISH_HOLIDAY' | 'WUM_BREAK' | 'WUM_RECTOR_DAY';
+export type CalendarOverlayKind = 'POLISH_HOLIDAY' | 'WUM_BREAK' | 'WUM_RECTOR_DAY' | 'WUM_SESSION';
+export type CalendarDayTone = 'DAY_OFF' | 'SESSION';
 
 export interface CalendarOverlayMarker {
   kind: CalendarOverlayKind;
@@ -11,7 +12,7 @@ interface DateRangeMarker {
   end: string;
   label: string;
   shortLabel: string;
-  kind: Extract<CalendarOverlayKind, 'WUM_BREAK' | 'WUM_RECTOR_DAY'>;
+  kind: Extract<CalendarOverlayKind, 'WUM_BREAK' | 'WUM_RECTOR_DAY' | 'WUM_SESSION'>;
 }
 
 // Ustawa o dniach wolnych od pracy - tekst jednolity Dz.U. 2025 poz. 296.
@@ -29,12 +30,19 @@ const FIXED_POLISH_HOLIDAYS: Array<[number, number, string]> = [
 ];
 
 // WUM 2026/2027 - Zarządzenie Rektora nr 90/2026; dzień rektorski 05.10.2026 - Zarządzenie nr 156/2026.
+// Oficjalny podział roku: https://selimp.wum.edu.pl/podzial-roku-akademickiego
+// Sesje są warstwą informacyjną, nie są automatycznie traktowane jako dni wolne od zajęć.
 const WUM_2026_2027: DateRangeMarker[] = [
   { start: '2026-10-05', end: '2026-10-05', kind: 'WUM_RECTOR_DAY', label: 'WUM - dzień rektorski', shortLabel: 'WUM' },
   { start: '2026-12-21', end: '2027-01-03', kind: 'WUM_BREAK', label: 'WUM - przerwa świąteczna', shortLabel: 'WUM' },
+  { start: '2027-02-01', end: '2027-02-07', kind: 'WUM_SESSION', label: 'WUM - sesja egzaminacyjna zimowa', shortLabel: 'Sesja' },
   { start: '2027-02-08', end: '2027-02-14', kind: 'WUM_BREAK', label: 'WUM - przerwa semestralna', shortLabel: 'WUM' },
+  { start: '2027-02-15', end: '2027-02-21', kind: 'WUM_SESSION', label: 'WUM - sesja poprawkowa zimowa', shortLabel: 'Sesja' },
   { start: '2027-03-25', end: '2027-03-31', kind: 'WUM_BREAK', label: 'WUM - przerwa świąteczna', shortLabel: 'WUM' },
   { start: '2027-06-14', end: '2027-06-20', kind: 'WUM_BREAK', label: 'WUM - przerwa na przygotowanie do sesji', shortLabel: 'WUM' },
+  { start: '2027-06-21', end: '2027-07-11', kind: 'WUM_SESSION', label: 'WUM - sesja egzaminacyjna letnia', shortLabel: 'Sesja' },
+  // Poprawka ma pierwszeństwo wizualne przed obejmującą ją przerwą wakacyjną.
+  { start: '2027-08-30', end: '2027-09-19', kind: 'WUM_SESSION', label: 'WUM - sesja poprawkowa letnia', shortLabel: 'Sesja' },
   { start: '2027-07-12', end: '2027-09-30', kind: 'WUM_BREAK', label: 'WUM - przerwa wakacyjna', shortLabel: 'WUM' },
 ];
 
@@ -95,7 +103,20 @@ export function wumAcademicMarkerForDate(key: string): CalendarOverlayMarker | u
 }
 
 export function isKnownStudyDayOff(key: string): boolean {
-  return Boolean(polishHolidayForDate(key) || wumAcademicMarkerForDate(key));
+  const wumDayOff = WUM_2026_2027.some((entry) => key >= entry.start && key <= entry.end && (entry.kind === 'WUM_BREAK' || entry.kind === 'WUM_RECTOR_DAY'));
+  return Boolean(polishHolidayForDate(key) || wumDayOff);
+}
+
+export function calendarDayToneForDate(
+  key: string,
+  options: { showPolishHolidays: boolean; showWumAcademicCalendar: boolean },
+): CalendarDayTone | undefined {
+  if (options.showPolishHolidays && polishHolidayForDate(key)) return 'DAY_OFF';
+  if (!options.showWumAcademicCalendar) return undefined;
+  const wum = wumAcademicMarkerForDate(key);
+  if (wum?.kind === 'WUM_SESSION') return 'SESSION';
+  if (wum?.kind === 'WUM_BREAK' || wum?.kind === 'WUM_RECTOR_DAY') return 'DAY_OFF';
+  return undefined;
 }
 
 export function calendarOverlayMarkersForDate(

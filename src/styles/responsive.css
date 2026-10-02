@@ -1780,7 +1780,8 @@
   .calendar-mobile-day-preview-overlays span { min-height: 28px; display: inline-flex; align-items: center; padding: 4px 9px; border-radius: 999px; font-size: .63rem; font-weight: 800; }
   .calendar-mobile-day-preview-overlays .overlay-polish_holiday { background: color-mix(in srgb, var(--accent-soft) 72%, var(--surface)); color: var(--accent-strong); }
   .calendar-mobile-day-preview-overlays .overlay-wum_break,
-  .calendar-mobile-day-preview-overlays .overlay-wum_rector_day { background: color-mix(in srgb, var(--category-study-soft) 72%, var(--surface)); color: var(--category-study); }
+  .calendar-mobile-day-preview-overlays .overlay-wum_rector_day { background: color-mix(in srgb, var(--calendar-day-off) 82%, var(--surface)); color: var(--category-personal); }
+  .calendar-mobile-day-preview-overlays .overlay-wum_session { background: color-mix(in srgb, var(--calendar-session) 88%, var(--surface)); color: var(--calendar-session-strong); }
   .calendar-mobile-day-preview-list { display: grid; gap: 8px; }
   .calendar-mobile-day-preview-event,
   .calendar-mobile-day-preview-incomplete {

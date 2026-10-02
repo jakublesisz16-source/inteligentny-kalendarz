@@ -16,6 +16,11 @@
   --success-soft: #e8f2ed;
   --warning: #9b6a35;
   --warning-soft: #fbf0df;
+  --calendar-day-off: #f4eef8;
+  --calendar-day-off-border: #ddcfea;
+  --calendar-session: #eef3f9;
+  --calendar-session-border: #cad8e8;
+  --calendar-session-strong: #7890b4;
   --accent-surface: #fff7fa;
   --study: #6e78a8;
   --work: #a06f42;

@@ -66,7 +66,7 @@ export function EventCard({ event, location, timeFormat, seriesCount, onEdit, on
       <div className="event-content">
         <div className="event-heading-row">
           <h3>{event.title}</h3><span className="event-category">{categoryLabels[event.category]}</span>
-          {event.source === 'UNIVERSITY_XLSX' ? <span className="event-source">Plan studiów{event.userModified ? ' - zmieniono ręcznie' : ''}</span> : null}
+          {event.source === 'UNIVERSITY_XLSX' && event.userModified ? <span className="event-source">Zmieniono ręcznie</span> : null}
           {event.source === 'WORK_PDF' ? <span className="event-source">Grafik pracy{event.userModified ? ' - zmieniono ręcznie' : ''}</span> : null}
           {event.seriesType === 'MANUAL_MULTI_DATE' && seriesCount ? <span className="event-series-badge">Seria: {seriesCount} dni</span> : null}
           {multiDay && event.source === 'MANUAL' ? <span className="event-series-badge">{eventDayCount(event)} dni</span> : null}

@@ -5,17 +5,17 @@ import { candidatesForSelectedGroups } from './study.service';
 import { auditSelectedStudyProfile, buildStudySourceAudit } from './study-source-audit';
 import type { ScheduleAnalysis, StudyScheduleCandidate } from './study.types';
 
-export const VERIFIED_STUDY_PLAN_2026_09_30 = {
-  id: 'wum-nursing-year2-2026-09-30',
-  sourceName: 'licencjat-ii-rok-piel.-30.09.2026.xls',
-  sourceUpdatedAt: '2026-09-30T00:00:00+02:00',
-  sizeBytes: 147_968,
-  sha256: '357da00714b71345ae289266dad6bac6430d225657a294ce2d05844e1861f391',
+export const VERIFIED_STUDY_PLAN_2026_10_02 = {
+  id: 'wum-nursing-year2-2026-10-02',
+  sourceName: 'licencjat-ii-rok-piel.-02.10.2026.xls',
+  sourceUpdatedAt: '2026-10-02T00:00:00+02:00',
+  sizeBytes: 148_992,
+  sha256: 'addba8810eac59d838f8334adf2e8f2b25897691a26922288509a0c5d3f261cb',
   adapterId: 'nursing-week-matrix-v2',
-  allCandidatesSha256: '7f3de764d14a8c92f1cf782e7195ff65c61f3ef192f3867390cb577f898936d5',
+  allCandidatesSha256: '7bb9cc0c0700aa6e3e1ff5bc4bf996db8eabb81d8e26a1922c1348dfe272143a',
   selectedProfile: {
     selectedGroups: ['MAIN:7', 'G12:7A', 'G8:7B', 'G4:7B2'],
-    candidatesSha256: 'e321f1243051d3bf3047a3844397715c82135eb2f30aa767c8d59fb4bbee304a',
+    candidatesSha256: '06f695170d8624d20183c247c76a9120d31f791c0303e971094eecbb3bad0ab5',
     candidateCount: 79,
     importableCount: 76,
     readyCount: 69,
@@ -31,19 +31,19 @@ export const VERIFIED_STUDY_PLAN_2026_09_30 = {
     },
   },
   audit: {
-    candidateCount: 2163,
-    readyCount: 2007,
+    candidateCount: 2172,
+    readyCount: 2016,
     reviewRequiredCount: 156,
     groupCount: 156,
     groupKinds: { MAIN: 13, G12: 26, G8: 39, G4: 78, GENERIC: 0 },
-    sourceBlockCount: 815,
+    sourceBlockCount: 824,
     completenessSafe: true,
     incompleteSourceBlockCount: 156,
-    hourAnomalyCount: 16,
+    hourAnomalyCount: 13,
     profileCombinationCount: 156,
     affectedProfileCombinationCount: 52,
     uniqueConflictSignatureCount: 5,
-    weekdayMismatchCount: 5,
+    weekdayMismatchCount: 2,
     unparsedAssignmentCellCount: 0,
     unappliedDateExceptionCount: 0,
   },
@@ -213,12 +213,12 @@ export async function verifyStudyPlanAgainstReference(
 
 export async function verifyStudyPlanSource(input: VerifyStudyPlanInput): Promise<StudyPlanVerification> {
   const normalizedHash = input.fileHash.toLowerCase();
-  const reference = VERIFIED_STUDY_PLAN_2026_09_30;
+  const reference = VERIFIED_STUDY_PLAN_2026_10_02;
   if (normalizedHash !== reference.sha256) {
     return {
       state: 'NEW_SOURCE',
       reasons: input.fileName.toLowerCase() === reference.sourceName.toLowerCase()
-        ? ['Nazwa odpowiada zweryfikowanej wersji 30.09.2026, ale zawartość pliku ma inny SHA-256. Traktuję go jako nową wersję i nie dziedziczę statusu zweryfikowanego.']
+        ? ['Nazwa odpowiada zweryfikowanej wersji 02.10.2026, ale zawartość pliku ma inny SHA-256. Traktuję go jako nową wersję i nie dziedziczę statusu zweryfikowanego.']
         : [],
     };
   }

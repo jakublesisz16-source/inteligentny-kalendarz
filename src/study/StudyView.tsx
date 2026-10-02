@@ -547,7 +547,7 @@ export function StudyView({ onDataChanged }: StudyViewProps) {
             {!activeImport ? <p>Wczytaj plik XLSX lub XLS.</p> : null}
             {activeImport ? (
               <div className="study-current-plan-line" aria-label="Status aktualnego planu studiów">
-                <div className="study-current-plan-main"><strong>{activeImport.fileName}</strong><small>{activeImport.importedEventCount} wydarzeń · {formatImportDate(activeImport.importedAt)}</small></div>
+                <div className="study-current-plan-main"><strong>{activeImport.fileName}</strong><small>{activeImport.importedEventCount} wydarzeń · {formatImportDate(activeImport.importedAt)}</small>{activeImport.selectedGroups.length ? <span className="study-current-plan-groups">{activeImport.selectedGroups.map(studyGroupCompactLabel).join(' / ')}</span> : null}</div>
                 {activePlanUpdate ? <span className="study-current-plan-change" title={activePlanUpdate.appliedAt ? formatImportDate(activePlanUpdate.appliedAt) : undefined}>{formatUpdateSummary(activePlanUpdate.summary)}</span> : null}
               </div>
             ) : null}

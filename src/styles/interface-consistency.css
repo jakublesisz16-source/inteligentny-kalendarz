@@ -601,7 +601,8 @@
 .calendar-selected-day-overlays span { min-height: 24px; display: inline-flex; align-items: center; padding: 3px 8px; border-radius: 999px; font-size: .61rem; font-weight: 800; }
 .calendar-selected-day-overlays .overlay-polish_holiday { background: color-mix(in srgb, var(--accent-soft) 72%, var(--surface)); color: var(--accent-strong); }
 .calendar-selected-day-overlays .overlay-wum_break,
-.calendar-selected-day-overlays .overlay-wum_rector_day { background: color-mix(in srgb, var(--category-study-soft) 72%, var(--surface)); color: var(--category-study); }
+.calendar-selected-day-overlays .overlay-wum_rector_day { background: color-mix(in srgb, var(--calendar-day-off) 82%, var(--surface)); color: var(--category-personal); }
+.calendar-selected-day-overlays .overlay-wum_session { background: color-mix(in srgb, var(--calendar-session) 88%, var(--surface)); color: var(--calendar-session-strong); }
 .calendar-selected-day-content {
   display: grid;
   gap: 12px;
@@ -675,12 +676,35 @@
   border: 1px solid color-mix(in srgb, var(--line) 80%, transparent);
   box-shadow: 0 8px 22px rgba(71, 43, 54, .04);
 }
+/* Build267 - calendar context is visible from the month grid without opening a day. */
+.calendar-day.day-off:not(.selected):not(.multi-selected) {
+  background: color-mix(in srgb, var(--calendar-day-off) 72%, var(--surface));
+  border-color: color-mix(in srgb, var(--calendar-day-off-border) 72%, var(--line));
+}
+.calendar-day.day-off:not(.selected):not(.multi-selected):hover {
+  background: color-mix(in srgb, var(--calendar-day-off) 86%, var(--surface));
+  border-color: var(--calendar-day-off-border);
+}
+.calendar-day.session-period:not(.selected):not(.multi-selected) {
+  background: color-mix(in srgb, var(--calendar-session) 76%, var(--surface));
+  border-color: color-mix(in srgb, var(--calendar-session-border) 72%, var(--line));
+}
+.calendar-day.session-period:not(.selected):not(.multi-selected):hover {
+  background: color-mix(in srgb, var(--calendar-session) 90%, var(--surface));
+  border-color: var(--calendar-session-border);
+}
 .calendar-overlay-dots { position: absolute; top: 9px; right: 9px; display: inline-flex; gap: 4px; pointer-events: none; }
 .calendar-overlay-dots i,
 .calendar-week-overlay-dot { width: 6px; height: 6px; display: block; border-radius: 999px; box-shadow: 0 0 0 2px rgba(255,255,255,.88); }
 .calendar-overlay-dots .overlay-polish_holiday { background: var(--accent); }
 .calendar-overlay-dots .overlay-wum_break,
-.calendar-overlay-dots .overlay-wum_rector_day,
+.calendar-overlay-dots .overlay-wum_rector_day { background: var(--category-study); }
+.calendar-overlay-dots .overlay-wum_session { background: var(--calendar-session-strong); }
+.calendar-academic-legend { display: flex; justify-content: flex-end; align-items: center; gap: 10px; min-height: 22px; margin: -2px 2px 6px; color: var(--text-muted); font-size: .6rem; font-weight: 720; }
+.calendar-academic-legend span { display: inline-flex; align-items: center; gap: 5px; }
+.calendar-academic-legend i { width: 9px; height: 9px; border-radius: 4px; border: 1px solid transparent; }
+.calendar-academic-legend .legend-day-off i { background: var(--calendar-day-off); border-color: var(--calendar-day-off-border); }
+.calendar-academic-legend .legend-session i { background: var(--calendar-session); border-color: var(--calendar-session-border); }
 .calendar-week-overlay-dot { background: var(--category-study); }
 .calendar-week-day-heading { position: relative; }
 .calendar-week-overlay-dot { position: absolute; right: 7px; top: 7px; }
@@ -729,6 +753,8 @@
   .today-plan-panel .today-add-row .today-add-button { width: 100% !important; max-width: 240px; min-height: 40px !important; }
   .calendar-overlay-dots { top: 6px; right: 6px; gap: 3px; }
   .calendar-overlay-dots i { width: 5px; height: 5px; }
+  .calendar-academic-legend { justify-content: flex-start; gap: 9px; margin: -1px 1px 5px; font-size: .57rem; }
+  .calendar-academic-legend i { width: 8px; height: 8px; border-radius: 3px; }
   .calendar-week-overlay-dot { right: 4px; top: 5px; width: 5px; height: 5px; }
   .settings-calendar-layers { align-items: stretch; }
   .settings-calendar-layers > span { width: 100%; }

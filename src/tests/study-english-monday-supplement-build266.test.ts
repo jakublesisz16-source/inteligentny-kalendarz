@@ -44,7 +44,7 @@ afterEach(async () => { await deleteDatabaseForTests(); });
 describe('Build266 - potwierdzony język angielski w poniedziałki', () => {
   it('wiąże regułę z grupą główną 11 niezależnie od podgrup', () => {
     expect(matchesEnglishMondaySupplementProfile([...ENGLISH_MONDAY_SUPPLEMENT_PROFILE])).toBe(true);
-    expect(matchesEnglishMondaySupplementProfile(['MAIN:11', 'G12:11B', 'G8:11B', 'G4:11B2'])).toBe(true);
+    expect(matchesEnglishMondaySupplementProfile(['MAIN:11', 'G12:11A', 'G8:11C', 'G4:11C2'])).toBe(true);
     expect(matchesEnglishMondaySupplementProfile(['MAIN:11', 'G12:11A', 'G8:11A', 'G4:11A1'])).toBe(true);
     expect(matchesEnglishMondaySupplementProfile(['MAIN:12', 'G12:12A', 'G8:12A', 'G4:12A1'])).toBe(false);
   });
@@ -72,8 +72,8 @@ describe('Build266 - potwierdzony język angielski w poniedziałki', () => {
       fileHash: 'build266-english-test',
       adapterId: 'nursing-week-matrix-v2',
       sheetNames: ['PLAN ZAJĘĆ'],
-      selectedGroups: ['MAIN:11', 'G12:11B', 'G8:11B', 'G4:11B2'],
-      availableGroups: ['MAIN:11', 'G12:11B', 'G8:11B', 'G4:11B2'],
+      selectedGroups: ['MAIN:11', 'G12:11A', 'G8:11C', 'G4:11C2'],
+      availableGroups: ['MAIN:11', 'G12:11A', 'G8:11C', 'G4:11C2'],
       candidates: allCandidates,
       allCandidates,
     });

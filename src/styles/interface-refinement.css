@@ -5015,3 +5015,58 @@ body.modal-open { overflow: hidden; }
     border-bottom-color: color-mix(in srgb, var(--line-strong) 58%, var(--line));
   }
 }
+
+
+/* Build268 - bounded polish after real-screen QA: compact empty Today, quiet Study profile cue. */
+@media (min-width: 821px) {
+  .today-view.is-empty .today-plan-panel.today-single-surface {
+    display: grid;
+    grid-template-columns: minmax(240px, .72fr) minmax(0, 1.28fr);
+    gap: 12px;
+    min-height: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+    overflow: visible;
+  }
+  .today-view.is-empty .today-plan-panel.today-single-surface > .empty-state {
+    min-height: 112px;
+    display: grid;
+    grid-template-columns: 44px minmax(0, 1fr);
+    gap: 12px;
+    align-items: center;
+    padding: 16px 18px;
+    text-align: left;
+    border: 1px solid color-mix(in srgb, var(--line-strong) 68%, var(--line));
+    border-radius: 16px;
+    background: linear-gradient(155deg, color-mix(in srgb, var(--accent-surface) 52%, var(--surface)) 0%, var(--surface) 78%);
+    box-shadow: 0 5px 18px rgba(83, 59, 69, .035);
+  }
+  .today-view.is-empty .today-plan-panel.today-single-surface > .empty-state .empty-state-icon {
+    width: 42px;
+    height: 42px;
+    margin: 0;
+    border-radius: 12px;
+    box-shadow: none;
+  }
+  .today-view.is-empty .today-plan-panel.today-single-surface > .empty-state h3 {
+    margin: 0;
+    font-size: .94rem;
+  }
+  .today-view.is-empty .today-plan-panel.today-single-surface > .today-future-preview {
+    min-height: 112px;
+    margin-top: 0 !important;
+    align-self: stretch;
+    box-sizing: border-box;
+  }
+}
+
+.study-current-plan-groups {
+  display: block;
+  margin-top: 3px;
+  color: var(--accent-strong);
+  font-size: .64rem;
+  font-weight: 760;
+  line-height: 1.35;
+}

@@ -29,7 +29,7 @@ import { buildWeekTimedEventLayout } from './week-layout';
 import { detectPeriodSwipe, type SwipePoint } from './swipe-navigation';
 import { buildMovedWeekEventDraft, buildResizedWeekEventDraft, canDragWeekEvent, canResizeWeekEvent, computeWeekDropStartMinutes, computeWeekResizeEndMinutes, weekEventDurationMinutes, weekEventStartMinutes } from './week-drag';
 import { computeMobileWeekTargetDayIndex, shouldCancelWeekLongPress } from './week-touch-drag';
-import { calendarOverlayMarkersForDate } from './calendar-overlays';
+import { calendarDayToneForDate, calendarOverlayMarkersForDate } from './calendar-overlays';
 
 interface CalendarViewProps {
   events: CalendarEvent[];
@@ -1094,6 +1094,8 @@ export function CalendarView({ events, locations, timeFormat, showPolishHolidays
           </div>
           {displayMode === 'MONTH' && selectionMode ? <div className="multi-day-selection-bar" role="status" aria-live="polite"><div><strong>{selectedDateKeys.length} {selectedDateKeys.length === 1 ? 'dzień zaznaczony' : 'dni zaznaczone'}</strong><span>Klikaj kolejne daty. Mogą być niekolejne.</span></div><div className="multi-day-selection-actions"><button type="button" className="button button-secondary button-small" onClick={() => setSelectedDateKeys([])}>Wyczyść</button><button type="button" className="button button-primary button-small" disabled={!selectedDateKeys.length} onClick={addSelectedDates}>Dodaj wydarzenie</button></div></div> : null}
 
+          {displayMode === 'MONTH' && !selectionMode && (showPolishHolidays || showWumAcademicCalendar) ? <div className="calendar-academic-legend" aria-label="Legenda kalendarza akademickiego"><span className="legend-day-off"><i aria-hidden="true" />Wolne</span>{showWumAcademicCalendar ? <span className="legend-session"><i aria-hidden="true" />Sesja</span> : null}</div> : null}
+
           {displayMode === 'MONTH' ? (
             <>
             <div className="calendar-period-swipe-surface" onTouchStart={handlePeriodSwipeStart} onTouchEnd={handlePeriodSwipeEnd} onTouchCancel={handlePeriodSwipeCancel} onClickCapture={handlePeriodSwipeClickCapture}>
@@ -1101,7 +1103,10 @@ export function CalendarView({ events, locations, timeFormat, showPolishHolidays
               <div className={selectionMode ? 'calendar-grid selection-mode' : 'calendar-grid'}>
                 {days.map((day) => {
                   const key = toLocalDateKey(day);
-                  const overlayMarkers = calendarOverlayMarkersForDate(key, { showPolishHolidays, showWumAcademicCalendar });
+                  const overlayOptions = { showPolishHolidays, showWumAcademicCalendar };
+                  const overlayMarkers = calendarOverlayMarkersForDate(key, overlayOptions);
+                  const dayTone = calendarDayToneForDate(key, overlayOptions);
+                  const dayToneClass = dayTone === 'DAY_OFF' ? ' day-off' : dayTone === 'SESSION' ? ' session-period' : '';
                   const counts = countsByDate.get(key) ?? { STUDY: 0, WORK: 0, PERSONAL: 0, OTHER: 0 };
                   const dayEvents = eventsByDate.get(key) ?? [];
                   const total = counts.STUDY + counts.WORK + counts.PERSONAL + counts.OTHER;
@@ -1115,7 +1120,7 @@ export function CalendarView({ events, locations, timeFormat, showPolishHolidays
                   const showMonthQuickAdd = Boolean(monthQuickAdd);
                   const monthQuickAddAlignEnd = day.getDay() === 0 || day.getDay() === 6;
                   return <div key={key} className="calendar-day-shell">
-                    <button type="button" className={`calendar-day${sameMonth(day, visibleMonth) ? '' : ' muted'}${day.getDay() === 0 || day.getDay() === 6 ? ' weekend' : ''}${!selectionMode && selected ? ' selected' : ''}${multiSelected ? ' multi-selected' : ''}${isToday ? ' today' : ''}`} onClick={() => selectionMode ? toggleSelection(key) : selectDay(day)} aria-pressed={selectionMode ? multiSelected : undefined} aria-label={`${day.toLocaleDateString('pl-PL')}, ${ariaEvents}${overlayMarkers.length ? `, ${overlayMarkers.map((marker) => marker.label).join(', ')}` : ''}${incompleteStudyCount ? `, informacje z planu studiów: ${incompleteStudyCount}` : ''}${issueCount ? `, niespójności: ${issueCount}` : ''}`}>
+                    <button type="button" className={`calendar-day${sameMonth(day, visibleMonth) ? '' : ' muted'}${day.getDay() === 0 || day.getDay() === 6 ? ' weekend' : ''}${dayToneClass}${!selectionMode && selected ? ' selected' : ''}${multiSelected ? ' multi-selected' : ''}${isToday ? ' today' : ''}`} onClick={() => selectionMode ? toggleSelection(key) : selectDay(day)} aria-pressed={selectionMode ? multiSelected : undefined} aria-label={`${day.toLocaleDateString('pl-PL')}, ${ariaEvents}${overlayMarkers.length ? `, ${overlayMarkers.map((marker) => marker.label).join(', ')}` : ''}${incompleteStudyCount ? `, informacje z planu studiów: ${incompleteStudyCount}` : ''}${issueCount ? `, niespójności: ${issueCount}` : ''}`}>
                       <span className="day-number">{day.getDate()}</span>
                       {overlayMarkers.length ? <span className="calendar-overlay-dots" role="img" aria-label={overlayMarkers.map((marker) => marker.label).join(', ')} title={overlayMarkers.map((marker) => marker.label).join(' · ')}>{overlayMarkers.map((marker) => <i key={marker.kind} className={`overlay-${marker.kind.toLowerCase()}`} aria-hidden="true" />)}</span> : null}
                       {total > 0 ? <span className="category-count-row calendar-day-counts" title={dayEvents.map((event) => `${calendarEventTimeLabel(event, key, timeFormat)} ${event.title}`).join('\n')}>{(Object.keys(categoryLabels) as Array<keyof typeof categoryLabels>).filter((category) => counts[category] > 0).map((category) => <span key={category} className={`category-count category-${category.toLowerCase()}`} aria-label={`${counts[category]} wydarzenia: ${categoryLabels[category]}`}>{counts[category]}</span>)}</span> : <span className="event-placeholder" />}
