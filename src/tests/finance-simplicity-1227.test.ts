@@ -10,7 +10,7 @@ describe('Finance simplicity regression', () => {
     const dashboard = source('../finance/FinanceDashboardView.tsx');
     expect(dashboard).toContain('monthSummary.receiptCount === 0');
     expect(dashboard).toContain('Dodaj pierwszy wydatek');
-    expect(dashboard).toContain('Po zapisie pojawią się tutaj podsumowanie, kategorie i lista wydatków.');
+    expect(dashboard).toContain('Po pierwszym wydatku pojawi się podsumowanie miesiąca.');
     expect(dashboard).not.toContain('finance-summary-grid');
   });
 

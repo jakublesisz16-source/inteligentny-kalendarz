@@ -57,7 +57,7 @@ describe('1.2.0.110 focused usability cleanup', () => {
 
   it('exposes calendar overlay meaning to assistive technology without making the markers visually louder', () => {
     expect(calendar).toContain('className="calendar-overlay-dots" role="img"');
-    expect(calendar).toContain("aria-label={overlayMarkers.map((marker) => marker.label).join(', ')}");
+    expect(calendar).toContain("aria-label={exceptionalOverlayMarkers.map((marker) => marker.label).join(', ')}");
     expect(calendar).toContain('aria-hidden="true"');
   });
 

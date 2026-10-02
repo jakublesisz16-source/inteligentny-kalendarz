@@ -7,9 +7,9 @@ const consistency = readFileSync('src/planning/ConsistencyCenter.tsx', 'utf8');
 const css = readFileSync('src/styles/components.css', 'utf8');
 
 describe('1.2.0.15 final calendar polish', () => {
-  it('remembers the last calendar view and filter', () => {
+  it('remembers the last calendar view without restoring the removed category filter', () => {
     expect(calendar).toContain('CALENDAR_DISPLAY_MODE_STORAGE_KEY');
-    expect(calendar).toContain('CALENDAR_FILTER_STORAGE_KEY');
+    expect(calendar).not.toContain('CALENDAR_FILTER_STORAGE_KEY');
     expect(calendar).toContain('window.localStorage.setItem');
   });
 

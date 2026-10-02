@@ -15,7 +15,7 @@ describe('Build272 empty Finance action hierarchy on mobile', () => {
   it('keeps the primary manual expense action visible for an empty month while empty trips keep their owned action', () => {
     expect(responsive).not.toContain('.finance-month-is-empty > .finance-dashboard-controls-v1258 .finance-manual-expense,\n  .finance-trip-is-empty');
     expect(responsive).toContain('.finance-trip-is-empty > .finance-dashboard-controls-v1258 .finance-core-actions');
-    expect(responsive).toContain('.finance-month-is-empty > .finance-dashboard-controls-v1258 .finance-manual-expense');
+    expect(responsive).toContain('.finance-month-is-empty > .finance-dashboard-controls-v1258 .finance-core-actions .finance-scan-receipt');
   });
 
   it('keeps a single primary expense action while the empty state stays descriptive', () => {

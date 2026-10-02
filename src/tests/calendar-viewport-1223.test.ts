@@ -17,7 +17,8 @@ describe('1.2.0.23 calendar viewport-first layout', () => {
   it('keeps primary controls in the compact header without repeating active Study groups', () => {
     const calendar = source('../calendar/CalendarView.tsx');
     expect(calendar).toContain('calendar-view-header');
-    expect(calendar).toContain('calendar-primary-controls');
+    expect(calendar).toContain('calendar-toolbar-actions');
+    expect(calendar).toContain('calendar-view-switch-inline');
     expect(calendar).not.toContain('calendar-selected-day-study-context');
     expect(calendar).toContain('calendar-week-study-group');
   });
@@ -28,7 +29,7 @@ describe('1.2.0.23 calendar viewport-first layout', () => {
     const version = source('../core/version.ts');
     expect(components).toContain('1.2.0.23 - calendar viewport-first');
     expect(components).toContain('padding-top: 10px;');
-    expect(components).toContain('.calendar-view-header .calendar-primary-controls');
+    expect(components).toContain('.calendar-toolbar-actions');
     expect(responsive).toContain('1.2.0.23 - calendar viewport-first');
     expect(version).toMatch(/APP_VERSION\s*=\s*'\d+\.\d+\.\d+\.\d+'/u);
     expect(version).toContain('DATABASE_SCHEMA_VERSION = 14');
