@@ -1,11 +1,11 @@
 {
   "source": "PRIVATE",
   "surface": "sync-preview",
-  "buildId": "ik-1.2.0.284-20261003-sync-aware-release-preflight",
-  "appVersion": "1.2.0.284",
+  "buildId": "ik-1.2.0.285-20261003-ci-channel-safety-routing",
+  "appVersion": "1.2.0.285",
   "releaseVersion": "1.2.0",
-  "packageVersion": "1.2.0-private.284",
-  "build": "284",
-  "contentFingerprint": "d558780f275c92477c25c7b786988daf2e25bb3b606e99fff47a220f9d100abd",
-  "fileCount": 557
+  "packageVersion": "1.2.0-private.285",
+  "build": "285",
+  "contentFingerprint": "5ee23cdc81c697bb8ddd596540252db6bd1f1a7de6c62acc9da925f599801476",
+  "fileCount": 558
 }

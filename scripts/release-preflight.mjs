@@ -76,7 +76,10 @@ if (!failures.length) {
   const ci = source('.github/workflows/ci.yml');
   requireText(ci, 'npm ci', 'CI must install the exact lockfile with npm ci');
   requireText(ci, 'npm run release:preflight', 'CI must run release preflight');
-  requireText(ci, 'npm run security:public', 'CI must run public repository safety checks');
+  requireText(ci, 'CHANNEL_BUILD_INFO.json', 'CI must route repository safety from the exact channel identity');
+  requireText(ci, 'npm run security:public', 'CI must retain PUBLIC STABLE repository safety');
+  requireText(ci, 'npm run security:sync-preview', 'CI must route Sync Preview through its bounded package safety gate');
+  requireText(ci, 'Unknown channel surface', 'CI channel safety routing must fail closed for unknown surfaces');
   requireText(ci, 'npm run check:public', 'CI must run the public typecheck/tests/build');
   requireText(ci, 'npm run security:dependencies', 'CI must run production dependency audit');
 

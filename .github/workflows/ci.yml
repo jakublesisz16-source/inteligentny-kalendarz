@@ -36,8 +36,14 @@ jobs:
       - name: Release preflight
         run: npm run release:preflight
 
-      - name: Public repository safety
-        run: npm run security:public
+      - name: Channel repository safety
+        run: |
+          SURFACE="$(node -e "const fs=require('fs');process.stdout.write(JSON.parse(fs.readFileSync('CHANNEL_BUILD_INFO.json','utf8')).surface)")"
+          case "$SURFACE" in
+            sync-preview) npm run security:sync-preview ;;
+            public-stable) npm run security:public ;;
+            *) echo "::error::Unknown channel surface: $SURFACE"; exit 1 ;;
+          esac
 
       - name: Typecheck, public tests, production build and project gates
         run: npm run check:public
