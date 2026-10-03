@@ -3676,6 +3676,11 @@ async function captureSnapshot(storeNames: string[]): Promise<DatabaseSnapshot> 
   const available = storeNames.filter((name) => db.objectStoreNames.contains(name));
   const tx = db.transaction(available, 'readonly');
   const stores: Record<string, unknown[]> = {};
+  // Establish the store-key order before any asynchronous getAll() resolves.
+  // Sync revisions are SHA-256 hashes of JSON.stringify(snapshot data), so letting
+  // Promise completion order create these keys would make identical data produce
+  // different revisions across captures/devices.
+  for (const name of available) stores[name] = [];
   await Promise.all(available.map(async (name) => {
     stores[name] = await requestToPromise(tx.objectStore(name).getAll() as IDBRequest<unknown[]>);
   }));

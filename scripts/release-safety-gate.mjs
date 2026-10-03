@@ -751,6 +751,8 @@ assert(!calendarView.includes('activeStudyGroups.map(studyGroupDisplayLabel).joi
 
 // Build291 keeps Google Sync optional, local-first and conflict-safe without Firebase Hosting.
 const syncServiceV291 = source('src/sync/sync-service.ts');
+const storageDatabaseV296 = source('src/storage/database.ts');
+const syncErrorsV296 = source('src/sync/sync-errors.ts');
 const syncRegistryV291 = source('src/sync/provider-registry.ts');
 const syncFirebaseV291 = source('src/sync/providers/firebase-google.ts');
 const syncChunksV295 = source('src/sync/providers/firebase-google-chunks.ts');
@@ -759,10 +761,14 @@ const syncCoordinatorV291 = source('src/sync/SyncCoordinator.tsx');
 const firebaseConfigV291 = source('src/sync/providers/firebase-google-config.ts');
 assert(syncServiceV291.includes('calculateSyncRevision') && syncServiceV291.includes('snapshotVersion') && !syncServiceV291.includes('revision: document.checksum'), 'Build291 sync revision is not stable across capture timestamps');
 assert(syncServiceV291.includes('hasMeaningfulDataTransferContent') && syncServiceV291.includes("phase: 'conflict'"), 'Build291 first-device/conflict guard missing');
+assert(storageDatabaseV296.includes('for (const name of available) stores[name] = [];') && storageDatabaseV296.indexOf('for (const name of available) stores[name] = [];') < storageDatabaseV296.indexOf('await Promise.all(available.map(async (name) => {'), 'Build296 deterministic snapshot store ordering guard missing');
+assert(syncErrorsV296.includes('SyncRevisionMismatchError') && syncServiceV291.includes('calculateSyncContentFingerprint') && syncServiceV291.includes('localFingerprint === cloudFingerprint') && syncServiceV291.includes('error.snapshot.revision'), 'Build296 safe revision-metadata repair guard missing');
+assert(syncServiceV291.includes('Lokalny snapshot zmienił się przed wysłaniem'), 'Build296 pre-push local revision integrity guard missing');
 assert(syncFirebaseV291.includes("'users', uid, 'sync', 'current'") && syncFirebaseV291.includes('runTransaction') && syncFirebaseV291.includes('expectedRevision'), 'Build291 Firestore provider lacks user scoping or optimistic conflict guard');
 assert(syncFirebaseV291.includes("'users', uid, 'sync', 'current', 'chunks'") && syncFirebaseV291.includes('setDoc(syncChunkReference') && syncFirebaseV291.includes("format: 'inteligentny-kalendarz-cloud-manifest'"), 'Build295 chunked Firestore storage or manifest switch missing');
 assert(syncFirebaseV291.includes('cloudSnapshotCache') && syncFirebaseV291.includes('cached?.revision === manifest.revision'), 'Build295 manifest-first polling cache missing');
 assert(syncChunksV295.includes('FIRESTORE_SYNC_CHUNK_SOURCE_BYTES = 420_000') && syncChunksV295.includes('payloadSha256') && syncChunksV295.includes('decodeSnapshotChunks'), 'Build295 chunk sizing or SHA-256 integrity contract missing');
+assert(syncChunksV295.includes('FIRESTORE_SYNC_MAX_PAYLOAD_BYTES = 24_000_000'), 'Build296 sync payload headroom guard missing');
 assert(!syncFirebaseV291.includes('MAX_SYNC_PAYLOAD_BYTES = 850_000'), 'Build295 unexpectedly returned to the single-document 850k payload blocker');
 assert(syncRegistryV291.includes("import('./providers/firebase-google')"), 'Build291 Firebase adapter is not lazy/removable');
 assert(!packageJson.dependencies?.firebase, 'Build291 must not make Firebase SDK a global npm runtime dependency');

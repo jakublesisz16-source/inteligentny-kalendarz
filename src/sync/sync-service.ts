@@ -6,7 +6,7 @@ import {
   readLocalSyncState,
   writeLocalSyncState,
 } from './sync-config';
-import { SyncRemoteChangedError } from './sync-errors';
+import { SyncRemoteChangedError, SyncRevisionMismatchError } from './sync-errors';
 import { resolveSyncProvider } from './provider-registry';
 import type {
   SyncConflict,
@@ -28,6 +28,20 @@ function syncRevisionPayload(snapshot: SyncSnapshotEnvelope['document']['data'])
 
 export async function calculateSyncRevision(snapshot: SyncSnapshotEnvelope['document']['data']): Promise<string> {
   return sha256Hex(JSON.stringify(syncRevisionPayload(snapshot)));
+}
+
+function sortJsonObjectKeys(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(sortJsonObjectKeys);
+  if (!value || typeof value !== 'object') return value;
+  const object = value as Record<string, unknown>;
+  return Object.fromEntries(Object.keys(object).sort().map((key) => [key, sortJsonObjectKeys(object[key])]));
+}
+
+export async function calculateSyncContentFingerprint(snapshot: SyncSnapshotEnvelope['document']['data']): Promise<string> {
+  // This fingerprint is only an order-independent equivalence proof used to repair
+  // revision metadata. It does not replace the persisted revision format.
+  const jsonCompatible = JSON.parse(JSON.stringify(syncRevisionPayload(snapshot))) as unknown;
+  return sha256Hex(JSON.stringify(sortJsonObjectKeys(jsonCompatible)));
 }
 
 function nowIso(): string {
@@ -75,7 +89,7 @@ export class SyncService {
     const snapshot = await this.provider.pullLatest();
     if (!snapshot) return null;
     const calculated = await calculateSyncRevision(snapshot.document.data);
-    if (calculated !== snapshot.revision) throw new Error('Snapshot w chmurze nie przeszedł kontroli integralności.');
+    if (calculated !== snapshot.revision) throw new SyncRevisionMismatchError(snapshot, calculated);
     return snapshot;
   }
 
@@ -95,6 +109,10 @@ export class SyncService {
     snapshot: SyncSnapshotEnvelope,
     expectedRevision?: string | null,
   ): Promise<string> {
+    const calculated = await calculateSyncRevision(snapshot.document.data);
+    if (calculated !== snapshot.revision) {
+      throw new Error('Lokalny snapshot zmienił się przed wysłaniem. Synchronizacja została bezpiecznie zatrzymana.');
+    }
     await this.provider.pushSnapshot(snapshot, expectedRevision);
     return this.markSynced(accountId, snapshot.revision);
   }
@@ -119,10 +137,33 @@ export class SyncService {
     if (!status.account) return { phase: 'signed-out', status };
 
     const account = status.account;
-    const [local, cloud] = await Promise.all([
-      this.captureLocalSnapshot(),
-      this.pullLatestSnapshot(),
-    ]);
+    const localPromise = this.captureLocalSnapshot();
+    let local: SyncSnapshotEnvelope;
+    let cloud: SyncSnapshotEnvelope | null;
+    try {
+      [local, cloud] = await Promise.all([
+        localPromise,
+        this.pullLatestSnapshot(),
+      ]);
+    } catch (error) {
+      if (error instanceof SyncRevisionMismatchError) {
+        local = await localPromise;
+        const [localFingerprint, cloudFingerprint] = await Promise.all([
+          calculateSyncContentFingerprint(local.document.data),
+          calculateSyncContentFingerprint(error.snapshot.document.data),
+        ]);
+        if (localFingerprint === cloudFingerprint) {
+          try {
+            const lastSyncAt = await this.pushSnapshot(account.id, local, error.snapshot.revision);
+            return { phase: 'pushed', status, revision: local.revision, lastSyncAt };
+          } catch (repairError) {
+            if (repairError instanceof SyncRemoteChangedError) return this.reconcile();
+            throw repairError;
+          }
+        }
+      }
+      throw error;
+    }
     const previous = readLocalSyncState(this.provider.id, account.id);
 
     if (!cloud) {
