@@ -1,9 +1,9 @@
 {
   "type": "SYNC_PREVIEW",
   "source": "PRIVATE",
-  "buildId": "ik-1.2.0.283-20261003-sync-overlay-lf-determinism",
-  "appVersion": "1.2.0.283",
-  "build": "283",
+  "buildId": "ik-1.2.0.284-20261003-sync-aware-release-preflight",
+  "appVersion": "1.2.0.284",
+  "build": "284",
   "branch": "feature/cloud-sync-poc",
   "hostingProject": "inteligentny-kalendarz-s-2cfc9",
   "note": "Derived staging export. Never a Source of Truth. Rebuild from PRIVATE instead of editing independently.",
