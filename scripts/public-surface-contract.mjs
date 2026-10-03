@@ -40,8 +40,6 @@ export const PRIVATE_ONLY_PUBLIC_TESTS = new Set([
   'src/tests/receipt-ocr-dev4a-gate3-production-selector.test.ts',
   'src/tests/receipt-ocr-dev4b-fix1-structured-geometry-selection.test.ts',
   'src/tests/receipt-ocr-dev4b-fix2-local-numeric-verification.test.ts',
-  'src/tests/sync-preview-workflow-build280.test.ts',
-  'src/tests/release-workflow-build281.test.ts',
 ]);
 
 export const PUBLIC_PACKAGE_SCRIPTS = new Set([
@@ -62,17 +60,3 @@ export function isAllowedPublicPath(rel) {
   }
   return false;
 }
-
-export const SYNC_PREVIEW_ROOT_FILES = new Set([
-  'firebase.sync-lab.json',
-  'SYNC_PREVIEW_INFO.json',
-]);
-
-export const SYNC_PREVIEW_WORKFLOW_FILES = new Set([
-  '.github/workflows/firebase-sync-preview.yml',
-]);
-
-export function isAllowedSyncPreviewPath(rel) {
-  return isAllowedPublicPath(rel) || SYNC_PREVIEW_ROOT_FILES.has(rel) || SYNC_PREVIEW_WORKFLOW_FILES.has(rel);
-}
-

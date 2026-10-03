@@ -96,6 +96,12 @@ const intentionalNonRuntime = new Set([
   'src/cycle/cycle-patterns.ts',         // retained domain logic with regression coverage
   'src/notifications/notification-planner.ts', // retained domain logic with regression coverage
   'src/vite-env.d.ts',                   // ambient Vite declarations
+  'src/sync/index.ts',                    // provider boundary prepared before cloud provider activation
+  'src/sync/provider-registry.ts',        // provider boundary prepared before cloud provider activation
+  'src/sync/providers/local-only.ts',     // provider boundary prepared before cloud provider activation
+  'src/sync/sync-config.ts',              // provider boundary prepared before cloud provider activation
+  'src/sync/sync-service.ts',             // provider boundary prepared before cloud provider activation
+  'src/sync/sync.types.ts',               // provider boundary prepared before cloud provider activation
 ]);
 const orphans = [...sourceSet]
   .filter((path) => !reachable.has(path))

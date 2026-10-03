@@ -1,7 +1,7 @@
 {
   "name": "inteligentny-kalendarz",
   "private": true,
-  "version": "1.2.0-private.285",
+  "version": "1.2.0-private.286",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -21,8 +21,7 @@
     "study:mobile-smoke": "node scripts/study-mobile-smoke.mjs",
     "source:hygiene": "node scripts/source-hygiene-gate.mjs",
     "channel:contract": "node scripts/channel-contract-gate.mjs .",
-    "channel:monotonicity": "node scripts/channel-monotonicity-gate.mjs",
-    "security:sync-preview": "node scripts/public-package-gate.mjs . --surface sync-preview"
+    "channel:monotonicity": "node scripts/channel-monotonicity-gate.mjs"
   },
   "dependencies": {
     "react": "^19.1.1",

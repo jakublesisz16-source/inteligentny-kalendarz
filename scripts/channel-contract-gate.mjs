@@ -25,7 +25,7 @@ if (!failures.length) {
   const { fingerprint, fileCount } = calculateChannelFingerprint(root);
 
   assert(info.source === 'PRIVATE', 'channel source must be PRIVATE');
-  assert(['public-stable', 'sync-preview'].includes(info.surface), `unknown channel surface: ${info.surface}`);
+  assert(info.surface === 'public-stable', `unknown channel surface: ${info.surface}`);
   assert(typeof info.buildId === 'string' && info.buildId.length >= 12, 'buildId missing or too short');
   assert(info.appVersion === appVersion, 'CHANNEL_BUILD_INFO appVersion differs from source');
   assert(String(info.build) === String(appBuild), 'CHANNEL_BUILD_INFO build differs from source');
@@ -37,22 +37,10 @@ if (!failures.length) {
   assert(Number(info.fileCount) === fileCount, 'CHANNEL_BUILD_INFO fileCount differs from exact channel tree');
 
   const stableMain = read('src/main.tsx');
-  if (info.surface === 'public-stable') {
-    assert(!existsSync(join(root, 'firebase.sync-lab.json')), 'PUBLIC STABLE must not contain firebase.sync-lab.json');
-    assert(!existsSync(join(root, 'SYNC_PREVIEW_INFO.json')), 'PUBLIC STABLE must not contain SYNC_PREVIEW_INFO.json');
-    assert(!stableMain.includes("searchParams.get('syncLab') === '1'"), 'PUBLIC STABLE must not expose Sync Lab runtime entry');
-  } else {
-    assert(existsSync(join(root, 'firebase.sync-lab.json')), 'SYNC PREVIEW missing firebase.sync-lab.json');
-    assert(existsSync(join(root, 'SYNC_PREVIEW_INFO.json')), 'SYNC PREVIEW missing SYNC_PREVIEW_INFO.json');
-    assert(stableMain.includes("searchParams.get('syncLab') === '1'"), 'SYNC PREVIEW missing Sync Lab runtime entry');
-    if (existsSync(join(root, 'SYNC_PREVIEW_INFO.json'))) {
-      const sync = json('SYNC_PREVIEW_INFO.json');
-      assert(sync.appVersion === appVersion, 'SYNC_PREVIEW_INFO appVersion differs from source');
-      assert(String(sync.build) === String(appBuild), 'SYNC_PREVIEW_INFO build differs from source');
-      assert(sync.buildId === info.buildId, 'SYNC_PREVIEW_INFO buildId differs from CHANNEL_BUILD_INFO');
-      assert(sync.branch === 'feature/cloud-sync-poc', 'SYNC_PREVIEW_INFO branch contract differs');
-    }
-  }
+  assert(!existsSync(join(root, 'firebase.sync-lab.json')), 'PUBLIC STABLE must not contain firebase.sync-lab.json');
+  assert(!existsSync(join(root, 'SYNC_PREVIEW_INFO.json')), 'PUBLIC STABLE must not contain SYNC_PREVIEW_INFO.json');
+  assert(!existsSync(join(root, '.github/workflows/firebase-sync-preview.yml')), 'PUBLIC STABLE must not contain Firebase Hosting deploy workflow');
+  assert(!stableMain.includes("searchParams.get('syncLab') === '1'"), 'PUBLIC STABLE must not expose legacy Sync Lab runtime entry');
 }
 
 if (failures.length) {

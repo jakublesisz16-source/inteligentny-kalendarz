@@ -25,7 +25,7 @@ describe('Build273 real-screen polish', () => {
   });
 
   it('advances only the build and keeps schema 14', () => {
-    expect(version).toContain("APP_VERSION = '1.2.0.285'");
+    expect(version).toContain("APP_VERSION = '1.2.0.286'");
     expect(version).toContain('DATABASE_SCHEMA_VERSION = 14');
   });
 });

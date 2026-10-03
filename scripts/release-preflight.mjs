@@ -11,7 +11,6 @@ const isPrivate = existsSync(join(root, 'BUILD_INFO.json'));
 const channelInfoPath = join(root, 'CHANNEL_BUILD_INFO.json');
 const channelInfo = !isPrivate && existsSync(channelInfoPath) ? JSON.parse(source('CHANNEL_BUILD_INFO.json')) : null;
 const channelSurface = channelInfo?.surface ?? null;
-const isSyncPreview = !isPrivate && channelSurface === 'sync-preview';
 const isPublicStable = !isPrivate && channelSurface === 'public-stable';
 
 for (const path of [
@@ -33,12 +32,9 @@ if (isPrivate) {
 
 if (!isPrivate) {
   requireFile('CHANNEL_BUILD_INFO.json');
-  if (!isSyncPreview && !isPublicStable) failures.push(`unknown or missing release channel surface: ${channelSurface ?? 'none'}`);
+  if (!isPublicStable) failures.push(`unknown or missing release channel surface: ${channelSurface ?? 'none'}`);
 }
 
-if (isSyncPreview) {
-  for (const path of ['SYNC_PREVIEW_INFO.json', 'firebase.sync-lab.json', '.github/workflows/firebase-sync-preview.yml']) requireFile(path);
-}
 
 if (isPublicStable) {
   for (const path of ['SYNC_PREVIEW_INFO.json', 'firebase.sync-lab.json', '.github/workflows/firebase-sync-preview.yml']) {
@@ -50,16 +46,12 @@ if (!failures.length) {
   const packageJson = JSON.parse(source('package.json'));
   const requiredScripts = isPrivate
     ? [...PUBLIC_PACKAGE_SCRIPTS, 'test:private', 'checkpoint:state', 'checkpoint:hygiene', 'checkpoint:manifest', 'checkpoint:gate', 'release:public:prepare', 'study:current-source:qa']
-    : isSyncPreview
-      ? [...PUBLIC_PACKAGE_SCRIPTS, 'security:sync-preview']
-      : [...PUBLIC_PACKAGE_SCRIPTS];
+    : [...PUBLIC_PACKAGE_SCRIPTS];
   for (const script of requiredScripts) if (!packageJson.scripts?.[script]) failures.push(`package.json missing script: ${script}`);
 
   if (!isPrivate) {
-    const allowedChannelScripts = new Set(PUBLIC_PACKAGE_SCRIPTS);
-    if (isSyncPreview) allowedChannelScripts.add('security:sync-preview');
     for (const script of Object.keys(packageJson.scripts ?? {})) {
-      if (!allowedChannelScripts.has(script)) failures.push(`${isSyncPreview ? 'SYNC PREVIEW' : 'PUBLIC'} package.json exposes non-channel script: ${script}`);
+      if (!PUBLIC_PACKAGE_SCRIPTS.has(script)) failures.push(`PUBLIC package.json exposes non-public script: ${script}`);
     }
   }
 
@@ -76,10 +68,7 @@ if (!failures.length) {
   const ci = source('.github/workflows/ci.yml');
   requireText(ci, 'npm ci', 'CI must install the exact lockfile with npm ci');
   requireText(ci, 'npm run release:preflight', 'CI must run release preflight');
-  requireText(ci, 'CHANNEL_BUILD_INFO.json', 'CI must route repository safety from the exact channel identity');
-  requireText(ci, 'npm run security:public', 'CI must retain PUBLIC STABLE repository safety');
-  requireText(ci, 'npm run security:sync-preview', 'CI must route Sync Preview through its bounded package safety gate');
-  requireText(ci, 'Unknown channel surface', 'CI channel safety routing must fail closed for unknown surfaces');
+  requireText(ci, 'npm run security:public', 'CI must run PUBLIC repository safety');
   requireText(ci, 'npm run check:public', 'CI must run the public typecheck/tests/build');
   requireText(ci, 'npm run security:dependencies', 'CI must run production dependency audit');
 
@@ -88,19 +77,10 @@ if (!failures.length) {
   requireText(pages, 'npm run check', 'GitHub Pages build must execute the full public project check');
   requireText(pages, 'path: ./dist', 'GitHub Pages workflow must publish the production dist directory');
 
-
-  if (isSyncPreview) {
-    const syncWorkflow = source('.github/workflows/firebase-sync-preview.yml');
-    requireText(syncWorkflow, 'branches: ["feature/cloud-sync-poc"]', 'Sync Preview deploy must trigger only from feature/cloud-sync-poc');
-    requireText(syncWorkflow, 'npm run security:sync-preview', 'Sync Preview deploy must run sync-preview package safety');
-    requireText(syncWorkflow, 'npm run check:public', 'Sync Preview deploy must run public typecheck/tests/build');
-    requireText(syncWorkflow, 'FIREBASE_SERVICE_ACCOUNT_INTELIGENTNY_KALENDARZ_S_2CFC9', 'Sync Preview deploy must use the bounded Firebase service-account secret');
-    requireText(syncWorkflow, 'projectId: inteligentny-kalendarz-s-2cfc9', 'Sync Preview deploy must target the staging Firebase project');
-  }
 }
 
 if (failures.length) {
   for (const failure of failures) console.error(`RELEASE_PREFLIGHT_PREP_FAIL: ${failure}`);
   process.exit(1);
 }
-console.log(`RELEASE_PREFLIGHT_PREP_OK mode=${isPrivate ? 'PRIVATE' : isSyncPreview ? 'SYNC_PREVIEW' : 'PUBLIC'}`);
+console.log(`RELEASE_PREFLIGHT_PREP_OK mode=${isPrivate ? 'PRIVATE' : 'PUBLIC'}`);

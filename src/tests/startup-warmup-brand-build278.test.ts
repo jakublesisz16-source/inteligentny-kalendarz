@@ -39,7 +39,7 @@ describe('Build278 startup warmup and calendar brand icon', () => {
   });
 
   it('advances Build278 without changing database schema', () => {
-    expect(version).toContain("APP_VERSION = '1.2.0.285'");
+    expect(version).toContain("APP_VERSION = '1.2.0.286'");
     expect(version).toContain('DATABASE_SCHEMA_VERSION = 14');
   });
 });
