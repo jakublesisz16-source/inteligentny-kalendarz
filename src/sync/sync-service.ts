@@ -6,7 +6,7 @@ import {
   readLocalSyncState,
   writeLocalSyncState,
 } from './sync-config';
-import { SyncRemoteChangedError, SyncRevisionMismatchError } from './sync-errors';
+import { SyncPayloadHashMismatchError, SyncRemoteChangedError, SyncRevisionMismatchError } from './sync-errors';
 import { resolveSyncProvider } from './provider-registry';
 import type {
   SyncConflict,
@@ -146,7 +146,7 @@ export class SyncService {
         this.pullLatestSnapshot(),
       ]);
     } catch (error) {
-      if (error instanceof SyncRevisionMismatchError) {
+      if (error instanceof SyncRevisionMismatchError || error instanceof SyncPayloadHashMismatchError) {
         local = await localPromise;
         const [localFingerprint, cloudFingerprint] = await Promise.all([
           calculateSyncContentFingerprint(local.document.data),

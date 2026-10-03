@@ -69,7 +69,7 @@ interface LegacyCloudSnapshotDocument {
   databaseSchemaVersion: number;
 }
 
-interface ChunkedCloudManifestDocument {
+interface LegacyChunkedCloudManifestDocument {
   format: 'inteligentny-kalendarz-cloud-manifest';
   version: 2;
   storage: 'chunks-v1';
@@ -85,7 +85,24 @@ interface ChunkedCloudManifestDocument {
   previousChunkCount?: number;
 }
 
-interface CloudChunkDocument {
+interface ChunkedCloudManifestDocument {
+  format: 'inteligentny-kalendarz-cloud-manifest';
+  version: 3;
+  storage: 'chunks-v2';
+  revision: string;
+  chunkSetId: string;
+  clientUpdatedAt: string;
+  sourceDeviceId: string;
+  payloadBytes: number;
+  payloadSha256: string;
+  chunkCount: number;
+  appVersion: string;
+  databaseSchemaVersion: number;
+}
+
+type ParsedChunkedManifestDocument = LegacyChunkedCloudManifestDocument | ChunkedCloudManifestDocument;
+
+interface LegacyCloudChunkDocument {
   format: 'inteligentny-kalendarz-cloud-chunk';
   version: 1;
   revision: string;
@@ -95,8 +112,30 @@ interface CloudChunkDocument {
   payloadPart: string;
 }
 
+interface CloudChunkDocument {
+  format: 'inteligentny-kalendarz-cloud-chunk';
+  version: 2;
+  revision: string;
+  chunkSetId: string;
+  index: number;
+  chunkCount: number;
+  encoding: 'base64-utf8';
+  payloadPart: string;
+}
+
+interface CloudSnapshotCacheEntry {
+  revision: string;
+  payloadSha256: string;
+  snapshot: SyncSnapshotEnvelope;
+}
+
+interface ChunkSetCleanup {
+  chunkSetId: string;
+  chunkCount: number;
+}
+
 let runtimePromise: Promise<FirebaseRuntime> | null = null;
-const cloudSnapshotCache = new Map<string, SyncSnapshotEnvelope>();
+const cloudSnapshotCache = new Map<string, CloudSnapshotCacheEntry>();
 
 async function importFirebaseModule<T>(filename: string): Promise<T> {
   const url = `${FIREBASE_CDN}/${filename}`;
@@ -159,10 +198,10 @@ function syncDocumentReference(runtime: FirebaseRuntime, uid: string): unknown {
   return runtime.firestoreModule.doc(runtime.db, 'users', uid, 'sync', 'current');
 }
 
-function syncChunkReference(runtime: FirebaseRuntime, uid: string, revision: string, index: number): unknown {
+function syncChunkReference(runtime: FirebaseRuntime, uid: string, chunkSetId: string, index: number): unknown {
   return runtime.firestoreModule.doc(
     runtime.db,
-    'users', uid, 'sync', 'current', 'chunks', `${revision}-${String(index).padStart(4, '0')}`,
+    'users', uid, 'sync', 'current', 'chunks', `${chunkSetId}-${String(index).padStart(4, '0')}`,
   );
 }
 
@@ -184,53 +223,65 @@ function decodeLegacyCloudSnapshot(data: Record<string, unknown>): SyncSnapshotE
   return parsed as SyncSnapshotEnvelope;
 }
 
-function parseChunkedManifest(data: Record<string, unknown>): ChunkedCloudManifestDocument {
-  if (
-    data.format !== 'inteligentny-kalendarz-cloud-manifest'
-    || data.version !== 2
-    || data.storage !== 'chunks-v1'
-    || typeof data.revision !== 'string'
-    || typeof data.payloadSha256 !== 'string'
-    || typeof data.payloadBytes !== 'number'
-    || typeof data.chunkCount !== 'number'
-    || !Number.isInteger(data.chunkCount)
-    || data.chunkCount < 1
-  ) {
-    throw new Error('Chmura zawiera nieobsługiwany format danych synchronizacji.');
+function parseChunkedManifest(data: Record<string, unknown>): ParsedChunkedManifestDocument {
+  const commonValid = data.format === 'inteligentny-kalendarz-cloud-manifest'
+    && typeof data.revision === 'string'
+    && typeof data.payloadSha256 === 'string'
+    && typeof data.payloadBytes === 'number'
+    && typeof data.chunkCount === 'number'
+    && Number.isInteger(data.chunkCount)
+    && data.chunkCount >= 1;
+  if (!commonValid) throw new Error('Chmura zawiera nieobsługiwany format danych synchronizacji.');
+
+  if (data.version === 2 && data.storage === 'chunks-v1') {
+    return data as unknown as LegacyChunkedCloudManifestDocument;
   }
-  return data as unknown as ChunkedCloudManifestDocument;
+  if (data.version === 3 && data.storage === 'chunks-v2' && typeof data.chunkSetId === 'string' && data.chunkSetId.length > 0) {
+    return data as unknown as ChunkedCloudManifestDocument;
+  }
+  throw new Error('Chmura zawiera nieobsługiwany format danych synchronizacji.');
+}
+
+function manifestChunkSetId(manifest: ParsedChunkedManifestDocument): string {
+  return manifest.version === 3 ? manifest.chunkSetId : manifest.revision;
 }
 
 function parseChunkDocument(
   data: Record<string, unknown> | undefined,
-  revision: string,
+  manifest: ParsedChunkedManifestDocument,
   index: number,
-  chunkCount: number,
-): CloudChunkDocument {
-  if (
-    !data
-    || data.format !== 'inteligentny-kalendarz-cloud-chunk'
-    || data.version !== 1
-    || data.revision !== revision
-    || data.index !== index
-    || data.chunkCount !== chunkCount
-    || data.encoding !== 'base64-utf8'
-    || typeof data.payloadPart !== 'string'
-  ) {
-    throw new Error('Chmura zawiera niekompletny fragment synchronizacji.');
+): string {
+  if (!data) throw new Error('Chmura zawiera niekompletny fragment synchronizacji.');
+  const commonValid = data.format === 'inteligentny-kalendarz-cloud-chunk'
+    && data.revision === manifest.revision
+    && data.index === index
+    && data.chunkCount === manifest.chunkCount
+    && data.encoding === 'base64-utf8'
+    && typeof data.payloadPart === 'string';
+  if (!commonValid) throw new Error('Chmura zawiera niekompletny fragment synchronizacji.');
+
+  if (manifest.version === 2 && data.version === 1) {
+    return (data as unknown as LegacyCloudChunkDocument).payloadPart;
   }
-  return data as unknown as CloudChunkDocument;
+  if (
+    manifest.version === 3
+    && data.version === 2
+    && data.chunkSetId === manifest.chunkSetId
+  ) {
+    return (data as unknown as CloudChunkDocument).payloadPart;
+  }
+  throw new Error('Chmura zawiera niekompletny fragment synchronizacji.');
 }
 
 async function deleteChunkSet(
   runtime: FirebaseRuntime,
   uid: string,
-  revision: string,
+  chunkSetId: string,
   chunkCount: number,
 ): Promise<void> {
   const deletes: Promise<void>[] = [];
   for (let index = 0; index < chunkCount; index += 1) {
-    deletes.push(runtime.firestoreModule.deleteDoc(syncChunkReference(runtime, uid, revision, index)));
+    deletes.push(runtime.firestoreModule.deleteDoc(syncChunkReference(runtime, uid, chunkSetId, index)));
   }
   await Promise.allSettled(deletes);
 }
@@ -271,24 +322,33 @@ export function createFirebaseGoogleSyncProvider(): SyncProvider {
       if (!data) return null;
       if (data.format === 'inteligentny-kalendarz-cloud-snapshot' && data.version === 1) {
         const legacy = decodeLegacyCloudSnapshot(data);
-        cloudSnapshotCache.set(user.uid, legacy);
+        cloudSnapshotCache.delete(user.uid);
         return legacy;
       }
 
       const manifest = parseChunkedManifest(data);
       const cached = cloudSnapshotCache.get(user.uid);
-      if (cached?.revision === manifest.revision) return cached;
+      if (
+        cached?.revision === manifest.revision
+        && cached.payloadSha256 === manifest.payloadSha256
+      ) return cached.snapshot;
+
+      const chunkSetId = manifestChunkSetId(manifest);
       const chunkSnapshots = await Promise.all(
         Array.from({ length: manifest.chunkCount }, (_, index) => (
-          runtime.firestoreModule.getDoc(syncChunkReference(runtime, user.uid, manifest.revision, index))
+          runtime.firestoreModule.getDoc(syncChunkReference(runtime, user.uid, chunkSetId, index))
         )),
       );
       const chunks = chunkSnapshots.map((chunkSnapshot, index) => {
         if (!chunkSnapshot.exists()) throw new Error('Chmura zawiera brakujący fragment synchronizacji.');
-        return parseChunkDocument(chunkSnapshot.data(), manifest.revision, index, manifest.chunkCount).payloadPart;
+        return parseChunkDocument(chunkSnapshot.data(), manifest, index);
       });
       const decoded = await decodeSnapshotChunks(manifest.revision, manifest.payloadBytes, manifest.payloadSha256, chunks);
-      cloudSnapshotCache.set(user.uid, decoded);
+      cloudSnapshotCache.set(user.uid, {
+        revision: manifest.revision,
+        payloadSha256: manifest.payloadSha256,
+        snapshot: decoded,
+      });
       return decoded;
     },
     async pushSnapshot(snapshot, expectedRevision = undefined) {
@@ -297,12 +357,14 @@ export function createFirebaseGoogleSyncProvider(): SyncProvider {
       const reference = syncDocumentReference(runtime, user.uid);
       const encoded = await encodeSnapshotChunks(snapshot);
       const chunkCount = encoded.chunks.length;
+      const chunkSetId = encoded.payloadSha256;
 
       await Promise.all(encoded.chunks.map((payloadPart, index) => (
-        runtime.firestoreModule.setDoc(syncChunkReference(runtime, user.uid, snapshot.revision, index), {
+        runtime.firestoreModule.setDoc(syncChunkReference(runtime, user.uid, chunkSetId, index), {
           format: 'inteligentny-kalendarz-cloud-chunk',
-          version: 1,
+          version: 2,
           revision: snapshot.revision,
+          chunkSetId,
           index,
           chunkCount,
           encoding: 'base64-utf8',
@@ -310,7 +372,7 @@ export function createFirebaseGoogleSyncProvider(): SyncProvider {
         })
       )));
 
-      const staleChunked = await runtime.firestoreModule.runTransaction<{ revision: string; chunkCount: number } | null>(
+      const staleChunkSets = await runtime.firestoreModule.runTransaction<ChunkSetCleanup[]>(
         runtime.db,
         async (transaction) => {
           const current = await transaction.get(reference);
@@ -322,51 +384,47 @@ export function createFirebaseGoogleSyncProvider(): SyncProvider {
             throw new SyncRemoteChangedError(currentRevision);
           }
 
-          let previousRevision: string | undefined;
-          let previousChunkCount: number | undefined;
-          let stale: { revision: string; chunkCount: number } | null = null;
+          const stale: ChunkSetCleanup[] = [];
           if (
             current.exists()
             && currentData?.format === 'inteligentny-kalendarz-cloud-manifest'
-            && currentData.version === 2
-            && typeof currentData.revision === 'string'
             && typeof currentData.chunkCount === 'number'
             && Number.isInteger(currentData.chunkCount)
             && currentData.chunkCount > 0
           ) {
-            if (currentData.revision === snapshot.revision) {
+            if (
+              currentData.version === 3
+              && currentData.storage === 'chunks-v2'
+              && typeof currentData.chunkSetId === 'string'
+              && currentData.chunkSetId !== chunkSetId
+            ) {
+              stale.push({ chunkSetId: currentData.chunkSetId, chunkCount: currentData.chunkCount });
+            } else if (
+              currentData.version === 2
+              && currentData.storage === 'chunks-v1'
+              && typeof currentData.revision === 'string'
+              && currentData.revision !== chunkSetId
+            ) {
+              stale.push({ chunkSetId: currentData.revision, chunkCount: currentData.chunkCount });
               if (
                 typeof currentData.previousRevision === 'string'
                 && typeof currentData.previousChunkCount === 'number'
                 && Number.isInteger(currentData.previousChunkCount)
                 && currentData.previousChunkCount > 0
+                && currentData.previousRevision !== chunkSetId
+                && currentData.previousRevision !== currentData.revision
               ) {
-                previousRevision = currentData.previousRevision;
-                previousChunkCount = currentData.previousChunkCount;
-              }
-            } else {
-              previousRevision = currentData.revision;
-              previousChunkCount = currentData.chunkCount;
-              if (
-                typeof currentData.previousRevision === 'string'
-                && typeof currentData.previousChunkCount === 'number'
-                && Number.isInteger(currentData.previousChunkCount)
-                && currentData.previousChunkCount > 0
-                && currentData.previousRevision !== snapshot.revision
-              ) {
-                stale = {
-                  revision: currentData.previousRevision,
-                  chunkCount: currentData.previousChunkCount,
-                };
+                stale.push({ chunkSetId: currentData.previousRevision, chunkCount: currentData.previousChunkCount });
               }
             }
           }
 
           transaction.set(reference, {
             format: 'inteligentny-kalendarz-cloud-manifest',
-            version: 2,
-            storage: 'chunks-v1',
+            version: 3,
+            storage: 'chunks-v2',
             revision: snapshot.revision,
+            chunkSetId,
             clientUpdatedAt: snapshot.updatedAt,
             sourceDeviceId: snapshot.sourceDeviceId,
             payloadBytes: encoded.payloadBytes,
@@ -374,17 +432,20 @@ export function createFirebaseGoogleSyncProvider(): SyncProvider {
             chunkCount,
             appVersion: snapshot.document.appVersion,
             databaseSchemaVersion: snapshot.document.databaseSchemaVersion,
-            ...(previousRevision && previousChunkCount ? { previousRevision, previousChunkCount } : {}),
             serverUpdatedAt: runtime.firestoreModule.serverTimestamp(),
           });
           return stale;
         },
       );
 
-      cloudSnapshotCache.set(user.uid, snapshot);
-      if (staleChunked) {
-        await deleteChunkSet(runtime, user.uid, staleChunked.revision, staleChunked.chunkCount);
-      }
+      cloudSnapshotCache.set(user.uid, {
+        revision: snapshot.revision,
+        payloadSha256: encoded.payloadSha256,
+        snapshot,
+      });
+      await Promise.allSettled(staleChunkSets.map((stale) => (
+        deleteChunkSet(runtime, user.uid, stale.chunkSetId, stale.chunkCount)
+      )));
     },
   };
 }

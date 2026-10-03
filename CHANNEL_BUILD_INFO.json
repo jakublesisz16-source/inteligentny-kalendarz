@@ -1,11 +1,11 @@
 {
   "source": "PRIVATE",
   "surface": "public-stable",
-  "buildId": "ik-1.2.0.297-20261003-sync-revision-stability-repair-ci-fix",
-  "appVersion": "1.2.0.297",
+  "buildId": "ik-1.2.0.298-20261003-firestore-immutable-chunksets-v2",
+  "appVersion": "1.2.0.298",
   "releaseVersion": "1.2.0",
-  "packageVersion": "1.2.0-private.297",
-  "build": "297",
-  "contentFingerprint": "3814eb5a9ed11a21a642bd4c7262ce13c78010565950b3f3631c01535072b93a",
-  "fileCount": 570
+  "packageVersion": "1.2.0-private.298",
+  "build": "298",
+  "contentFingerprint": "1a34fca9f54cdae2a98952ec9759a560c7cf8ce96f5b0151d32f406306c77a6d",
+  "fileCount": 571
 }

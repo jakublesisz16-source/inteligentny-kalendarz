@@ -1,4 +1,5 @@
 import { sha256Hex } from '../../core/sha256';
+import { SyncPayloadHashMismatchError } from '../sync-errors';
 import type { SyncSnapshotEnvelope } from '../sync.types';
 
 export const FIRESTORE_SYNC_CHUNK_SOURCE_BYTES = 420_000;
@@ -24,6 +25,27 @@ function base64ToBytes(value: string): Uint8Array {
   const bytes = new Uint8Array(binary.length);
   for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
   return bytes;
+}
+
+function parseSnapshotBytes(bytes: Uint8Array, revision: string): SyncSnapshotEnvelope {
+  let parsed: Partial<SyncSnapshotEnvelope>;
+  try {
+    parsed = JSON.parse(new TextDecoder().decode(bytes)) as Partial<SyncSnapshotEnvelope>;
+  } catch {
+    throw new Error('Snapshot w chmurze nie przeszedł kontroli integralności danych.');
+  }
+  if (
+    parsed.format !== 'inteligentny-kalendarz-sync-snapshot'
+    || parsed.version !== 1
+    || parsed.revision !== revision
+    || typeof parsed.updatedAt !== 'string'
+    || typeof parsed.sourceDeviceId !== 'string'
+    || !parsed.document
+    || !parsed.document.data
+  ) {
+    throw new Error('Chmura zawiera uszkodzony snapshot synchronizacji.');
+  }
+  return parsed as SyncSnapshotEnvelope;
 }
 
 export async function encodeSnapshotChunks(snapshot: SyncSnapshotEnvelope): Promise<ChunkedSnapshotPayload> {
@@ -62,18 +84,12 @@ export async function decodeSnapshotChunks(
     joined.set(part, offset);
     offset += part.byteLength;
   }
-  if (await sha256Hex(joined) !== payloadSha256) throw new Error('Snapshot w chmurze nie przeszedł kontroli integralności danych.');
 
-  const parsed = JSON.parse(new TextDecoder().decode(joined)) as Partial<SyncSnapshotEnvelope>;
-  if (
-    parsed.format !== 'inteligentny-kalendarz-sync-snapshot'
-    || parsed.version !== 1
-    || parsed.revision !== revision
-    || typeof parsed.updatedAt !== 'string'
-    || typeof parsed.sourceDeviceId !== 'string'
-    || !parsed.document
-  ) {
-    throw new Error('Chmura zawiera uszkodzony snapshot synchronizacji.');
+  const actualPayloadSha256 = await sha256Hex(joined);
+  if (actualPayloadSha256 !== payloadSha256) {
+    const candidate = parseSnapshotBytes(joined, revision);
+    throw new SyncPayloadHashMismatchError(candidate, payloadSha256, actualPayloadSha256);
   }
-  return parsed as SyncSnapshotEnvelope;
+
+  return parseSnapshotBytes(joined, revision);
 }

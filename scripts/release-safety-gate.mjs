@@ -769,6 +769,11 @@ assert(syncFirebaseV291.includes("'users', uid, 'sync', 'current', 'chunks'") &&
 assert(syncFirebaseV291.includes('cloudSnapshotCache') && syncFirebaseV291.includes('cached?.revision === manifest.revision'), 'Build295 manifest-first polling cache missing');
 assert(syncChunksV295.includes('FIRESTORE_SYNC_CHUNK_SOURCE_BYTES = 420_000') && syncChunksV295.includes('payloadSha256') && syncChunksV295.includes('decodeSnapshotChunks'), 'Build295 chunk sizing or SHA-256 integrity contract missing');
 assert(syncChunksV295.includes('FIRESTORE_SYNC_MAX_PAYLOAD_BYTES = 24_000_000'), 'Build296 sync payload headroom guard missing');
+assert(syncErrorsV296.includes('SyncPayloadHashMismatchError') && syncChunksV295.includes('new SyncPayloadHashMismatchError') && syncServiceV291.includes('error instanceof SyncPayloadHashMismatchError'), 'Build298 parseable legacy payload-hash mismatch repair path missing');
+assert(syncFirebaseV291.includes('const chunkSetId = encoded.payloadSha256') && syncFirebaseV291.includes("version: 3") && syncFirebaseV291.includes("storage: 'chunks-v2'") && syncFirebaseV291.includes('chunkSetId,'), 'Build298 immutable payload-addressed chunk set or v3 manifest missing');
+assert(syncFirebaseV291.includes("data.version === 2 && data.storage === 'chunks-v1'") && syncFirebaseV291.includes('manifestChunkSetId'), 'Build298 legacy chunks-v1 read compatibility missing');
+assert(syncFirebaseV291.includes('cached.payloadSha256 === manifest.payloadSha256'), 'Build298 polling cache must include payload identity, not revision alone');
+assert(!syncFirebaseV291.includes('syncChunkReference(runtime, user.uid, snapshot.revision, index)'), 'Build298 must not address new chunk writes by revision');
 assert(!syncFirebaseV291.includes('MAX_SYNC_PAYLOAD_BYTES = 850_000'), 'Build295 unexpectedly returned to the single-document 850k payload blocker');
 assert(syncRegistryV291.includes("import('./providers/firebase-google')"), 'Build291 Firebase adapter is not lazy/removable');
 assert(!packageJson.dependencies?.firebase, 'Build291 must not make Firebase SDK a global npm runtime dependency');

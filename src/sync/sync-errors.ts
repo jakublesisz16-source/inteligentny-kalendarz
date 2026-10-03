@@ -7,7 +7,6 @@ export class SyncRemoteChangedError extends Error {
   }
 }
 
-
 export class SyncRevisionMismatchError extends Error {
   constructor(
     readonly snapshot: SyncSnapshotEnvelope,
@@ -15,5 +14,16 @@ export class SyncRevisionMismatchError extends Error {
   ) {
     super('Snapshot w chmurze ma niespójne metadane revision. Dane lokalne pozostały bez zmian.');
     this.name = 'SyncRevisionMismatchError';
+  }
+}
+
+export class SyncPayloadHashMismatchError extends Error {
+  constructor(
+    readonly snapshot: SyncSnapshotEnvelope,
+    readonly expectedPayloadSha256: string,
+    readonly actualPayloadSha256: string,
+  ) {
+    super('Snapshot w chmurze ma niespójny hash payloadu. Dane lokalne pozostały bez zmian.');
+    this.name = 'SyncPayloadHashMismatchError';
   }
 }
