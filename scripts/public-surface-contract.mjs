@@ -7,6 +7,7 @@ export const PUBLIC_ROOT_FILES = new Set([
   'tsconfig.node.json',
   'vite.config.ts',
   'vitest.public.config.ts',
+  'CHANNEL_BUILD_INFO.json',
 ]);
 
 export const PUBLIC_WORKFLOW_FILES = new Set([
@@ -23,6 +24,9 @@ export const PUBLIC_SCRIPT_FILES = new Set([
   'scripts/security-release-gate.mjs',
   'scripts/service-worker-gate.mjs',
   'scripts/source-hygiene-gate.mjs',
+  'scripts/channel-fingerprint.mjs',
+  'scripts/channel-contract-gate.mjs',
+  'scripts/channel-monotonicity-gate.mjs',
   'scripts/study-mobile-smoke.mjs',
   'scripts/travel-release-gate.mjs',
   'scripts/visual-qa-capture.mjs',
@@ -36,6 +40,8 @@ export const PRIVATE_ONLY_PUBLIC_TESTS = new Set([
   'src/tests/receipt-ocr-dev4a-gate3-production-selector.test.ts',
   'src/tests/receipt-ocr-dev4b-fix1-structured-geometry-selection.test.ts',
   'src/tests/receipt-ocr-dev4b-fix2-local-numeric-verification.test.ts',
+  'src/tests/sync-preview-workflow-build280.test.ts',
+  'src/tests/release-workflow-build281.test.ts',
 ]);
 
 export const PUBLIC_PACKAGE_SCRIPTS = new Set([
@@ -43,6 +49,7 @@ export const PUBLIC_PACKAGE_SCRIPTS = new Set([
   'security:release', 'security:public', 'security:dependencies',
   'visual:qa', 'travel:gate', 'release:preflight',
   'test:public', 'check:public', 'study:mobile-smoke', 'source:hygiene',
+  'channel:contract', 'channel:monotonicity',
 ]);
 
 export function isAllowedPublicPath(rel) {
@@ -55,3 +62,17 @@ export function isAllowedPublicPath(rel) {
   }
   return false;
 }
+
+export const SYNC_PREVIEW_ROOT_FILES = new Set([
+  'firebase.sync-lab.json',
+  'SYNC_PREVIEW_INFO.json',
+]);
+
+export const SYNC_PREVIEW_WORKFLOW_FILES = new Set([
+  '.github/workflows/firebase-sync-preview.yml',
+]);
+
+export function isAllowedSyncPreviewPath(rel) {
+  return isAllowedPublicPath(rel) || SYNC_PREVIEW_ROOT_FILES.has(rel) || SYNC_PREVIEW_WORKFLOW_FILES.has(rel);
+}
+

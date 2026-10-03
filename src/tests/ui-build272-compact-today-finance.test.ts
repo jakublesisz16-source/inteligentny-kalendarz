@@ -38,7 +38,7 @@ describe('Build272 compact Today and Finance polish', () => {
   });
 
   it('keeps schema 14 and advances the private build only', () => {
-    expect(version).toContain("APP_VERSION = '1.2.0.278'");
+    expect(version).toContain("APP_VERSION = '1.2.0.283'");
     expect(version).toContain('DATABASE_SCHEMA_VERSION = 14');
   });
 });

@@ -1,12 +1,12 @@
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 
 function source(path) {
-  return readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
+  return readFileSync(new URL(`../${path}`, import.meta.url), 'utf8').replace(/\r\n?/g, '\n');
 }
 
 function sourceIfExists(path) {
   const url = new URL(`../${path}`, import.meta.url);
-  return existsSync(url) ? readFileSync(url, 'utf8') : '';
+  return existsSync(url) ? readFileSync(url, 'utf8').replace(/\r\n?/g, '\n') : '';
 }
 
 function assert(condition, message) {

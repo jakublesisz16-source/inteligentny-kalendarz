@@ -1,0 +1,11 @@
+{
+  "source": "PRIVATE",
+  "surface": "sync-preview",
+  "buildId": "ik-1.2.0.283-20261003-sync-overlay-lf-determinism",
+  "appVersion": "1.2.0.283",
+  "releaseVersion": "1.2.0",
+  "packageVersion": "1.2.0-private.283",
+  "build": "283",
+  "contentFingerprint": "61e043abc9cf8016d192908e4e448e7a68a24c5cfa18ac660aa2b784649bb624",
+  "fileCount": 556
+}

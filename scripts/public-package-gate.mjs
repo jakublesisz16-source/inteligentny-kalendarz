@@ -1,9 +1,13 @@
 import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { basename, extname, join, relative, resolve, sep } from 'node:path';
-import { isAllowedPublicPath } from './public-surface-contract.mjs';
+import { isAllowedPublicPath, isAllowedSyncPreviewPath } from './public-surface-contract.mjs';
 
 const target = resolve(process.argv[2] ?? '.');
+const surfaceArgIndex = process.argv.indexOf('--surface');
+const surface = surfaceArgIndex >= 0 ? process.argv[surfaceArgIndex + 1] : 'public';
+if (!['public', 'sync-preview'].includes(surface)) throw new Error(`Unknown surface: ${surface}`);
+const isAllowedSurfacePath = surface === 'sync-preview' ? isAllowedSyncPreviewPath : isAllowedPublicPath;
 const forbiddenDirs = new Set(['_PRIVATE_HISTORY', '_LOCAL_ONLY', 'project-skills', 'docs', 'private-fixtures', '.git', 'node_modules', 'dist', 'coverage', '.benchmark-dist']);
 const forbiddenExtensions = new Set(['.xls', '.xlsx', '.pdf', '.ikbackup', '.zip', '.7z', '.rar', '.bak', '.tmp', '.log', '.map', '.pem', '.key', '.p12', '.pfx', '.jks', '.keystore']);
 const privateMediaExtensions = new Set(['.png', '.jpg', '.jpeg', '.webp', '.heic', '.avif', '.gif', '.bmp', '.tif', '.tiff', '.mp4', '.mov', '.m4v', '.webm', '.mp3', '.wav', '.m4a', '.ogg']);
@@ -60,7 +64,7 @@ for (const file of files) {
   const lower = name.toLocaleLowerCase('en-US');
   const extension = extname(lower);
 
-  if (!isAllowedPublicPath(rel)) failures.push(`file is outside minimal PUBLIC allowlist: ${rel}`);
+  if (!isAllowedSurfacePath(rel)) failures.push(surface === 'public' ? `file is outside minimal PUBLIC allowlist: ${rel}` : `file is outside sync-preview allowlist: ${rel}`);
   if (parts.some((part) => forbiddenDirs.has(part))) failures.push(`forbidden directory: ${rel}`);
   if (forbiddenPrivateDocPatterns.some((pattern) => pattern.test(name))) failures.push(`private/informational document: ${rel}`);
   if (lower === '.env' || lower.startsWith('.env.') || lower.endsWith('.env') || lower === '.envrc' || lower === '.dev.vars') failures.push(`environment/secrets file: ${rel}`);
@@ -76,4 +80,4 @@ if (failures.length) {
   for (const failure of [...new Set(failures)].sort()) console.error(`PUBLIC_PACKAGE_GATE_FAIL: ${failure}`);
   process.exit(1);
 }
-console.log(`PUBLIC_PACKAGE_GATE_OK files=${files.length} minimal-allowlist=true`);
+console.log(`PUBLIC_PACKAGE_GATE_OK files=${files.length} surface=${surface} minimal-allowlist=true`);
