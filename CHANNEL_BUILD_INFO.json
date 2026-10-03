@@ -1,11 +1,11 @@
 {
   "source": "PRIVATE",
   "surface": "public-stable",
-  "buildId": "ik-1.2.0.293-20261003-google-sync-bootstrap-detection-fix",
-  "appVersion": "1.2.0.293",
+  "buildId": "ik-1.2.0.294-20261003-firebase-web-api-key-casing-fix",
+  "appVersion": "1.2.0.294",
   "releaseVersion": "1.2.0",
-  "packageVersion": "1.2.0-private.293",
-  "build": "293",
-  "contentFingerprint": "8ea6efdf2b8da3a5140dc96b069b3b77d78ed407c61d715630ebd3eafc920fe6",
+  "packageVersion": "1.2.0-private.294",
+  "build": "294",
+  "contentFingerprint": "a47084c38629f2260ee6b5e975d747346ed6b28f583496cdd0f7bbdcfc50a2b1",
   "fileCount": 567
 }

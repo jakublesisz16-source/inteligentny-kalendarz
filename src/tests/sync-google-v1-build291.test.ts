@@ -77,6 +77,8 @@ describe('Build291 Google Sync V1 foundation', () => {
     expect(provider).toContain('signInWithPopup');
     expect(provider).toContain('runTransaction');
     expect(provider).toContain('let unsubscribe: () => void = () => undefined;');
+    expect(config).toContain('qwBIkPb5sIbrb9TGPxVRvnIzo');
+    expect(config).not.toContain('qwBIKPb5sIbrb9TGPxVRvnIzo');
     expect(config).toContain("projectId: 'inteligentny-kalendarz-s-2cfc9'");
     expect(settings).toContain('Połącz z Google');
     expect(sourceHygiene).toContain('firebase.sync-lab.json');
