@@ -21,6 +21,8 @@ import { refreshAllAvailabilityPlanStatuses } from '../availability/availability
 import { DayAvailabilityEditor } from '../availability/DayAvailabilityEditor';
 import { StudySeriesTimingCorrection } from '../planning/StudySeriesTimingCorrection';
 import { preloadFinanceData } from '../finance/finance-warmup';
+import { SyncCoordinator } from '../sync/SyncCoordinator';
+import { SYNC_REMOTE_APPLIED_EVENT } from '../sync/sync-events';
 import {
   createEvent,
   createManualEventSeries,
@@ -156,6 +158,13 @@ export function App() {
     const timer = window.setTimeout(() => setToast(null), 5200);
     return () => window.clearTimeout(timer);
   }, [toast]);
+
+
+  useEffect(() => {
+    const handleRemoteApplied = () => { void refreshAllData(); };
+    window.addEventListener(SYNC_REMOTE_APPLIED_EVENT, handleRemoteApplied);
+    return () => window.removeEventListener(SYNC_REMOTE_APPLIED_EVENT, handleRemoteApplied);
+  }, []);
 
   async function loadCoworkerMap(sourceEvents: CalendarEvent[]) {
     return listCoworkersForWorkEvents(sourceEvents);
@@ -378,6 +387,7 @@ export function App() {
 
   return (
     <div className="app-shell">
+      <SyncCoordinator />
       <a className="skip-link" href="#main-content">Przejdź do treści</a>
       <Navigation activeView={view} onChange={changeView} />
       <main className="app-main" id="main-content" tabIndex={-1} aria-label={activeViewLabel}>

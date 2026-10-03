@@ -1,10 +1,15 @@
 import type { SyncProvider } from './sync.types';
-import { createLocalOnlySyncProvider, LOCAL_ONLY_SYNC_PROVIDER_ID } from './providers/local-only';
+import { FIREBASE_GOOGLE_SYNC_PROVIDER_ID, LOCAL_ONLY_SYNC_PROVIDER_ID } from './provider-ids';
+import { createLocalOnlySyncProvider } from './providers/local-only';
 
 export type SyncProviderFactory = () => SyncProvider | Promise<SyncProvider>;
 
 const factories = new Map<string, SyncProviderFactory>([
   [LOCAL_ONLY_SYNC_PROVIDER_ID, createLocalOnlySyncProvider],
+  [FIREBASE_GOOGLE_SYNC_PROVIDER_ID, async () => {
+    const module = await import('./providers/firebase-google');
+    return module.createFirebaseGoogleSyncProvider();
+  }],
 ]);
 
 export function registerSyncProvider(id: string, factory: SyncProviderFactory): () => void {

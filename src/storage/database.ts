@@ -20,6 +20,7 @@ import { ENGLISH_MONDAY_SUPPLEMENT_END, ENGLISH_MONDAY_SUPPLEMENT_LEGACY_DESCRIP
 import { formatStudyGroupList, groupSetsIntersect } from '../imports/xlsx/group-normalizer';
 import { validateCandidateForImport } from '../imports/xlsx/import-validation';
 import { sha256Hex } from '../core/sha256';
+import { emitLocalDataChanged } from './data-change-events';
 import type {
   ConfirmedWorkBlock,
   CoworkerOverlap,
@@ -288,7 +289,10 @@ function requestToPromise<T>(request: IDBRequest<T>): Promise<T> {
 
 function transactionDone(transaction: IDBTransaction): Promise<void> {
   return new Promise((resolve, reject) => {
-    transaction.oncomplete = () => resolve();
+    transaction.oncomplete = () => {
+      if (transaction.mode === 'readwrite') emitLocalDataChanged();
+      resolve();
+    };
     transaction.onerror = () => reject(transaction.error ?? new Error('Błąd transakcji IndexedDB.'));
     transaction.onabort = () => reject(transaction.error ?? new Error('Transakcja IndexedDB została przerwana.'));
   });
@@ -4363,6 +4367,25 @@ export async function createCanonicalDataTransferDocument(): Promise<BackupDocum
   return { ...unsigned, checksum };
 }
 
+
+export function hasMeaningfulDataTransferContent(document: BackupDocument): boolean {
+  const stores = document.data.stores;
+  for (const [name, entries] of Object.entries(stores)) {
+    if (name === STORE_SETTINGS) continue;
+    if (Array.isArray(entries) && entries.length > 0) return true;
+  }
+  const settings = (stores[STORE_SETTINGS] ?? [])[0] as AppSettings | undefined;
+  if (!settings) return false;
+  return settings.preferredStartView !== 'today'
+    || settings.timeFormat !== '24h'
+    || settings.decorativeBackgroundMode !== DEFAULT_DECORATIVE_BACKGROUND_MODE
+    || settings.showPolishHolidays === false
+    || settings.showWumAcademicCalendar === false
+    || Boolean(settings.homeLocationId)
+    || Boolean(settings.workLocationId)
+    || JSON.stringify(settings.notificationPreferences) !== JSON.stringify(DEFAULT_NOTIFICATION_PREFERENCES);
+}
+
 export async function createBackupFile(): Promise<{ fileName: string; text: string; summary: BackupSummary }> {
   const document = await createCanonicalDataTransferDocument();
   const now = new Date();
@@ -4506,6 +4529,21 @@ function migrateBackupSnapshotToCurrent(snapshot: DatabaseSnapshot): DatabaseSna
       [STORE_CYCLE_JOURNAL_ENTRIES]: snapshot.stores[STORE_CYCLE_JOURNAL_ENTRIES] ?? [],
     },
   };
+}
+
+export async function applyCloudSyncSnapshot(document: BackupDocument): Promise<RestorePoint> {
+  const inspected = await inspectBackupText(JSON.stringify(document));
+  const migrated = migrateBackupSnapshotToCurrent(inspected.document.data);
+  const restorePoint = await createRestorePoint('Przed pobraniem danych z chmury', 'BEFORE_CLOUD_SYNC_APPLY', true);
+  const notificationsSuspended = await suspendNotificationsForDataReplace();
+  try {
+    // Keep the downloaded canonical snapshot exact. Do not append a local change-journal
+    // entry here, otherwise two devices would create an endless sync ping-pong.
+    await replaceSnapshotVerified(migrated, true);
+  } finally {
+    await resumeNotificationsAfterDataReplace(notificationsSuspended);
+  }
+  return restorePoint;
 }
 
 export async function restoreBackup(document: BackupDocument): Promise<void> {

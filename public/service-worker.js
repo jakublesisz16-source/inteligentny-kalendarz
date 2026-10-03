@@ -1,5 +1,5 @@
 const CACHE_PREFIX = 'inteligentny-kalendarz-shell-';
-const CACHE_NAME = `${CACHE_PREFIX}v1.2.0.290`;
+const CACHE_NAME = `${CACHE_PREFIX}v1.2.0.291`;
 
 const MANDATORY_SHELL_ASSET_PATHS = [
   'manifest.webmanifest',

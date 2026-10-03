@@ -21,6 +21,8 @@ if (existsSync(currentStatePath)) {
   }
 }
 
+const publicFirebaseWebConfigPaths = new Set(['src/sync/providers/firebase-google-config.ts']);
+
 const secretPatterns = [
   ['private key', /-----BEGIN (?:RSA |EC |OPENSSH |DSA )?PRIVATE KEY-----/u],
   ['GitHub token', /\b(?:ghp_[A-Za-z0-9]{30,}|github_pat_[A-Za-z0-9_]{30,})\b/u],
@@ -87,8 +89,19 @@ for (const file of files) {
   let text;
   try { text = readFileSync(file, 'utf8'); } catch { continue; }
   for (const [label, pattern] of secretPatterns) {
+    if (label === 'Google API key' && publicFirebaseWebConfigPaths.has(rel)) continue;
     if (pattern.test(text)) fail(`${label} pattern detected in ${rel}`);
   }
+}
+
+
+const firebaseWebConfigPath = join(root, 'src/sync/providers/firebase-google-config.ts');
+if (existsSync(firebaseWebConfigPath)) {
+  const firebaseWebConfig = readFileSync(firebaseWebConfigPath, 'utf8');
+  if (!firebaseWebConfig.includes("projectId: 'inteligentny-kalendarz-s-2cfc9'")) fail('Firebase web config points at an unexpected project');
+  const apiKeys = firebaseWebConfig.match(/\bAIza[0-9A-Za-z_-]{35}\b/gu) ?? [];
+  if (apiKeys.length !== 1) fail(`Firebase web config must contain exactly one public web API key (got ${apiKeys.length})`);
+  if (/PRIVATE KEY|service[_-]?account|client_email/iu.test(firebaseWebConfig)) fail('Firebase web config contains administrative credential material');
 }
 
 

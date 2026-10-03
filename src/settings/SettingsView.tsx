@@ -5,6 +5,7 @@ import type { Location } from '../locations/location.types';
 import { SafetyCenter } from '../safety/SafetyCenter';
 import { DataTransferPanel } from '../data-transfer/DataTransferPanel';
 import { PwaInstallPanel } from './PwaInstallPanel';
+import { SyncSettingsPanel } from '../sync/SyncSettingsPanel';
 import type { AppSettings, AppSettingsPatch, StartView, TimeFormat } from './settings.types';
 
 interface SettingsViewProps {
@@ -42,6 +43,7 @@ export function SettingsView({ settings, locations, onChange, onDataChanged }: S
           <label className="settings-layer-switch" title="Oficjalny kalendarz akademicki WUM 2026/2027"><input type="checkbox" checked={settings.showWumAcademicCalendar !== false} onChange={(event) => void onChange({ showWumAcademicCalendar: event.target.checked })} /><span>WUM 26/27</span></label>
         </div>
         <PwaInstallPanel />
+        <SyncSettingsPanel onRemoteApplied={handleTransferDataChanged} />
         <div className="settings-build-line" aria-label={`Wersja ${APP_RELEASE_VERSION}, build ${BUILD_NUMBER}`}>
           <span>{APP_RELEASE_VERSION}</span><i aria-hidden="true">·</i><span>Build {BUILD_NUMBER}</span>
         </div>

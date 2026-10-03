@@ -148,6 +148,7 @@ export type RestorePointReason =
   | 'BEFORE_WORK_UPDATE'
   | 'BEFORE_WORK_IMPORT_DELETE'
   | 'BEFORE_DATA_TRANSFER_IMPORT'
+  | 'BEFORE_CLOUD_SYNC_APPLY'
   | 'BEFORE_LOCATION_DELETE';
 
 export interface RestorePoint {

@@ -1,6 +1,7 @@
+import { LOCAL_ONLY_SYNC_PROVIDER_ID } from '../provider-ids';
 import type { SyncProvider, SyncSnapshotEnvelope } from '../sync.types';
 
-export const LOCAL_ONLY_SYNC_PROVIDER_ID = 'local-only';
+export { LOCAL_ONLY_SYNC_PROVIDER_ID } from '../provider-ids';
 
 export function createLocalOnlySyncProvider(): SyncProvider {
   return {
@@ -12,6 +13,6 @@ export function createLocalOnlySyncProvider(): SyncProvider {
     signIn: async () => null,
     signOut: async () => undefined,
     pullLatest: async () => null,
-    pushSnapshot: async (_snapshot: SyncSnapshotEnvelope) => undefined,
+    pushSnapshot: async (_snapshot: SyncSnapshotEnvelope, _expectedRevision?: string | null) => undefined,
   };
 }

@@ -32,7 +32,7 @@ export interface SyncProvider {
   signIn(): Promise<SyncAccount | null>;
   signOut(): Promise<void>;
   pullLatest(): Promise<SyncSnapshotEnvelope | null>;
-  pushSnapshot(snapshot: SyncSnapshotEnvelope): Promise<void>;
+  pushSnapshot(snapshot: SyncSnapshotEnvelope, expectedRevision?: string | null): Promise<void>;
 }
 
 export interface SyncStatus {
@@ -41,4 +41,30 @@ export interface SyncStatus {
   configured: boolean;
   account: SyncAccount | null;
   cloudEnabled: boolean;
+}
+
+export type SyncConflictChoice = 'local' | 'cloud';
+
+export interface SyncConflict {
+  localRevision: string;
+  cloudRevision: string;
+  localUpdatedAt: string;
+  cloudUpdatedAt: string;
+}
+
+export type SyncReconcileResult =
+  | { phase: 'local-only'; status: SyncStatus }
+  | { phase: 'signed-out'; status: SyncStatus }
+  | { phase: 'synced'; status: SyncStatus; revision: string; lastSyncAt: string }
+  | { phase: 'pushed'; status: SyncStatus; revision: string; lastSyncAt: string }
+  | { phase: 'pulled'; status: SyncStatus; revision: string; lastSyncAt: string }
+  | { phase: 'conflict'; status: SyncStatus; conflict: SyncConflict };
+
+export interface SyncRuntimeNotice {
+  state: 'local-only' | 'signed-out' | 'syncing' | 'synced' | 'conflict' | 'error';
+  providerId: string;
+  account?: SyncAccount;
+  message?: string;
+  lastSyncAt?: string;
+  conflict?: SyncConflict;
 }

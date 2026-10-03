@@ -748,4 +748,22 @@ assert(calendarView.includes("title={dayEvents.map((event) => `${calendarEventTi
 assert(!componentCss.includes('.calendar-panel .calendar-day-counts { display: none; }'), 'desktop month counters are hidden');
 assert(!calendarView.includes('activeStudyGroups.map(studyGroupDisplayLabel).join'), 'Calendar should not repeat active Study groups in the default day panel');
 
+
+// Build291 keeps Google Sync optional, local-first and conflict-safe without Firebase Hosting.
+const syncServiceV291 = source('src/sync/sync-service.ts');
+const syncRegistryV291 = source('src/sync/provider-registry.ts');
+const syncFirebaseV291 = source('src/sync/providers/firebase-google.ts');
+const syncSettingsV291 = source('src/sync/SyncSettingsPanel.tsx');
+const syncCoordinatorV291 = source('src/sync/SyncCoordinator.tsx');
+const firebaseConfigV291 = source('src/sync/providers/firebase-google-config.ts');
+assert(syncServiceV291.includes('calculateSyncRevision') && syncServiceV291.includes('snapshotVersion') && !syncServiceV291.includes('revision: document.checksum'), 'Build291 sync revision is not stable across capture timestamps');
+assert(syncServiceV291.includes('hasMeaningfulDataTransferContent') && syncServiceV291.includes("phase: 'conflict'"), 'Build291 first-device/conflict guard missing');
+assert(syncFirebaseV291.includes("'users', uid, 'sync', 'current'") && syncFirebaseV291.includes('runTransaction') && syncFirebaseV291.includes('expectedRevision'), 'Build291 Firestore provider lacks user scoping or optimistic conflict guard');
+assert(syncRegistryV291.includes("import('./providers/firebase-google')"), 'Build291 Firebase adapter is not lazy/removable');
+assert(!packageJson.dependencies?.firebase, 'Build291 must not make Firebase SDK a global npm runtime dependency');
+assert(syncSettingsV291.includes('Połącz z Google') && syncSettingsV291.includes('Zachowaj to urządzenie') && syncSettingsV291.includes('Pobierz z chmury'), 'Build291 minimal Sync settings UI missing');
+assert(syncCoordinatorV291.includes('LOCAL_DATA_CHANGED_EVENT') && syncCoordinatorV291.includes('visibilitychange'), 'Build291 automatic local-first sync coordinator missing');
+assert(firebaseConfigV291.includes("projectId: 'inteligentny-kalendarz-s-2cfc9'"), 'Build291 Firebase web config project drifted');
+assert(!existsSync(new URL('../firebase.json', import.meta.url)) && !existsSync(new URL('../firebase.sync-lab.json', import.meta.url)), 'Firebase Hosting configuration returned in Build291');
+
 console.log('RELEASE_SAFETY_GATE_OK');

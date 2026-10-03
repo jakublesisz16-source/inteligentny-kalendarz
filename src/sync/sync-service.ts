@@ -1,11 +1,37 @@
-import { createCanonicalDataTransferDocument } from '../storage/database';
-import { getPreferredSyncProviderId } from './sync-config';
+import { applyCloudSyncSnapshot, createCanonicalDataTransferDocument, hasMeaningfulDataTransferContent } from '../storage/database';
+import { sha256Hex } from '../core/sha256';
+import {
+  getPreferredSyncProviderId,
+  getSyncDeviceId,
+  readLocalSyncState,
+  writeLocalSyncState,
+} from './sync-config';
+import { SyncRemoteChangedError } from './sync-errors';
 import { resolveSyncProvider } from './provider-registry';
-import type { SyncProvider, SyncSnapshotEnvelope, SyncStatus } from './sync.types';
+import type {
+  SyncConflict,
+  SyncConflictChoice,
+  SyncProvider,
+  SyncReconcileResult,
+  SyncSnapshotEnvelope,
+  SyncStatus,
+} from './sync.types';
 
-function createDeviceId(): string {
-  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) return crypto.randomUUID();
-  return `device-${Date.now()}`;
+function syncRevisionPayload(snapshot: SyncSnapshotEnvelope['document']['data']) {
+  return {
+    format: snapshot.format,
+    snapshotVersion: snapshot.snapshotVersion,
+    databaseSchemaVersion: snapshot.databaseSchemaVersion,
+    stores: snapshot.stores,
+  };
+}
+
+export async function calculateSyncRevision(snapshot: SyncSnapshotEnvelope['document']['data']): Promise<string> {
+  return sha256Hex(JSON.stringify(syncRevisionPayload(snapshot)));
+}
+
+function nowIso(): string {
+  return new Date().toISOString();
 }
 
 export class SyncService {
@@ -22,32 +48,160 @@ export class SyncService {
     };
   }
 
-  async captureLocalSnapshot(sourceDeviceId = createDeviceId()): Promise<SyncSnapshotEnvelope> {
+  async signIn() {
+    return this.provider.signIn();
+  }
+
+  async signOut(): Promise<void> {
+    await this.provider.signOut();
+  }
+
+  async captureLocalSnapshot(sourceDeviceId = getSyncDeviceId()): Promise<SyncSnapshotEnvelope> {
     const document = await createCanonicalDataTransferDocument();
     return {
       format: 'inteligentny-kalendarz-sync-snapshot',
       version: 1,
-      revision: document.checksum,
+      revision: await calculateSyncRevision(document.data),
       updatedAt: document.createdAt,
       sourceDeviceId,
       document,
     };
   }
 
-  async pushCurrentSnapshot(sourceDeviceId?: string): Promise<SyncSnapshotEnvelope | null> {
-    if (!this.provider.capabilities.cloud || !this.provider.isConfigured()) return null;
-    const account = await this.provider.getAccount();
-    if (!account) return null;
-    const snapshot = await this.captureLocalSnapshot(sourceDeviceId);
-    await this.provider.pushSnapshot(snapshot);
-    return snapshot;
-  }
-
   async pullLatestSnapshot(): Promise<SyncSnapshotEnvelope | null> {
     if (!this.provider.capabilities.cloud || !this.provider.isConfigured()) return null;
     const account = await this.provider.getAccount();
     if (!account) return null;
-    return this.provider.pullLatest();
+    const snapshot = await this.provider.pullLatest();
+    if (!snapshot) return null;
+    const calculated = await calculateSyncRevision(snapshot.document.data);
+    if (calculated !== snapshot.revision) throw new Error('Snapshot w chmurze nie przeszedł kontroli integralności.');
+    return snapshot;
+  }
+
+  private markSynced(accountId: string, revision: string): string {
+    const lastSyncAt = nowIso();
+    writeLocalSyncState({
+      providerId: this.provider.id,
+      accountId,
+      lastSyncedRevision: revision,
+      lastSyncedAt: lastSyncAt,
+    });
+    return lastSyncAt;
+  }
+
+  private async pushSnapshot(
+    accountId: string,
+    snapshot: SyncSnapshotEnvelope,
+    expectedRevision?: string | null,
+  ): Promise<string> {
+    await this.provider.pushSnapshot(snapshot, expectedRevision);
+    return this.markSynced(accountId, snapshot.revision);
+  }
+
+  private async applyCloudSnapshot(accountId: string, snapshot: SyncSnapshotEnvelope): Promise<string> {
+    await applyCloudSyncSnapshot(snapshot.document);
+    return this.markSynced(accountId, snapshot.revision);
+  }
+
+  private conflict(local: SyncSnapshotEnvelope, cloud: SyncSnapshotEnvelope): SyncConflict {
+    return {
+      localRevision: local.revision,
+      cloudRevision: cloud.revision,
+      localUpdatedAt: local.updatedAt,
+      cloudUpdatedAt: cloud.updatedAt,
+    };
+  }
+
+  async reconcile(): Promise<SyncReconcileResult> {
+    const status = await this.getStatus();
+    if (!this.provider.capabilities.cloud) return { phase: 'local-only', status };
+    if (!status.account) return { phase: 'signed-out', status };
+
+    const account = status.account;
+    const [local, cloud] = await Promise.all([
+      this.captureLocalSnapshot(),
+      this.pullLatestSnapshot(),
+    ]);
+    const previous = readLocalSyncState(this.provider.id, account.id);
+
+    if (!cloud) {
+      try {
+        const lastSyncAt = await this.pushSnapshot(account.id, local, null);
+        return { phase: 'pushed', status, revision: local.revision, lastSyncAt };
+      } catch (error) {
+        if (error instanceof SyncRemoteChangedError) return this.reconcile();
+        throw error;
+      }
+    }
+
+    if (cloud.revision === local.revision) {
+      const lastSyncAt = this.markSynced(account.id, local.revision);
+      return { phase: 'synced', status, revision: local.revision, lastSyncAt };
+    }
+
+    if (!previous) {
+      if (!hasMeaningfulDataTransferContent(local.document)) {
+        const lastSyncAt = await this.applyCloudSnapshot(account.id, cloud);
+        return { phase: 'pulled', status, revision: cloud.revision, lastSyncAt };
+      }
+      return { phase: 'conflict', status, conflict: this.conflict(local, cloud) };
+    }
+
+    const localChanged = local.revision !== previous.lastSyncedRevision;
+    const cloudChanged = cloud.revision !== previous.lastSyncedRevision;
+
+    if (!localChanged && cloudChanged) {
+      const lastSyncAt = await this.applyCloudSnapshot(account.id, cloud);
+      return { phase: 'pulled', status, revision: cloud.revision, lastSyncAt };
+    }
+
+    if (localChanged && !cloudChanged) {
+      try {
+        const lastSyncAt = await this.pushSnapshot(account.id, local, previous.lastSyncedRevision);
+        return { phase: 'pushed', status, revision: local.revision, lastSyncAt };
+      } catch (error) {
+        if (error instanceof SyncRemoteChangedError) {
+          const latestCloud = await this.pullLatestSnapshot();
+          if (!latestCloud) return this.reconcile();
+          return { phase: 'conflict', status, conflict: this.conflict(local, latestCloud) };
+        }
+        throw error;
+      }
+    }
+
+    if (!localChanged && !cloudChanged) {
+      const lastSyncAt = this.markSynced(account.id, local.revision);
+      return { phase: 'synced', status, revision: local.revision, lastSyncAt };
+    }
+
+    return { phase: 'conflict', status, conflict: this.conflict(local, cloud) };
+  }
+
+  async resolveConflict(choice: SyncConflictChoice): Promise<SyncReconcileResult> {
+    const status = await this.getStatus();
+    if (!status.account) return { phase: 'signed-out', status };
+    const account = status.account;
+
+    if (choice === 'cloud') {
+      const cloud = await this.pullLatestSnapshot();
+      if (!cloud) return this.reconcile();
+      const lastSyncAt = await this.applyCloudSnapshot(account.id, cloud);
+      return { phase: 'pulled', status, revision: cloud.revision, lastSyncAt };
+    }
+
+    const [local, cloud] = await Promise.all([
+      this.captureLocalSnapshot(),
+      this.pullLatestSnapshot(),
+    ]);
+    const expectedRevision = cloud?.revision ?? null;
+    try {
+      const lastSyncAt = await this.pushSnapshot(account.id, local, expectedRevision);
+      return { phase: 'pushed', status, revision: local.revision, lastSyncAt };
+    } catch (error) {
+      if (error instanceof SyncRemoteChangedError) return this.reconcile();
+      throw error;
+    }
   }
 }
 

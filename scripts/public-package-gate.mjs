@@ -23,6 +23,8 @@ const forbiddenPrivateDocPatterns = [
   /^CHECKPOINT_MANIFEST\.sha256$/u,
 ];
 const textExtensions = new Set(['.ts', '.tsx', '.js', '.mjs', '.cjs', '.json', '.md', '.txt', '.html', '.css', '.svg', '.webmanifest', '.ps1', '.yml', '.yaml']);
+const publicFirebaseWebConfigPaths = new Set(['src/sync/providers/firebase-google-config.ts']);
+
 const secretPatterns = [
   ['private key', /-----BEGIN (?:RSA |EC |OPENSSH |DSA )?PRIVATE KEY-----/u],
   ['GitHub token', /\b(?:ghp_[A-Za-z0-9]{30,}|github_pat_[A-Za-z0-9_]{30,})\b/u],
@@ -69,7 +71,20 @@ for (const file of files) {
   if (!textExtensions.has(extension) || name === 'public-package-gate.mjs') continue;
   let text;
   try { text = readFileSync(file, 'utf8'); } catch { continue; }
-  for (const [label, pattern] of secretPatterns) if (pattern.test(text)) failures.push(`${label} pattern: ${rel}`);
+  for (const [label, pattern] of secretPatterns) {
+    if (label === 'Google API key' && publicFirebaseWebConfigPaths.has(rel)) continue;
+    if (pattern.test(text)) failures.push(`${label} pattern: ${rel}`);
+  }
+}
+
+
+const firebaseWebConfigPath = join(target, 'src/sync/providers/firebase-google-config.ts');
+if (existsSync(firebaseWebConfigPath)) {
+  const firebaseWebConfig = readFileSync(firebaseWebConfigPath, 'utf8');
+  if (!firebaseWebConfig.includes("projectId: 'inteligentny-kalendarz-s-2cfc9'")) failures.push('Firebase web config points at an unexpected project');
+  const apiKeys = firebaseWebConfig.match(/\bAIza[0-9A-Za-z_-]{35}\b/gu) ?? [];
+  if (apiKeys.length !== 1) failures.push(`Firebase web config must contain exactly one public web API key (got ${apiKeys.length})`);
+  if (/PRIVATE KEY|service[_-]?account|client_email/iu.test(firebaseWebConfig)) failures.push('Firebase web config contains administrative credential material');
 }
 
 if (failures.length) {

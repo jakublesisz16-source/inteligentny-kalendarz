@@ -2711,3 +2711,14 @@
     font-weight: 900;
   }
 }
+
+/* Build291 - Sync controls remain one compact mobile block. */
+@media (max-width: 720px) {
+  .settings-sync-panel { grid-template-columns: 1fr; gap: 7px; }
+  .settings-sync-google,
+  .settings-sync-actions { width: 100%; }
+  .settings-sync-actions { justify-content: flex-start; }
+  .settings-sync-status,
+  .settings-sync-conflict,
+  .settings-sync-note { grid-column: 1; }
+}

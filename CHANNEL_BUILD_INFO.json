@@ -1,11 +1,11 @@
 {
   "source": "PRIVATE",
   "surface": "public-stable",
-  "buildId": "ik-1.2.0.290-20261003-hygiene-audit-closure",
-  "appVersion": "1.2.0.290",
+  "buildId": "ik-1.2.0.291-20261003-google-sync-v1",
+  "appVersion": "1.2.0.291",
   "releaseVersion": "1.2.0",
-  "packageVersion": "1.2.0-private.290",
-  "build": "290",
-  "contentFingerprint": "b8b580b98d550850af350debf0bfdafef56103f593b7e76f5589183fe45b89cf",
-  "fileCount": 558
+  "packageVersion": "1.2.0-private.291",
+  "build": "291",
+  "contentFingerprint": "5bad68b26fa4a5addf98f2c5eeaf42741b718e4502dd1f4aa6406774ae087832",
+  "fileCount": 567
 }
