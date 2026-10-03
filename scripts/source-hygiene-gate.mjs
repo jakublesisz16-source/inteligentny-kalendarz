@@ -31,6 +31,25 @@ for (const path of removedLegacyWorkflowPaths) {
   if (existsSync(join(root, path))) fail(`obsolete Sync Preview artifact returned: ${path}`);
 }
 
+const activeStyleFiles = [
+  'src/styles/components.css',
+  'src/styles/responsive.css',
+  'src/styles/layout.css',
+  'src/styles/tokens.css',
+];
+for (const path of activeStyleFiles) {
+  const text = readFileSync(join(root, path), 'utf8');
+  if (/\.cycle-|\.shopping-|floral|--cycle/u.test(text)) fail(`dead removed-view styling returned: ${path}`);
+}
+
+const packageJson = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));
+const packageScripts = packageJson.scripts ?? {};
+if (packageScripts['release:sync']) fail('obsolete release:sync script returned');
+if (packageScripts['security:sync-preview']) fail('obsolete security:sync-preview script returned');
+if (packageScripts['release:public'] && packageScripts['release:public'] !== 'node scripts/release-channel-runner.mjs') {
+  fail('release:public must use the single canonical release-channel-runner');
+}
+
 const workspaceGeneratedDirs = new Set(['.git', 'node_modules', 'dist', 'coverage', '.benchmark-dist', '.cache', '.vite', 'test-results', 'playwright-report']);
 const workspaceGeneratedFiles = new Set(['tsconfig.app.tsbuildinfo', 'tsconfig.node.tsbuildinfo']);
 const forbiddenExtensions = new Set(['.zip', '.7z', '.rar', '.bak', '.old', '.orig', '.rej', '.tmp', '.log']);

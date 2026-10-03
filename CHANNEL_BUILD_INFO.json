@@ -1,11 +1,11 @@
 {
   "source": "PRIVATE",
   "surface": "public-stable",
-  "buildId": "ik-1.2.0.289-20261003-codebase-hygiene-audit",
-  "appVersion": "1.2.0.289",
+  "buildId": "ik-1.2.0.290-20261003-hygiene-audit-closure",
+  "appVersion": "1.2.0.290",
   "releaseVersion": "1.2.0",
-  "packageVersion": "1.2.0-private.289",
-  "build": "289",
-  "contentFingerprint": "eecd34196894d62f6e7838f317f693dc224b47193bb060ffb86d878929d43c28",
+  "packageVersion": "1.2.0-private.290",
+  "build": "290",
+  "contentFingerprint": "b8b580b98d550850af350debf0bfdafef56103f593b7e76f5589183fe45b89cf",
   "fileCount": 558
 }

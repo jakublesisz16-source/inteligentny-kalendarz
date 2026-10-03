@@ -28,8 +28,7 @@ describe('Build277 mobile Week natural page scroll', () => {
     expect(calendar).toContain('Math.abs(window.scrollY - session.startWindowScrollY) > 1');
   });
 
-  it('advances Build277 without changing database schema', () => {
-    expect(version).toContain("APP_VERSION = '1.2.0.288'");
+  it('keeps database schema 14', () => {
     expect(version).toContain('DATABASE_SCHEMA_VERSION = 14');
   });
 });
