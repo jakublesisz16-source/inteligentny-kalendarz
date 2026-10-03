@@ -14,7 +14,7 @@ function sourceFiles(dir: string): string[] {
   return out;
 }
 
-describe('Build286 removable sync provider boundary', () => {
+describe('removable sync provider boundary', () => {
   it('keeps local-only as the safe default without a cloud dependency', async () => {
     const provider = await resolveSyncProvider(LOCAL_ONLY_SYNC_PROVIDER_ID);
     expect(provider.mode).toBe('local-only');

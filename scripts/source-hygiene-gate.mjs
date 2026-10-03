@@ -20,6 +20,17 @@ for (const path of removedLegacyPlayerFiles) {
   if (existsSync(join(root, path))) fail(`superseded player-facing file returned: ${path}`);
 }
 
+const removedLegacyWorkflowPaths = [
+  'sync-preview',
+  'SYNC_PREVIEW_INFO.json',
+  'firebase.sync-lab.json',
+  '.github/workflows/firebase-sync-preview.yml',
+  'scripts/prepare-sync-preview.mjs',
+];
+for (const path of removedLegacyWorkflowPaths) {
+  if (existsSync(join(root, path))) fail(`obsolete Sync Preview artifact returned: ${path}`);
+}
+
 const workspaceGeneratedDirs = new Set(['.git', 'node_modules', 'dist', 'coverage', '.benchmark-dist', '.cache', '.vite', 'test-results', 'playwright-report']);
 const workspaceGeneratedFiles = new Set(['tsconfig.app.tsbuildinfo', 'tsconfig.node.tsbuildinfo']);
 const forbiddenExtensions = new Set(['.zip', '.7z', '.rar', '.bak', '.old', '.orig', '.rej', '.tmp', '.log']);

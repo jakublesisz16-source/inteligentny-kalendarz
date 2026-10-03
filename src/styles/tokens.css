@@ -63,9 +63,3 @@
   --other: var(--category-other);
 }
 
-/* Moduł Cykl pozostaje w kodzie, choć w 1.2.0.1 jest ukryty z głównego UI. */
-:root {
-  --cycle: #b86f8f;
-  --cycle-soft: #faedf3;
-  --cycle-wide: #f7f1f4;
-}

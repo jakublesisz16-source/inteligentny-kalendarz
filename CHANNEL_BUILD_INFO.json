@@ -1,11 +1,11 @@
 {
   "source": "PRIVATE",
   "surface": "public-stable",
-  "buildId": "ik-1.2.0.288-20261003-public-boundary-typecheck-fix",
-  "appVersion": "1.2.0.288",
+  "buildId": "ik-1.2.0.289-20261003-codebase-hygiene-audit",
+  "appVersion": "1.2.0.289",
   "releaseVersion": "1.2.0",
-  "packageVersion": "1.2.0-private.288",
-  "build": "288",
-  "contentFingerprint": "d7b8a61446c3912a254d639517c2fd71333cdd92693b7913444d9d5578d77ece",
-  "fileCount": 557
+  "packageVersion": "1.2.0-private.289",
+  "build": "289",
+  "contentFingerprint": "eecd34196894d62f6e7838f317f693dc224b47193bb060ffb86d878929d43c28",
+  "fileCount": 558
 }

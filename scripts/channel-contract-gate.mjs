@@ -36,11 +36,6 @@ if (!failures.length) {
   assert(info.contentFingerprint === fingerprint, 'CHANNEL_BUILD_INFO contentFingerprint differs from exact channel tree');
   assert(Number(info.fileCount) === fileCount, 'CHANNEL_BUILD_INFO fileCount differs from exact channel tree');
 
-  const stableMain = read('src/main.tsx');
-  assert(!existsSync(join(root, 'firebase.sync-lab.json')), 'PUBLIC STABLE must not contain firebase.sync-lab.json');
-  assert(!existsSync(join(root, 'SYNC_PREVIEW_INFO.json')), 'PUBLIC STABLE must not contain SYNC_PREVIEW_INFO.json');
-  assert(!existsSync(join(root, '.github/workflows/firebase-sync-preview.yml')), 'PUBLIC STABLE must not contain Firebase Hosting deploy workflow');
-  assert(!stableMain.includes("searchParams.get('syncLab') === '1'"), 'PUBLIC STABLE must not expose legacy Sync Lab runtime entry');
 }
 
 if (failures.length) {

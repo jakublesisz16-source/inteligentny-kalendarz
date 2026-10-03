@@ -11,7 +11,6 @@ const isPrivate = existsSync(join(root, 'BUILD_INFO.json'));
 const channelInfoPath = join(root, 'CHANNEL_BUILD_INFO.json');
 const channelInfo = !isPrivate && existsSync(channelInfoPath) ? JSON.parse(source('CHANNEL_BUILD_INFO.json')) : null;
 const channelSurface = channelInfo?.surface ?? null;
-const isPublicStable = !isPrivate && channelSurface === 'public-stable';
 
 for (const path of [
   ...PUBLIC_WORKFLOW_FILES,
@@ -32,15 +31,9 @@ if (isPrivate) {
 
 if (!isPrivate) {
   requireFile('CHANNEL_BUILD_INFO.json');
-  if (!isPublicStable) failures.push(`unknown or missing release channel surface: ${channelSurface ?? 'none'}`);
+  if (channelSurface !== 'public-stable') failures.push(`unknown or missing release channel surface: ${channelSurface ?? 'none'}`);
 }
 
-
-if (isPublicStable) {
-  for (const path of ['SYNC_PREVIEW_INFO.json', 'firebase.sync-lab.json', '.github/workflows/firebase-sync-preview.yml']) {
-    if (existsSync(join(root, path))) failures.push(`PUBLIC STABLE contains Sync Preview-only file: ${path}`);
-  }
-}
 
 if (!failures.length) {
   const packageJson = JSON.parse(source('package.json'));
