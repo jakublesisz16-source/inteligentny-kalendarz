@@ -74,6 +74,8 @@ describe('Build291 Google Sync V1 foundation', () => {
     const settings = readFileSync('src/sync/SyncSettingsPanel.tsx', 'utf8');
     const sourceHygiene = readFileSync('scripts/source-hygiene-gate.mjs', 'utf8');
     expect(provider).toContain("'users', uid, 'sync', 'current'");
+    expect(provider).toContain("'users', uid, 'sync', 'current', 'chunks'");
+    expect(provider).toContain('cloudSnapshotCache');
     expect(provider).toContain('signInWithPopup');
     expect(provider).toContain('runTransaction');
     expect(provider).toContain('let unsubscribe: () => void = () => undefined;');

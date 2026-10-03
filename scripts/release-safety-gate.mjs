@@ -753,12 +753,17 @@ assert(!calendarView.includes('activeStudyGroups.map(studyGroupDisplayLabel).joi
 const syncServiceV291 = source('src/sync/sync-service.ts');
 const syncRegistryV291 = source('src/sync/provider-registry.ts');
 const syncFirebaseV291 = source('src/sync/providers/firebase-google.ts');
+const syncChunksV295 = source('src/sync/providers/firebase-google-chunks.ts');
 const syncSettingsV291 = source('src/sync/SyncSettingsPanel.tsx');
 const syncCoordinatorV291 = source('src/sync/SyncCoordinator.tsx');
 const firebaseConfigV291 = source('src/sync/providers/firebase-google-config.ts');
 assert(syncServiceV291.includes('calculateSyncRevision') && syncServiceV291.includes('snapshotVersion') && !syncServiceV291.includes('revision: document.checksum'), 'Build291 sync revision is not stable across capture timestamps');
 assert(syncServiceV291.includes('hasMeaningfulDataTransferContent') && syncServiceV291.includes("phase: 'conflict'"), 'Build291 first-device/conflict guard missing');
 assert(syncFirebaseV291.includes("'users', uid, 'sync', 'current'") && syncFirebaseV291.includes('runTransaction') && syncFirebaseV291.includes('expectedRevision'), 'Build291 Firestore provider lacks user scoping or optimistic conflict guard');
+assert(syncFirebaseV291.includes("'users', uid, 'sync', 'current', 'chunks'") && syncFirebaseV291.includes('setDoc(syncChunkReference') && syncFirebaseV291.includes("format: 'inteligentny-kalendarz-cloud-manifest'"), 'Build295 chunked Firestore storage or manifest switch missing');
+assert(syncFirebaseV291.includes('cloudSnapshotCache') && syncFirebaseV291.includes('cached?.revision === manifest.revision'), 'Build295 manifest-first polling cache missing');
+assert(syncChunksV295.includes('FIRESTORE_SYNC_CHUNK_SOURCE_BYTES = 420_000') && syncChunksV295.includes('payloadSha256') && syncChunksV295.includes('decodeSnapshotChunks'), 'Build295 chunk sizing or SHA-256 integrity contract missing');
+assert(!syncFirebaseV291.includes('MAX_SYNC_PAYLOAD_BYTES = 850_000'), 'Build295 unexpectedly returned to the single-document 850k payload blocker');
 assert(syncRegistryV291.includes("import('./providers/firebase-google')"), 'Build291 Firebase adapter is not lazy/removable');
 assert(!packageJson.dependencies?.firebase, 'Build291 must not make Firebase SDK a global npm runtime dependency');
 assert(syncSettingsV291.includes('Połącz z Google') && syncSettingsV291.includes('Zachowaj to urządzenie') && syncSettingsV291.includes('Pobierz z chmury'), 'Build291 minimal Sync settings UI missing');

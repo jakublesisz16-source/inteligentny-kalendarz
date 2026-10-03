@@ -1,11 +1,11 @@
 {
   "source": "PRIVATE",
   "surface": "public-stable",
-  "buildId": "ik-1.2.0.294-20261003-firebase-web-api-key-casing-fix",
-  "appVersion": "1.2.0.294",
+  "buildId": "ik-1.2.0.295-20261003-firestore-chunked-sync-v1",
+  "appVersion": "1.2.0.295",
   "releaseVersion": "1.2.0",
-  "packageVersion": "1.2.0-private.294",
-  "build": "294",
-  "contentFingerprint": "a47084c38629f2260ee6b5e975d747346ed6b28f583496cdd0f7bbdcfc50a2b1",
-  "fileCount": 567
+  "packageVersion": "1.2.0-private.295",
+  "build": "295",
+  "contentFingerprint": "5d4ee91f027c29b3b1515843bd845980a53b32c9242a852cdf9ef7e47d93ff5d",
+  "fileCount": 569
 }
