@@ -22,8 +22,12 @@ export class SyncPayloadHashMismatchError extends Error {
     readonly snapshot: SyncSnapshotEnvelope,
     readonly expectedPayloadSha256: string,
     readonly actualPayloadSha256: string,
+    readonly differingStores: readonly string[] = [],
   ) {
-    super('Snapshot w chmurze ma niespójny hash payloadu. Dane lokalne pozostały bez zmian.');
+    const detail = differingStores.length
+      ? ` Różnią się dane: ${differingStores.slice(0, 5).join(', ')}.`
+      : '';
+    super(`Snapshot w chmurze ma niespójny hash payloadu.${detail} Dane lokalne pozostały bez zmian.`);
     this.name = 'SyncPayloadHashMismatchError';
   }
 }

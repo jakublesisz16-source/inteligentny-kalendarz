@@ -44,6 +44,45 @@ export async function calculateSyncContentFingerprint(snapshot: SyncSnapshotEnve
   return sha256Hex(JSON.stringify(sortJsonObjectKeys(jsonCompatible)));
 }
 
+const LEGACY_PAYLOAD_RECOVERY_IGNORED_STORES = new Set(['changeJournal']);
+
+function syncRecoveryPayload(snapshot: SyncSnapshotEnvelope['document']['data']) {
+  return {
+    format: snapshot.format,
+    snapshotVersion: snapshot.snapshotVersion,
+    databaseSchemaVersion: snapshot.databaseSchemaVersion,
+    stores: Object.fromEntries(
+      Object.entries(snapshot.stores).filter(([name]) => !LEGACY_PAYLOAD_RECOVERY_IGNORED_STORES.has(name)),
+    ),
+  };
+}
+
+export async function calculateSyncRecoveryFingerprint(snapshot: SyncSnapshotEnvelope['document']['data']): Promise<string> {
+  const jsonCompatible = JSON.parse(JSON.stringify(syncRecoveryPayload(snapshot))) as unknown;
+  return sha256Hex(JSON.stringify(sortJsonObjectKeys(jsonCompatible)));
+}
+
+export function listSyncRecoveryStoreDifferences(
+  local: SyncSnapshotEnvelope['document']['data'],
+  cloud: SyncSnapshotEnvelope['document']['data'],
+): string[] {
+  const differences: string[] = [];
+  if (
+    local.format !== cloud.format
+    || local.snapshotVersion !== cloud.snapshotVersion
+    || local.databaseSchemaVersion !== cloud.databaseSchemaVersion
+  ) differences.push('$schema');
+
+  const storeNames = new Set([...Object.keys(local.stores), ...Object.keys(cloud.stores)]);
+  for (const name of [...storeNames].sort()) {
+    if (LEGACY_PAYLOAD_RECOVERY_IGNORED_STORES.has(name)) continue;
+    const localValue = JSON.stringify(sortJsonObjectKeys(local.stores[name] ?? null));
+    const cloudValue = JSON.stringify(sortJsonObjectKeys(cloud.stores[name] ?? null));
+    if (localValue !== cloudValue) differences.push(name);
+  }
+  return differences;
+}
+
 function nowIso(): string {
   return new Date().toISOString();
 }
@@ -152,7 +191,26 @@ export class SyncService {
           calculateSyncContentFingerprint(local.document.data),
           calculateSyncContentFingerprint(error.snapshot.document.data),
         ]);
-        if (localFingerprint === cloudFingerprint) {
+        let equivalent = localFingerprint === cloudFingerprint;
+
+        if (!equivalent && error instanceof SyncPayloadHashMismatchError) {
+          const [localRecoveryFingerprint, cloudRecoveryFingerprint] = await Promise.all([
+            calculateSyncRecoveryFingerprint(local.document.data),
+            calculateSyncRecoveryFingerprint(error.snapshot.document.data),
+          ]);
+          equivalent = localRecoveryFingerprint === cloudRecoveryFingerprint;
+          if (!equivalent) {
+            const differences = listSyncRecoveryStoreDifferences(local.document.data, error.snapshot.document.data);
+            throw new SyncPayloadHashMismatchError(
+              error.snapshot,
+              error.expectedPayloadSha256,
+              error.actualPayloadSha256,
+              differences.length ? differences : ['nieznane'],
+            );
+          }
+        }
+
+        if (equivalent) {
           try {
             const lastSyncAt = await this.pushSnapshot(account.id, local, error.snapshot.revision);
             return { phase: 'pushed', status, revision: local.revision, lastSyncAt };

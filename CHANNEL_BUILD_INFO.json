@@ -1,11 +1,11 @@
 {
   "source": "PRIVATE",
   "surface": "public-stable",
-  "buildId": "ik-1.2.0.298-20261003-firestore-immutable-chunksets-v2",
-  "appVersion": "1.2.0.298",
+  "buildId": "ik-1.2.0.301-20261003-bounded-legacy-recovery-typed-error",
+  "appVersion": "1.2.0.301",
   "releaseVersion": "1.2.0",
-  "packageVersion": "1.2.0-private.298",
-  "build": "298",
-  "contentFingerprint": "1a34fca9f54cdae2a98952ec9759a560c7cf8ce96f5b0151d32f406306c77a6d",
-  "fileCount": 571
+  "packageVersion": "1.2.0-private.301",
+  "build": "301",
+  "contentFingerprint": "401b0099de42621ed7c42d4c48611f5744bc3d9c709b791fb39c57fd10546f41",
+  "fileCount": 572
 }
