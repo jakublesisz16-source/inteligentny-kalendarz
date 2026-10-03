@@ -3,17 +3,32 @@ const FIREBASE_CDN = `https://www.gstatic.com/firebasejs/${FIREBASE_SDK_VERSION}
 
 export const SYNC_LAB_FIREBASE_PROJECT_ID = 'inteligentny-kalendarz-s-2cfc9';
 
-const firebaseConfig = {
-  apiKey: 'AIzaSyAn8Ri_kXqwBIKPb5sIbrb9TGPxVRvnIzo',
-  authDomain: 'inteligentny-kalendarz-s-2cfc9.firebaseapp.com',
-  projectId: SYNC_LAB_FIREBASE_PROJECT_ID,
-  storageBucket: 'inteligentny-kalendarz-s-2cfc9.firebasestorage.app',
-  messagingSenderId: '837697978117',
-  appId: '1:837697978117:web:28401f63928826972fc16c',
-};
+interface FirebaseWebConfig {
+  apiKey: string;
+  authDomain: string;
+  projectId: string;
+  storageBucket?: string;
+  messagingSenderId?: string;
+  appId: string;
+}
+
+async function loadFirebaseHostingConfig(): Promise<FirebaseWebConfig> {
+  const response = await fetch('/__/firebase/init.json', { cache: 'no-store' });
+  if (!response.ok) {
+    throw new Error('Sync Lab wymaga uruchomienia z Firebase Hosting, aby bezpiecznie pobrać konfigurację projektu.');
+  }
+  const config = await response.json() as Partial<FirebaseWebConfig>;
+  if (!config.apiKey || !config.authDomain || !config.projectId || !config.appId) {
+    throw new Error('Firebase Hosting zwrócił niepełną konfigurację Sync Lab.');
+  }
+  if (config.projectId !== SYNC_LAB_FIREBASE_PROJECT_ID) {
+    throw new Error('Sync Lab jest uruchomiony w niewłaściwym projekcie Firebase.');
+  }
+  return config as FirebaseWebConfig;
+}
 
 interface FirebaseAppModule {
-  initializeApp(config: typeof firebaseConfig): unknown;
+  initializeApp(config: FirebaseWebConfig): unknown;
 }
 
 interface FirebaseAuthUser {
@@ -100,7 +115,7 @@ async function createRuntime(): Promise<FirebaseRuntime> {
     importFirebaseModule<FirebaseFirestoreModule>('firebase-firestore.js'),
   ]);
 
-  const app = appModule.initializeApp(firebaseConfig);
+  const app = appModule.initializeApp(await loadFirebaseHostingConfig());
   return {
     authModule,
     firestoreModule,
