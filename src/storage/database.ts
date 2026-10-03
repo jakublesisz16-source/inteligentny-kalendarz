@@ -4368,10 +4368,28 @@ export async function createCanonicalDataTransferDocument(): Promise<BackupDocum
 }
 
 
+function hasUserDefinedExpenseCategoryState(entries: unknown[]): boolean {
+  if (!entries.length) return false;
+  if (entries.length !== DEFAULT_EXPENSE_CATEGORY_DEFINITIONS.length) return true;
+  const categories = entries as ExpenseCategory[];
+  const byId = new Map(categories.map((category) => [category.id, category]));
+  return DEFAULT_EXPENSE_CATEGORY_DEFINITIONS.some((definition, sortOrder) => {
+    const category = byId.get(definition.id);
+    return !category
+      || category.name !== definition.name
+      || category.sortOrder !== sortOrder
+      || Boolean(category.parentId);
+  });
+}
+
 export function hasMeaningfulDataTransferContent(document: BackupDocument): boolean {
   const stores = document.data.stores;
   for (const [name, entries] of Object.entries(stores)) {
     if (name === STORE_SETTINGS) continue;
+    if (name === STORE_EXPENSE_CATEGORIES) {
+      if (Array.isArray(entries) && hasUserDefinedExpenseCategoryState(entries)) return true;
+      continue;
+    }
     if (Array.isArray(entries) && entries.length > 0) return true;
   }
   const settings = (stores[STORE_SETTINGS] ?? [])[0] as AppSettings | undefined;

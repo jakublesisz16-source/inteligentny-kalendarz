@@ -4,6 +4,7 @@ import {
   applyCloudSyncSnapshot,
   createCanonicalDataTransferDocument,
   createEvent,
+  createExpenseCategory,
   deleteDatabaseForTests,
   hasMeaningfulDataTransferContent,
   initializeDatabase,
@@ -43,6 +44,13 @@ describe('Build291 Google Sync V1 foundation', () => {
     const document = await createCanonicalDataTransferDocument();
     expect(hasMeaningfulDataTransferContent(document)).toBe(false);
     await createEvent({ title: 'Moje dane', startDateTime: '2026-10-03T18:00', endDateTime: '2026-10-03T19:00', category: 'OTHER' });
+    expect(hasMeaningfulDataTransferContent(await createCanonicalDataTransferDocument())).toBe(true);
+  });
+
+  it('does not mistake seeded finance categories for user data but detects a custom category', async () => {
+    await initializeDatabase();
+    expect(hasMeaningfulDataTransferContent(await createCanonicalDataTransferDocument())).toBe(false);
+    await createExpenseCategory('Własna kategoria');
     expect(hasMeaningfulDataTransferContent(await createCanonicalDataTransferDocument())).toBe(true);
   });
 
