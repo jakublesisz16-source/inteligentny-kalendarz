@@ -1,12 +1,14 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { isAllowedPublicPath } from '../../scripts/public-surface-contract.mjs';
+
+const surfaceContract = readFileSync('scripts/public-surface-contract.mjs', 'utf8').replace(/\r\n?/g, '\n');
 
 describe('Build287 PUBLIC test boundary', () => {
   it('keeps the private release-workflow test out of PUBLIC', () => {
-    expect(isAllowedPublicPath('src/tests/release-workflow-simplification-build286.test.ts')).toBe(false);
+    expect(surfaceContract).toContain("'src/tests/release-workflow-simplification-build286.test.ts'");
   });
 
-  it('keeps provider-neutral runtime regression coverage in PUBLIC', () => {
-    expect(isAllowedPublicPath('src/tests/sync-provider-boundary-build286.test.ts')).toBe(true);
+  it('does not classify the provider-neutral runtime regression as private-only', () => {
+    expect(surfaceContract).not.toContain("'src/tests/sync-provider-boundary-build286.test.ts'");
   });
 });

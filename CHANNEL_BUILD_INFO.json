@@ -1,11 +1,11 @@
 {
   "source": "PRIVATE",
   "surface": "public-stable",
-  "buildId": "ik-1.2.0.287-20261003-public-private-test-boundary",
-  "appVersion": "1.2.0.287",
+  "buildId": "ik-1.2.0.288-20261003-public-boundary-typecheck-fix",
+  "appVersion": "1.2.0.288",
   "releaseVersion": "1.2.0",
-  "packageVersion": "1.2.0-private.287",
-  "build": "287",
-  "contentFingerprint": "a384f5397ac1ac69904e6f2cf6a00578b347a4cad45ca79f23e492803da25c1b",
+  "packageVersion": "1.2.0-private.288",
+  "build": "288",
+  "contentFingerprint": "d7b8a61446c3912a254d639517c2fd71333cdd92693b7913444d9d5578d77ece",
   "fileCount": 557
 }
