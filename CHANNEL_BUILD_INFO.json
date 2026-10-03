@@ -1,11 +1,11 @@
 {
   "source": "PRIVATE",
   "surface": "public-stable",
-  "buildId": "ik-1.2.0.291-20261003-google-sync-v1",
-  "appVersion": "1.2.0.291",
+  "buildId": "ik-1.2.0.292-20261003-google-sync-auth-listener-type-fix",
+  "appVersion": "1.2.0.292",
   "releaseVersion": "1.2.0",
-  "packageVersion": "1.2.0-private.291",
-  "build": "291",
-  "contentFingerprint": "5bad68b26fa4a5addf98f2c5eeaf42741b718e4502dd1f4aa6406774ae087832",
+  "packageVersion": "1.2.0-private.292",
+  "build": "292",
+  "contentFingerprint": "cc47b7e4211720b964a60df9db97ea59a7c3166e08a0b8c7b36d9385b2b7173b",
   "fileCount": 567
 }

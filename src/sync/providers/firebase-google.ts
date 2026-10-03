@@ -105,7 +105,7 @@ function normalizeAccount(user: FirebaseAuthUser): SyncAccount {
 
 async function currentUser(runtime: FirebaseRuntime): Promise<FirebaseAuthUser | null> {
   return new Promise((resolve, reject) => {
-    let unsubscribe = () => undefined;
+    let unsubscribe: () => void = () => undefined;
     unsubscribe = runtime.authModule.onAuthStateChanged(
       runtime.auth,
       (user) => {
