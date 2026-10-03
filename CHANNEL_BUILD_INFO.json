@@ -1,11 +1,11 @@
 {
   "source": "PRIVATE",
   "surface": "public-stable",
-  "buildId": "ik-1.2.0.295-20261003-firestore-chunked-sync-v1",
-  "appVersion": "1.2.0.295",
+  "buildId": "ik-1.2.0.297-20261003-sync-revision-stability-repair-ci-fix",
+  "appVersion": "1.2.0.297",
   "releaseVersion": "1.2.0",
-  "packageVersion": "1.2.0-private.295",
-  "build": "295",
-  "contentFingerprint": "5d4ee91f027c29b3b1515843bd845980a53b32c9242a852cdf9ef7e47d93ff5d",
-  "fileCount": 569
+  "packageVersion": "1.2.0-private.297",
+  "build": "297",
+  "contentFingerprint": "3814eb5a9ed11a21a642bd4c7262ce13c78010565950b3f3631c01535072b93a",
+  "fileCount": 570
 }

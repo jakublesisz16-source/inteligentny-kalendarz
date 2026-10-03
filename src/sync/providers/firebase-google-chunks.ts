@@ -2,7 +2,7 @@ import { sha256Hex } from '../../core/sha256';
 import type { SyncSnapshotEnvelope } from '../sync.types';
 
 export const FIRESTORE_SYNC_CHUNK_SOURCE_BYTES = 420_000;
-export const FIRESTORE_SYNC_MAX_PAYLOAD_BYTES = 12_000_000;
+export const FIRESTORE_SYNC_MAX_PAYLOAD_BYTES = 24_000_000;
 
 export interface ChunkedSnapshotPayload {
   payloadBytes: number;
