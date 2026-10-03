@@ -34,7 +34,7 @@ describe('Build276 Week conflict marker and mobile ending', () => {
   });
 
   it('advances Build276 without changing schema', () => {
-    expect(version).toContain("APP_VERSION = '1.2.0.277'");
+    expect(version).toContain("APP_VERSION = '1.2.0.278'");
     expect(version).toContain('DATABASE_SCHEMA_VERSION = 14');
   });
 });

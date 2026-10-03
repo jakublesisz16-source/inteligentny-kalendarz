@@ -40,11 +40,12 @@ describe('1.2.0.2 navigation foundation', () => {
     expect(NAVIGATION_ITEMS).toHaveLength(6);
   });
 
-  it('renders every icon as decorative currentColor SVG', () => {
+  it('renders functional icons as currentColor SVG and the calendar icon as the current app mark', () => {
     for (const name of APP_ICON_NAMES) {
       const markup = renderToStaticMarkup(createElement(AppIcon, { name }));
       expect(markup.startsWith('<svg')).toBe(true);
-      expect(markup).toContain('stroke="currentColor"');
+      if (name === 'calendar') expect(markup).toContain('data-brand-mark="calendar-bloom"');
+      else expect(markup).toContain('stroke="currentColor"');
       expect(markup).toContain('aria-hidden="true"');
       expect(markup).toContain('focusable="false"');
     }

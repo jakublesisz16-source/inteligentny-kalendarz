@@ -7,9 +7,6 @@ import {
   deleteExpenseCategory,
   deleteFinanceTrip,
   deleteReceipt,
-  listExpenseCategories,
-  listFinanceTrips,
-  listReceipts,
   restoreDeletedReceipt,
   syncExpenseProductsFromReceipts,
   updateExpenseCategory,
@@ -57,6 +54,7 @@ import { Modal } from '../ui/Modal';
 import { FinanceQuickExpenseModal, type AutomaticRateStatus, type QuickExpenseForm } from './FinanceQuickExpenseModal';
 import { fetchCurrentPlnRate, type CurrentPlnRate } from './exchange-rates';
 import { convertForeignReceiptDraftToPln } from './foreign-receipt';
+import { getFinanceWarmSnapshot, preloadFinanceData, refreshFinanceWarmData, type FinanceWarmData } from './finance-warmup';
 import {
   buildExpenseProductAnalytics,
   buildExpenseUnitPriceSummaries,
@@ -469,10 +467,11 @@ function CategoryOptions({ categories }: { categories: ExpenseCategory[] }) {
 }
 
 export function FinanceDashboardView() {
-  const [categories, setCategories] = useState<ExpenseCategory[]>([]);
-  const [products, setProducts] = useState<ExpenseProduct[]>([]);
-  const [receipts, setReceipts] = useState<Receipt[]>([]);
-  const [tripDefinitions, setTripDefinitions] = useState<FinanceTrip[]>([]);
+  const initialFinanceWarmData = getFinanceWarmSnapshot();
+  const [categories, setCategories] = useState<ExpenseCategory[]>(() => initialFinanceWarmData?.categories ?? []);
+  const [products, setProducts] = useState<ExpenseProduct[]>(() => initialFinanceWarmData?.products ?? []);
+  const [receipts, setReceipts] = useState<Receipt[]>(() => initialFinanceWarmData?.receipts ?? []);
+  const [tripDefinitions, setTripDefinitions] = useState<FinanceTrip[]>(() => initialFinanceWarmData?.trips ?? []);
   const [monthKey, setMonthKey] = useState(currentMonthKey);
   const [financeScope, setFinanceScope] = useState<FinanceScope>(readSavedFinanceScope);
   const [expenseListMode, setExpenseListMode] = useState<FinanceExpenseListMode>('TRANSACTIONS');
@@ -519,7 +518,24 @@ export function FinanceDashboardView() {
   const activeTripDefinition = useMemo(() => tripDefinitions.find((trip) => tripIdentity(trip.name) === tripIdentity(activeTripName)) ?? null, [tripDefinitions, activeTripName]);
 
   useEffect(() => {
-    void refresh().catch((cause) => setError(cause instanceof Error ? cause.message : 'Nie udało się wczytać finansów.'));
+    let active = true;
+    const cached = getFinanceWarmSnapshot();
+    const initialLoad = cached ? Promise.resolve(cached) : preloadFinanceData();
+
+    void initialLoad
+      .then(async (data) => {
+        if (!active) return;
+        applyFinanceData(data);
+        const repairedProducts = await repairFinanceProducts(data);
+        if (active) setProducts(repairedProducts);
+      })
+      .catch((cause) => {
+        if (active) setError(cause instanceof Error ? cause.message : 'Nie udało się wczytać finansów.');
+      });
+
+    return () => {
+      active = false;
+    };
   }, []);
 
   useEffect(() => {
@@ -580,22 +596,34 @@ export function FinanceDashboardView() {
     return () => controller.abort();
   }, [quickExpenseCurrency, activeTripFixedRate]);
 
-  async function refresh() {
-    const [nextCategories, nextReceipts, nextTrips] = await Promise.all([listExpenseCategories(), listReceipts(), listFinanceTrips()]);
-    const nextProducts = await syncExpenseProductsFromReceipts();
-    const otherCategoryId = nextCategories.find((category) => category.name.trim().toLocaleLowerCase('pl-PL') === 'inne')?.id;
-    const repairs = otherCategoryId ? nextProducts.filter((product) => product.categoryId === otherCategoryId && product.updatedAt === product.createdAt).map((product) => {
-      const suggestedCategoryId = suggestCategoryId(product.originalName, nextReceipts, nextCategories, nextProducts);
+  function applyFinanceData(data: FinanceWarmData) {
+    setCategories(data.categories);
+    setProducts(data.products);
+    setReceipts(data.receipts);
+    setTripDefinitions(data.trips);
+  }
+
+  async function repairFinanceProducts(data: FinanceWarmData): Promise<ExpenseProduct[]> {
+    const otherCategoryId = data.categories.find((category) => category.name.trim().toLocaleLowerCase('pl-PL') === 'inne')?.id;
+    const repairs = otherCategoryId ? data.products.filter((product) => product.categoryId === otherCategoryId && product.updatedAt === product.createdAt).map((product) => {
+      const suggestedCategoryId = suggestCategoryId(product.originalName, data.receipts, data.categories, data.products);
       return suggestedCategoryId && suggestedCategoryId !== otherCategoryId
         ? updateExpenseProduct(product.id, { name: product.name, categoryId: suggestedCategoryId, ...(product.necessity ? { necessity: product.necessity } : {}) })
         : Promise.resolve(product);
     }) : [];
-    const repairedProducts = repairs.length ? await Promise.all(repairs) : nextProducts;
+    if (!repairs.length) return data.products;
+    const repairedProducts = await Promise.all(repairs);
     const productsById = new Map(repairedProducts.map((product) => [product.id, product]));
-    setCategories(nextCategories);
-    setProducts(nextProducts.map((product) => productsById.get(product.id) ?? product));
-    setReceipts(nextReceipts);
-    setTripDefinitions(nextTrips);
+    return data.products.map((product) => productsById.get(product.id) ?? product);
+  }
+
+  async function hydrateFinanceData(data: FinanceWarmData) {
+    applyFinanceData(data);
+    setProducts(await repairFinanceProducts(data));
+  }
+
+  async function refresh() {
+    await hydrateFinanceData(await refreshFinanceWarmData());
   }
 
   function clearFeedback() {

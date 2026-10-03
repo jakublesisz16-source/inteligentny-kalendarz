@@ -20,6 +20,7 @@ import { groupSetsIntersect } from '../imports/xlsx/group-normalizer';
 import { refreshAllAvailabilityPlanStatuses } from '../availability/availability.service';
 import { DayAvailabilityEditor } from '../availability/DayAvailabilityEditor';
 import { StudySeriesTimingCorrection } from '../planning/StudySeriesTimingCorrection';
+import { preloadFinanceData } from '../finance/finance-warmup';
 import {
   createEvent,
   createManualEventSeries,
@@ -47,20 +48,40 @@ import {
   updateSettings,
 } from '../storage/database';
 
+const loadFinanceView = () => import('../finance/FinanceView');
+const loadStudyView = () => import('../study/StudyView');
+const loadWorkView = () => import('../work/WorkView');
+
 const FinanceView = lazy(async () => {
-  const module = await import('../finance/FinanceView');
+  const module = await loadFinanceView();
   return { default: module.FinanceView };
 });
 
 const StudyView = lazy(async () => {
-  const module = await import('../study/StudyView');
+  const module = await loadStudyView();
   return { default: module.StudyView };
 });
 
 const WorkView = lazy(async () => {
-  const module = await import('../work/WorkView');
+  const module = await loadWorkView();
   return { default: module.WorkView };
 });
+
+type IdleWindow = Window & {
+  requestIdleCallback?: (callback: IdleRequestCallback, options?: IdleRequestOptions) => number;
+  cancelIdleCallback?: (handle: number) => void;
+};
+
+function scheduleIdleWarmup(callback: () => void, timeout: number): () => void {
+  if (typeof window === 'undefined') return () => undefined;
+  const idleWindow = window as IdleWindow;
+  if (idleWindow.requestIdleCallback) {
+    const handle = idleWindow.requestIdleCallback(() => callback(), { timeout });
+    return () => idleWindow.cancelIdleCallback?.(handle);
+  }
+  const handle = window.setTimeout(callback, timeout);
+  return () => window.clearTimeout(handle);
+}
 
 function LazyViewFallback() {
   return <section className="view-shell view-loading-state" role="status" aria-live="polite" aria-busy="true">Ładowanie widoku...</section>;
@@ -104,6 +125,26 @@ export function App() {
   useEffect(() => {
     void bootstrap();
   }, []);
+
+  useEffect(() => {
+    if (loading || fatalError) return;
+    let cancelled = false;
+
+    void Promise.all([loadFinanceView(), preloadFinanceData()]).catch(() => undefined);
+
+    const cancelStudyWarmup = scheduleIdleWarmup(() => {
+      if (!cancelled) void loadStudyView();
+    }, 1400);
+    const cancelWorkWarmup = scheduleIdleWarmup(() => {
+      if (!cancelled) void loadWorkView();
+    }, 2800);
+
+    return () => {
+      cancelled = true;
+      cancelStudyWarmup();
+      cancelWorkWarmup();
+    };
+  }, [loading, fatalError]);
 
   useEffect(() => {
     const activeLabel = NAVIGATION_ITEMS.find((item) => item.id === view)?.label ?? 'Kalendarz';

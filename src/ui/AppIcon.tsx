@@ -1,3 +1,4 @@
+import { AppBrandMark } from './AppBrandMark';
 export type AppIconName =
   | 'today'
   | 'calendar'
@@ -27,7 +28,7 @@ export const APP_ICON_NAMES: AppIconName[] = [
   'settings',
 ];
 
-function IconGlyph({ name }: { name: AppIconName }) {
+function IconGlyph({ name }: { name: Exclude<AppIconName, 'calendar'> }) {
   switch (name) {
     case 'today':
       return (
@@ -35,13 +36,6 @@ function IconGlyph({ name }: { name: AppIconName }) {
           <rect x="3.5" y="5" width="17" height="15.5" rx="2.5" />
           <path d="M7.5 3.5v3M16.5 3.5v3M3.5 9h17" />
           <circle cx="12" cy="14.5" r="2.1" />
-        </>
-      );
-    case 'calendar':
-      return (
-        <>
-          <rect x="3.5" y="5" width="17" height="15.5" rx="2.5" />
-          <path d="M7.5 3.5v3M16.5 3.5v3M3.5 9h17M8 12.5h.01M12 12.5h.01M16 12.5h.01M8 16.5h.01M12 16.5h.01M16 16.5h.01" />
         </>
       );
     case 'study':
@@ -101,6 +95,8 @@ function IconGlyph({ name }: { name: AppIconName }) {
 }
 
 export function AppIcon({ name, className, size = 20 }: AppIconProps) {
+  if (name === 'calendar') return <AppBrandMark {...(className ? { className } : {})} size={size} />;
+
   return (
     <svg
       className={className}
@@ -115,7 +111,7 @@ export function AppIcon({ name, className, size = 20 }: AppIconProps) {
       aria-hidden="true"
       focusable="false"
     >
-      <IconGlyph name={name} />
+      <IconGlyph name={name as Exclude<AppIconName, 'calendar'>} />
     </svg>
   );
 }

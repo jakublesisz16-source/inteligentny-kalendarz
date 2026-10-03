@@ -37,7 +37,7 @@ describe('Build275 Week overlap readability', () => {
   });
 
   it('advances Build275 without changing database schema', () => {
-    expect(version).toContain("APP_VERSION = '1.2.0.277'");
+    expect(version).toContain("APP_VERSION = '1.2.0.278'");
     expect(version).toContain('DATABASE_SCHEMA_VERSION = 14');
   });
 });
