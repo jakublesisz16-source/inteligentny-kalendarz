@@ -26,9 +26,11 @@ describe('Sync Lab 0.1 isolation', () => {
     expect(client).toContain('serverTimestamp()');
   });
 
-  it('loads Firebase lazily from the official CDN only inside Sync Lab', () => {
+  it('loads Firebase lazily and gets client configuration from Firebase Hosting', () => {
     expect(client).toContain("FIREBASE_SDK_VERSION = '12.19.0'");
     expect(client).toContain('https://www.gstatic.com/firebasejs/');
+    expect(client).toContain("fetch('/__/firebase/init.json'");
+    expect(client).not.toContain('AIza');
     expect(main).toContain("import('./sync/SyncLabView')");
   });
 });
