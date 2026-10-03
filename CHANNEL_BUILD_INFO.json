@@ -1,11 +1,11 @@
 {
   "source": "PRIVATE",
   "surface": "public-stable",
-  "buildId": "ik-1.2.0.286-20261003-pluggable-local-first-sync",
-  "appVersion": "1.2.0.286",
+  "buildId": "ik-1.2.0.287-20261003-public-private-test-boundary",
+  "appVersion": "1.2.0.287",
   "releaseVersion": "1.2.0",
-  "packageVersion": "1.2.0-private.286",
-  "build": "286",
-  "contentFingerprint": "cf4cb441bc445187cf665615a989a00b71878ae840e7a177ce31e1c6f137f600",
+  "packageVersion": "1.2.0-private.287",
+  "build": "287",
+  "contentFingerprint": "a384f5397ac1ac69904e6f2cf6a00578b347a4cad45ca79f23e492803da25c1b",
   "fileCount": 557
 }
