@@ -459,7 +459,8 @@ export function createFirebaseGoogleSyncProvider(): SyncProvider {
       const cached = cloudSnapshotCache.get(user.uid);
       const cachedSnapshot = cached?.snapshotRef?.deref();
       if (
-        cachedSnapshot
+        cached
+        && cachedSnapshot
         && cached.revision === manifest.revision
         && cached.payloadSha256 === manifest.payloadSha256
       ) return cachedSnapshot;
