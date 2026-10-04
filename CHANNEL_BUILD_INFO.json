@@ -1,11 +1,11 @@
 {
   "source": "PRIVATE",
   "surface": "public-stable",
-  "buildId": "ik-1.2.0.305-20261004-sync-storage-hardening-test-fixture-fix",
-  "appVersion": "1.2.0.305",
+  "buildId": "ik-1.2.0.307-20261004-sync-account-isolation-ci-fixture-fix",
+  "appVersion": "1.2.0.307",
   "releaseVersion": "1.2.0",
-  "packageVersion": "1.2.0-private.305",
-  "build": "305",
-  "contentFingerprint": "824ff35dd3bfc98b854b9242313565a2210b210492989d31515f8af9508eebe3",
-  "fileCount": 574
+  "packageVersion": "1.2.0-private.307",
+  "build": "307",
+  "contentFingerprint": "7c76d8e00fffa73df1ea14189a0994b58e9a4c8c8eac62431bdce59cfd726bff",
+  "fileCount": 576
 }

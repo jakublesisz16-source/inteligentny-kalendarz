@@ -91,6 +91,7 @@ const STORE_EXPENSE_CATEGORIES = 'expenseCategories';
 const STORE_EXPENSE_PRODUCTS = 'expenseProducts';
 const STORE_RECEIPTS = 'receipts';
 const FINANCE_TRIPS_META_KEY = 'financeTrips.v1';
+const LOCAL_SYNC_OWNER_META_KEY = 'sync.ownerAccountId.v1';
 const STORE_CYCLE_PERIODS = 'cyclePeriods';
 const STORE_CYCLE_JOURNAL_ENTRIES = 'cycleJournalEntries';
 const STORE_NOTIFICATION_RUNTIME = 'notificationRuntime';
@@ -656,6 +657,56 @@ async function ensureInitialSettings(db: IDBDatabase): Promise<void> {
 export async function initializeDatabase(): Promise<void> {
   const db = await openDatabase();
   await ensureInitialSettings(db);
+}
+
+export async function readLocalSyncOwnerAccountId(): Promise<string | null> {
+  const db = await openDatabase();
+  const tx = db.transaction(STORE_META, 'readonly');
+  const record = await requestToPromise(
+    tx.objectStore(STORE_META).get(LOCAL_SYNC_OWNER_META_KEY) as IDBRequest<MetaRecord | undefined>,
+  );
+  await transactionDone(tx);
+  return typeof record?.value === 'string' && record.value.trim() ? record.value.trim() : null;
+}
+
+export async function claimLocalSyncOwnerAccountId(accountId: string): Promise<string> {
+  const normalized = accountId.trim();
+  if (!normalized) throw new Error('Nie można przypisać pustego identyfikatora konta synchronizacji.');
+  const db = await openDatabase();
+  const tx = db.transaction(STORE_META, 'readwrite');
+  const store = tx.objectStore(STORE_META);
+  const existing = await requestToPromise(store.get(LOCAL_SYNC_OWNER_META_KEY) as IDBRequest<MetaRecord | undefined>);
+  const existingValue = typeof existing?.value === 'string' ? existing.value.trim() : '';
+  if (!existingValue) store.put({ key: LOCAL_SYNC_OWNER_META_KEY, value: normalized } satisfies MetaRecord);
+  await transactionDone(tx);
+  return existingValue || normalized;
+}
+
+export async function resetLocalDatabaseForAccountSwitch(accountId: string): Promise<void> {
+  const normalized = accountId.trim();
+  if (!normalized) throw new Error('Nie można przełączyć na puste konto synchronizacji.');
+
+  const pending = databasePromise;
+  databasePromise = null;
+  if (pending) {
+    try {
+      const db = await pending;
+      db.close();
+    } catch {
+      // Continue with the destructive reset even if the previous open failed.
+    }
+  }
+
+  await new Promise<void>((resolve, reject) => {
+    const request = indexedDB.deleteDatabase(DB_NAME);
+    request.onsuccess = () => resolve();
+    request.onerror = () => reject(request.error ?? new Error('Nie udało się wyczyścić lokalnych danych przed przełączeniem konta.'));
+    request.onblocked = () => reject(new Error('Nie można przełączyć konta, ponieważ inna karta Inteligentnego Kalendarza nadal używa lokalnej bazy. Zamknij pozostałe karty i spróbuj ponownie.'));
+  });
+
+  await initializeDatabase();
+  const claimed = await claimLocalSyncOwnerAccountId(normalized);
+  if (claimed !== normalized) throw new Error('Nie udało się bezpiecznie przypisać lokalnych danych do nowego konta.');
 }
 
 export async function listEvents(): Promise<CalendarEvent[]> {
@@ -3673,6 +3724,14 @@ export async function applyStudyCorrection(input: ApplyStudyCorrectionInput): Pr
 }
 
 
+function snapshotStoreRows(name: string, rows: unknown[]): unknown[] {
+  if (name !== STORE_META) return rows;
+  return rows.filter((row) => {
+    const record = row as Partial<MetaRecord> | null;
+    return !record || record.key !== LOCAL_SYNC_OWNER_META_KEY;
+  });
+}
+
 async function captureSnapshot(storeNames: string[]): Promise<DatabaseSnapshot> {
   const db = await openDatabase();
   const available = storeNames.filter((name) => db.objectStoreNames.contains(name));
@@ -3684,7 +3743,8 @@ async function captureSnapshot(storeNames: string[]): Promise<DatabaseSnapshot> 
   // different revisions across captures/devices.
   for (const name of available) stores[name] = [];
   await Promise.all(available.map(async (name) => {
-    stores[name] = await requestToPromise(tx.objectStore(name).getAll() as IDBRequest<unknown[]>);
+    const rows = await requestToPromise(tx.objectStore(name).getAll() as IDBRequest<unknown[]>);
+    stores[name] = snapshotStoreRows(name, rows);
   }));
   await transactionDone(tx);
   return {
@@ -3701,6 +3761,9 @@ async function replaceSnapshot(snapshot: DatabaseSnapshot, includeJournal = fals
   if (snapshot.format !== 'inteligentny-kalendarz-snapshot' || snapshot.snapshotVersion !== 1) {
     throw new Error('Nieprawidłowy format punktu przywracania.');
   }
+  // The account owner is a local security anchor, not user data. It must survive
+  // cloud pulls, backup restores and rollback, and must never come from a snapshot.
+  const localSyncOwnerAccountId = await readLocalSyncOwnerAccountId();
   const db = await openDatabase();
   const requested = includeJournal ? backupSnapshotStoreNames() : restoreSnapshotStoreNames();
   const names = requested.filter((name) => db.objectStoreNames.contains(name));
@@ -3709,6 +3772,9 @@ async function replaceSnapshot(snapshot: DatabaseSnapshot, includeJournal = fals
     const store = tx.objectStore(name);
     store.clear();
     for (const item of snapshot.stores[name] ?? []) store.put(item);
+    if (name === STORE_META && localSyncOwnerAccountId) {
+      store.put({ key: LOCAL_SYNC_OWNER_META_KEY, value: localSyncOwnerAccountId } satisfies MetaRecord);
+    }
   }
   await transactionDone(tx);
 }

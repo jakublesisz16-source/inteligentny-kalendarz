@@ -18,6 +18,12 @@ export interface SyncSnapshotEnvelope {
   document: BackupDocument;
 }
 
+export interface SyncRemoteState {
+  revision: string;
+  updatedAt?: string;
+  payloadSha256?: string;
+}
+
 export interface SyncProviderCapabilities {
   cloud: boolean;
   authentication: boolean;
@@ -31,8 +37,9 @@ export interface SyncProvider {
   getAccount(): Promise<SyncAccount | null>;
   signIn(): Promise<SyncAccount | null>;
   signOut(): Promise<void>;
-  pullLatest(): Promise<SyncSnapshotEnvelope | null>;
-  pushSnapshot(snapshot: SyncSnapshotEnvelope, expectedRevision?: string | null): Promise<void>;
+  readRemoteState?(): Promise<SyncRemoteState | null>;
+  pullLatest(expectedState?: SyncRemoteState | null): Promise<SyncSnapshotEnvelope | null>;
+  pushSnapshot(snapshot: SyncSnapshotEnvelope, expectedRevision?: string | null): Promise<SyncRemoteState | void>;
 }
 
 export interface SyncStatus {
@@ -73,7 +80,7 @@ export type SyncReconcileResult =
   | { phase: 'recovery-required'; status: SyncStatus; recovery: SyncRecoveryConflict };
 
 export interface SyncRuntimeNotice {
-  state: 'local-only' | 'signed-out' | 'syncing' | 'synced' | 'conflict' | 'recovery-required' | 'error';
+  state: 'local-only' | 'signed-out' | 'syncing' | 'synced' | 'conflict' | 'recovery-required' | 'account-mismatch' | 'error';
   providerId: string;
   account?: SyncAccount;
   message?: string;
