@@ -1,11 +1,11 @@
 {
   "source": "PRIVATE",
   "surface": "public-stable",
-  "buildId": "ik-1.2.0.312-20261004-manual-study-plan-test-contract-fix",
-  "appVersion": "1.2.0.312",
+  "buildId": "ik-1.2.0.313-20261004-calendar-manual-mint-dot",
+  "appVersion": "1.2.0.313",
   "releaseVersion": "1.2.0",
-  "packageVersion": "1.2.0-private.312",
-  "build": "312",
-  "contentFingerprint": "d8c5ab47bfa160c7138511cb797aa2211d76cdaee24b5d667d12b7015a4a7250",
-  "fileCount": 582
+  "packageVersion": "1.2.0-private.313",
+  "build": "313",
+  "contentFingerprint": "b386c67b5f6dd309da109b21c51de9482427a78db1726b4929c5ff48024b90ef",
+  "fileCount": 583
 }

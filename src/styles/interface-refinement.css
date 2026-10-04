@@ -5558,3 +5558,22 @@ body.modal-open { overflow: hidden; }
     padding: 9px 12px 10px !important;
   }
 }
+
+
+/* 1.2.0.313 - manual events use a mint source dot in Calendar without tinting cards or cells */
+.calendar-view .calendar-manual-source-dot,
+.calendar-view .event-card.manual-source-accent .event-source-dot {
+  width: 8px;
+  height: 8px;
+  display: inline-block;
+  flex: 0 0 auto;
+  border-radius: 999px;
+  background: var(--success);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--success-soft) 90%, transparent);
+}
+.calendar-view .calendar-manual-source-dot {
+  margin: 0 3px 0 1px;
+}
+.calendar-view .event-card.manual-source-accent .event-heading-row {
+  gap: 8px;
+}

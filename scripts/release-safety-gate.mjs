@@ -806,4 +806,9 @@ assert(studyView.includes("verification.state === 'NEW_SOURCE'") && studyView.in
 assert(storageDatabaseV296.includes('applyVerifiedStudyPlanManualCorrectionsToActivePlan') && storageDatabaseV296.includes('if (isVerifiedManualStudySource(active.fileHash)) return empty;') && storageDatabaseV296.includes('removedInferredEventCount'), 'Build310 active-plan repair or no-recurring-inference contract missing');
 assert(storageDatabaseV296.includes('studyLocationExactKey') && storageDatabaseV296.includes('candidateStudyLocationKey') && storageDatabaseV296.includes('candidate.clinic ?? candidate.locationLabel ?? candidate.address'), 'Build310 same-address study-unit location identity contract missing');
 
+// Build313: source=MANUAL owns the mint source accent across Today and Calendar.
+assert(calendarView.includes("const manualEventCount = dayEvents.filter((event) => event.source === 'MANUAL').length") && calendarView.includes('calendar-manual-source-dot') && calendarView.includes('visibleCategoryCounts[event.category]'), 'Build313 month Calendar manual-source mint dot contract missing');
+assert(calendarView.includes('compactTimeRange accentManualSource') && eventCard.includes("accentManualSource && event.source === 'MANUAL'"), 'Build313 selected-day manual-source mint dot contract missing');
+assert(interfaceRefinement.includes('1.2.0.313 - manual events use a mint source dot in Calendar without tinting cards or cells'), 'Build313 mint-dot styling contract missing');
+
 console.log('RELEASE_SAFETY_GATE_OK');
