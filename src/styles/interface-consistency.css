@@ -601,7 +601,7 @@
 .calendar-selected-day-overlays span { min-height: 24px; display: inline-flex; align-items: center; padding: 3px 8px; border-radius: 999px; font-size: .61rem; font-weight: 800; }
 .calendar-selected-day-overlays .overlay-polish_holiday { background: color-mix(in srgb, var(--accent-soft) 72%, var(--surface)); color: var(--accent-strong); }
 .calendar-selected-day-overlays .overlay-wum_break,
-.calendar-selected-day-overlays .overlay-wum_rector_day { background: color-mix(in srgb, var(--calendar-day-off) 82%, var(--surface)); color: var(--category-personal); }
+.calendar-selected-day-overlays .overlay-wum_rector_day { background: color-mix(in srgb, var(--calendar-day-off) 82%, var(--surface)); color: var(--calendar-day-off-strong); }
 .calendar-selected-day-overlays .overlay-wum_vacation { background: color-mix(in srgb, var(--calendar-vacation) 76%, var(--surface)); color: var(--calendar-vacation-strong); }
 .calendar-selected-day-overlays .overlay-wum_session { background: color-mix(in srgb, var(--calendar-session) 72%, var(--surface)); color: var(--calendar-session-strong); }
 .calendar-selected-day-content {

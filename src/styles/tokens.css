@@ -14,12 +14,11 @@
   --danger-soft: #f9e8e8;
   --success: #4f7b68;
   --success-soft: #e8f2ed;
-  --manual-event-mint: #5fb99a;
-  --manual-event-mint-soft: #e7f6f0;
   --warning: #9b6a35;
   --warning-soft: #fbf0df;
   --calendar-day-off: #efe5f7;
   --calendar-day-off-border: #d5c3e5;
+  --calendar-day-off-strong: #695591;
   --calendar-session: #e4edf7;
   --calendar-session-border: #b9cbe0;
   --calendar-session-strong: #6f89ad;
@@ -55,8 +54,8 @@
   --category-study-soft: #fae8ef;
   --category-work: #2f7382;
   --category-work-soft: #e5f1f4;
-  --category-personal: #695591;
-  --category-personal-soft: #eee9f7;
+  --category-personal: #4f9f83;
+  --category-personal-soft: #e7f6f0;
   --category-other: #605b56;
   --category-other-soft: #f1eeeb;
   --study: var(--category-study);

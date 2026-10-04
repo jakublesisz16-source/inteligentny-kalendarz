@@ -5518,7 +5518,7 @@ body.modal-open { overflow: hidden; }
 
 
 
-/* 1.2.0.309/314 - compact Today tomorrow preview; manual-source color stays in Calendar only */
+/* 1.2.0.309/315 - compact Today tomorrow preview; no extra source-dot */
 .today-view .today-future-preview {
   padding: 8px 14px 9px !important;
 }
@@ -5535,23 +5535,4 @@ body.modal-open { overflow: hidden; }
   .today-view .today-future-preview {
     padding: 9px 12px 10px !important;
   }
-}
-
-
-/* 1.2.0.314 - manual events use a visible mint source dot in Calendar only */
-.calendar-view-shell .calendar-manual-source-dot,
-.calendar-view-shell .event-card.manual-source-accent .event-source-dot {
-  width: 8px;
-  height: 8px;
-  display: inline-block;
-  flex: 0 0 auto;
-  border-radius: 999px;
-  background: var(--manual-event-mint);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--manual-event-mint-soft) 92%, transparent);
-}
-.calendar-view-shell .calendar-manual-source-dot {
-  margin: 0 3px 0 1px;
-}
-.calendar-view-shell .event-card.manual-source-accent .event-heading-row {
-  gap: 8px;
 }

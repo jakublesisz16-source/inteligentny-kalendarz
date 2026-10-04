@@ -1,11 +1,11 @@
 {
   "source": "PRIVATE",
   "surface": "public-stable",
-  "buildId": "ik-1.2.0.314-20261004-calendar-mint-dot-visible-today-clean",
-  "appVersion": "1.2.0.314",
+  "buildId": "ik-1.2.0.315-20261004-personal-mint-semantic-category",
+  "appVersion": "1.2.0.315",
   "releaseVersion": "1.2.0",
-  "packageVersion": "1.2.0-private.314",
-  "build": "314",
-  "contentFingerprint": "b889221551ffd2153277bee1cb70cb1304af16497d4702f3076ad0ff06829b2c",
-  "fileCount": 584
+  "packageVersion": "1.2.0-private.315",
+  "build": "315",
+  "contentFingerprint": "0fc7d734097ee00433425d7b377eeeba55aa8a46b7bc39b0a11d480461776ff0",
+  "fileCount": 585
 }

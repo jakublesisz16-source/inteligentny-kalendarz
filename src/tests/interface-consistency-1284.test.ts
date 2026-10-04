@@ -11,7 +11,7 @@ describe('1.2.0.85 interface consistency and semantic category contrast', () => 
   it('uses the restored semantic colors for Study, Work and Personal with stronger contrast', () => {
     expect(tokens).toContain('--category-study: #b95d84');
     expect(tokens).toContain('--category-work: #2f7382');
-    expect(tokens).toContain('--category-personal: #695591');
+    expect(tokens).toContain('--category-personal: #4f9f83');
     expect(consistency).toContain('.calendar-week-event.category-study');
     expect(consistency).toContain('.calendar-week-event.category-work');
     expect(consistency).toContain('.calendar-week-event.category-personal');
