@@ -27,9 +27,10 @@ interface EventCardProps {
   workCoworkerLimit?: number | undefined;
   compactTimeRange?: boolean | undefined;
   compactCoworkerLabel?: boolean | undefined;
+  accentManualSource?: boolean | undefined;
 }
 
-export function EventCard({ event, location, timeFormat, seriesCount, onEdit, onDelete, onStudyCorrect, workCoworkers = [], showAllWorkCoworkers = false, workCoworkerLimit = 4, compactTimeRange = false, compactCoworkerLabel = false }: EventCardProps) {
+export function EventCard({ event, location, timeFormat, seriesCount, onEdit, onDelete, onStudyCorrect, workCoworkers = [], showAllWorkCoworkers = false, workCoworkerLimit = 4, compactTimeRange = false, compactCoworkerLabel = false, accentManualSource = false }: EventCardProps) {
   const hasStudyIssues = event.source === 'UNIVERSITY_XLSX' && Boolean(event.studyIssueCodes?.length);
   const multiDay = event.spanType === 'MULTI_DAY' || eventDayCount(event) > 1;
   const directionsUrl = location
@@ -45,6 +46,7 @@ export function EventCard({ event, location, timeFormat, seriesCount, onEdit, on
       ? `${workCoworkers.length} osoby`
       : `${workCoworkers.length} osób`;
   const studyDisplay = studyEventDisplay(event);
+  const showManualSourceAccent = accentManualSource && event.source === 'MANUAL';
   const locationText = location
     ? (() => {
         const name = location.name.trim();
@@ -58,13 +60,14 @@ export function EventCard({ event, location, timeFormat, seriesCount, onEdit, on
       })()
     : event.locationText?.trim() || undefined;
   return (
-    <article className={`event-card category-${event.category.toLowerCase()}${multiDay ? ' multi-day-event-card' : ''}${event.allDay ? ' all-day-event-card' : ''}${compactTimeRange && !event.allDay && !multiDay ? ' compact-time-range' : ''}`}>
+    <article className={`event-card category-${event.category.toLowerCase()}${multiDay ? ' multi-day-event-card' : ''}${event.allDay ? ' all-day-event-card' : ''}${compactTimeRange && !event.allDay && !multiDay ? ' compact-time-range' : ''}${showManualSourceAccent ? ' manual-source-accent' : ''}`}>
       <div className="event-time">
         {event.allDay ? <><strong>Cały dzień</strong>{multiDay ? <span>{formatEventDateRange(event)}</span> : <span>bez godzin</span>}</> : multiDay ? <><strong>Wiele dni</strong><span>{formatEventDateRange(event)}</span></> : compactTimeRange ? <strong>{formatTime(event.startDateTime, timeFormat)}-{formatTime(event.endDateTime, timeFormat)}</strong> : <><strong>{formatTime(event.startDateTime, timeFormat)}</strong><span>{formatTime(event.endDateTime, timeFormat)}</span></>}
         {studyDisplay.groupLabel ? <span className="event-study-group">{studyDisplay.groupLabel}</span> : null}
       </div>
       <div className="event-content">
         <div className="event-heading-row">
+          {showManualSourceAccent ? <span className="event-source-dot event-source-dot-manual" aria-hidden="true" /> : null}
           <h3>{event.title}</h3><span className="event-category">{categoryLabels[event.category]}</span>
           {event.source === 'UNIVERSITY_XLSX' && event.userModified ? <span className="event-source">Zmieniono ręcznie</span> : null}
           {event.source === 'WORK_PDF' ? <span className="event-source">Grafik pracy{event.userModified ? ' - zmieniono ręcznie' : ''}</span> : null}

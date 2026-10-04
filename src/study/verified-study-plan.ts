@@ -14,20 +14,20 @@ export const VERIFIED_STUDY_PLAN_2026_10_02 = {
   adapterId: 'nursing-week-matrix-v2',
   allCandidatesSha256: '7bb9cc0c0700aa6e3e1ff5bc4bf996db8eabb81d8e26a1922c1348dfe272143a',
   selectedProfile: {
-    selectedGroups: ['MAIN:7', 'G12:7A', 'G8:7B', 'G4:7B2'],
-    candidatesSha256: '06f695170d8624d20183c247c76a9120d31f791c0303e971094eecbb3bad0ab5',
-    candidateCount: 79,
-    importableCount: 76,
+    selectedGroups: ['MAIN:11', 'G12:11B', 'G8:11B', 'G4:11B2'],
+    candidatesSha256: 'b14efd1ef832c2f5268c1560af7bf063b6e2e9f2b7745f96ff037b885772017e',
+    candidateCount: 77,
+    importableCount: 74,
     readyCount: 69,
-    warningCount: 7,
+    warningCount: 5,
     incompleteCount: 3,
     blockingCount: 0,
     conflictCount: 1,
     importableMonthCounts: {
-      '2026-10': 21,
-      '2026-11': 31,
-      '2026-12': 14,
-      '2027-01': 10,
+      '2026-10': 17,
+      '2026-11': 20,
+      '2026-12': 19,
+      '2027-01': 18,
     },
   },
   audit: {
@@ -196,10 +196,10 @@ export async function verifyStudyPlanAgainstReference(
     conflictCount: reference.selectedProfile.conflictCount,
     importableMonthCounts: reference.selectedProfile.importableMonthCounts,
   };
-  pushMismatch(reasons, 'audyt profilu 7/7A/7B/7B2', selectedProfile, expectedProfileAudit);
+  pushMismatch(reasons, 'audyt profilu 11/11B/11B/11B2', selectedProfile, expectedProfileAudit);
 
   const selectedProfileCandidatesSha256 = await candidateSemanticFingerprint(candidatesForSelectedGroups(input.analysis, selectedGroups));
-  pushMismatch(reasons, 'fingerprint semantyczny profilu 7/7A/7B/7B2', selectedProfileCandidatesSha256, reference.selectedProfile.candidatesSha256);
+  pushMismatch(reasons, 'fingerprint semantyczny profilu 11/11B/11B/11B2', selectedProfileCandidatesSha256, reference.selectedProfile.candidatesSha256);
 
   return {
     state: reasons.length ? 'BLOCKED_REFERENCE_DRIFT' : 'VERIFIED_REFERENCE',

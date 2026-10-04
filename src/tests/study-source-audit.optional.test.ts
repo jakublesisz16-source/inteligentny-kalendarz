@@ -7,7 +7,7 @@ import { analyzeScheduleWorkbook } from '../imports/xlsx/adapter-registry';
 import { readSpreadsheetFile } from '../imports/xlsx/spreadsheet-reader';
 import { auditSelectedStudyProfile, buildStudySourceAudit } from '../study/study-source-audit';
 import { candidatesForSelectedGroups } from '../study/study.service';
-import { applyRecurringStudyPatternAssumptions } from '../study/study-recurring-pattern-assumptions';
+import { applyVerifiedStudyPlanManualCorrectionsToAnalysis } from '../study/verified-study-plan-manual';
 import { candidateSemanticFingerprint } from '../study/verified-study-plan';
 
 const sourcePath = process.env.IK_STUDY_XLS_PATH;
@@ -111,8 +111,8 @@ describe('optional real study source QA audit', () => {
         }
       }
       if (state.activeStudyOperationalProfile) {
-        const enriched = applyRecurringStudyPatternAssumptions(analysis!);
-        const operational = auditSelectedStudyProfile(enriched, state.activeStudyOperationalProfile.selectedGroups);
+        const manuallyVerified = applyVerifiedStudyPlanManualCorrectionsToAnalysis(analysis!, hash);
+        const operational = auditSelectedStudyProfile(manuallyVerified, state.activeStudyOperationalProfile.selectedGroups);
         expect(operational).toEqual({
           selectedGroups: state.activeStudyOperationalProfile.selectedGroups,
           valid: true,
@@ -127,7 +127,7 @@ describe('optional real study source QA audit', () => {
           importableMonthCounts: state.activeStudyOperationalProfile.importableMonthCounts,
         });
         if (state.activeStudyOperationalProfile.candidatesSha256) {
-          expect(await candidateSemanticFingerprint(candidatesForSelectedGroups(enriched, state.activeStudyOperationalProfile.selectedGroups)))
+          expect(await candidateSemanticFingerprint(candidatesForSelectedGroups(manuallyVerified, state.activeStudyOperationalProfile.selectedGroups)))
             .toBe(state.activeStudyOperationalProfile.candidatesSha256);
         }
       }

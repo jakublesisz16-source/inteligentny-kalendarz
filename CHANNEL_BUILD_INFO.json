@@ -1,11 +1,11 @@
 {
   "source": "PRIVATE",
   "surface": "public-stable",
-  "buildId": "ik-1.2.0.308-20261004-sync-diagnostics-quota-guard-cadence",
-  "appVersion": "1.2.0.308",
+  "buildId": "ik-1.2.0.311-20261004-manual-study-plan-ci-type-fix",
+  "appVersion": "1.2.0.311",
   "releaseVersion": "1.2.0",
-  "packageVersion": "1.2.0-private.308",
-  "build": "308",
-  "contentFingerprint": "9b7b0d43f006f2059ee2bf2f188bfce504228a8f32c5302b906d48a5a3a74917",
-  "fileCount": 578
+  "packageVersion": "1.2.0-private.311",
+  "build": "311",
+  "contentFingerprint": "aeb1b4ef4a8060a46b22cc61a2f2dd3788ea2126e08443afc839726090e68ddc",
+  "fileCount": 582
 }

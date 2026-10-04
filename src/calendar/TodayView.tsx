@@ -86,7 +86,7 @@ export function TodayView({ events, locations, timeFormat, showPolishHolidays = 
         {todayEvents.length ? (
           <div className="event-list today-event-list">
             {todayEvents.map((event) => (
-              <EventCard key={event.id} event={event} location={event.locationId ? locationMap.get(event.locationId) : undefined} timeFormat={timeFormat} seriesCount={event.seriesId ? seriesCountById.get(event.seriesId) : undefined} onEdit={onEdit} onStudyCorrect={onStudyCorrect} workCoworkers={coworkersByEvent[event.id] ?? []} showAllWorkCoworkers compactTimeRange compactCoworkerLabel />
+              <EventCard key={event.id} event={event} location={event.locationId ? locationMap.get(event.locationId) : undefined} timeFormat={timeFormat} seriesCount={event.seriesId ? seriesCountById.get(event.seriesId) : undefined} onEdit={onEdit} onStudyCorrect={onStudyCorrect} workCoworkers={coworkersByEvent[event.id] ?? []} showAllWorkCoworkers compactTimeRange compactCoworkerLabel accentManualSource />
             ))}
           </div>
         ) : todayAvailability.length ? null : (
@@ -105,10 +105,10 @@ export function TodayView({ events, locations, timeFormat, showPolishHolidays = 
           <strong className="today-tomorrow-title">Jutro</strong>
           <div className="today-tomorrow-list">{tomorrowEvents.map((event) => {
             const location = event.locationId ? locationMap.get(event.locationId)?.name : event.locationText;
-            return <div key={event.id} className={`today-tomorrow-row category-${event.category.toLowerCase()}`}>
+            return <div key={event.id} className={`today-tomorrow-row category-${event.category.toLowerCase()}${event.source === 'MANUAL' ? ' manual-source-accent' : ''}`}>
               <span>{event.allDay ? 'Cały dzień' : `${formatTime(event.startDateTime, timeFormat)}-${formatTime(event.endDateTime, timeFormat)}`}</span>
               <div>
-                <strong>{event.title}</strong>
+                <strong>{event.source === 'MANUAL' ? <span className="today-source-dot" aria-hidden="true" /> : null}{event.title}</strong>
                 {location ? <small>{location}</small> : null}
               </div>
             </div>;
