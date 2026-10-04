@@ -15,8 +15,9 @@ import {
   resetSyncProviderPreference,
   setPreferredSyncProviderId,
 } from './sync-config';
+import { SyncAccountOwnershipError } from './sync-errors';
 import { createSyncService } from './sync-service';
-import type { SyncConflictChoice, SyncReconcileResult, SyncRuntimeNotice } from './sync.types';
+import type { SyncAccount, SyncConflictChoice, SyncReconcileResult, SyncRuntimeNotice } from './sync.types';
 
 interface SyncSettingsPanelProps {
   onRemoteApplied: () => Promise<void>;
@@ -78,13 +79,15 @@ export function SyncSettingsPanel({ onRemoteApplied }: SyncSettingsPanelProps) {
   const [notice, setNotice] = useState<SyncRuntimeNotice>(() => getLatestSyncRuntimeNotice());
   const [busy, setBusy] = useState(false);
   const [confirmRecovery, setConfirmRecovery] = useState(false);
+  const [confirmAccountSwitch, setConfirmAccountSwitch] = useState(false);
 
   useEffect(() => {
     const handler = (event: Event) => {
       const incoming = (event as CustomEvent<SyncRuntimeNotice>).detail;
       if (incoming.state !== 'recovery-required') setConfirmRecovery(false);
+      if (incoming.state !== 'account-mismatch') setConfirmAccountSwitch(false);
       setNotice((current) => {
-        if (incoming.account || (incoming.state !== 'error' && incoming.state !== 'syncing')) return incoming;
+        if (incoming.account || !['error', 'syncing', 'account-mismatch'].includes(incoming.state)) return incoming;
         return { ...incoming, ...(current.account ? { account: current.account } : {}) };
       });
     };
@@ -116,11 +119,13 @@ export function SyncSettingsPanel({ onRemoteApplied }: SyncSettingsPanelProps) {
   async function connectGoogle() {
     setBusy(true);
     setConfirmRecovery(false);
+    setConfirmAccountSwitch(false);
     setNotice({ state: 'syncing', providerId: FIREBASE_GOOGLE_SYNC_PROVIDER_ID, message: 'Łączę z kontem Google...' });
+    let signedInAccount: SyncAccount | null = null;
     try {
       const service = await createSyncService(FIREBASE_GOOGLE_SYNC_PROVIDER_ID);
-      const account = await service.signIn();
-      if (!account) throw new Error('Logowanie Google nie zostało zakończone.');
+      signedInAccount = await service.signIn();
+      if (!signedInAccount) throw new Error('Logowanie Google nie zostało zakończone.');
       const result = await service.reconcile();
       setPreferredSyncProviderId(FIREBASE_GOOGLE_SYNC_PROVIDER_ID);
       const next = noticeFromResult(result);
@@ -131,11 +136,19 @@ export function SyncSettingsPanel({ onRemoteApplied }: SyncSettingsPanelProps) {
       }
       requestSyncWake();
     } catch (error) {
-      const next: SyncRuntimeNotice = {
-        state: 'error',
-        providerId: FIREBASE_GOOGLE_SYNC_PROVIDER_ID,
-        message: error instanceof Error ? error.message : 'Nie udało się połączyć z Google.',
-      };
+      const next: SyncRuntimeNotice = error instanceof SyncAccountOwnershipError
+        ? {
+            state: 'account-mismatch',
+            providerId: FIREBASE_GOOGLE_SYNC_PROVIDER_ID,
+            ...(signedInAccount ? { account: signedInAccount } : {}),
+            message: error.message,
+          }
+        : {
+            state: 'error',
+            providerId: FIREBASE_GOOGLE_SYNC_PROVIDER_ID,
+            ...(signedInAccount ? { account: signedInAccount } : {}),
+            message: error instanceof Error ? error.message : 'Nie udało się połączyć z Google.',
+          };
       setNotice(next);
       publishSyncRuntimeNotice(next);
     } finally {
@@ -153,12 +166,19 @@ export function SyncSettingsPanel({ onRemoteApplied }: SyncSettingsPanelProps) {
       publishSyncRuntimeNotice(next);
       if (result.phase === 'pulled') await onRemoteApplied();
     } catch (error) {
-      const next: SyncRuntimeNotice = {
-        state: 'error',
-        providerId: FIREBASE_GOOGLE_SYNC_PROVIDER_ID,
-        ...(notice.account ? { account: notice.account } : {}),
-        message: error instanceof Error ? error.message : 'Nie udało się zsynchronizować danych.',
-      };
+      const next: SyncRuntimeNotice = error instanceof SyncAccountOwnershipError
+        ? {
+            state: 'account-mismatch',
+            providerId: FIREBASE_GOOGLE_SYNC_PROVIDER_ID,
+            ...(notice.account ? { account: notice.account } : {}),
+            message: error.message,
+          }
+        : {
+            state: 'error',
+            providerId: FIREBASE_GOOGLE_SYNC_PROVIDER_ID,
+            ...(notice.account ? { account: notice.account } : {}),
+            message: error instanceof Error ? error.message : 'Nie udało się zsynchronizować danych.',
+          };
       setNotice(next);
       publishSyncRuntimeNotice(next);
     } finally {
@@ -218,6 +238,36 @@ export function SyncSettingsPanel({ onRemoteApplied }: SyncSettingsPanelProps) {
     }
   }
 
+  async function switchAccount() {
+    if (!confirmAccountSwitch) {
+      setConfirmAccountSwitch(true);
+      return;
+    }
+    setBusy(true);
+    try {
+      const service = await createSyncService(FIREBASE_GOOGLE_SYNC_PROVIDER_ID);
+      const result = await service.switchToCurrentAccount();
+      setPreferredSyncProviderId(FIREBASE_GOOGLE_SYNC_PROVIDER_ID);
+      const next = noticeFromResult(result);
+      setConfirmAccountSwitch(false);
+      setNotice(next);
+      publishSyncRuntimeNotice(next);
+      await onRemoteApplied();
+      requestSyncWake();
+    } catch (error) {
+      const next: SyncRuntimeNotice = {
+        state: error instanceof SyncAccountOwnershipError ? 'account-mismatch' : 'error',
+        providerId: FIREBASE_GOOGLE_SYNC_PROVIDER_ID,
+        ...(notice.account ? { account: notice.account } : {}),
+        message: error instanceof Error ? error.message : 'Nie udało się przełączyć konta.',
+      };
+      setNotice(next);
+      publishSyncRuntimeNotice(next);
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function disconnect() {
     setBusy(true);
     try {
@@ -250,7 +300,7 @@ export function SyncSettingsPanel({ onRemoteApplied }: SyncSettingsPanelProps) {
         </button>
       ) : (
         <div className="settings-sync-actions">
-          <button type="button" className="button button-secondary" disabled={busy || notice.state === 'conflict' || notice.state === 'recovery-required'} onClick={() => void syncNow()}>{busy ? 'Synchronizuję...' : 'Synchronizuj teraz'}</button>
+          <button type="button" className="button button-secondary" disabled={busy || notice.state === 'conflict' || notice.state === 'recovery-required' || notice.state === 'account-mismatch'} onClick={() => void syncNow()}>{busy ? 'Synchronizuję...' : 'Synchronizuj teraz'}</button>
           <button type="button" className="button button-secondary" disabled={busy} onClick={() => void disconnect()}>Wyloguj</button>
         </div>
       )}
@@ -265,8 +315,30 @@ export function SyncSettingsPanel({ onRemoteApplied }: SyncSettingsPanelProps) {
           {notice.state === 'error' ? (notice.message ?? 'Synchronizacja jest chwilowo niedostępna.') : null}
           {notice.state === 'conflict' ? 'Zmiany są na obu urządzeniach. Wybierz, które dane zachować.' : null}
           {notice.state === 'recovery-required' ? (notice.message ?? 'Chmura wymaga jednorazowego wskazania wspólnej wersji.') : null}
+          {notice.state === 'account-mismatch' ? (notice.message ?? 'Dane na tym urządzeniu należą do innego konta Google.') : null}
         </span>
       </div>
+
+      {connected && notice.state === 'account-mismatch' ? (
+        <div className="settings-sync-recovery" role="group" aria-label="Przełącz konto synchronizacji">
+          <div className="settings-sync-recovery-copy">
+            <strong>To urządzenie ma dane innego konta</strong>
+            <span>Automatyczne połączenie zostało zablokowane, aby dane jednego konta nie trafiły do drugiego.</span>
+            <span>Przełączenie usunie lokalną kopię z tego urządzenia i pobierze dane obecnie zalogowanego konta Google. Nie dzieje się to automatycznie.</span>
+          </div>
+          {!confirmAccountSwitch ? (
+            <button type="button" className="button button-secondary" disabled={busy} onClick={() => void switchAccount()}>Przełącz konto</button>
+          ) : (
+            <div className="settings-sync-recovery-confirm">
+              <span>Lokalne dane poprzedniego konta na tym urządzeniu zostaną usunięte. Kontynuuj tylko wtedy, gdy chcesz przejść na konto {notice.account?.email ?? notice.account?.displayName ?? 'Google'}.</span>
+              <div>
+                <button type="button" className="button button-primary" disabled={busy} onClick={() => void switchAccount()}>{busy ? 'Przełączam...' : 'Potwierdź przełączenie'}</button>
+                <button type="button" className="button button-secondary" disabled={busy} onClick={() => setConfirmAccountSwitch(false)}>Anuluj</button>
+              </div>
+            </div>
+          )}
+        </div>
+      ) : null}
 
       {connected && notice.state === 'conflict' ? (
         <div className="settings-sync-conflict" role="group" aria-label="Rozwiąż konflikt synchronizacji">

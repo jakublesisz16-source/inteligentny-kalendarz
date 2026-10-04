@@ -1,11 +1,11 @@
 {
   "source": "PRIVATE",
   "surface": "public-stable",
-  "buildId": "ik-1.2.0.305-20261004-sync-storage-hardening-test-fixture-fix",
-  "appVersion": "1.2.0.305",
+  "buildId": "ik-1.2.0.306-20261004-sync-account-isolation-firestore-efficiency",
+  "appVersion": "1.2.0.306",
   "releaseVersion": "1.2.0",
-  "packageVersion": "1.2.0-private.305",
-  "build": "305",
-  "contentFingerprint": "824ff35dd3bfc98b854b9242313565a2210b210492989d31515f8af9508eebe3",
-  "fileCount": 574
+  "packageVersion": "1.2.0-private.306",
+  "build": "306",
+  "contentFingerprint": "22230a555138e87e75cec84b8c98060f3ef1aac320336003ce0c31e0aa9d745e",
+  "fileCount": 576
 }

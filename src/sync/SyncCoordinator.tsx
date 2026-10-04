@@ -1,17 +1,20 @@
 import { useEffect } from 'react';
 import { LOCAL_DATA_CHANGED_EVENT } from '../storage/data-change-events';
 import { getPreferredSyncProviderId } from './sync-config';
+import { SyncAccountOwnershipError } from './sync-errors';
 import {
   publishSyncRemoteApplied,
   publishSyncRuntimeNotice,
   SYNC_WAKE_EVENT,
 } from './sync-events';
 import { LOCAL_ONLY_SYNC_PROVIDER_ID } from './provider-ids';
-import { createSyncService } from './sync-service';
+import { createSyncService, type SyncService } from './sync-service';
+import { createSyncTabCoordinator } from './sync-tab-coordination';
 import type { SyncReconcileResult } from './sync.types';
 
 const AUTO_SYNC_INTERVAL_MS = 30_000;
 const LOCAL_CHANGE_DEBOUNCE_MS = 1_500;
+const LEADER_HEARTBEAT_MS = 4_000;
 
 function publishResult(result: SyncReconcileResult): void {
   if (result.phase === 'local-only') {
@@ -62,9 +65,37 @@ export function SyncCoordinator() {
     let running = false;
     let queued = false;
     let debounceTimer: number | null = null;
+    let service: SyncService | null = null;
+
+    const coordinator = createSyncTabCoordinator((type) => {
+      if (disposed) return;
+      if (type === 'remote-applied') {
+        publishSyncRemoteApplied();
+        return;
+      }
+      if (!coordinator.refreshLeadership()) return;
+      if (type === 'local-change') scheduleFromLocalChange(false);
+      else if (type === 'wake') void run();
+    });
+
+    async function publishAccountMismatch(providerId: string, error: SyncAccountOwnershipError) {
+      let account = undefined;
+      try {
+        account = (await service?.getStatus())?.account ?? undefined;
+      } catch {
+        // The ownership guard remains valid even if account metadata cannot refresh.
+      }
+      publishSyncRuntimeNotice({
+        state: 'account-mismatch',
+        providerId,
+        ...(account ? { account } : {}),
+        message: error.message,
+      });
+    }
 
     async function run() {
-      if (disposed) return;
+      if (disposed || document.visibilityState !== 'visible') return;
+      if (!coordinator.refreshLeadership()) return;
       const providerId = getPreferredSyncProviderId();
       if (providerId === LOCAL_ONLY_SYNC_PROVIDER_ID) {
         publishSyncRuntimeNotice({ state: 'local-only', providerId });
@@ -77,16 +108,22 @@ export function SyncCoordinator() {
       running = true;
       publishSyncRuntimeNotice({ state: 'syncing', providerId, message: 'Synchronizuję dane...' });
       try {
-        const service = await createSyncService(providerId);
+        service = await createSyncService(providerId);
         const result = await service.reconcile();
-        if (!disposed) publishResult(result);
+        if (!disposed) {
+          publishResult(result);
+          if (result.phase === 'pulled') coordinator.announce('remote-applied');
+        }
       } catch (error) {
         if (!disposed) {
-          publishSyncRuntimeNotice({
-            state: 'error',
-            providerId,
-            message: error instanceof Error ? error.message : 'Nie udało się zsynchronizować danych.',
-          });
+          if (error instanceof SyncAccountOwnershipError) await publishAccountMismatch(providerId, error);
+          else {
+            publishSyncRuntimeNotice({
+              state: 'error',
+              providerId,
+              message: error instanceof Error ? error.message : 'Nie udało się zsynchronizować danych.',
+            });
+          }
         }
       } finally {
         running = false;
@@ -97,8 +134,12 @@ export function SyncCoordinator() {
       }
     }
 
-    function scheduleFromLocalChange() {
+    function scheduleFromLocalChange(announceIfFollower = true) {
       if (getPreferredSyncProviderId() === LOCAL_ONLY_SYNC_PROVIDER_ID) return;
+      if (!coordinator.refreshLeadership()) {
+        if (announceIfFollower) coordinator.announce('local-change');
+        return;
+      }
       if (debounceTimer !== null) window.clearTimeout(debounceTimer);
       debounceTimer = window.setTimeout(() => {
         debounceTimer = null;
@@ -106,28 +147,50 @@ export function SyncCoordinator() {
       }, LOCAL_CHANGE_DEBOUNCE_MS);
     }
 
-    function handleVisibility() {
-      if (document.visibilityState === 'visible') void run();
+    function handleLocalDataChanged() {
+      scheduleFromLocalChange(true);
     }
 
-    const interval = window.setInterval(() => {
-      if (document.visibilityState === 'visible') void run();
-    }, AUTO_SYNC_INTERVAL_MS);
+    function handleWake() {
+      if (coordinator.refreshLeadership()) void run();
+      else coordinator.announce('wake');
+    }
 
-    window.addEventListener(LOCAL_DATA_CHANGED_EVENT, scheduleFromLocalChange);
-    window.addEventListener(SYNC_WAKE_EVENT, run);
-    window.addEventListener('focus', run);
+    function handleVisibility() {
+      if (document.visibilityState !== 'visible') {
+        coordinator.refreshLeadership();
+        return;
+      }
+      if (coordinator.refreshLeadership()) void run();
+    }
+
+    function handleFocus() {
+      if (coordinator.refreshLeadership()) void run();
+    }
+
+    const pollInterval = window.setInterval(() => {
+      if (document.visibilityState === 'visible' && coordinator.refreshLeadership()) void run();
+    }, AUTO_SYNC_INTERVAL_MS);
+    const leaderHeartbeat = window.setInterval(() => {
+      coordinator.refreshLeadership();
+    }, LEADER_HEARTBEAT_MS);
+
+    window.addEventListener(LOCAL_DATA_CHANGED_EVENT, handleLocalDataChanged);
+    window.addEventListener(SYNC_WAKE_EVENT, handleWake);
+    window.addEventListener('focus', handleFocus);
     document.addEventListener('visibilitychange', handleVisibility);
-    void run();
+    if (coordinator.refreshLeadership()) void run();
 
     return () => {
       disposed = true;
       if (debounceTimer !== null) window.clearTimeout(debounceTimer);
-      window.clearInterval(interval);
-      window.removeEventListener(LOCAL_DATA_CHANGED_EVENT, scheduleFromLocalChange);
-      window.removeEventListener(SYNC_WAKE_EVENT, run);
-      window.removeEventListener('focus', run);
+      window.clearInterval(pollInterval);
+      window.clearInterval(leaderHeartbeat);
+      window.removeEventListener(LOCAL_DATA_CHANGED_EVENT, handleLocalDataChanged);
+      window.removeEventListener(SYNC_WAKE_EVENT, handleWake);
+      window.removeEventListener('focus', handleFocus);
       document.removeEventListener('visibilitychange', handleVisibility);
+      coordinator.dispose();
     };
   }, []);
 

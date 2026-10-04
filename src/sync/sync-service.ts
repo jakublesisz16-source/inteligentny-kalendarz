@@ -1,18 +1,33 @@
-import { applyCloudSyncSnapshot, compactTechnicalStorage, createCanonicalDataTransferDocument, hasMeaningfulDataTransferContent } from '../storage/database';
+import {
+  applyCloudSyncSnapshot,
+  claimLocalSyncOwnerAccountId,
+  compactTechnicalStorage,
+  createCanonicalDataTransferDocument,
+  hasMeaningfulDataTransferContent,
+  resetLocalDatabaseForAccountSwitch,
+} from '../storage/database';
 import { sha256Hex } from '../core/sha256';
 import {
+  clearLocalSyncState,
   getPreferredSyncProviderId,
   getSyncDeviceId,
   readLocalSyncState,
   writeLocalSyncState,
 } from './sync-config';
-import { SyncPayloadHashMismatchError, SyncRemoteChangedError, SyncRevisionMismatchError } from './sync-errors';
+import {
+  SyncAccountChangedError,
+  SyncAccountOwnershipError,
+  SyncPayloadHashMismatchError,
+  SyncRemoteChangedError,
+  SyncRevisionMismatchError,
+} from './sync-errors';
 import { resolveSyncProvider } from './provider-registry';
 import type {
   SyncConflict,
   SyncConflictChoice,
   SyncProvider,
   SyncReconcileResult,
+  SyncRemoteState,
   SyncRecoveryConflict,
   SyncSnapshotEnvelope,
   SyncStatus,
@@ -110,6 +125,21 @@ export class SyncService {
     await this.provider.signOut();
   }
 
+  private async assertAccountStable(accountId: string): Promise<void> {
+    const current = await this.provider.getAccount();
+    if (!current || current.id !== accountId) throw new SyncAccountChangedError();
+  }
+
+  private async ensureLocalAccountOwner(accountId: string): Promise<void> {
+    const ownerAccountId = await claimLocalSyncOwnerAccountId(accountId);
+    if (ownerAccountId !== accountId) throw new SyncAccountOwnershipError(accountId, ownerAccountId);
+  }
+
+  private async prepareCloudOperation(accountId: string): Promise<void> {
+    await this.ensureLocalAccountOwner(accountId);
+    await this.assertAccountStable(accountId);
+  }
+
   async captureLocalSnapshot(sourceDeviceId = getSyncDeviceId()): Promise<SyncSnapshotEnvelope> {
     // Keep the synchronized state bounded before serializing it. This only removes
     // historical parser payloads / technical history that the active plan no longer
@@ -126,24 +156,29 @@ export class SyncService {
     };
   }
 
-  async pullLatestSnapshot(): Promise<SyncSnapshotEnvelope | null> {
+  async pullLatestSnapshot(accountId?: string, expectedState?: SyncRemoteState | null): Promise<SyncSnapshotEnvelope | null> {
     if (!this.provider.capabilities.cloud || !this.provider.isConfigured()) return null;
     const account = await this.provider.getAccount();
     if (!account) return null;
-    const snapshot = await this.provider.pullLatest();
+    const expectedAccountId = accountId ?? account.id;
+    if (account.id !== expectedAccountId) throw new SyncAccountChangedError();
+    await this.ensureLocalAccountOwner(expectedAccountId);
+    const snapshot = await this.provider.pullLatest(expectedState);
+    await this.assertAccountStable(expectedAccountId);
     if (!snapshot) return null;
     const calculated = await calculateSyncRevision(snapshot.document.data);
     if (calculated !== snapshot.revision) throw new SyncRevisionMismatchError(snapshot, calculated);
     return snapshot;
   }
 
-  private markSynced(accountId: string, revision: string): string {
+  private markSynced(accountId: string, revision: string, remoteState?: SyncRemoteState | null): string {
     const lastSyncAt = nowIso();
     writeLocalSyncState({
       providerId: this.provider.id,
       accountId,
       lastSyncedRevision: revision,
       lastSyncedAt: lastSyncAt,
+      ...(remoteState?.payloadSha256 ? { lastRemotePayloadSha256: remoteState.payloadSha256 } : {}),
     });
     return lastSyncAt;
   }
@@ -153,17 +188,25 @@ export class SyncService {
     snapshot: SyncSnapshotEnvelope,
     expectedRevision?: string | null,
   ): Promise<string> {
+    await this.assertAccountStable(accountId);
     const calculated = await calculateSyncRevision(snapshot.document.data);
     if (calculated !== snapshot.revision) {
       throw new Error('Lokalny snapshot zmienił się przed wysłaniem. Synchronizacja została bezpiecznie zatrzymana.');
     }
-    await this.provider.pushSnapshot(snapshot, expectedRevision);
-    return this.markSynced(accountId, snapshot.revision);
+    const remoteState = await this.provider.pushSnapshot(snapshot, expectedRevision);
+    await this.assertAccountStable(accountId);
+    return this.markSynced(accountId, snapshot.revision, remoteState ?? { revision: snapshot.revision });
   }
 
-  private async applyCloudSnapshot(accountId: string, snapshot: SyncSnapshotEnvelope): Promise<string> {
+  private async applyCloudSnapshot(
+    accountId: string,
+    snapshot: SyncSnapshotEnvelope,
+    remoteState?: SyncRemoteState | null,
+  ): Promise<string> {
+    await this.assertAccountStable(accountId);
     await applyCloudSyncSnapshot(snapshot.document);
-    return this.markSynced(accountId, snapshot.revision);
+    await this.assertAccountStable(accountId);
+    return this.markSynced(accountId, snapshot.revision, remoteState ?? { revision: snapshot.revision });
   }
 
   private conflict(local: SyncSnapshotEnvelope, cloud: SyncSnapshotEnvelope): SyncConflict {
@@ -192,62 +235,160 @@ export class SyncService {
     };
   }
 
-  async reconcile(): Promise<SyncReconcileResult> {
-    const status = await this.getStatus();
-    if (!this.provider.capabilities.cloud) return { phase: 'local-only', status };
-    if (!status.account) return { phase: 'signed-out', status };
+  private async handleCloudIntegrityError(
+    status: SyncStatus,
+    accountId: string,
+    local: SyncSnapshotEnvelope,
+    error: SyncRevisionMismatchError | SyncPayloadHashMismatchError,
+  ): Promise<SyncReconcileResult | null> {
+    const [localFingerprint, cloudFingerprint] = await Promise.all([
+      calculateSyncContentFingerprint(local.document.data),
+      calculateSyncContentFingerprint(error.snapshot.document.data),
+    ]);
+    let equivalent = localFingerprint === cloudFingerprint;
 
-    const account = status.account;
+    if (!equivalent && error instanceof SyncPayloadHashMismatchError) {
+      const [localRecoveryFingerprint, cloudRecoveryFingerprint] = await Promise.all([
+        calculateSyncRecoveryFingerprint(local.document.data),
+        calculateSyncRecoveryFingerprint(error.snapshot.document.data),
+      ]);
+      equivalent = localRecoveryFingerprint === cloudRecoveryFingerprint;
+      if (!equivalent) {
+        const differences = listSyncRecoveryStoreDifferences(local.document.data, error.snapshot.document.data);
+        return {
+          phase: 'recovery-required',
+          status,
+          recovery: this.recoveryConflict(local, error, differences.length ? differences : ['nieznane']),
+        };
+      }
+    }
+
+    if (!equivalent) return null;
+    try {
+      const lastSyncAt = await this.pushSnapshot(accountId, local, error.snapshot.revision);
+      return { phase: 'pushed', status, revision: local.revision, lastSyncAt };
+    } catch (repairError) {
+      if (repairError instanceof SyncRemoteChangedError) return this.reconcile();
+      throw repairError;
+    }
+  }
+
+  private async reconcileUsingManifest(status: SyncStatus, accountId: string): Promise<SyncReconcileResult> {
+    const previous = readLocalSyncState(this.provider.id, accountId);
+    const localPromise = this.captureLocalSnapshot();
+    const remoteStatePromise = this.provider.readRemoteState!();
+    const [local, remoteState] = await Promise.all([localPromise, remoteStatePromise]);
+    await this.assertAccountStable(accountId);
+
+    if (!remoteState) {
+      try {
+        const lastSyncAt = await this.pushSnapshot(accountId, local, null);
+        return { phase: 'pushed', status, revision: local.revision, lastSyncAt };
+      } catch (error) {
+        if (error instanceof SyncRemoteChangedError) return this.reconcile();
+        throw error;
+      }
+    }
+
+    const remoteRevisionChanged = !previous || remoteState.revision !== previous.lastSyncedRevision;
+    const remotePayloadChanged = Boolean(
+      remoteState.payloadSha256
+      && remoteState.payloadSha256 !== (previous?.lastRemotePayloadSha256 ?? ''),
+    );
+    const remoteChanged = remoteRevisionChanged || remotePayloadChanged;
+    const localChanged = !previous || local.revision !== previous.lastSyncedRevision;
+
+    // Normal polling path: one manifest read, no chunk downloads and no writes.
+    if (previous && !remoteChanged && !localChanged) {
+      const lastSyncAt = this.markSynced(accountId, local.revision, remoteState);
+      return { phase: 'synced', status, revision: local.revision, lastSyncAt };
+    }
+
+    // Only local data changed since the last common revision. Push directly without
+    // downloading the unchanged cloud chunks.
+    if (previous && localChanged && !remoteChanged) {
+      try {
+        const lastSyncAt = await this.pushSnapshot(accountId, local, previous.lastSyncedRevision);
+        return { phase: 'pushed', status, revision: local.revision, lastSyncAt };
+      } catch (error) {
+        if (error instanceof SyncRemoteChangedError) return this.reconcile();
+        throw error;
+      }
+    }
+
+    let cloud: SyncSnapshotEnvelope | null;
+    try {
+      cloud = await this.pullLatestSnapshot(accountId, remoteState);
+    } catch (error) {
+      if (error instanceof SyncRevisionMismatchError || error instanceof SyncPayloadHashMismatchError) {
+        const recovery = await this.handleCloudIntegrityError(status, accountId, local, error);
+        if (recovery) return recovery;
+      }
+      throw error;
+    }
+    if (!cloud) return this.reconcile();
+
+    if (cloud.revision === local.revision) {
+      const lastSyncAt = this.markSynced(accountId, local.revision, remoteState);
+      return { phase: 'synced', status, revision: local.revision, lastSyncAt };
+    }
+
+    if (!previous) {
+      if (!hasMeaningfulDataTransferContent(local.document)) {
+        const lastSyncAt = await this.applyCloudSnapshot(accountId, cloud, remoteState);
+        return { phase: 'pulled', status, revision: cloud.revision, lastSyncAt };
+      }
+      return { phase: 'conflict', status, conflict: this.conflict(local, cloud) };
+    }
+
+    const localChangedFromCommon = local.revision !== previous.lastSyncedRevision;
+    const cloudChangedFromCommon = cloud.revision !== previous.lastSyncedRevision;
+
+    if (!localChangedFromCommon && cloudChangedFromCommon) {
+      const lastSyncAt = await this.applyCloudSnapshot(accountId, cloud, remoteState);
+      return { phase: 'pulled', status, revision: cloud.revision, lastSyncAt };
+    }
+
+    if (localChangedFromCommon && !cloudChangedFromCommon) {
+      try {
+        const lastSyncAt = await this.pushSnapshot(accountId, local, previous.lastSyncedRevision);
+        return { phase: 'pushed', status, revision: local.revision, lastSyncAt };
+      } catch (error) {
+        if (error instanceof SyncRemoteChangedError) return this.reconcile();
+        throw error;
+      }
+    }
+
+    if (!localChangedFromCommon && !cloudChangedFromCommon) {
+      const lastSyncAt = this.markSynced(accountId, local.revision, remoteState);
+      return { phase: 'synced', status, revision: local.revision, lastSyncAt };
+    }
+
+    return { phase: 'conflict', status, conflict: this.conflict(local, cloud) };
+  }
+
+  private async reconcileLegacyProvider(status: SyncStatus, accountId: string): Promise<SyncReconcileResult> {
     const localPromise = this.captureLocalSnapshot();
     let local: SyncSnapshotEnvelope;
     let cloud: SyncSnapshotEnvelope | null;
     try {
       [local, cloud] = await Promise.all([
         localPromise,
-        this.pullLatestSnapshot(),
+        this.pullLatestSnapshot(accountId),
       ]);
     } catch (error) {
       if (error instanceof SyncRevisionMismatchError || error instanceof SyncPayloadHashMismatchError) {
         local = await localPromise;
-        const [localFingerprint, cloudFingerprint] = await Promise.all([
-          calculateSyncContentFingerprint(local.document.data),
-          calculateSyncContentFingerprint(error.snapshot.document.data),
-        ]);
-        let equivalent = localFingerprint === cloudFingerprint;
-
-        if (!equivalent && error instanceof SyncPayloadHashMismatchError) {
-          const [localRecoveryFingerprint, cloudRecoveryFingerprint] = await Promise.all([
-            calculateSyncRecoveryFingerprint(local.document.data),
-            calculateSyncRecoveryFingerprint(error.snapshot.document.data),
-          ]);
-          equivalent = localRecoveryFingerprint === cloudRecoveryFingerprint;
-          if (!equivalent) {
-            const differences = listSyncRecoveryStoreDifferences(local.document.data, error.snapshot.document.data);
-            return {
-              phase: 'recovery-required',
-              status,
-              recovery: this.recoveryConflict(local, error, differences.length ? differences : ['nieznane']),
-            };
-          }
-        }
-
-        if (equivalent) {
-          try {
-            const lastSyncAt = await this.pushSnapshot(account.id, local, error.snapshot.revision);
-            return { phase: 'pushed', status, revision: local.revision, lastSyncAt };
-          } catch (repairError) {
-            if (repairError instanceof SyncRemoteChangedError) return this.reconcile();
-            throw repairError;
-          }
-        }
+        const recovery = await this.handleCloudIntegrityError(status, accountId, local, error);
+        if (recovery) return recovery;
       }
       throw error;
     }
-    const previous = readLocalSyncState(this.provider.id, account.id);
+    const previous = readLocalSyncState(this.provider.id, accountId);
 
     if (!cloud) {
       try {
-        const lastSyncAt = await this.pushSnapshot(account.id, local, null);
+        const lastSyncAt = await this.pushSnapshot(accountId, local, null);
         return { phase: 'pushed', status, revision: local.revision, lastSyncAt };
       } catch (error) {
         if (error instanceof SyncRemoteChangedError) return this.reconcile();
@@ -256,13 +397,13 @@ export class SyncService {
     }
 
     if (cloud.revision === local.revision) {
-      const lastSyncAt = this.markSynced(account.id, local.revision);
+      const lastSyncAt = this.markSynced(accountId, local.revision);
       return { phase: 'synced', status, revision: local.revision, lastSyncAt };
     }
 
     if (!previous) {
       if (!hasMeaningfulDataTransferContent(local.document)) {
-        const lastSyncAt = await this.applyCloudSnapshot(account.id, cloud);
+        const lastSyncAt = await this.applyCloudSnapshot(accountId, cloud);
         return { phase: 'pulled', status, revision: cloud.revision, lastSyncAt };
       }
       return { phase: 'conflict', status, conflict: this.conflict(local, cloud) };
@@ -272,17 +413,17 @@ export class SyncService {
     const cloudChanged = cloud.revision !== previous.lastSyncedRevision;
 
     if (!localChanged && cloudChanged) {
-      const lastSyncAt = await this.applyCloudSnapshot(account.id, cloud);
+      const lastSyncAt = await this.applyCloudSnapshot(accountId, cloud);
       return { phase: 'pulled', status, revision: cloud.revision, lastSyncAt };
     }
 
     if (localChanged && !cloudChanged) {
       try {
-        const lastSyncAt = await this.pushSnapshot(account.id, local, previous.lastSyncedRevision);
+        const lastSyncAt = await this.pushSnapshot(accountId, local, previous.lastSyncedRevision);
         return { phase: 'pushed', status, revision: local.revision, lastSyncAt };
       } catch (error) {
         if (error instanceof SyncRemoteChangedError) {
-          const latestCloud = await this.pullLatestSnapshot();
+          const latestCloud = await this.pullLatestSnapshot(accountId);
           if (!latestCloud) return this.reconcile();
           return { phase: 'conflict', status, conflict: this.conflict(local, latestCloud) };
         }
@@ -291,23 +432,38 @@ export class SyncService {
     }
 
     if (!localChanged && !cloudChanged) {
-      const lastSyncAt = this.markSynced(account.id, local.revision);
+      const lastSyncAt = this.markSynced(accountId, local.revision);
       return { phase: 'synced', status, revision: local.revision, lastSyncAt };
     }
 
     return { phase: 'conflict', status, conflict: this.conflict(local, cloud) };
   }
 
+  async reconcile(): Promise<SyncReconcileResult> {
+    const status = await this.getStatus();
+    if (!this.provider.capabilities.cloud) return { phase: 'local-only', status };
+    if (!status.account) return { phase: 'signed-out', status };
+
+    const accountId = status.account.id;
+    await this.prepareCloudOperation(accountId);
+    if (this.provider.readRemoteState) return this.reconcileUsingManifest(status, accountId);
+    return this.reconcileLegacyProvider(status, accountId);
+  }
+
   async replaceDamagedCloudWithLocal(recovery: SyncRecoveryConflict): Promise<SyncReconcileResult> {
     const status = await this.getStatus();
     if (!status.account) return { phase: 'signed-out', status };
+    const accountId = status.account.id;
+    await this.prepareCloudOperation(accountId);
     if (recovery.kind !== 'legacy-payload-hash-mismatch') return this.reconcile();
 
     const local = await this.captureLocalSnapshot();
     if (local.revision !== recovery.localRevision) return this.reconcile();
 
     try {
-      await this.provider.pullLatest();
+      const state = this.provider.readRemoteState ? await this.provider.readRemoteState() : null;
+      await this.provider.pullLatest(state);
+      await this.assertAccountStable(accountId);
       // The remote state is no longer the exact damaged legacy payload that the
       // user reviewed. Reconcile again instead of overwriting a changed cloud.
       return this.reconcile();
@@ -322,7 +478,7 @@ export class SyncService {
       if (!differences.length) return this.reconcile();
 
       try {
-        const lastSyncAt = await this.pushSnapshot(status.account.id, local, recovery.cloudRevision);
+        const lastSyncAt = await this.pushSnapshot(accountId, local, recovery.cloudRevision);
         return { phase: 'pushed', status, revision: local.revision, lastSyncAt };
       } catch (pushError) {
         if (pushError instanceof SyncRemoteChangedError) return this.reconcile();
@@ -334,27 +490,49 @@ export class SyncService {
   async resolveConflict(choice: SyncConflictChoice): Promise<SyncReconcileResult> {
     const status = await this.getStatus();
     if (!status.account) return { phase: 'signed-out', status };
-    const account = status.account;
+    const accountId = status.account.id;
+    await this.prepareCloudOperation(accountId);
 
     if (choice === 'cloud') {
-      const cloud = await this.pullLatestSnapshot();
+      const remoteState = this.provider.readRemoteState ? await this.provider.readRemoteState() : null;
+      const cloud = await this.pullLatestSnapshot(accountId, remoteState);
       if (!cloud) return this.reconcile();
-      const lastSyncAt = await this.applyCloudSnapshot(account.id, cloud);
+      const lastSyncAt = await this.applyCloudSnapshot(accountId, cloud, remoteState);
       return { phase: 'pulled', status, revision: cloud.revision, lastSyncAt };
     }
 
-    const [local, cloud] = await Promise.all([
-      this.captureLocalSnapshot(),
-      this.pullLatestSnapshot(),
-    ]);
-    const expectedRevision = cloud?.revision ?? null;
+    const local = await this.captureLocalSnapshot();
+    let expectedRevision: string | null = null;
+    if (this.provider.readRemoteState) {
+      const remoteState = await this.provider.readRemoteState();
+      expectedRevision = remoteState?.revision ?? null;
+    } else {
+      const cloud = await this.pullLatestSnapshot(accountId);
+      expectedRevision = cloud?.revision ?? null;
+    }
     try {
-      const lastSyncAt = await this.pushSnapshot(account.id, local, expectedRevision);
+      const lastSyncAt = await this.pushSnapshot(accountId, local, expectedRevision);
       return { phase: 'pushed', status, revision: local.revision, lastSyncAt };
     } catch (error) {
       if (error instanceof SyncRemoteChangedError) return this.reconcile();
       throw error;
     }
+  }
+
+  async switchToCurrentAccount(): Promise<SyncReconcileResult> {
+    const status = await this.getStatus();
+    if (!status.account) return { phase: 'signed-out', status };
+    const accountId = status.account.id;
+    await this.assertAccountStable(accountId);
+    // Verify that the current account and cloud transport are reachable before the
+    // destructive local reset. A failed/offline preflight must leave old local data intact.
+    if (this.provider.readRemoteState) await this.provider.readRemoteState();
+    else await this.provider.pullLatest();
+    await this.assertAccountStable(accountId);
+    await resetLocalDatabaseForAccountSwitch(accountId);
+    clearLocalSyncState(this.provider.id, accountId);
+    await this.assertAccountStable(accountId);
+    return this.reconcile();
   }
 }
 

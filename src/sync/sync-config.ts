@@ -9,6 +9,7 @@ export interface LocalSyncState {
   accountId: string;
   lastSyncedRevision: string;
   lastSyncedAt: string;
+  lastRemotePayloadSha256?: string;
 }
 
 function storage(): Storage | null {
@@ -63,6 +64,7 @@ export function readLocalSyncState(providerId: string, accountId: string): Local
       || parsed.accountId !== accountId
       || typeof parsed.lastSyncedRevision !== 'string'
       || typeof parsed.lastSyncedAt !== 'string'
+      || (parsed.lastRemotePayloadSha256 !== undefined && typeof parsed.lastRemotePayloadSha256 !== 'string')
     ) return null;
     return parsed as LocalSyncState;
   } catch {
@@ -77,5 +79,15 @@ export function writeLocalSyncState(state: LocalSyncState): void {
     target.setItem(syncStateKey(state.providerId, state.accountId), JSON.stringify(state));
   } catch {
     // Local sync metadata is advisory. Application data remains in IndexedDB.
+  }
+}
+
+export function clearLocalSyncState(providerId: string, accountId: string): void {
+  const target = storage();
+  if (!target) return;
+  try {
+    target.removeItem(syncStateKey(providerId, accountId));
+  } catch {
+    // Advisory metadata only.
   }
 }

@@ -31,3 +31,20 @@ export class SyncPayloadHashMismatchError extends Error {
     this.name = 'SyncPayloadHashMismatchError';
   }
 }
+
+export class SyncAccountOwnershipError extends Error {
+  constructor(
+    readonly activeAccountId: string,
+    readonly ownerAccountId: string,
+  ) {
+    super('Dane na tym urządzeniu należą do innego konta Google. Aby użyć obecnego konta, wybierz jawnie „Przełącz konto”.');
+    this.name = 'SyncAccountOwnershipError';
+  }
+}
+
+export class SyncAccountChangedError extends Error {
+  constructor() {
+    super('Konto Google zmieniło się w trakcie synchronizacji. Operacja została bezpiecznie zatrzymana.');
+    this.name = 'SyncAccountChangedError';
+  }
+}
