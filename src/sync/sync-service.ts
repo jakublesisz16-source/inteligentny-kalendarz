@@ -13,6 +13,7 @@ import type {
   SyncConflictChoice,
   SyncProvider,
   SyncReconcileResult,
+  SyncRecoveryConflict,
   SyncSnapshotEnvelope,
   SyncStatus,
 } from './sync.types';
@@ -170,6 +171,23 @@ export class SyncService {
     };
   }
 
+  private recoveryConflict(
+    local: SyncSnapshotEnvelope,
+    error: SyncPayloadHashMismatchError,
+    differingStores: string[],
+  ): SyncRecoveryConflict {
+    return {
+      kind: 'legacy-payload-hash-mismatch',
+      localRevision: local.revision,
+      cloudRevision: error.snapshot.revision,
+      localUpdatedAt: local.updatedAt,
+      cloudUpdatedAt: error.snapshot.updatedAt,
+      expectedPayloadSha256: error.expectedPayloadSha256,
+      actualPayloadSha256: error.actualPayloadSha256,
+      differingStores,
+    };
+  }
+
   async reconcile(): Promise<SyncReconcileResult> {
     const status = await this.getStatus();
     if (!this.provider.capabilities.cloud) return { phase: 'local-only', status };
@@ -201,12 +219,11 @@ export class SyncService {
           equivalent = localRecoveryFingerprint === cloudRecoveryFingerprint;
           if (!equivalent) {
             const differences = listSyncRecoveryStoreDifferences(local.document.data, error.snapshot.document.data);
-            throw new SyncPayloadHashMismatchError(
-              error.snapshot,
-              error.expectedPayloadSha256,
-              error.actualPayloadSha256,
-              differences.length ? differences : ['nieznane'],
-            );
+            return {
+              phase: 'recovery-required',
+              status,
+              recovery: this.recoveryConflict(local, error, differences.length ? differences : ['nieznane']),
+            };
           }
         }
 
@@ -275,6 +292,39 @@ export class SyncService {
     }
 
     return { phase: 'conflict', status, conflict: this.conflict(local, cloud) };
+  }
+
+  async replaceDamagedCloudWithLocal(recovery: SyncRecoveryConflict): Promise<SyncReconcileResult> {
+    const status = await this.getStatus();
+    if (!status.account) return { phase: 'signed-out', status };
+    if (recovery.kind !== 'legacy-payload-hash-mismatch') return this.reconcile();
+
+    const local = await this.captureLocalSnapshot();
+    if (local.revision !== recovery.localRevision) return this.reconcile();
+
+    try {
+      await this.provider.pullLatest();
+      // The remote state is no longer the exact damaged legacy payload that the
+      // user reviewed. Reconcile again instead of overwriting a changed cloud.
+      return this.reconcile();
+    } catch (error) {
+      if (!(error instanceof SyncPayloadHashMismatchError)) throw error;
+      const sameRemote = error.snapshot.revision === recovery.cloudRevision
+        && error.expectedPayloadSha256 === recovery.expectedPayloadSha256
+        && error.actualPayloadSha256 === recovery.actualPayloadSha256;
+      if (!sameRemote) return this.reconcile();
+
+      const differences = listSyncRecoveryStoreDifferences(local.document.data, error.snapshot.document.data);
+      if (!differences.length) return this.reconcile();
+
+      try {
+        const lastSyncAt = await this.pushSnapshot(status.account.id, local, recovery.cloudRevision);
+        return { phase: 'pushed', status, revision: local.revision, lastSyncAt };
+      } catch (pushError) {
+        if (pushError instanceof SyncRemoteChangedError) return this.reconcile();
+        throw pushError;
+      }
+    }
   }
 
   async resolveConflict(choice: SyncConflictChoice): Promise<SyncReconcileResult> {

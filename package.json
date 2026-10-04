@@ -1,7 +1,7 @@
 {
   "name": "inteligentny-kalendarz",
   "private": true,
-  "version": "1.2.0-private.301",
+  "version": "1.2.0-private.302",
   "type": "module",
   "scripts": {
     "dev": "vite",

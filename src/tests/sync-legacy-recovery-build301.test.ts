@@ -108,7 +108,7 @@ describe('Build301 bounded legacy chunks-v1 recovery', () => {
     expect(pushes[0]?.snapshot.document.data.stores.events).toEqual(local.document.data.stores.events);
   });
 
-  it('remains fail-closed and names the differing user store when real data differs', async () => {
+  it('remains fail-closed and exposes a recovery-required state when real data differs', async () => {
     await initializeDatabase();
     const seed = new SyncService(seedProvider());
     const local = await seed.captureLocalSnapshot('local-device');
@@ -131,7 +131,9 @@ describe('Build301 bounded legacy chunks-v1 recovery', () => {
     const pushes: Array<{ snapshot: SyncSnapshotEnvelope; expectedRevision?: string | null }> = [];
     const service = new SyncService(throwingCloudProvider(mismatch, pushes));
 
-    await expect(service.reconcile()).rejects.toThrow(/events/);
+    const result = await service.reconcile();
+    expect(result.phase).toBe('recovery-required');
+    if (result.phase === 'recovery-required') expect(result.recovery.differingStores).toContain('events');
     expect(listSyncRecoveryStoreDifferences(local.document.data, cloudCandidate.document.data)).toContain('events');
     expect(pushes).toHaveLength(0);
   });

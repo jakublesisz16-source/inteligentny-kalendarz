@@ -34,6 +34,15 @@ function noticeFromResult(result: SyncReconcileResult): SyncRuntimeNotice {
       message: 'Na tym urządzeniu i w chmurze są różne zmiany.',
     };
   }
+  if (result.phase === 'recovery-required') {
+    return {
+      state: 'recovery-required',
+      providerId: result.status.providerId,
+      ...(result.status.account ? { account: result.status.account } : {}),
+      recovery: result.recovery,
+      message: 'Chmura zawiera niespójny starszy zapis. Wybierz bezpiecznie wspólną wersję danych.',
+    };
+  }
   return {
     state: 'synced',
     providerId: result.status.providerId,
@@ -54,13 +63,26 @@ function formatSyncTime(value?: string): string {
   return new Intl.DateTimeFormat('pl-PL', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' }).format(date);
 }
 
+const RECOVERY_STORE_LABELS: Record<string, string> = {
+  events: 'wydarzenia',
+  studyProfile: 'profil studiów',
+  universityImportEntries: 'dane planu zajęć',
+  universityImports: 'historia importów planu',
+};
+
+function formatRecoveryStores(stores: readonly string[]): string {
+  return stores.map((name) => RECOVERY_STORE_LABELS[name] ?? name).join(', ');
+}
+
 export function SyncSettingsPanel({ onRemoteApplied }: SyncSettingsPanelProps) {
   const [notice, setNotice] = useState<SyncRuntimeNotice>(() => getLatestSyncRuntimeNotice());
   const [busy, setBusy] = useState(false);
+  const [confirmRecovery, setConfirmRecovery] = useState(false);
 
   useEffect(() => {
     const handler = (event: Event) => {
       const incoming = (event as CustomEvent<SyncRuntimeNotice>).detail;
+      if (incoming.state !== 'recovery-required') setConfirmRecovery(false);
       setNotice((current) => {
         if (incoming.account || (incoming.state !== 'error' && incoming.state !== 'syncing')) return incoming;
         return { ...incoming, ...(current.account ? { account: current.account } : {}) };
@@ -93,6 +115,7 @@ export function SyncSettingsPanel({ onRemoteApplied }: SyncSettingsPanelProps) {
 
   async function connectGoogle() {
     setBusy(true);
+    setConfirmRecovery(false);
     setNotice({ state: 'syncing', providerId: FIREBASE_GOOGLE_SYNC_PROVIDER_ID, message: 'Łączę z kontem Google...' });
     try {
       const service = await createSyncService(FIREBASE_GOOGLE_SYNC_PROVIDER_ID);
@@ -167,6 +190,34 @@ export function SyncSettingsPanel({ onRemoteApplied }: SyncSettingsPanelProps) {
     }
   }
 
+  async function replaceDamagedCloudWithLocal() {
+    if (!notice.recovery) return;
+    setBusy(true);
+    try {
+      const service = await createSyncService(FIREBASE_GOOGLE_SYNC_PROVIDER_ID);
+      const result = await service.replaceDamagedCloudWithLocal(notice.recovery);
+      const base = noticeFromResult(result);
+      const next: SyncRuntimeNotice = result.phase === 'pushed'
+        ? { ...base, message: 'Ustawiono dane z tego urządzenia jako wspólną wersję.' }
+        : base;
+      setConfirmRecovery(false);
+      setNotice(next);
+      publishSyncRuntimeNotice(next);
+      requestSyncWake();
+    } catch (error) {
+      const next: SyncRuntimeNotice = {
+        state: 'error',
+        providerId: FIREBASE_GOOGLE_SYNC_PROVIDER_ID,
+        ...(notice.account ? { account: notice.account } : {}),
+        message: error instanceof Error ? error.message : 'Nie udało się ustawić wspólnej wersji danych.',
+      };
+      setNotice(next);
+      publishSyncRuntimeNotice(next);
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function disconnect() {
     setBusy(true);
     try {
@@ -199,7 +250,7 @@ export function SyncSettingsPanel({ onRemoteApplied }: SyncSettingsPanelProps) {
         </button>
       ) : (
         <div className="settings-sync-actions">
-          <button type="button" className="button button-secondary" disabled={busy || notice.state === 'conflict'} onClick={() => void syncNow()}>{busy ? 'Synchronizuję...' : 'Synchronizuj teraz'}</button>
+          <button type="button" className="button button-secondary" disabled={busy || notice.state === 'conflict' || notice.state === 'recovery-required'} onClick={() => void syncNow()}>{busy ? 'Synchronizuję...' : 'Synchronizuj teraz'}</button>
           <button type="button" className="button button-secondary" disabled={busy} onClick={() => void disconnect()}>Wyloguj</button>
         </div>
       )}
@@ -213,6 +264,7 @@ export function SyncSettingsPanel({ onRemoteApplied }: SyncSettingsPanelProps) {
           {notice.state === 'synced' ? `${notice.message ?? 'Dane są zsynchronizowane.'}${notice.lastSyncAt ? ` Ostatnio: ${formatSyncTime(notice.lastSyncAt)}.` : ''}` : null}
           {notice.state === 'error' ? (notice.message ?? 'Synchronizacja jest chwilowo niedostępna.') : null}
           {notice.state === 'conflict' ? 'Zmiany są na obu urządzeniach. Wybierz, które dane zachować.' : null}
+          {notice.state === 'recovery-required' ? (notice.message ?? 'Chmura wymaga jednorazowego wskazania wspólnej wersji.') : null}
         </span>
       </div>
 
@@ -220,6 +272,27 @@ export function SyncSettingsPanel({ onRemoteApplied }: SyncSettingsPanelProps) {
         <div className="settings-sync-conflict" role="group" aria-label="Rozwiąż konflikt synchronizacji">
           <button type="button" className="button button-secondary" disabled={busy} onClick={() => void resolveConflict('local')}>Zachowaj to urządzenie</button>
           <button type="button" className="button button-secondary" disabled={busy} onClick={() => void resolveConflict('cloud')}>Pobierz z chmury</button>
+        </div>
+      ) : null}
+
+      {connected && notice.state === 'recovery-required' && notice.recovery ? (
+        <div className="settings-sync-recovery" role="group" aria-label="Ustaw wspólną wersję danych">
+          <div className="settings-sync-recovery-copy">
+            <strong>Jednorazowe ustawienie wspólnej wersji</strong>
+            <span>Różnią się: {formatRecoveryStores(notice.recovery.differingStores)}.</span>
+            <span>Plik planu nie musi być wgrywany ponownie na drugim urządzeniu. Po naprawie synchronizowany jest wynik importu i wszystkie późniejsze zmiany.</span>
+          </div>
+          {!confirmRecovery ? (
+            <button type="button" className="button button-secondary" disabled={busy} onClick={() => setConfirmRecovery(true)}>Użyj danych z tego urządzenia</button>
+          ) : (
+            <div className="settings-sync-recovery-confirm">
+              <span>Ta operacja zastąpi niespójny zapis w chmurze aktualnymi danymi z tego urządzenia. Inne urządzenia pobiorą tę wersję przy następnej synchronizacji.</span>
+              <div>
+                <button type="button" className="button button-primary" disabled={busy} onClick={() => void replaceDamagedCloudWithLocal()}>{busy ? 'Ustawiam...' : 'Potwierdź i ustaw jako wspólne'}</button>
+                <button type="button" className="button button-secondary" disabled={busy} onClick={() => setConfirmRecovery(false)}>Anuluj</button>
+              </div>
+            </div>
+          )}
         </div>
       ) : null}
 

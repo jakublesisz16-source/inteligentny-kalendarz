@@ -2152,6 +2152,21 @@
 }
 .settings-sync-status.is-synced { color: var(--success, #237a52); }
 .settings-sync-status.is-conflict,
+.settings-sync-status.is-recovery-required,
 .settings-sync-status.is-error { color: var(--danger, #a33a4a); }
 .settings-sync-conflict { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 6px; }
+.settings-sync-recovery {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 8px;
+  padding: 9px 10px;
+  border: 1px solid color-mix(in srgb, var(--danger, #a33a4a) 24%, var(--line));
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--danger, #a33a4a) 4%, var(--surface));
+}
+.settings-sync-recovery-copy { display: grid; gap: 3px; font-size: .64rem; line-height: 1.45; }
+.settings-sync-recovery-copy strong { font-size: .7rem; }
+.settings-sync-recovery-copy span { color: var(--text-muted); }
+.settings-sync-recovery-confirm { display: grid; gap: 8px; font-size: .63rem; line-height: 1.45; color: var(--text-muted); }
+.settings-sync-recovery-confirm > div { display: flex; flex-wrap: wrap; gap: 6px; }
 .settings-sync-note { grid-column: 1 / -1; margin: 0; }

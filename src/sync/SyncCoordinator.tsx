@@ -32,6 +32,16 @@ function publishResult(result: SyncReconcileResult): void {
     });
     return;
   }
+  if (result.phase === 'recovery-required') {
+    publishSyncRuntimeNotice({
+      state: 'recovery-required',
+      providerId: result.status.providerId,
+      ...(result.status.account ? { account: result.status.account } : {}),
+      recovery: result.recovery,
+      message: 'Chmura wymaga jednorazowego wskazania wspólnej wersji danych w Ustawieniach.',
+    });
+    return;
+  }
   publishSyncRuntimeNotice({
     state: 'synced',
     providerId: result.status.providerId,

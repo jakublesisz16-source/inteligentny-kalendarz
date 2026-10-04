@@ -140,7 +140,9 @@ describe('Build298 immutable Firestore chunk sets', () => {
     const pushes: Array<{ snapshot: SyncSnapshotEnvelope; expectedRevision?: string | null }> = [];
     const service = new SyncService(throwingCloudProvider(mismatch, pushes));
 
-    await expect(service.reconcile()).rejects.toBeInstanceOf(SyncPayloadHashMismatchError);
+    const result = await service.reconcile();
+    expect(result.phase).toBe('recovery-required');
+    if (result.phase === 'recovery-required') expect(result.recovery.differingStores).toContain('events');
     expect(pushes).toHaveLength(0);
   });
 

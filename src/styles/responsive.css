@@ -2720,5 +2720,8 @@
   .settings-sync-actions { justify-content: flex-start; }
   .settings-sync-status,
   .settings-sync-conflict,
+  .settings-sync-recovery,
   .settings-sync-note { grid-column: 1; }
+  .settings-sync-recovery-confirm > div { display: grid; grid-template-columns: 1fr; }
+  .settings-sync-recovery-confirm .button { width: 100%; }
 }

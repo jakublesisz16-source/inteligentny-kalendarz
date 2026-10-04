@@ -45,6 +45,17 @@ export interface SyncStatus {
 
 export type SyncConflictChoice = 'local' | 'cloud';
 
+export interface SyncRecoveryConflict {
+  kind: 'legacy-payload-hash-mismatch';
+  localRevision: string;
+  cloudRevision: string;
+  localUpdatedAt: string;
+  cloudUpdatedAt: string;
+  expectedPayloadSha256: string;
+  actualPayloadSha256: string;
+  differingStores: string[];
+}
+
 export interface SyncConflict {
   localRevision: string;
   cloudRevision: string;
@@ -58,13 +69,15 @@ export type SyncReconcileResult =
   | { phase: 'synced'; status: SyncStatus; revision: string; lastSyncAt: string }
   | { phase: 'pushed'; status: SyncStatus; revision: string; lastSyncAt: string }
   | { phase: 'pulled'; status: SyncStatus; revision: string; lastSyncAt: string }
-  | { phase: 'conflict'; status: SyncStatus; conflict: SyncConflict };
+  | { phase: 'conflict'; status: SyncStatus; conflict: SyncConflict }
+  | { phase: 'recovery-required'; status: SyncStatus; recovery: SyncRecoveryConflict };
 
 export interface SyncRuntimeNotice {
-  state: 'local-only' | 'signed-out' | 'syncing' | 'synced' | 'conflict' | 'error';
+  state: 'local-only' | 'signed-out' | 'syncing' | 'synced' | 'conflict' | 'recovery-required' | 'error';
   providerId: string;
   account?: SyncAccount;
   message?: string;
   lastSyncAt?: string;
   conflict?: SyncConflict;
+  recovery?: SyncRecoveryConflict;
 }
