@@ -17,6 +17,7 @@ import { candidatesForSelectedGroups, findStudyScheduleConflicts, findStudyUpdat
 import { completenessForSelectedGroups } from '../study/study-completeness';
 import { applyRecurringPatternToCandidates } from '../study/study-recurring-pattern-assumptions';
 import { ENGLISH_MONDAY_SUPPLEMENT_END, ENGLISH_MONDAY_SUPPLEMENT_LEGACY_DESCRIPTION, ENGLISH_MONDAY_SUPPLEMENT_META_KEY, ENGLISH_MONDAY_SUPPLEMENT_SERIES_ID, ENGLISH_MONDAY_SUPPLEMENT_START, ENGLISH_MONDAY_SUPPLEMENT_TITLE, englishMondaySupplementDates, matchesEnglishMondaySupplementProfile } from '../study/user-confirmed-study-supplements';
+import { applyVerifiedStudyPlanManualCorrections, isVerifiedManualStudySource } from '../study/verified-study-plan-manual';
 import { formatStudyGroupList, groupSetsIntersect } from '../imports/xlsx/group-normalizer';
 import { validateCandidateForImport } from '../imports/xlsx/import-validation';
 import { sha256Hex } from '../core/sha256';
@@ -657,6 +658,7 @@ async function ensureInitialSettings(db: IDBDatabase): Promise<void> {
 export async function initializeDatabase(): Promise<void> {
   const db = await openDatabase();
   await ensureInitialSettings(db);
+  await applyVerifiedStudyPlanManualCorrectionsToActivePlan();
 }
 
 export async function readLocalSyncOwnerAccountId(): Promise<string | null> {
@@ -2542,8 +2544,26 @@ function assertStudySourceCompleteness(candidates: StudyScheduleCandidate[], sou
   if (!audit.safe) throw new Error(`Plan nie przeszedł bramki kompletności: ${audit.reasons.join(' ')}`);
 }
 
+function studyLocationExactKey(primary: string, displayName: string): string {
+  return `study:${normalizeLocationKey(primary)}::${normalizeLocationKey(displayName)}`;
+}
+
 function locationMap(locations: Location[]): Map<string, Location> {
-  return new Map(locations.map((location) => [normalizeLocationKey(location.address || location.name), location]));
+  const map = new Map<string, Location>();
+  for (const location of locations) {
+    const primary = location.address || location.name;
+    const legacyKey = normalizeLocationKey(primary);
+    if (!map.has(legacyKey)) map.set(legacyKey, location);
+    map.set(studyLocationExactKey(primary, location.name || primary), location);
+  }
+  return map;
+}
+
+function candidateStudyLocationKey(candidate: Pick<StudyScheduleCandidate, 'address' | 'locationLabel' | 'clinic' | 'subject'>): string | undefined {
+  const primary = candidate.address ?? candidate.locationLabel;
+  if (!primary) return undefined;
+  const displayName = candidate.clinic ?? candidate.locationLabel ?? candidate.address ?? candidate.subject;
+  return studyLocationExactKey(primary, displayName);
 }
 
 function ensureCandidateLocation(
@@ -2552,24 +2572,181 @@ function ensureCandidateLocation(
   newLocations: Location[],
   timestamp: string,
 ): string | undefined {
-  const identity = candidate.address ?? candidate.locationLabel;
-  if (!identity) return undefined;
-  const key = normalizeLocationKey(identity);
-  let location = locationsByKey.get(key);
+  const primary = candidate.address ?? candidate.locationLabel;
+  if (!primary) return undefined;
+  const displayName = candidate.clinic ?? candidate.locationLabel ?? candidate.address ?? candidate.subject;
+  const exactKey = studyLocationExactKey(primary, displayName);
+  let location = locationsByKey.get(exactKey);
+  if (!location && normalizeLocationKey(displayName) === normalizeLocationKey(primary)) {
+    location = locationsByKey.get(normalizeLocationKey(primary));
+  }
   if (!location) {
     location = {
       id: createId('location-university'),
-      name: candidate.clinic ?? candidate.address ?? candidate.locationLabel ?? candidate.subject,
+      name: displayName,
       type: candidate.clinic ? 'CLINIC' : 'UNIVERSITY',
       address: candidate.address ?? candidate.locationLabel ?? candidate.subject,
       createdAt: timestamp,
       updatedAt: timestamp,
       ...(candidate.room ? { note: candidate.room } : {}),
     };
-    locationsByKey.set(key, location);
+    locationsByKey.set(exactKey, location);
+    if (normalizeLocationKey(displayName) === normalizeLocationKey(primary)) locationsByKey.set(normalizeLocationKey(primary), location);
     newLocations.push(location);
   }
   return location.id;
+}
+
+const VERIFIED_STUDY_ENTRY_FIELDS = ['date', 'startTime', 'endTime', 'clinic', 'room', 'address', 'locationLabel'] as const;
+
+type VerifiedStudyEntryField = (typeof VERIFIED_STUDY_ENTRY_FIELDS)[number];
+
+function entryWithVerifiedCandidate(entry: UniversityImportEntry, candidate: StudyScheduleCandidate): UniversityImportEntry {
+  const next: UniversityImportEntry = {
+    ...entry,
+    groupTags: [...entry.groupTags],
+    warnings: [...candidate.warnings],
+  };
+  for (const field of VERIFIED_STUDY_ENTRY_FIELDS) {
+    delete next[field];
+    const value = candidate[field];
+    if (value) next[field] = value;
+  }
+  if (candidate.inferredFields?.length) next.inferredFields = [...candidate.inferredFields];
+  else delete next.inferredFields;
+  if (candidate.inferenceNotes?.length) next.inferenceNotes = [...candidate.inferenceNotes];
+  else delete next.inferenceNotes;
+  return next;
+}
+
+function sameVerifiedEntryData(entry: UniversityImportEntry, candidate: StudyScheduleCandidate): boolean {
+  const fieldsMatch = VERIFIED_STUDY_ENTRY_FIELDS.every((field) => (entry[field] ?? '') === (candidate[field] ?? ''));
+  const warningsMatch = JSON.stringify(entry.warnings ?? []) === JSON.stringify(candidate.warnings ?? []);
+  const inferredMatch = JSON.stringify(entry.inferredFields ?? []) === JSON.stringify(candidate.inferredFields ?? []);
+  const notesMatch = JSON.stringify(entry.inferenceNotes ?? []) === JSON.stringify(candidate.inferenceNotes ?? []);
+  return fieldsMatch && warningsMatch && inferredMatch && notesMatch;
+}
+
+function verifiedCandidateIsComplete(candidate: StudyScheduleCandidate): candidate is StudyScheduleCandidate & { date: string; startTime: string; endTime: string } {
+  return candidate.include !== false && Boolean(candidate.date && candidate.startTime && candidate.endTime);
+}
+
+export interface VerifiedStudyPlanRepairResult {
+  matchedSource: boolean;
+  correctedEntryCount: number;
+  correctedEventCount: number;
+  removedInferredEventCount: number;
+}
+
+export async function applyVerifiedStudyPlanManualCorrectionsToActivePlan(): Promise<VerifiedStudyPlanRepairResult> {
+  const empty = { matchedSource: false, correctedEntryCount: 0, correctedEventCount: 0, removedInferredEventCount: 0 };
+  const active = await getActiveUniversityImport();
+  if (!active || !isVerifiedManualStudySource(active.fileHash)) return empty;
+
+  const [entries, events, existingLocations] = await Promise.all([
+    listUniversityImportEntries(active.id),
+    listEvents(),
+    listLocations(),
+  ]);
+  if (!entries.length) return { ...empty, matchedSource: true };
+
+  const eventById = new Map(events.map((event) => [event.id, event]));
+  const locationsByKey = locationMap(existingLocations);
+  const newLocations: Location[] = [];
+  const updatedEntries: UniversityImportEntry[] = [];
+  const updatedEvents: CalendarEvent[] = [];
+  const deletedEntryIds = new Set<string>();
+  const deletedEventIds = new Set<string>();
+  const timestamp = nowIso();
+
+  for (const entry of entries) {
+    const originalCandidate = candidateFromEntry(entry);
+    const corrected = applyVerifiedStudyPlanManualCorrections([originalCandidate], active.fileHash).candidates[0] ?? originalCandidate;
+    const event = entry.eventId && !entry.sourceOnly ? eventById.get(entry.eventId) : undefined;
+    const manualFields = new Set(event?.userModifiedFields ?? []);
+    const userOwnsTiming = manualFields.has('startDateTime') || manualFields.has('endDateTime');
+
+    if (event && !verifiedCandidateIsComplete(corrected) && !userOwnsTiming) {
+      deletedEntryIds.add(entry.id);
+      deletedEventIds.add(event.id);
+      continue;
+    }
+
+    const entryCandidate: StudyScheduleCandidate = event && userOwnsTiming && !verifiedCandidateIsComplete(corrected)
+      ? {
+          ...corrected,
+          ...(entry.startTime ? { startTime: entry.startTime } : {}),
+          ...(entry.endTime ? { endTime: entry.endTime } : {}),
+        }
+      : corrected;
+    if (!sameVerifiedEntryData(entry, entryCandidate)) updatedEntries.push(entryWithVerifiedCandidate(entry, entryCandidate));
+
+    if (!event || !verifiedCandidateIsComplete(corrected)) continue;
+    let nextEvent: CalendarEvent = event;
+
+    if (!manualFields.has('startDateTime')) {
+      const startDateTime = `${corrected.date}T${corrected.startTime}`;
+      if (startDateTime !== event.startDateTime) nextEvent = { ...nextEvent, startDateTime, updatedAt: timestamp };
+    }
+    if (!manualFields.has('endDateTime')) {
+      const endDateTime = `${corrected.date}T${corrected.endTime}`;
+      if (endDateTime !== event.endDateTime) nextEvent = { ...nextEvent, endDateTime, updatedAt: timestamp };
+    }
+    if (!manualFields.has('locationId')) {
+      const locationId = ensureCandidateLocation(corrected, locationsByKey, newLocations, timestamp);
+      if (locationId !== event.locationId) {
+        if (locationId) nextEvent = { ...nextEvent, locationId, updatedAt: timestamp };
+        else {
+          const { locationId: _removedLocationId, ...withoutLocation } = nextEvent;
+          nextEvent = { ...withoutLocation, updatedAt: timestamp };
+        }
+      }
+    }
+    if (!manualFields.has('description')) {
+      const description = importedEventDescription(corrected);
+      if (description !== event.description) {
+        if (description) nextEvent = { ...nextEvent, description, updatedAt: timestamp };
+        else {
+          const { description: _removedDescription, ...withoutDescription } = nextEvent;
+          nextEvent = { ...withoutDescription, updatedAt: timestamp };
+        }
+      }
+    }
+    if (nextEvent !== event) updatedEvents.push(nextEvent);
+  }
+
+  if (!updatedEntries.length && !updatedEvents.length && !newLocations.length && !deletedEntryIds.size && !deletedEventIds.size) {
+    return { matchedSource: true, correctedEntryCount: 0, correctedEventCount: 0, removedInferredEventCount: 0 };
+  }
+
+  const remainingLinkedEntries = entries.filter((entry) => !entry.sourceOnly && entry.eventId && !deletedEntryIds.has(entry.id));
+  const updatedEntryById = new Map(updatedEntries.map((entry) => [entry.id, entry]));
+  const nextLinkedEntries = remainingLinkedEntries.map((entry) => updatedEntryById.get(entry.id) ?? entry);
+  const nextImport: UniversityScheduleImport = {
+    ...active,
+    importedEventCount: nextLinkedEntries.length,
+    warningCount: nextLinkedEntries.reduce((sum, entry) => sum + entry.warnings.length, 0),
+  };
+
+  const db = await openDatabase();
+  const tx = db.transaction(
+    [STORE_UNIVERSITY_IMPORT_ENTRIES, STORE_EVENTS, STORE_LOCATIONS, STORE_UNIVERSITY_IMPORTS],
+    'readwrite',
+  );
+  for (const location of newLocations) tx.objectStore(STORE_LOCATIONS).put(location);
+  for (const entry of updatedEntries) if (!deletedEntryIds.has(entry.id)) tx.objectStore(STORE_UNIVERSITY_IMPORT_ENTRIES).put(entry);
+  for (const event of updatedEvents) if (!deletedEventIds.has(event.id)) tx.objectStore(STORE_EVENTS).put(event);
+  for (const entryId of deletedEntryIds) tx.objectStore(STORE_UNIVERSITY_IMPORT_ENTRIES).delete(entryId);
+  for (const eventId of deletedEventIds) tx.objectStore(STORE_EVENTS).delete(eventId);
+  tx.objectStore(STORE_UNIVERSITY_IMPORTS).put(nextImport);
+  await transactionDone(tx);
+  emitLocalDataChanged();
+  return {
+    matchedSource: true,
+    correctedEntryCount: updatedEntries.filter((entry) => !deletedEntryIds.has(entry.id)).length,
+    correctedEventCount: updatedEvents.filter((event) => !deletedEventIds.has(event.id)).length,
+    removedInferredEventCount: deletedEventIds.size,
+  };
 }
 
 function candidateManualEventFields(candidate: StudyScheduleCandidate): UserModifiedEventField[] {
@@ -2617,6 +2794,8 @@ export async function applyRecurringAssumptionsToActiveStudyPlan(): Promise<{ in
   const empty = { inferredCandidateCount: 0, addedEventCount: 0, updatedEventCount: 0 };
   const active = await getActiveUniversityImport();
   if (!active) return empty;
+  // Exact manually audited plans must never receive speculative time/location inference.
+  if (isVerifiedManualStudySource(active.fileHash)) return empty;
 
   const entries = await listUniversityImportEntries(active.id);
   const sourceEntries = entries.filter((entry) => entry.sourceOnly);
@@ -4283,7 +4462,11 @@ async function resolveStudyTrashRestore(event: CalendarEvent): Promise<StudyTras
   let restored: CalendarEvent;
   if (reviewCandidate(candidate).canImport && candidate.date && candidate.startTime && candidate.endTime) {
     const identity = candidate.address ?? candidate.locationLabel;
-    const existingLocationId = identity ? locationMap(locations).get(normalizeLocationKey(identity))?.id : undefined;
+    const locationsByKey = locationMap(locations);
+    const exactLocationKey = candidateStudyLocationKey(candidate);
+    const existingLocationId = exactLocationKey
+      ? locationsByKey.get(exactLocationKey)?.id ?? (identity ? locationsByKey.get(normalizeLocationKey(identity))?.id : undefined)
+      : identity ? locationsByKey.get(normalizeLocationKey(identity))?.id : undefined;
     restored = applyCandidateToExistingEvent(
       event,
       requireCompleteImportCandidate(candidate),

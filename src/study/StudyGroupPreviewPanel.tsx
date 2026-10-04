@@ -10,11 +10,11 @@ import {
 } from '../storage/database';
 import { reviewCandidate } from './import-review';
 import { identifyCandidate } from './study-identity';
-import { applyRecurringStudyPatternAssumptions } from './study-recurring-pattern-assumptions';
 import { StudyPreviewCalendar } from './StudyPreviewCalendar';
 import { StudyGroupChoiceFields } from './StudyGroupChoiceFields';
-import { candidatesForSelectedGroups, validateStudyGroupSelection } from './study.service';
+import { candidatesForSelectedGroups, hashFile, validateStudyGroupSelection } from './study.service';
 import type { ScheduleAnalysis, StudyGroupPreview, StudyPreviewProfile, StudyScheduleCandidate, UniversityScheduleImport } from './study.types';
+import { applyVerifiedStudyPlanManualCorrectionsToAnalysis } from './verified-study-plan-manual';
 
 interface StudyGroupPreviewPanelProps {
   activeImport: UniversityScheduleImport;
@@ -95,10 +95,10 @@ export function StudyGroupPreviewPanel({ activeImport, primaryGroups }: StudyGro
     setMessage('');
     setPreview(null);
     try {
-      const workbook = await readSpreadsheetFile(file);
+      const [workbook, fileHash] = await Promise.all([readSpreadsheetFile(file), hashFile(file)]);
       const rawResult = analyzeScheduleWorkbook(workbook);
       if (!rawResult) throw new Error('Nie rozpoznano formatu planu. Plik nie został zapisany ani użyty do zmiany kalendarza.');
-      const result = applyRecurringStudyPatternAssumptions(rawResult);
+      const result = applyVerifiedStudyPlanManualCorrectionsToAnalysis(rawResult, fileHash);
       setLocalAnalysis(result);
       setLocalFileName(file.name);
       setSelectedGroups((current) => current.filter((group) => result.groups.includes(group)));

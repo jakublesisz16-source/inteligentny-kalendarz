@@ -103,7 +103,7 @@ describe('Build249 Study reality-check', () => {
     expect(css).toContain('.calendar-primary-controls-minimal .calendar-view-switch');
     expect(work.match(/work-comparison-card-empty/g)?.length).toBe(2);
     expect(calendar.match(/<span className="day-number">\{day\.getDate\(\)\}<\/span>/g)?.length).toBe(1);
-    expect(preview).toContain('applyRecurringStudyPatternAssumptions(rawResult)');
+    expect(preview).toContain('applyVerifiedStudyPlanManualCorrectionsToAnalysis(rawResult, fileHash)');
     expect(database).toContain('const operationalSourceAnalysis =');
     expect(database).toContain('applyRecurringPatternToCandidates(sourceAnalysis.candidates).candidates');
   });
