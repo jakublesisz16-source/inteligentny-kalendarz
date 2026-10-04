@@ -1,11 +1,11 @@
 {
   "source": "PRIVATE",
   "surface": "public-stable",
-  "buildId": "ik-1.2.0.304-20261004-sync-storage-hardening-ci-fix",
-  "appVersion": "1.2.0.304",
+  "buildId": "ik-1.2.0.305-20261004-sync-storage-hardening-test-fixture-fix",
+  "appVersion": "1.2.0.305",
   "releaseVersion": "1.2.0",
-  "packageVersion": "1.2.0-private.304",
-  "build": "304",
-  "contentFingerprint": "28c70ad1f86c26010183ad2db68b08899312d5be5dbcd5be2832adcff499ede8",
+  "packageVersion": "1.2.0-private.305",
+  "build": "305",
+  "contentFingerprint": "824ff35dd3bfc98b854b9242313565a2210b210492989d31515f8af9508eebe3",
   "fileCount": 574
 }

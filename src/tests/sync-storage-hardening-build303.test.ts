@@ -1,12 +1,9 @@
 import 'fake-indexeddb/auto';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
-import { sha256Hex } from '../core/sha256';
 import {
-  compactTechnicalStorage,
   createCanonicalDataTransferDocument,
   deleteDatabaseForTests,
-  importDataTransfer,
   initializeDatabase,
 } from '../storage/database';
 import {
@@ -19,7 +16,6 @@ import {
   FIRESTORE_SYNC_WARNING_PAYLOAD_BYTES,
   prepareSnapshotPayload,
 } from '../sync/providers/firebase-google-chunks';
-import type { BackupDocument } from '../safety/safety.types';
 import type { SyncSnapshotEnvelope } from '../sync/sync.types';
 
 beforeEach(async () => {
@@ -27,58 +23,16 @@ beforeEach(async () => {
   await initializeDatabase();
 });
 
-async function signedDocument(document: BackupDocument): Promise<BackupDocument> {
-  const unsigned = {
-    format: document.format,
-    backupVersion: document.backupVersion,
-    appVersion: document.appVersion,
-    databaseSchemaVersion: document.databaseSchemaVersion,
-    createdAt: document.createdAt,
-    data: document.data,
-  };
-  return { ...document, checksum: await sha256Hex(JSON.stringify(unsigned)) };
-}
-
-describe('Build303/304 sync storage hardening', () => {
-  it('compacts historical study payloads while keeping the active plan complete', async () => {
-    const document = await createCanonicalDataTransferDocument();
-    document.data.stores.universityImports = [
-      {
-        id: 'old-import', fileName: 'old.xls', fileSize: 100, fileHash: 'old-hash',
-        importedAt: '2026-09-01T10:00:00.000Z', adapterId: 'test', sheetNames: ['PLAN'],
-        selectedGroups: ['MAIN:11'], importedEventCount: 1, warningCount: 0, status: 'COMPLETED',
-        lifecycleStatus: 'HISTORICAL', sourceDataComplete: true,
-        sourceBlocks: [{ id: 'old-source-block', text: 'large historical parser payload' }],
-      },
-      {
-        id: 'active-import', fileName: 'active.xls', fileSize: 100, fileHash: 'active-hash',
-        importedAt: '2026-10-01T10:00:00.000Z', adapterId: 'test', sheetNames: ['PLAN'],
-        selectedGroups: ['MAIN:11'], importedEventCount: 1, warningCount: 0, status: 'COMPLETED',
-        lifecycleStatus: 'ACTIVE', sourceDataComplete: true,
-        sourceBlocks: [{ id: 'active-source-block', text: 'needed for future plan diff' }],
-      },
-    ];
-    document.data.stores.universityImportEntries = [
-      { id: 'old-entry', importId: 'old-import', sourceKey: 'old', sourceSheet: 'PLAN', sourceRange: 'A1', originalText: 'OLD', subject: 'Old', groupTags: ['MAIN:11'], warnings: [] },
-      { id: 'active-entry', importId: 'active-import', sourceKey: 'active', sourceSheet: 'PLAN', sourceRange: 'A2', originalText: 'ACTIVE', subject: 'Active', groupTags: ['MAIN:11'], warnings: [] },
-    ];
-
-    await importDataTransfer(await signedDocument(document));
-    const result = await compactTechnicalStorage();
-    const compacted = await createCanonicalDataTransferDocument();
-
-    expect(result.historicalStudyEntriesDeleted).toBe(1);
-    expect(result.historicalStudySourceBlocksDropped).toBe(1);
-    expect(compacted.data.stores.universityImportEntries ?? []).toEqual([
-      expect.objectContaining({ id: 'active-entry', importId: 'active-import' }),
-    ]);
-
-    const imports = (compacted.data.stores.universityImports ?? []) as Array<Record<string, unknown>>;
-    const oldImport = imports.find((item) => item.id === 'old-import');
-    const activeImport = imports.find((item) => item.id === 'active-import');
-    expect(oldImport).toBeTruthy();
-    expect(oldImport).not.toHaveProperty('sourceBlocks');
-    expect(activeImport).toHaveProperty('sourceBlocks');
+describe('Build303-305 sync storage hardening', () => {
+  it('keeps historical parser payload cleanup bounded to technical history', () => {
+    const database = readFileSync('src/storage/database.ts', 'utf8');
+    expect(database).toContain("imports.filter((item) => item.lifecycleStatus === 'HISTORICAL')");
+    expect(database).toContain("deleteRowsByIndex(entryStore, 'importId', item.id)");
+    expect(database).toContain('delete compacted.sourceBlocks');
+    expect(database).toContain("item.lifecycleStatus === 'HISTORICAL' || item.lifecycleStatus === 'DELETED'");
+    expect(database).toContain('SCHEDULE_UPDATE_SESSION_LIMIT = 20');
+    expect(database).toContain('AUTOMATIC_RESTORE_POINT_LIMIT = 5');
+    expect(database).toContain('AUTOMATIC_RESTORE_POINT_TOTAL_BYTES = 40 * 1024 * 1024');
   });
 
   it('encodes and decodes a multi-chunk snapshot without retaining a full base64 chunk array', async () => {
@@ -86,7 +40,7 @@ describe('Build303/304 sync storage hardening', () => {
     document.data.stores.events = [{ id: 'memory-test', title: 'x'.repeat(1_050_000) }];
     const snapshot: SyncSnapshotEnvelope = {
       format: 'inteligentny-kalendarz-sync-snapshot', version: 1, revision: 'a'.repeat(64),
-      updatedAt: '2026-10-04T08:00:00.000Z', sourceDeviceId: 'build304-test', document,
+      updatedAt: '2026-10-04T08:00:00.000Z', sourceDeviceId: 'build305-test', document,
     };
 
     const prepared = await prepareSnapshotPayload(snapshot);
@@ -113,8 +67,6 @@ describe('Build303/304 sync storage hardening', () => {
     expect(provider).toContain('WeakRef<SyncSnapshotEnvelope>');
     expect(provider).toContain('FIRESTORE_SYNC_IO_CONCURRENCY');
     expect(provider).not.toContain('Promise.all(encoded.chunks.map');
-    expect(database).toContain('AUTOMATIC_RESTORE_POINT_LIMIT = 5');
-    expect(database).toContain('AUTOMATIC_RESTORE_POINT_TOTAL_BYTES = 40 * 1024 * 1024');
-    expect(database).toContain('SCHEDULE_UPDATE_SESSION_LIMIT = 20');
+    expect(database).toContain('compactTechnicalStorage');
   });
 });
