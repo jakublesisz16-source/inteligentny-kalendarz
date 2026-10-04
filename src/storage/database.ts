@@ -7,7 +7,7 @@ import type { AppSettings, AppSettingsPatch } from '../settings/settings.types';
 import { DEFAULT_DECORATIVE_BACKGROUND_MODE, normalizeDecorativeBackgroundMode } from '../settings/appearance';
 import { DEFAULT_NOTIFICATION_PREFERENCES, normalizeNotificationPreferences } from '../notifications/notification-preferences';
 import type { NotificationReminder, NotificationRuntime } from '../notifications/notification.types';
-import type { BackupDocument, BackupInspection, BackupSummary, ChangeJournalEntry, ChangeOperationType, ChangeEntityType, DatabaseSnapshot, DayConstraint, RestorePoint, RestorePointReason, TrashItem } from '../safety/safety.types';
+import type { BackupDocument, BackupInspection, BackupSummary, ChangeJournalEntry, ChangeOperationType, ChangeEntityType, DatabaseSnapshot, DayConstraint, RestorePoint, RestorePointReason, RestorePointSummary, TrashItem } from '../safety/safety.types';
 import { nextJournalTimestampIso } from '../safety/change-journal-order';
 import { reviewCandidate } from '../study/import-review';
 import { applyCorrectionRules } from '../study/study-corrections';
@@ -96,7 +96,9 @@ const STORE_CYCLE_JOURNAL_ENTRIES = 'cycleJournalEntries';
 const STORE_NOTIFICATION_RUNTIME = 'notificationRuntime';
 const STORE_NOTIFICATION_REMINDERS = 'notificationReminders';
 const CHANGE_JOURNAL_LIMIT = 100;
-const AUTOMATIC_RESTORE_POINT_LIMIT = 10;
+const AUTOMATIC_RESTORE_POINT_LIMIT = 5;
+const AUTOMATIC_RESTORE_POINT_TOTAL_BYTES = 40 * 1024 * 1024;
+const SCHEDULE_UPDATE_SESSION_LIMIT = 20;
 
 interface MetaRecord {
   key: string;
@@ -3741,6 +3743,118 @@ async function replaceSnapshotVerified(snapshot: DatabaseSnapshot, includeJourna
   }
 }
 
+export interface TechnicalStorageCompactionResult {
+  historicalStudyEntriesDeleted: number;
+  historicalStudySourceBlocksDropped: number;
+  historicalWorkEntriesDeleted: number;
+  historicalCoworkerShiftsDeleted: number;
+  scheduleUpdateSessionsDeleted: number;
+}
+
+function deleteRowsByIndex(
+  store: IDBObjectStore,
+  indexName: string,
+  value: IDBValidKey,
+): Promise<number> {
+  return new Promise((resolve, reject) => {
+    let deleted = 0;
+    const request = store.index(indexName).openKeyCursor(IDBKeyRange.only(value));
+    request.onerror = () => reject(request.error ?? new Error('Nie udało się oczyścić danych technicznych.'));
+    request.onsuccess = () => {
+      const cursor = request.result;
+      if (!cursor) {
+        resolve(deleted);
+        return;
+      }
+      store.delete(cursor.primaryKey);
+      deleted += 1;
+      cursor.continue();
+    };
+  });
+}
+
+async function compactHistoricalStudyPayloads(): Promise<{ entriesDeleted: number; sourceBlocksDropped: number }> {
+  const imports = await listUniversityImports();
+  const historical = imports.filter((item) => item.lifecycleStatus === 'HISTORICAL');
+  if (!historical.length) return { entriesDeleted: 0, sourceBlocksDropped: 0 };
+
+  const db = await openDatabase();
+  const tx = db.transaction([STORE_UNIVERSITY_IMPORTS, STORE_UNIVERSITY_IMPORT_ENTRIES], 'readwrite');
+  const done = transactionDone(tx);
+  const importStore = tx.objectStore(STORE_UNIVERSITY_IMPORTS);
+  const entryStore = tx.objectStore(STORE_UNIVERSITY_IMPORT_ENTRIES);
+  let sourceBlocksDropped = 0;
+  const deletions: Promise<number>[] = [];
+  for (const item of historical) {
+    if (item.sourceBlocks?.length) {
+      const compacted: UniversityScheduleImport = { ...item };
+      delete compacted.sourceBlocks;
+      importStore.put(compacted);
+      sourceBlocksDropped += 1;
+    }
+    deletions.push(deleteRowsByIndex(entryStore, 'importId', item.id));
+  }
+  const counts = await Promise.all(deletions);
+  await done;
+  return { entriesDeleted: counts.reduce((sum, value) => sum + value, 0), sourceBlocksDropped };
+}
+
+async function compactHistoricalWorkPayloads(): Promise<{ entriesDeleted: number; coworkerShiftsDeleted: number }> {
+  const imports = await listWorkScheduleImports();
+  const historical = imports.filter((item) => item.lifecycleStatus === 'HISTORICAL' || item.lifecycleStatus === 'DELETED');
+  if (!historical.length) return { entriesDeleted: 0, coworkerShiftsDeleted: 0 };
+
+  const db = await openDatabase();
+  const tx = db.transaction([STORE_WORK_SCHEDULE_ENTRIES, STORE_WORK_COWORKER_SHIFTS], 'readwrite');
+  const done = transactionDone(tx);
+  const entryStore = tx.objectStore(STORE_WORK_SCHEDULE_ENTRIES);
+  const coworkerStore = tx.objectStore(STORE_WORK_COWORKER_SHIFTS);
+  const entryDeletes: Promise<number>[] = [];
+  const coworkerDeletes: Promise<number>[] = [];
+  for (const item of historical) {
+    entryDeletes.push(deleteRowsByIndex(entryStore, 'importId', item.id));
+    coworkerDeletes.push(deleteRowsByIndex(coworkerStore, 'importId', item.id));
+  }
+  const [entryCounts, coworkerCounts] = await Promise.all([Promise.all(entryDeletes), Promise.all(coworkerDeletes)]);
+  await done;
+  return {
+    entriesDeleted: entryCounts.reduce((sum, value) => sum + value, 0),
+    coworkerShiftsDeleted: coworkerCounts.reduce((sum, value) => sum + value, 0),
+  };
+}
+
+async function pruneScheduleUpdateSessions(): Promise<number> {
+  const db = await openDatabase();
+  const txRead = db.transaction(STORE_SCHEDULE_UPDATE_SESSIONS, 'readonly');
+  const sessions = await requestToPromise(txRead.objectStore(STORE_SCHEDULE_UPDATE_SESSIONS).getAll() as IDBRequest<ScheduleUpdateSession[]>);
+  await transactionDone(txRead);
+  if (sessions.length <= SCHEDULE_UPDATE_SESSION_LIMIT) return 0;
+  const toDelete = sessions
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+    .slice(SCHEDULE_UPDATE_SESSION_LIMIT);
+  const tx = db.transaction(STORE_SCHEDULE_UPDATE_SESSIONS, 'readwrite');
+  for (const session of toDelete) tx.objectStore(STORE_SCHEDULE_UPDATE_SESSIONS).delete(session.id);
+  await transactionDone(tx);
+  return toDelete.length;
+}
+
+export async function compactTechnicalStorage(): Promise<TechnicalStorageCompactionResult> {
+  // Historical parsed source payloads are not user files and are not needed once a
+  // newer import is active. Keep lightweight import metadata for history, while the
+  // active import retains the full source needed for future diff/recalculation.
+  const study = await compactHistoricalStudyPayloads();
+  const work = await compactHistoricalWorkPayloads();
+  const scheduleUpdateSessionsDeleted = await pruneScheduleUpdateSessions();
+  await pruneChangeJournal();
+  return {
+    historicalStudyEntriesDeleted: study.entriesDeleted,
+    historicalStudySourceBlocksDropped: study.sourceBlocksDropped,
+    historicalWorkEntriesDeleted: work.entriesDeleted,
+    historicalCoworkerShiftsDeleted: work.coworkerShiftsDeleted,
+    scheduleUpdateSessionsDeleted,
+  };
+}
+
 async function pruneChangeJournal(): Promise<void> {
   const db = await openDatabase();
   const txRead = db.transaction(STORE_CHANGE_JOURNAL, 'readonly');
@@ -3753,14 +3867,54 @@ async function pruneChangeJournal(): Promise<void> {
   await transactionDone(tx);
 }
 
-async function pruneAutomaticRestorePoints(): Promise<void> {
+interface RestorePointRetentionMeta {
+  id: string;
+  createdAt: string;
+  sizeBytes: number;
+}
+
+async function listAutomaticRestorePointRetentionMeta(): Promise<RestorePointRetentionMeta[]> {
   const db = await openDatabase();
-  const txRead = db.transaction(STORE_RESTORE_POINTS, 'readonly');
-  const points = await requestToPromise(txRead.objectStore(STORE_RESTORE_POINTS).getAll() as IDBRequest<RestorePoint[]>);
-  await transactionDone(txRead);
-  const automatic = points.filter((point) => point.automatic && !point.pinned).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-  if (automatic.length <= AUTOMATIC_RESTORE_POINT_LIMIT) return;
-  const removedIds = new Set(automatic.slice(AUTOMATIC_RESTORE_POINT_LIMIT).map((point) => point.id));
+  const tx = db.transaction(STORE_RESTORE_POINTS, 'readonly');
+  const done = transactionDone(tx);
+  const store = tx.objectStore(STORE_RESTORE_POINTS);
+  const result: RestorePointRetentionMeta[] = [];
+  await new Promise<void>((resolve, reject) => {
+    const request = store.openCursor();
+    request.onerror = () => reject(request.error ?? new Error('Nie udało się odczytać punktów przywracania.'));
+    request.onsuccess = () => {
+      const cursor = request.result;
+      if (!cursor) {
+        resolve();
+        return;
+      }
+      const point = cursor.value as RestorePoint;
+      if (point.automatic && !point.pinned) {
+        result.push({ id: point.id, createdAt: point.createdAt, sizeBytes: point.sizeBytes ?? 0 });
+      }
+      cursor.continue();
+    };
+  });
+  await done;
+  return result.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+}
+
+async function pruneAutomaticRestorePoints(reserveBytes = 0, reserveSlots = 0): Promise<void> {
+  const db = await openDatabase();
+  const automatic = await listAutomaticRestorePointRetentionMeta();
+  const maxExistingCount = Math.max(0, AUTOMATIC_RESTORE_POINT_LIMIT - reserveSlots);
+  const maxExistingBytes = Math.max(0, AUTOMATIC_RESTORE_POINT_TOTAL_BYTES - reserveBytes);
+  const retainedIds = new Set<string>();
+  let retainedBytes = 0;
+  for (const point of automatic) {
+    if (retainedIds.size >= maxExistingCount) break;
+    const keepOversizedNewest = reserveBytes === 0 && retainedIds.size === 0;
+    if (!keepOversizedNewest && retainedBytes + point.sizeBytes > maxExistingBytes) break;
+    retainedIds.add(point.id);
+    retainedBytes += point.sizeBytes;
+  }
+  const removedIds = new Set(automatic.filter((point) => !retainedIds.has(point.id)).map((point) => point.id));
+  if (!removedIds.size) return;
   const tx = db.transaction([STORE_RESTORE_POINTS, STORE_CHANGE_JOURNAL], 'readwrite');
   const journalStore = tx.objectStore(STORE_CHANGE_JOURNAL);
   const entries = await requestToPromise(journalStore.getAll() as IDBRequest<ChangeJournalEntry[]>);
@@ -3779,12 +3933,12 @@ async function pruneAutomaticRestorePoints(): Promise<void> {
 export async function listChangeJournal(): Promise<ChangeJournalEntry[]> {
   const db = await openDatabase();
   const tx = db.transaction([STORE_CHANGE_JOURNAL, STORE_RESTORE_POINTS], 'readonly');
-  const [result, points] = await Promise.all([
+  const [result, pointIds] = await Promise.all([
     requestToPromise(tx.objectStore(STORE_CHANGE_JOURNAL).getAll() as IDBRequest<ChangeJournalEntry[]>),
-    requestToPromise(tx.objectStore(STORE_RESTORE_POINTS).getAll() as IDBRequest<RestorePoint[]>),
+    requestToPromise(tx.objectStore(STORE_RESTORE_POINTS).getAllKeys()),
   ]);
   await transactionDone(tx);
-  const restoreIds = new Set(points.map((point) => point.id));
+  const restoreIds = new Set(pointIds.map((id) => String(id)));
   return result.map((entry) => entry.restorePointId && entry.reversible && !entry.undoneAt && !restoreIds.has(entry.restorePointId)
     ? { ...entry, reversible: false, metadata: { ...entry.metadata, undoUnavailableReason: 'RESTORE_POINT_MISSING' } }
     : entry).sort((a, b) => b.timestamp.localeCompare(a.timestamp));
@@ -4207,7 +4361,67 @@ export async function listRestorePoints(): Promise<RestorePoint[]> {
   return result.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
 
+export async function listRestorePointSummaries(): Promise<RestorePointSummary[]> {
+  const db = await openDatabase();
+  const tx = db.transaction(STORE_RESTORE_POINTS, 'readonly');
+  const done = transactionDone(tx);
+  const result: RestorePointSummary[] = [];
+  await new Promise<void>((resolve, reject) => {
+    const request = tx.objectStore(STORE_RESTORE_POINTS).openCursor();
+    request.onerror = () => reject(request.error ?? new Error('Nie udało się odczytać punktów przywracania.'));
+    request.onsuccess = () => {
+      const cursor = request.result;
+      if (!cursor) {
+        resolve();
+        return;
+      }
+      const point = cursor.value as RestorePoint;
+      result.push({
+        id: point.id,
+        createdAt: point.createdAt,
+        label: point.label,
+        reason: point.reason,
+        schemaVersion: point.schemaVersion,
+        snapshotDatabaseSchemaVersion: point.snapshot.databaseSchemaVersion,
+        appVersion: point.appVersion,
+        ...(point.sizeBytes !== undefined ? { sizeBytes: point.sizeBytes } : {}),
+        automatic: point.automatic,
+        ...(point.pinned !== undefined ? { pinned: point.pinned } : {}),
+      });
+      cursor.continue();
+    };
+  });
+  await done;
+  return result.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+}
+
+async function getRestorePoint(id: string): Promise<RestorePoint | undefined> {
+  const db = await openDatabase();
+  const tx = db.transaction(STORE_RESTORE_POINTS, 'readonly');
+  const point = await requestToPromise(tx.objectStore(STORE_RESTORE_POINTS).get(id) as IDBRequest<RestorePoint | undefined>);
+  await transactionDone(tx);
+  return point;
+}
+
+async function ensureRestorePointStorageHeadroom(sizeBytes: number): Promise<void> {
+  const storage = globalThis.navigator?.storage;
+  if (!storage?.estimate) return;
+  try {
+    const estimate = await storage.estimate();
+    if (typeof estimate.quota !== 'number' || typeof estimate.usage !== 'number') return;
+    const freeBytes = Math.max(0, estimate.quota - estimate.usage);
+    const requiredHeadroom = Math.max(16 * 1024 * 1024, Math.ceil(sizeBytes * 1.5));
+    if (freeBytes < requiredHeadroom) {
+      throw new Error('Za mało wolnej pamięci na bezpieczny punkt przywracania. Usuń niepotrzebne dane lub punkty przywracania i spróbuj ponownie.');
+    }
+  } catch (error) {
+    if (error instanceof Error && error.message.startsWith('Za mało wolnej pamięci')) throw error;
+    // Storage Estimate API is advisory. Its absence/failure must not block normal local-first work.
+  }
+}
+
 export async function createRestorePoint(label: string, reason: RestorePointReason = 'MANUAL', automatic = false, pinned = false, pruneAutomatic = true): Promise<RestorePoint> {
+  await compactTechnicalStorage();
   const snapshot = await captureSnapshot(restoreSnapshotStoreNames());
   const serialized = JSON.stringify(snapshot);
   const point: RestorePoint = {
@@ -4219,15 +4433,19 @@ export async function createRestorePoint(label: string, reason: RestorePointReas
     appVersion: APP_VERSION,
     snapshot,
     checksum: await sha256Text(serialized),
-    sizeBytes: new TextEncoder().encode(serialized).byteLength,
+    sizeBytes: typeof Blob === 'function' ? new Blob([serialized]).size : new TextEncoder().encode(serialized).byteLength,
     automatic,
     ...(pinned ? { pinned: true } : {}),
   };
+  if (automatic && !pinned && (point.sizeBytes ?? 0) > AUTOMATIC_RESTORE_POINT_TOTAL_BYTES) {
+    throw new Error('Bieżący stan jest zbyt duży na bezpieczny automatyczny punkt przywracania. Operacja została zatrzymana, aby nie zapełnić pamięci aplikacji.');
+  }
+  await ensureRestorePointStorageHeadroom(point.sizeBytes ?? 0);
+  if (automatic && pruneAutomatic) await pruneAutomaticRestorePoints(point.sizeBytes ?? 0, 1);
   const db = await openDatabase();
   const tx = db.transaction(STORE_RESTORE_POINTS, 'readwrite');
   tx.objectStore(STORE_RESTORE_POINTS).put(point);
   await transactionDone(tx);
-  if (automatic && pruneAutomatic) await pruneAutomaticRestorePoints();
   return point;
 }
 
@@ -4241,8 +4459,7 @@ async function validateRestorePoint(point: RestorePoint): Promise<void> {
 }
 
 async function restoreRestorePointInternal(id: string, createSafetyPoint: boolean): Promise<void> {
-  const points = await listRestorePoints();
-  const point = points.find((item) => item.id === id);
+  const point = await getRestorePoint(id);
   if (!point) throw new Error('Nie znaleziono punktu przywracania.');
   await validateRestorePoint(point);
   if (point.schemaVersion !== point.snapshot.databaseSchemaVersion) throw new Error('Punkt przywracania ma niespójny numer schematu i nie może zostać użyty.');
@@ -4296,7 +4513,7 @@ export async function restoreRestorePoint(id: string): Promise<void> {
 }
 
 export async function deleteRestorePoint(id: string): Promise<void> {
-  const point = (await listRestorePoints()).find((item) => item.id === id);
+  const point = await getRestorePoint(id);
   if (!point) throw new Error('Nie znaleziono punktu przywracania.');
   if (point.pinned) throw new Error('Ten punkt jest chroniony przez aplikację i nie może zostać usunięty.');
   const db = await openDatabase();
@@ -4410,6 +4627,7 @@ export function hasMeaningfulDataTransferContent(document: BackupDocument): bool
 }
 
 export async function createBackupFile(): Promise<{ fileName: string; text: string; summary: BackupSummary }> {
+  await compactTechnicalStorage();
   const document = await createCanonicalDataTransferDocument();
   const now = new Date();
   const pad = (value: number) => String(value).padStart(2, '0');

@@ -4,14 +4,14 @@ import {
   deleteRestorePoint,
   emptyTrash,
   listChangeJournal,
-  listRestorePoints,
+  listRestorePointSummaries,
   listTrashItems,
   permanentlyDeleteTrashItem,
   restoreRestorePoint,
   restoreTrashItem,
   undoChange,
 } from '../storage/database';
-import type { ChangeJournalEntry, RestorePoint, TrashItem } from './safety.types';
+import type { ChangeJournalEntry, RestorePointSummary, TrashItem } from './safety.types';
 import { StoragePersistencePanel } from '../settings/StoragePersistencePanel';
 import { DATABASE_SCHEMA_VERSION } from '../core/version';
 
@@ -30,7 +30,7 @@ export function SafetyCenter({ onDataChanged }: SafetyCenterProps) {
   const [tab, setTab] = useState<SafetyTab>('history');
   const [journal, setJournal] = useState<ChangeJournalEntry[]>([]);
   const [trash, setTrash] = useState<TrashItem[]>([]);
-  const [restorePoints, setRestorePoints] = useState<RestorePoint[]>([]);
+  const [restorePoints, setRestorePoints] = useState<RestorePointSummary[]>([]);
   const [restoreName, setRestoreName] = useState('');
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
@@ -40,7 +40,7 @@ export function SafetyCenter({ onDataChanged }: SafetyCenterProps) {
   useEffect(() => { void refresh(); }, []);
 
   async function refresh() {
-    const [nextJournal, nextTrash, nextRestore] = await Promise.all([listChangeJournal(), listTrashItems(), listRestorePoints()]);
+    const [nextJournal, nextTrash, nextRestore] = await Promise.all([listChangeJournal(), listTrashItems(), listRestorePointSummaries()]);
     setJournal(nextJournal);
     setTrash(nextTrash);
     setRestorePoints(nextRestore);
@@ -117,7 +117,7 @@ export function SafetyCenter({ onDataChanged }: SafetyCenterProps) {
           </div>
           <div className="safety-list">
             {restorePoints.map((point) => {
-              const compatible = point.schemaVersion === DATABASE_SCHEMA_VERSION && point.snapshot.databaseSchemaVersion === DATABASE_SCHEMA_VERSION;
+              const compatible = point.schemaVersion === DATABASE_SCHEMA_VERSION && point.snapshotDatabaseSchemaVersion === DATABASE_SCHEMA_VERSION;
               return (
                 <article key={point.id} className="safety-list-item">
                   <div><strong>{point.label}</strong><span>{formatDateTime(point.createdAt)}</span><small>{point.automatic ? 'Automatyczny' : 'Ręczny'}{point.pinned ? ' - chroniony' : ''}{!compatible ? ' - archiwalny' : ''}</small></div>

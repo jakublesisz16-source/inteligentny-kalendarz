@@ -2,7 +2,16 @@ import { FIREBASE_GOOGLE_SYNC_CONFIG } from './firebase-google-config';
 import { SyncRemoteChangedError } from '../sync-errors';
 import { FIREBASE_GOOGLE_SYNC_PROVIDER_ID } from '../provider-ids';
 import type { SyncAccount, SyncProvider, SyncSnapshotEnvelope } from '../sync.types';
-import { decodeSnapshotChunks, encodeSnapshotChunks } from './firebase-google-chunks';
+import {
+  createSnapshotDecodeBuffer,
+  decodeSnapshotChunkInto,
+  encodePreparedSnapshotChunk,
+  expectedSnapshotChunkCount,
+  finalizeSnapshotDecodeBuffer,
+  FIRESTORE_SYNC_IO_CONCURRENCY,
+  FIRESTORE_SYNC_MAX_PAYLOAD_BYTES,
+  prepareSnapshotPayload,
+} from './firebase-google-chunks';
 
 const FIREBASE_SDK_VERSION = '12.19.0';
 const FIREBASE_CDN = `https://www.gstatic.com/firebasejs/${FIREBASE_SDK_VERSION}`;
@@ -126,7 +135,7 @@ interface CloudChunkDocument {
 interface CloudSnapshotCacheEntry {
   revision: string;
   payloadSha256: string;
-  snapshot: SyncSnapshotEnvelope;
+  snapshotRef?: WeakRef<SyncSnapshotEnvelope>;
 }
 
 interface ChunkSetCleanup {
@@ -136,6 +145,69 @@ interface ChunkSetCleanup {
 
 let runtimePromise: Promise<FirebaseRuntime> | null = null;
 const cloudSnapshotCache = new Map<string, CloudSnapshotCacheEntry>();
+const CHUNK_CLEANUP_QUEUE_LIMIT = 24;
+const CHUNK_CLEANUP_KEY_PREFIX = 'ik.sync.chunk-cleanup.v1.';
+
+
+function cleanupStorage(): Storage | null {
+  try {
+    return typeof localStorage === 'undefined' ? null : localStorage;
+  } catch {
+    return null;
+  }
+}
+
+function cleanupQueueKey(uid: string): string {
+  return `${CHUNK_CLEANUP_KEY_PREFIX}${uid}`;
+}
+
+function readPendingChunkCleanup(uid: string): ChunkSetCleanup[] {
+  const storage = cleanupStorage();
+  if (!storage) return [];
+  try {
+    const parsed = JSON.parse(storage.getItem(cleanupQueueKey(uid)) ?? '[]') as unknown;
+    if (!Array.isArray(parsed)) return [];
+    const valid = parsed.filter((item): item is ChunkSetCleanup => Boolean(
+      item && typeof item === 'object'
+      && typeof (item as ChunkSetCleanup).chunkSetId === 'string'
+      && Number.isInteger((item as ChunkSetCleanup).chunkCount)
+      && (item as ChunkSetCleanup).chunkCount > 0,
+    ));
+    return valid.slice(-CHUNK_CLEANUP_QUEUE_LIMIT);
+  } catch {
+    return [];
+  }
+}
+
+function writePendingChunkCleanup(uid: string, items: readonly ChunkSetCleanup[]): void {
+  const storage = cleanupStorage();
+  if (!storage) return;
+  try {
+    const unique = [...new Map(items.map((item) => [item.chunkSetId, item])).values()].slice(-CHUNK_CLEANUP_QUEUE_LIMIT);
+    if (unique.length) storage.setItem(cleanupQueueKey(uid), JSON.stringify(unique));
+    else storage.removeItem(cleanupQueueKey(uid));
+  } catch {
+    // Cleanup metadata is best-effort and must never block sync/local work.
+  }
+}
+
+function rememberPendingChunkCleanup(uid: string, item: ChunkSetCleanup): void {
+  writePendingChunkCleanup(uid, [...readPendingChunkCleanup(uid), item]);
+}
+
+function weakSnapshotRef(snapshot: SyncSnapshotEnvelope): WeakRef<SyncSnapshotEnvelope> | undefined {
+  return typeof WeakRef === 'function' ? new WeakRef(snapshot) : undefined;
+}
+
+function chunkBatchIndexes(chunkCount: number): number[][] {
+  const batches: number[][] = [];
+  for (let start = 0; start < chunkCount; start += FIRESTORE_SYNC_IO_CONCURRENCY) {
+    const batch: number[] = [];
+    for (let index = start; index < Math.min(start + FIRESTORE_SYNC_IO_CONCURRENCY, chunkCount); index += 1) batch.push(index);
+    batches.push(batch);
+  }
+  return batches;
+}
 
 async function importFirebaseModule<T>(filename: string): Promise<T> {
   const url = `${FIREBASE_CDN}/${filename}`;
@@ -278,12 +350,62 @@ async function deleteChunkSet(
   uid: string,
   chunkSetId: string,
   chunkCount: number,
-): Promise<void> {
-  const deletes: Promise<void>[] = [];
-  for (let index = 0; index < chunkCount; index += 1) {
-    deletes.push(runtime.firestoreModule.deleteDoc(syncChunkReference(runtime, uid, chunkSetId, index)));
+): Promise<boolean> {
+  let complete = true;
+  for (const batch of chunkBatchIndexes(chunkCount)) {
+    const results = await Promise.allSettled(batch.map((index) => (
+      runtime.firestoreModule.deleteDoc(syncChunkReference(runtime, uid, chunkSetId, index))
+    )));
+    if (results.some((result) => result.status === 'rejected')) complete = false;
   }
-  await Promise.allSettled(deletes);
+  return complete;
+}
+
+async function deleteChunkSetIfUnreferenced(
+  runtime: FirebaseRuntime,
+  uid: string,
+  chunkSetId: string,
+  chunkCount: number,
+): Promise<boolean> {
+  try {
+    const current = await runtime.firestoreModule.getDoc(syncDocumentReference(runtime, uid));
+    const currentData = current.data();
+    if (
+      current.exists()
+      && currentData?.format === 'inteligentny-kalendarz-cloud-manifest'
+      && currentData.version === 3
+      && currentData.storage === 'chunks-v2'
+      && currentData.chunkSetId === chunkSetId
+    ) return true;
+    return deleteChunkSet(runtime, uid, chunkSetId, chunkCount);
+  } catch {
+    // Cleanup is best-effort. Never turn a transport error into local-data loss.
+    return false;
+  }
+}
+
+async function retryPendingChunkCleanup(runtime: FirebaseRuntime, uid: string): Promise<void> {
+  const pending = readPendingChunkCleanup(uid);
+  if (!pending.length) return;
+  try {
+    const current = await runtime.firestoreModule.getDoc(syncDocumentReference(runtime, uid));
+    const currentData = current.data();
+    const activeChunkSetId = current.exists()
+      && currentData?.format === 'inteligentny-kalendarz-cloud-manifest'
+      && currentData.version === 3
+      && currentData.storage === 'chunks-v2'
+      && typeof currentData.chunkSetId === 'string'
+      ? currentData.chunkSetId
+      : null;
+    const remaining: ChunkSetCleanup[] = [];
+    for (const item of pending) {
+      if (item.chunkSetId === activeChunkSetId) continue;
+      if (!(await deleteChunkSet(runtime, uid, item.chunkSetId, item.chunkCount))) remaining.push(item);
+    }
+    writePendingChunkCleanup(uid, remaining);
+  } catch {
+    // Keep the bounded queue for the next successful sync attempt.
+  }
 }
 
 export function createFirebaseGoogleSyncProvider(): SyncProvider {
@@ -316,6 +438,7 @@ export function createFirebaseGoogleSyncProvider(): SyncProvider {
     async pullLatest() {
       const runtime = await getRuntime();
       const user = await requireUser(runtime);
+      await retryPendingChunkCleanup(runtime, user.uid);
       const manifestSnapshot = await runtime.firestoreModule.getDoc(syncDocumentReference(runtime, user.uid));
       if (!manifestSnapshot.exists()) return null;
       const data = manifestSnapshot.data();
@@ -327,125 +450,157 @@ export function createFirebaseGoogleSyncProvider(): SyncProvider {
       }
 
       const manifest = parseChunkedManifest(data);
+      if (manifest.payloadBytes > FIRESTORE_SYNC_MAX_PAYLOAD_BYTES) {
+        throw new Error('Snapshot w chmurze przekracza bezpieczny limit 24 MB. Pobieranie zatrzymano, aby nie ryzykować brakiem pamięci.');
+      }
+      if (manifest.chunkCount !== expectedSnapshotChunkCount(manifest.payloadBytes)) {
+        throw new Error('Chmura zawiera niekompletne dane synchronizacji: nieprawidłowa liczba fragmentów.');
+      }
       const cached = cloudSnapshotCache.get(user.uid);
+      const cachedSnapshot = cached?.snapshotRef?.deref();
       if (
-        cached?.revision === manifest.revision
+        cachedSnapshot
+        && cached.revision === manifest.revision
         && cached.payloadSha256 === manifest.payloadSha256
-      ) return cached.snapshot;
+      ) return cachedSnapshot;
 
       const chunkSetId = manifestChunkSetId(manifest);
-      const chunkSnapshots = await Promise.all(
-        Array.from({ length: manifest.chunkCount }, (_, index) => (
+      const payloadBuffer = createSnapshotDecodeBuffer(manifest.payloadBytes);
+      for (const batch of chunkBatchIndexes(manifest.chunkCount)) {
+        const chunkSnapshots = await Promise.all(batch.map((index) => (
           runtime.firestoreModule.getDoc(syncChunkReference(runtime, user.uid, chunkSetId, index))
-        )),
-      );
-      const chunks = chunkSnapshots.map((chunkSnapshot, index) => {
-        if (!chunkSnapshot.exists()) throw new Error('Chmura zawiera brakujący fragment synchronizacji.');
-        return parseChunkDocument(chunkSnapshot.data(), manifest, index);
-      });
-      const decoded = await decodeSnapshotChunks(manifest.revision, manifest.payloadBytes, manifest.payloadSha256, chunks);
+        )));
+        chunkSnapshots.forEach((chunkSnapshot, batchIndex) => {
+          const index = batch[batchIndex]!;
+          if (!chunkSnapshot.exists()) throw new Error('Chmura zawiera brakujący fragment synchronizacji.');
+          decodeSnapshotChunkInto(payloadBuffer, index, parseChunkDocument(chunkSnapshot.data(), manifest, index));
+        });
+      }
+      const decoded = await finalizeSnapshotDecodeBuffer(manifest.revision, manifest.payloadSha256, payloadBuffer);
+      const snapshotRef = weakSnapshotRef(decoded);
       cloudSnapshotCache.set(user.uid, {
         revision: manifest.revision,
         payloadSha256: manifest.payloadSha256,
-        snapshot: decoded,
+        ...(snapshotRef ? { snapshotRef } : {}),
       });
       return decoded;
     },
     async pushSnapshot(snapshot, expectedRevision = undefined) {
       const runtime = await getRuntime();
       const user = await requireUser(runtime);
+      await retryPendingChunkCleanup(runtime, user.uid);
       const reference = syncDocumentReference(runtime, user.uid);
-      const encoded = await encodeSnapshotChunks(snapshot);
-      const chunkCount = encoded.chunks.length;
+      const encoded = await prepareSnapshotPayload(snapshot);
+      const chunkCount = encoded.chunkCount;
       const chunkSetId = encoded.payloadSha256;
 
-      await Promise.all(encoded.chunks.map((payloadPart, index) => (
-        runtime.firestoreModule.setDoc(syncChunkReference(runtime, user.uid, chunkSetId, index), {
-          format: 'inteligentny-kalendarz-cloud-chunk',
-          version: 2,
-          revision: snapshot.revision,
-          chunkSetId,
-          index,
-          chunkCount,
-          encoding: 'base64-utf8',
-          payloadPart,
-        })
-      )));
+      if (encoded.nearLimit) {
+        console.warn(`[sync] Snapshot uses ${encoded.payloadBytes} bytes of the ${FIRESTORE_SYNC_MAX_PAYLOAD_BYTES} byte safety budget.`);
+      }
 
-      const staleChunkSets = await runtime.firestoreModule.runTransaction<ChunkSetCleanup[]>(
-        runtime.db,
-        async (transaction) => {
-          const current = await transaction.get(reference);
-          const currentData = current.data();
-          const currentRevision = current.exists() && typeof currentData?.revision === 'string'
-            ? String(currentData.revision)
-            : null;
-          if (expectedRevision !== undefined && currentRevision !== expectedRevision) {
-            throw new SyncRemoteChangedError(currentRevision);
-          }
+      let manifestSwitched = false;
+      try {
+        for (const batch of chunkBatchIndexes(chunkCount)) {
+          await Promise.all(batch.map((index) => (
+            runtime.firestoreModule.setDoc(syncChunkReference(runtime, user.uid, chunkSetId, index), {
+              format: 'inteligentny-kalendarz-cloud-chunk',
+              version: 2,
+              revision: snapshot.revision,
+              chunkSetId,
+              index,
+              chunkCount,
+              encoding: 'base64-utf8',
+              payloadPart: encodePreparedSnapshotChunk(encoded, index),
+            })
+          )));
+        }
 
-          const stale: ChunkSetCleanup[] = [];
-          if (
-            current.exists()
-            && currentData?.format === 'inteligentny-kalendarz-cloud-manifest'
-            && typeof currentData.chunkCount === 'number'
-            && Number.isInteger(currentData.chunkCount)
-            && currentData.chunkCount > 0
-          ) {
+        const staleChunkSets = await runtime.firestoreModule.runTransaction<ChunkSetCleanup[]>(
+          runtime.db,
+          async (transaction) => {
+            const current = await transaction.get(reference);
+            const currentData = current.data();
+            const currentRevision = current.exists() && typeof currentData?.revision === 'string'
+              ? String(currentData.revision)
+              : null;
+            if (expectedRevision !== undefined && currentRevision !== expectedRevision) {
+              throw new SyncRemoteChangedError(currentRevision);
+            }
+
+            const stale: ChunkSetCleanup[] = [];
             if (
-              currentData.version === 3
-              && currentData.storage === 'chunks-v2'
-              && typeof currentData.chunkSetId === 'string'
-              && currentData.chunkSetId !== chunkSetId
+              current.exists()
+              && currentData?.format === 'inteligentny-kalendarz-cloud-manifest'
+              && typeof currentData.chunkCount === 'number'
+              && Number.isInteger(currentData.chunkCount)
+              && currentData.chunkCount > 0
             ) {
-              stale.push({ chunkSetId: currentData.chunkSetId, chunkCount: currentData.chunkCount });
-            } else if (
-              currentData.version === 2
-              && currentData.storage === 'chunks-v1'
-              && typeof currentData.revision === 'string'
-              && currentData.revision !== chunkSetId
-            ) {
-              stale.push({ chunkSetId: currentData.revision, chunkCount: currentData.chunkCount });
               if (
-                typeof currentData.previousRevision === 'string'
-                && typeof currentData.previousChunkCount === 'number'
-                && Number.isInteger(currentData.previousChunkCount)
-                && currentData.previousChunkCount > 0
-                && currentData.previousRevision !== chunkSetId
-                && currentData.previousRevision !== currentData.revision
+                currentData.version === 3
+                && currentData.storage === 'chunks-v2'
+                && typeof currentData.chunkSetId === 'string'
+                && currentData.chunkSetId !== chunkSetId
               ) {
-                stale.push({ chunkSetId: currentData.previousRevision, chunkCount: currentData.previousChunkCount });
+                stale.push({ chunkSetId: currentData.chunkSetId, chunkCount: currentData.chunkCount });
+              } else if (
+                currentData.version === 2
+                && currentData.storage === 'chunks-v1'
+                && typeof currentData.revision === 'string'
+                && currentData.revision !== chunkSetId
+              ) {
+                stale.push({ chunkSetId: currentData.revision, chunkCount: currentData.chunkCount });
+                if (
+                  typeof currentData.previousRevision === 'string'
+                  && typeof currentData.previousChunkCount === 'number'
+                  && Number.isInteger(currentData.previousChunkCount)
+                  && currentData.previousChunkCount > 0
+                  && currentData.previousRevision !== chunkSetId
+                  && currentData.previousRevision !== currentData.revision
+                ) {
+                  stale.push({ chunkSetId: currentData.previousRevision, chunkCount: currentData.previousChunkCount });
+                }
               }
             }
-          }
 
-          transaction.set(reference, {
-            format: 'inteligentny-kalendarz-cloud-manifest',
-            version: 3,
-            storage: 'chunks-v2',
-            revision: snapshot.revision,
-            chunkSetId,
-            clientUpdatedAt: snapshot.updatedAt,
-            sourceDeviceId: snapshot.sourceDeviceId,
-            payloadBytes: encoded.payloadBytes,
-            payloadSha256: encoded.payloadSha256,
-            chunkCount,
-            appVersion: snapshot.document.appVersion,
-            databaseSchemaVersion: snapshot.document.databaseSchemaVersion,
-            serverUpdatedAt: runtime.firestoreModule.serverTimestamp(),
-          });
-          return stale;
-        },
-      );
+            transaction.set(reference, {
+              format: 'inteligentny-kalendarz-cloud-manifest',
+              version: 3,
+              storage: 'chunks-v2',
+              revision: snapshot.revision,
+              chunkSetId,
+              clientUpdatedAt: snapshot.updatedAt,
+              sourceDeviceId: snapshot.sourceDeviceId,
+              payloadBytes: encoded.payloadBytes,
+              payloadSha256: encoded.payloadSha256,
+              chunkCount,
+              appVersion: snapshot.document.appVersion,
+              databaseSchemaVersion: snapshot.document.databaseSchemaVersion,
+              serverUpdatedAt: runtime.firestoreModule.serverTimestamp(),
+            });
+            return stale;
+          },
+        );
+        manifestSwitched = true;
 
-      cloudSnapshotCache.set(user.uid, {
-        revision: snapshot.revision,
-        payloadSha256: encoded.payloadSha256,
-        snapshot,
-      });
-      await Promise.allSettled(staleChunkSets.map((stale) => (
-        deleteChunkSet(runtime, user.uid, stale.chunkSetId, stale.chunkCount)
-      )));
+        const snapshotRef = weakSnapshotRef(snapshot);
+        cloudSnapshotCache.set(user.uid, {
+          revision: snapshot.revision,
+          payloadSha256: encoded.payloadSha256,
+          ...(snapshotRef ? { snapshotRef } : {}),
+        });
+        // Defer deletion of the previously active generation until the next sync
+        // attempt. This keeps one rollback/read buffer and avoids deleting a set
+        // that another device may be concurrently switching back to. The retry
+        // path re-reads the manifest before any deletion.
+        for (const stale of staleChunkSets) rememberPendingChunkCleanup(user.uid, stale);
+      } catch (error) {
+        if (!manifestSwitched) {
+          const cleanup = { chunkSetId, chunkCount };
+          if (!(await deleteChunkSetIfUnreferenced(runtime, user.uid, chunkSetId, chunkCount))) rememberPendingChunkCleanup(user.uid, cleanup);
+        }
+        throw error;
+      }
     },
+
   };
 }

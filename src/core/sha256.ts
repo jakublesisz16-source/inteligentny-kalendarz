@@ -90,9 +90,10 @@ export async function sha256Hex(value: ArrayBuffer | Uint8Array | string): Promi
   const bytes = bytesFrom(value);
   const subtle = globalThis.crypto?.subtle;
   if (subtle) {
-    const digestInput = new Uint8Array(bytes.byteLength);
-    digestInput.set(bytes);
-    const digest = await subtle.digest('SHA-256', digestInput);
+    // Do not clone large sync/restore payloads before WebCrypto. The caller already
+    // owns a stable Uint8Array for the duration of digest(), and an extra full-size
+    // copy materially increases peak memory on mobile.
+    const digest = await subtle.digest('SHA-256', bytes);
     return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, '0')).join('');
   }
   return fallbackSha256(bytes);

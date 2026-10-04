@@ -166,6 +166,19 @@ export interface RestorePoint {
   pinned?: boolean;
 }
 
+export interface RestorePointSummary {
+  id: string;
+  createdAt: string;
+  label: string;
+  reason: RestorePointReason;
+  schemaVersion: number;
+  snapshotDatabaseSchemaVersion: number;
+  appVersion: string;
+  sizeBytes?: number;
+  automatic: boolean;
+  pinned?: boolean;
+}
+
 export interface BackupDocument {
   format: 'inteligentny-kalendarz-backup';
   backupVersion: 1;

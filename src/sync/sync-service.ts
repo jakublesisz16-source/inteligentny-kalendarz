@@ -1,4 +1,4 @@
-import { applyCloudSyncSnapshot, createCanonicalDataTransferDocument, hasMeaningfulDataTransferContent } from '../storage/database';
+import { applyCloudSyncSnapshot, compactTechnicalStorage, createCanonicalDataTransferDocument, hasMeaningfulDataTransferContent } from '../storage/database';
 import { sha256Hex } from '../core/sha256';
 import {
   getPreferredSyncProviderId,
@@ -111,6 +111,10 @@ export class SyncService {
   }
 
   async captureLocalSnapshot(sourceDeviceId = getSyncDeviceId()): Promise<SyncSnapshotEnvelope> {
+    // Keep the synchronized state bounded before serializing it. This only removes
+    // historical parser payloads / technical history that the active plan no longer
+    // needs; current user data remains untouched.
+    await compactTechnicalStorage();
     const document = await createCanonicalDataTransferDocument();
     return {
       format: 'inteligentny-kalendarz-sync-snapshot',

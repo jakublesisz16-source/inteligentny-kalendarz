@@ -1,11 +1,11 @@
 {
   "source": "PRIVATE",
   "surface": "public-stable",
-  "buildId": "ik-1.2.0.302-20261004-explicit-sync-source-of-truth-recovery",
-  "appVersion": "1.2.0.302",
+  "buildId": "ik-1.2.0.303-20261004-sync-storage-hardening",
+  "appVersion": "1.2.0.303",
   "releaseVersion": "1.2.0",
-  "packageVersion": "1.2.0-private.302",
-  "build": "302",
-  "contentFingerprint": "ce35d741674880af3c1b09dd1992fff79827dbe4ed3b5341d698880721fdcdc3",
-  "fileCount": 573
+  "packageVersion": "1.2.0-private.303",
+  "build": "303",
+  "contentFingerprint": "a02391eb9565123f5e52cd6b846f2e1c17de8a1f8b31577afb645742fb398dfa",
+  "fileCount": 574
 }
