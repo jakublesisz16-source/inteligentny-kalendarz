@@ -1,11 +1,11 @@
 {
   "source": "PRIVATE",
   "surface": "public-stable",
-  "buildId": "ik-1.2.0.308-20261004-sync-diagnostics-quota-guard-cadence",
-  "appVersion": "1.2.0.308",
+  "buildId": "ik-1.2.0.310-20261004-manual-study-plan-canonical-audit",
+  "appVersion": "1.2.0.310",
   "releaseVersion": "1.2.0",
-  "packageVersion": "1.2.0-private.308",
-  "build": "308",
-  "contentFingerprint": "9b7b0d43f006f2059ee2bf2f188bfce504228a8f32c5302b906d48a5a3a74917",
-  "fileCount": 578
+  "packageVersion": "1.2.0-private.310",
+  "build": "310",
+  "contentFingerprint": "15d3d3aa66e834157564e8f3d3e9e922a2788badae90e5c23f755497e144a364",
+  "fileCount": 582
 }

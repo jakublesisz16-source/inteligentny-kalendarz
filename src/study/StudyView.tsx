@@ -29,7 +29,7 @@ import { identifyCandidate } from './study-identity';
 import { candidatesForSelectedGroups, findStudyScheduleConflicts, hashFile, validateStudyGroupSelection } from './study.service';
 import { completenessForSelectedGroups } from './study-completeness';
 import { verifyStudyPlanSource } from './verified-study-plan';
-import { applyRecurringStudyPatternAssumptions } from './study-recurring-pattern-assumptions';
+import { applyVerifiedStudyPlanManualCorrectionsToAnalysis, isVerifiedStudyProfileSelection, verifyVerifiedStudyPlanManualAudit } from './verified-study-plan-manual';
 import { ScheduleDiffView } from './ScheduleDiffView';
 import { StudyGroupPreviewPanel } from './StudyGroupPreviewPanel';
 import { StudyGroupChoiceFields, studyGroupChoiceProgress } from './StudyGroupChoiceFields';
@@ -252,29 +252,43 @@ export function StudyView({ onDataChanged }: StudyViewProps) {
         workbook,
       });
       if (verification.state === 'BLOCKED_REFERENCE_DRIFT') {
-        setError('Znany plan 25.09.2026 nie zgadza się ze zweryfikowaną referencją. Import został zablokowany, żeby nie zapisać cichej regresji parsera.');
+        setError('Znany plan 02.10.2026 nie zgadza się ze zweryfikowaną referencją. Import został zablokowany, żeby nie zapisać cichej regresji parsera.');
         setDiagnostics(verification.reasons);
         return;
       }
-      const enrichedResult = applyRecurringStudyPatternAssumptions(result);
-      setAnalysis(enrichedResult);
+      if (verification.state === 'NEW_SOURCE') {
+        setError('To nowa wersja planu. Import do kalendarza jest zablokowany do czasu ręcznej weryfikacji całego planu: grup, dat, godzin, sal, jednostek i adresów.');
+        setDiagnostics([
+          ...verification.reasons,
+          'Nowy plik musi dostać własny hash-bound manual audit. Stara mapa lokalizacji i założenia z poprzedniego planu nie są dziedziczone.',
+        ]);
+        return;
+      }
+      const manuallyVerifiedResult = applyVerifiedStudyPlanManualCorrectionsToAnalysis(result, hash);
+      const manualAudit = await verifyVerifiedStudyPlanManualAudit(result, hash);
+      if (!manualAudit.verified) {
+        setError('Ręcznie zweryfikowany plan nie zgadza się z kanoniczną mapą. Import został zablokowany, aby nie wprowadzić błędnych zajęć.');
+        setDiagnostics(manualAudit.reasons);
+        return;
+      }
+      setAnalysis(manuallyVerifiedResult);
       setFileMeta({ file, hash, verification });
 
       const preferredGroups = normalizeStudyGroupSelectionForAvailableGroups(
-        enrichedResult.groups,
-        canonicalizeStudyGroupSelection((profileGroups.length ? profileGroups : activeImport?.selectedGroups ?? []).filter((group) => enrichedResult.groups.includes(group))),
+        manuallyVerifiedResult.groups,
+        canonicalizeStudyGroupSelection((profileGroups.length ? profileGroups : activeImport?.selectedGroups ?? []).filter((group) => manuallyVerifiedResult.groups.includes(group))),
       );
-      if (!enrichedResult.groups.length) {
-        preparePreview(enrichedResult, []);
+      if (!manuallyVerifiedResult.groups.length) {
+        preparePreview(manuallyVerifiedResult, []);
         return;
       }
-      if (enrichedResult.groups.length === 1) {
-        preparePreview(enrichedResult, [enrichedResult.groups[0]!]);
+      if (manuallyVerifiedResult.groups.length === 1) {
+        preparePreview(manuallyVerifiedResult, [manuallyVerifiedResult.groups[0]!]);
         return;
       }
-      const rememberedValidation = validateStudyGroupSelection(enrichedResult.groups, preferredGroups);
+      const rememberedValidation = validateStudyGroupSelection(manuallyVerifiedResult.groups, preferredGroups);
       if (preferredGroups.length && rememberedValidation.valid) {
-        preparePreview(enrichedResult, preferredGroups);
+        preparePreview(manuallyVerifiedResult, preferredGroups);
         return;
       }
       setSelectedGroups(preferredGroups);
@@ -306,7 +320,11 @@ export function StudyView({ onDataChanged }: StudyViewProps) {
   }
 
   function goToPreview() {
-    if (!analysis) return;
+    if (!analysis || !fileMeta) return;
+    if (!isVerifiedStudyProfileSelection(selectedGroups)) {
+      setError('Ta kombinacja grup nie została ręcznie zweryfikowana dla bieżącego planu. Import jest zablokowany do czasu pełnego audytu wybranych grup.');
+      return;
+    }
     preparePreview(analysis, selectedGroups);
   }
 
@@ -398,6 +416,10 @@ export function StudyView({ onDataChanged }: StudyViewProps) {
 
   async function continueAfterPreview() {
     if (!analysis || !fileMeta || invalidIncluded.length || !importable.length) return;
+    if (!isVerifiedStudyProfileSelection(selectedGroups)) {
+      setError('Wybrane grupy nie mają kompletnego ręcznego audytu dla tego planu. Aktualizacja kalendarza została zablokowana.');
+      return;
+    }
     if (!activeImport) {
       await confirmImport();
       return;
@@ -431,6 +453,10 @@ export function StudyView({ onDataChanged }: StudyViewProps) {
 
   async function confirmImport() {
     if (!analysis || !fileMeta || invalidIncluded.length || !importable.length) return;
+    if (!isVerifiedStudyProfileSelection(selectedGroups)) {
+      setError('Wybrane grupy nie mają kompletnego ręcznego audytu dla tego planu. Import został zablokowany.');
+      return;
+    }
     setSaving(true);
     setError('');
     try {

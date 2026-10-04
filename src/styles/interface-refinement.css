@@ -5516,3 +5516,45 @@ body.modal-open { overflow: hidden; }
   }
 }
 
+
+
+/* 1.2.0.309 - Today manual-event mint dot and tighter tomorrow preview */
+.today-view .event-card.manual-source-accent .event-heading-row {
+  gap: 8px;
+}
+.today-view .event-card.manual-source-accent .event-source-dot,
+.today-view .today-source-dot {
+  width: 8px;
+  height: 8px;
+  display: inline-block;
+  flex: 0 0 auto;
+  border-radius: 999px;
+  background: var(--success);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--success-soft) 90%, transparent);
+}
+.today-view .today-source-dot {
+  margin-right: 7px;
+  vertical-align: middle;
+}
+.today-view .today-tomorrow-row > div > strong {
+  display: flex;
+  align-items: center;
+  gap: 0;
+}
+.today-view .today-future-preview {
+  padding: 8px 14px 9px !important;
+}
+.today-view .today-tomorrow {
+  gap: 3px;
+}
+.today-view .today-tomorrow-list {
+  gap: 0;
+}
+.today-view .today-tomorrow-row {
+  padding: 2px 0;
+}
+@media (max-width: 620px) {
+  .today-view .today-future-preview {
+    padding: 9px 12px 10px !important;
+  }
+}

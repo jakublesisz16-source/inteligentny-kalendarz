@@ -54,6 +54,7 @@ const weekDrag = source('src/calendar/week-drag.ts');
 const weekTouchDrag = source('src/calendar/week-touch-drag.ts');
 const navigation = source('src/ui/Navigation.tsx');
 const todayView = source('src/calendar/TodayView.tsx');
+const verifiedStudyManualPlanV310 = source('src/study/verified-study-plan-manual.ts');
 const sha256 = source('src/core/sha256.ts');
 const studyService = source('src/study/study.service.ts');
 const studyDiffLogic = source('src/study/study-diff.ts');
@@ -580,7 +581,7 @@ assert(studySourceAuditOptionalTest.includes('activeStudyQaProfile') && studySou
 assert(studySourceAuditOptionalTest.includes("candidateSemanticFingerprint } from '../study/verified-study-plan'") && studySourceAuditOptionalTest.includes('await candidateSemanticFingerprint'), 'Build228 real-source audit does not reuse the production semantic fingerprint');
 assert(studyViewSource.includes('verifyStudyPlanSource') && studyViewSource.includes("verification.state === 'BLOCKED_REFERENCE_DRIFT'") && studyViewSource.includes('ZWERYFIKOWANY'), 'Build228 Study import is not fail-closed behind the verified reference');
 assert(verifiedStudyPlan.includes("state: 'NEW_SOURCE'") && verifiedStudyPlan.includes('verifyStudyPlanAgainstReference') && verifiedStudyPlan.includes('auditSelectedStudyProfile') && verifiedStudyPlan.includes('groupKindCounts'), 'Build228 verified Study reference or future-source fallback is incomplete');
-assert(verifiedStudyPlan.includes('addba8810eac59d838f8334adf2e8f2b25897691a26922288509a0c5d3f261cb') && verifiedStudyPlan.includes('7bb9cc0c0700aa6e3e1ff5bc4bf996db8eabb81d8e26a1922c1348dfe272143a') && verifiedStudyPlan.includes('06f695170d8624d20183c247c76a9120d31f791c0303e971094eecbb3bad0ab5'), 'Build228 verified Study runtime reference drifted from the audited 02.10.2026 source');
+assert(verifiedStudyPlan.includes('addba8810eac59d838f8334adf2e8f2b25897691a26922288509a0c5d3f261cb') && verifiedStudyPlan.includes('7bb9cc0c0700aa6e3e1ff5bc4bf996db8eabb81d8e26a1922c1348dfe272143a') && verifiedStudyPlan.includes('b14efd1ef832c2f5268c1560af7bf063b6e2e9f2b7745f96ff037b885772017e'), 'Build228 verified Study runtime reference drifted from the audited 02.10.2026 source');
 assert(verifiedStudyPlanTest.includes('nie dziedziczy statusu verified po samej nazwie pliku') && verifiedStudyPlanTest.includes('blokuje cichą zmianę semantyki'), 'Build228 verified Study regression proofs are missing');
 if (currentState) {
   const selectedGroups = currentState.activeStudyQaProfile?.selectedGroups;
@@ -796,5 +797,13 @@ assert(syncUsageV308.includes('SYNC_USAGE_SOFT_READ_WARNING = 20_000') && syncUs
 assert(syncSettingsV291.includes('Diagnostyka synchronizacji') && syncSettingsV291.includes('Sprawdzanie chmury co 60 s') && syncSettingsV291.includes('nie zastępują panelu Firebase'), 'Build308 compact zero-extra-read diagnostics UI missing');
 assert(firebaseConfigV291.includes("projectId: 'inteligentny-kalendarz-s-2cfc9'"), 'Build291 Firebase web config project drifted');
 assert(!existsSync(new URL('../firebase.json', import.meta.url)) && !existsSync(new URL('../firebase.sync-lab.json', import.meta.url)), 'Firebase Hosting configuration returned in Build291');
+
+// Build309/310 preserve the small Today polish and make the current study plan fail-closed/manual-audit-first.
+assert(interfaceRefinement.includes('1.2.0.309 - Today manual-event mint dot and tighter tomorrow preview') && todayView.includes('accentManualSource'), 'Build309 Today manual-event mint-dot polish missing');
+assert(verifiedStudyManualPlanV310.includes("VERIFIED_STUDY_PROFILE_2026_10_02 = ['MAIN:11', 'G12:11B', 'G8:11B', 'G4:11B2']") && verifiedStudyManualPlanV310.includes("candidatesSha256: '3f39d3358e0d3f6423d5ae18ad41ea357d9a8d960e2f09af1d7d4e8ca1f5360a'"), 'Build310 full manual study-profile audit identity missing');
+assert(verifiedStudyManualPlanV310.includes("sourceRange: 'AZ9'") && verifiedStudyManualPlanV310.includes("sourceRange: 'S16'") && verifiedStudyManualPlanV310.includes("sourceRange: 'T16'") && verifiedStudyManualPlanV310.includes('Nie wolno uzupełniać czasu z powtarzalnego wzorca.'), 'Build310 source-incomplete no-guess contract missing');
+assert(studyView.includes("verification.state === 'NEW_SOURCE'") && studyView.includes('Import do kalendarza jest zablokowany do czasu ręcznej weryfikacji całego planu') && studyView.includes('verifyVerifiedStudyPlanManualAudit'), 'Build310 new-plan manual-audit gate missing');
+assert(storageDatabaseV296.includes('applyVerifiedStudyPlanManualCorrectionsToActivePlan') && storageDatabaseV296.includes('if (isVerifiedManualStudySource(active.fileHash)) return empty;') && storageDatabaseV296.includes('removedInferredEventCount'), 'Build310 active-plan repair or no-recurring-inference contract missing');
+assert(storageDatabaseV296.includes('studyLocationExactKey') && storageDatabaseV296.includes('candidateStudyLocationKey') && storageDatabaseV296.includes('candidate.clinic ?? candidate.locationLabel ?? candidate.address'), 'Build310 same-address study-unit location identity contract missing');
 
 console.log('RELEASE_SAFETY_GATE_OK');
