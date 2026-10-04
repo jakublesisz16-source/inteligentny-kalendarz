@@ -1,11 +1,11 @@
 {
   "source": "PRIVATE",
   "surface": "public-stable",
-  "buildId": "ik-1.2.0.313-20261004-calendar-manual-mint-dot",
-  "appVersion": "1.2.0.313",
+  "buildId": "ik-1.2.0.314-20261004-calendar-mint-dot-visible-today-clean",
+  "appVersion": "1.2.0.314",
   "releaseVersion": "1.2.0",
-  "packageVersion": "1.2.0-private.313",
-  "build": "313",
-  "contentFingerprint": "b386c67b5f6dd309da109b21c51de9482427a78db1726b4929c5ff48024b90ef",
-  "fileCount": 583
+  "packageVersion": "1.2.0-private.314",
+  "build": "314",
+  "contentFingerprint": "b889221551ffd2153277bee1cb70cb1304af16497d4702f3076ad0ff06829b2c",
+  "fileCount": 584
 }

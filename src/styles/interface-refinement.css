@@ -5518,29 +5518,7 @@ body.modal-open { overflow: hidden; }
 
 
 
-/* 1.2.0.309 - Today manual-event mint dot and tighter tomorrow preview */
-.today-view .event-card.manual-source-accent .event-heading-row {
-  gap: 8px;
-}
-.today-view .event-card.manual-source-accent .event-source-dot,
-.today-view .today-source-dot {
-  width: 8px;
-  height: 8px;
-  display: inline-block;
-  flex: 0 0 auto;
-  border-radius: 999px;
-  background: var(--success);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--success-soft) 90%, transparent);
-}
-.today-view .today-source-dot {
-  margin-right: 7px;
-  vertical-align: middle;
-}
-.today-view .today-tomorrow-row > div > strong {
-  display: flex;
-  align-items: center;
-  gap: 0;
-}
+/* 1.2.0.309/314 - compact Today tomorrow preview; manual-source color stays in Calendar only */
 .today-view .today-future-preview {
   padding: 8px 14px 9px !important;
 }
@@ -5560,20 +5538,20 @@ body.modal-open { overflow: hidden; }
 }
 
 
-/* 1.2.0.313 - manual events use a mint source dot in Calendar without tinting cards or cells */
-.calendar-view .calendar-manual-source-dot,
-.calendar-view .event-card.manual-source-accent .event-source-dot {
+/* 1.2.0.314 - manual events use a visible mint source dot in Calendar only */
+.calendar-view-shell .calendar-manual-source-dot,
+.calendar-view-shell .event-card.manual-source-accent .event-source-dot {
   width: 8px;
   height: 8px;
   display: inline-block;
   flex: 0 0 auto;
   border-radius: 999px;
-  background: var(--success);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--success-soft) 90%, transparent);
+  background: var(--manual-event-mint);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--manual-event-mint-soft) 92%, transparent);
 }
-.calendar-view .calendar-manual-source-dot {
+.calendar-view-shell .calendar-manual-source-dot {
   margin: 0 3px 0 1px;
 }
-.calendar-view .event-card.manual-source-accent .event-heading-row {
+.calendar-view-shell .event-card.manual-source-accent .event-heading-row {
   gap: 8px;
 }

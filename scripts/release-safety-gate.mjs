@@ -798,17 +798,17 @@ assert(syncSettingsV291.includes('Diagnostyka synchronizacji') && syncSettingsV2
 assert(firebaseConfigV291.includes("projectId: 'inteligentny-kalendarz-s-2cfc9'"), 'Build291 Firebase web config project drifted');
 assert(!existsSync(new URL('../firebase.json', import.meta.url)) && !existsSync(new URL('../firebase.sync-lab.json', import.meta.url)), 'Firebase Hosting configuration returned in Build291');
 
-// Build309/310 preserve the small Today polish and make the current study plan fail-closed/manual-audit-first.
-assert(interfaceRefinement.includes('1.2.0.309 - Today manual-event mint dot and tighter tomorrow preview') && todayView.includes('accentManualSource'), 'Build309 Today manual-event mint-dot polish missing');
+// Build309/314 keep the compact Today preview but manual-source color is Calendar-only.
+assert(interfaceRefinement.includes('compact Today tomorrow preview; manual-source color stays in Calendar only') && !todayView.includes('accentManualSource') && !todayView.includes('today-source-dot'), 'Build314 Today manual-source color removal missing');
 assert(verifiedStudyManualPlanV310.includes("VERIFIED_STUDY_PROFILE_2026_10_02 = ['MAIN:11', 'G12:11B', 'G8:11B', 'G4:11B2']") && verifiedStudyManualPlanV310.includes("candidatesSha256: '3f39d3358e0d3f6423d5ae18ad41ea357d9a8d960e2f09af1d7d4e8ca1f5360a'"), 'Build310 full manual study-profile audit identity missing');
 assert(verifiedStudyManualPlanV310.includes("sourceRange: 'AZ9'") && verifiedStudyManualPlanV310.includes("sourceRange: 'S16'") && verifiedStudyManualPlanV310.includes("sourceRange: 'T16'") && verifiedStudyManualPlanV310.includes('Nie wolno uzupełniać czasu z powtarzalnego wzorca.'), 'Build310 source-incomplete no-guess contract missing');
 assert(studyView.includes("verification.state === 'NEW_SOURCE'") && studyView.includes('Import do kalendarza jest zablokowany do czasu ręcznej weryfikacji całego planu') && studyView.includes('verifyVerifiedStudyPlanManualAudit'), 'Build310 new-plan manual-audit gate missing');
 assert(storageDatabaseV296.includes('applyVerifiedStudyPlanManualCorrectionsToActivePlan') && storageDatabaseV296.includes('if (isVerifiedManualStudySource(active.fileHash)) return empty;') && storageDatabaseV296.includes('removedInferredEventCount'), 'Build310 active-plan repair or no-recurring-inference contract missing');
 assert(storageDatabaseV296.includes('studyLocationExactKey') && storageDatabaseV296.includes('candidateStudyLocationKey') && storageDatabaseV296.includes('candidate.clinic ?? candidate.locationLabel ?? candidate.address'), 'Build310 same-address study-unit location identity contract missing');
 
-// Build313: source=MANUAL owns the mint source accent across Today and Calendar.
-assert(calendarView.includes("const manualEventCount = dayEvents.filter((event) => event.source === 'MANUAL').length") && calendarView.includes('calendar-manual-source-dot') && calendarView.includes('visibleCategoryCounts[event.category]'), 'Build313 month Calendar manual-source mint dot contract missing');
-assert(calendarView.includes('compactTimeRange accentManualSource') && eventCard.includes("accentManualSource && event.source === 'MANUAL'"), 'Build313 selected-day manual-source mint dot contract missing');
-assert(interfaceRefinement.includes('1.2.0.313 - manual events use a mint source dot in Calendar without tinting cards or cells'), 'Build313 mint-dot styling contract missing');
+// Build313/314: source=MANUAL owns a visible mint source dot in Calendar only.
+assert(calendarView.includes("const manualEventCount = dayEvents.filter((event) => event.source === 'MANUAL').length") && calendarView.includes('calendar-manual-source-dot') && calendarView.includes('visibleCategoryCounts[event.category]'), 'Build314 month Calendar manual-source mint dot contract missing');
+assert(calendarView.includes('compactTimeRange accentManualSource') && eventCard.includes("accentManualSource && event.source === 'MANUAL'") && eventCard.includes('showManualSourceAccent ? null : <span className="event-category">'), 'Build314 selected-day dot-only manual-source contract missing');
+assert(interfaceRefinement.includes('1.2.0.314 - manual events use a visible mint source dot in Calendar only') && interfaceRefinement.includes('.calendar-view-shell .calendar-manual-source-dot') && interfaceRefinement.includes('background: var(--manual-event-mint);'), 'Build314 visible mint-dot styling contract missing');
 
 console.log('RELEASE_SAFETY_GATE_OK');

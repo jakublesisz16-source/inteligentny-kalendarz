@@ -21,7 +21,7 @@ describe('Build203 Today clarity', () => {
   it('keeps tomorrow compact with location grouped under the event', () => {
     const today = read('src/calendar/TodayView.tsx');
     const css = read('src/styles/interface-refinement.css');
-    expect(today).toContain('today-source-dot');
+    expect(today).not.toContain('today-source-dot');
     expect(today).toContain('{event.title}</strong>');
     expect(today).toContain('{location ? <small>{location}</small> : null}');
     expect(css).toContain('grid-template-columns: 94px minmax(0, 1fr);');
