@@ -4,6 +4,7 @@ import { FIREBASE_GOOGLE_SYNC_PROVIDER_ID } from '../provider-ids';
 import type { SyncAccount, SyncProvider, SyncRemoteState, SyncSnapshotEnvelope } from '../sync.types';
 import { SyncAccountChangedError } from '../sync-errors';
 import { withCrossTabSyncWriteLock } from '../sync-tab-coordination';
+import { recordLocalSyncUsage } from '../sync-usage';
 import {
   createSnapshotDecodeBuffer,
   decodeSnapshotChunkInto,
@@ -406,6 +407,8 @@ async function deleteChunkSetBatch(
     const results = await Promise.allSettled(indexes.map((index) => (
       runtime.firestoreModule.deleteDoc(syncChunkReference(runtime, uid, item.chunkSetId, index))
     )));
+    const deletedCount = results.filter((result) => result.status === 'fulfilled').length;
+    if (deletedCount) recordLocalSyncUsage(FIREBASE_GOOGLE_SYNC_PROVIDER_ID, uid, { firestoreDeletes: deletedCount });
     if (results.some((result) => result.status === 'rejected')) {
       return { item: { ...item, nextIndex }, used: nextIndex - startIndex };
     }
@@ -448,6 +451,7 @@ async function readRemoteStateAndCache(runtime: FirebaseRuntime, uid: string): P
   const readManifest = async (): Promise<SyncRemoteState | null> => {
     assertActiveUser(runtime, uid);
     const manifestSnapshot = await runtime.firestoreModule.getDoc(syncDocumentReference(runtime, uid));
+    recordLocalSyncUsage(FIREBASE_GOOGLE_SYNC_PROVIDER_ID, uid, { firestoreReads: 1, manifestChecks: 1 });
     assertActiveUser(runtime, uid);
     const pending = readPendingChunkCleanup(uid);
     if (!manifestSnapshot.exists()) {
@@ -461,6 +465,13 @@ async function readRemoteStateAndCache(runtime: FirebaseRuntime, uid: string): P
       return null;
     }
     const state = remoteStateFromData(data);
+    if (data.format === 'inteligentny-kalendarz-cloud-manifest') {
+      const manifest = parseChunkedManifest(data);
+      recordLocalSyncUsage(FIREBASE_GOOGLE_SYNC_PROVIDER_ID, uid, {
+        payloadBytes: manifest.payloadBytes,
+        chunkCount: manifest.chunkCount,
+      });
+    }
     manifestReadCache.set(uid, { state, data });
     const activeChunkSetId = data.format === 'inteligentny-kalendarz-cloud-manifest'
       && data.version === 3
@@ -537,6 +548,7 @@ export function createFirebaseGoogleSyncProvider(): SyncProvider {
       if (data.format === 'inteligentny-kalendarz-cloud-snapshot' && data.version === 1) {
         const legacy = decodeLegacyCloudSnapshot(data);
         cloudSnapshotCache.delete(user.uid);
+        recordLocalSyncUsage(FIREBASE_GOOGLE_SYNC_PROVIDER_ID, user.uid, { lastPullAt: new Date().toISOString() });
         assertActiveUser(runtime, user.uid);
         return legacy;
       }
@@ -558,6 +570,10 @@ export function createFirebaseGoogleSyncProvider(): SyncProvider {
         const chunkSnapshots = await Promise.all(batch.map((index) => (
           runtime.firestoreModule.getDoc(syncChunkReference(runtime, user.uid, chunkSetId, index))
         )));
+        recordLocalSyncUsage(FIREBASE_GOOGLE_SYNC_PROVIDER_ID, user.uid, {
+          firestoreReads: batch.length,
+          chunkReads: batch.length,
+        });
         assertActiveUser(runtime, user.uid);
         chunkSnapshots.forEach((chunkSnapshot, batchIndex) => {
           const index = batch[batchIndex]!;
@@ -572,6 +588,11 @@ export function createFirebaseGoogleSyncProvider(): SyncProvider {
         revision: manifest.revision,
         payloadSha256: manifest.payloadSha256,
         ...(snapshotRef ? { snapshotRef } : {}),
+      });
+      recordLocalSyncUsage(FIREBASE_GOOGLE_SYNC_PROVIDER_ID, user.uid, {
+        lastPullAt: new Date().toISOString(),
+        payloadBytes: manifest.payloadBytes,
+        chunkCount: manifest.chunkCount,
       });
       return decoded;
     },
@@ -606,6 +627,10 @@ export function createFirebaseGoogleSyncProvider(): SyncProvider {
                 payloadPart: encodePreparedSnapshotChunk(encoded, index),
               })
             )));
+            recordLocalSyncUsage(FIREBASE_GOOGLE_SYNC_PROVIDER_ID, user.uid, {
+              firestoreWrites: batch.length,
+              chunkWrites: batch.length,
+            });
             assertActiveUser(runtime, user.uid);
           }
 
@@ -678,6 +703,13 @@ export function createFirebaseGoogleSyncProvider(): SyncProvider {
           );
           assertActiveUser(runtime, user.uid);
           manifestSwitched = true;
+          recordLocalSyncUsage(FIREBASE_GOOGLE_SYNC_PROVIDER_ID, user.uid, {
+            firestoreReads: 1,
+            firestoreWrites: 1,
+            lastPushAt: new Date().toISOString(),
+            payloadBytes: encoded.payloadBytes,
+            chunkCount,
+          });
 
           const state: SyncRemoteState = {
             revision: snapshot.revision,

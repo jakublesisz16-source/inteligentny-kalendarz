@@ -789,6 +789,11 @@ assert(syncErrorsV296.includes('SyncAccountOwnershipError') && syncErrorsV296.in
 assert(syncFirebaseV291.includes('readRemoteStateAndCache') && syncFirebaseV291.includes('withCrossTabSyncWriteLock') && syncServiceV291.includes('reconcileUsingManifest'), 'Build306 manifest-only polling or cross-tab single-writer guard missing');
 assert(syncCoordinatorV291.includes("coordinator.announce('local-change')") && syncCoordinatorV291.includes('LEADER_HEARTBEAT_MS = 4_000') && syncCoordinatorV291.includes("document.visibilityState !== 'visible'"), 'Build306 multi-tab leader/debounce or hidden-tab polling guard missing');
 assert(syncSettingsV291.includes('Przełącz konto') && syncSettingsV291.includes("notice.state === 'account-mismatch'"), 'Build306 explicit account switch UI missing');
+const syncUsageV308 = source('src/sync/sync-usage.ts');
+assert(syncCoordinatorV291.includes('AUTO_SYNC_INTERVAL_MS = 60_000') && syncCoordinatorV291.includes('LOCAL_CHANGE_DEBOUNCE_MS = 2_500'), 'Build308 lower-frequency sync cadence missing');
+assert(syncFirebaseV291.includes('recordLocalSyncUsage') && syncFirebaseV291.includes('manifestChecks: 1') && syncFirebaseV291.includes('firestoreDeletes: deletedCount'), 'Build308 local Firestore usage diagnostics missing');
+assert(syncUsageV308.includes('SYNC_USAGE_SOFT_READ_WARNING = 20_000') && syncUsageV308.includes('SYNC_USAGE_SOFT_WRITE_WARNING = 8_000') && syncUsageV308.includes('SYNC_USAGE_SOFT_DELETE_WARNING = 8_000'), 'Build308 quota soft-warning thresholds missing');
+assert(syncSettingsV291.includes('Diagnostyka synchronizacji') && syncSettingsV291.includes('Sprawdzanie chmury co 60 s') && syncSettingsV291.includes('nie zastępują panelu Firebase'), 'Build308 compact zero-extra-read diagnostics UI missing');
 assert(firebaseConfigV291.includes("projectId: 'inteligentny-kalendarz-s-2cfc9'"), 'Build291 Firebase web config project drifted');
 assert(!existsSync(new URL('../firebase.json', import.meta.url)) && !existsSync(new URL('../firebase.sync-lab.json', import.meta.url)), 'Firebase Hosting configuration returned in Build291');
 

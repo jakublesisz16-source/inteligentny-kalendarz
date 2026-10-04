@@ -12,8 +12,8 @@ import { createSyncService, type SyncService } from './sync-service';
 import { createSyncTabCoordinator } from './sync-tab-coordination';
 import type { SyncReconcileResult } from './sync.types';
 
-const AUTO_SYNC_INTERVAL_MS = 30_000;
-const LOCAL_CHANGE_DEBOUNCE_MS = 1_500;
+const AUTO_SYNC_INTERVAL_MS = 60_000;
+const LOCAL_CHANGE_DEBOUNCE_MS = 2_500;
 const LEADER_HEARTBEAT_MS = 4_000;
 
 function publishResult(result: SyncReconcileResult): void {

@@ -2725,3 +2725,8 @@
   .settings-sync-recovery-confirm > div { display: grid; grid-template-columns: 1fr; }
   .settings-sync-recovery-confirm .button { width: 100%; }
 }
+
+@media (max-width: 720px) {
+  .settings-sync-diagnostics-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .settings-sync-diagnostics-head { align-items: flex-start; }
+}

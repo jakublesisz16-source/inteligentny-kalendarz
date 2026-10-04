@@ -2170,3 +2170,23 @@
 .settings-sync-recovery-confirm { display: grid; gap: 8px; font-size: .63rem; line-height: 1.45; color: var(--text-muted); }
 .settings-sync-recovery-confirm > div { display: flex; flex-wrap: wrap; gap: 6px; }
 .settings-sync-note { grid-column: 1 / -1; margin: 0; }
+
+.settings-sync-diagnostics {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 7px;
+  padding: 9px 10px;
+  border: 1px solid color-mix(in srgb, var(--border) 78%, transparent);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--surface) 94%, var(--accent-soft) 6%);
+}
+.settings-sync-diagnostics-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.settings-sync-diagnostics-head strong { font-size: .68rem; }
+.settings-sync-diagnostics-head span { color: var(--text-muted); font-size: .59rem; font-weight: 700; }
+.settings-sync-diagnostics-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.settings-sync-diagnostics-grid > div { display: grid; gap: 2px; min-width: 0; }
+.settings-sync-diagnostics-grid span { color: var(--text-muted); font-size: .56rem; }
+.settings-sync-diagnostics-grid strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .62rem; font-weight: 700; }
+.settings-sync-diagnostics > small { color: var(--text-muted); font-size: .56rem; line-height: 1.4; }
+.settings-sync-diagnostics.is-warning { border-color: color-mix(in srgb, var(--warning, #a56a14) 42%, var(--border)); }
+.settings-sync-diagnostics-alert { color: var(--warning, #8b5a12) !important; font-weight: 700; }

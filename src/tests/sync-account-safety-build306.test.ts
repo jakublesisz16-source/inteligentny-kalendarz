@@ -97,7 +97,7 @@ async function cloudEnvelopeFromCurrentDatabase(sourceDeviceId = 'cloud-device')
   };
 }
 
-describe('Build306/307 account safety and bounded Firestore polling', () => {
+describe('Build306-308 account safety and bounded Firestore polling', () => {
   it('keeps ownerAccountId local-only and preserves it across a cloud apply', async () => {
     await claimLocalSyncOwnerAccountId('account-a');
     await createEvent({ title: 'A', startDateTime: '2026-10-04T09:00', endDateTime: '2026-10-04T10:00', category: 'OTHER' });
@@ -195,7 +195,8 @@ describe('Build306/307 account safety and bounded Firestore polling', () => {
     expect(firebase).toContain('readRemoteStateAndCache');
     expect(firebase).toContain('nextIndex');
     expect(coordinator).toContain("coordinator.announce('local-change')");
-    expect(coordinator).toContain('LOCAL_CHANGE_DEBOUNCE_MS = 1_500');
+    expect(coordinator).toContain('AUTO_SYNC_INTERVAL_MS = 60_000');
+    expect(coordinator).toContain('LOCAL_CHANGE_DEBOUNCE_MS = 2_500');
     expect(coordinator).toContain("document.visibilityState !== 'visible'");
     expect(database).toContain("const LOCAL_SYNC_OWNER_META_KEY = 'sync.ownerAccountId.v1';");
     expect(database).toContain('snapshotStoreRows');

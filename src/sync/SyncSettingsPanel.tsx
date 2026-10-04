@@ -17,6 +17,16 @@ import {
 } from './sync-config';
 import { SyncAccountOwnershipError } from './sync-errors';
 import { createSyncService } from './sync-service';
+import {
+  FIRESTORE_SYNC_MAX_PAYLOAD_BYTES,
+  FIRESTORE_SYNC_WARNING_PAYLOAD_BYTES,
+} from './providers/firebase-google-chunks';
+import {
+  isSyncUsageSoftWarning,
+  readLocalSyncUsage,
+  SYNC_USAGE_CHANGED_EVENT,
+  type LocalSyncUsage,
+} from './sync-usage';
 import type { SyncAccount, SyncConflictChoice, SyncReconcileResult, SyncRuntimeNotice } from './sync.types';
 
 interface SyncSettingsPanelProps {
@@ -64,6 +74,20 @@ function formatSyncTime(value?: string): string {
   return new Intl.DateTimeFormat('pl-PL', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' }).format(date);
 }
 
+function formatSyncBytes(value?: number): string {
+  if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) return 'Brak danych';
+  if (value < 1_000) return `${Math.round(value)} B`;
+  if (value < 1_000_000) return `${(value / 1_000).toFixed(value >= 100_000 ? 0 : 1)} kB`;
+  return `${(value / 1_000_000).toFixed(value >= 10_000_000 ? 1 : 2)} MB`;
+}
+
+function syncPayloadLevel(usage: LocalSyncUsage | null): 'normal' | 'warning' | 'critical' {
+  if (!usage || typeof usage.payloadBytes !== 'number') return 'normal';
+  if (usage.payloadBytes >= FIRESTORE_SYNC_MAX_PAYLOAD_BYTES) return 'critical';
+  if (usage.payloadBytes >= FIRESTORE_SYNC_WARNING_PAYLOAD_BYTES) return 'warning';
+  return 'normal';
+}
+
 const RECOVERY_STORE_LABELS: Record<string, string> = {
   events: 'wydarzenia',
   studyProfile: 'profil studiów',
@@ -80,6 +104,7 @@ export function SyncSettingsPanel({ onRemoteApplied }: SyncSettingsPanelProps) {
   const [busy, setBusy] = useState(false);
   const [confirmRecovery, setConfirmRecovery] = useState(false);
   const [confirmAccountSwitch, setConfirmAccountSwitch] = useState(false);
+  const [usage, setUsage] = useState<LocalSyncUsage | null>(null);
 
   useEffect(() => {
     const handler = (event: Event) => {
@@ -115,6 +140,33 @@ export function SyncSettingsPanel({ onRemoteApplied }: SyncSettingsPanelProps) {
 
     return () => window.removeEventListener(SYNC_RUNTIME_NOTICE_EVENT, handler);
   }, []);
+
+
+  useEffect(() => {
+    const accountId = notice.account?.id;
+    if (notice.providerId !== FIREBASE_GOOGLE_SYNC_PROVIDER_ID || !accountId) {
+      setUsage(null);
+      return undefined;
+    }
+
+    const refreshUsage = () => setUsage(readLocalSyncUsage(FIREBASE_GOOGLE_SYNC_PROVIDER_ID, accountId));
+    const handleUsage = (event: Event) => {
+      const next = (event as CustomEvent<LocalSyncUsage>).detail;
+      if (next?.providerId === FIREBASE_GOOGLE_SYNC_PROVIDER_ID && next.accountId === accountId) setUsage(next);
+      else refreshUsage();
+    };
+    const handleStorage = (event: StorageEvent) => {
+      if (event.key?.startsWith('ik.sync.usage.v1:')) refreshUsage();
+    };
+
+    refreshUsage();
+    window.addEventListener(SYNC_USAGE_CHANGED_EVENT, handleUsage);
+    window.addEventListener('storage', handleStorage);
+    return () => {
+      window.removeEventListener(SYNC_USAGE_CHANGED_EVENT, handleUsage);
+      window.removeEventListener('storage', handleStorage);
+    };
+  }, [notice.providerId, notice.account?.id]);
 
   async function connectGoogle() {
     setBusy(true);
@@ -286,6 +338,9 @@ export function SyncSettingsPanel({ onRemoteApplied }: SyncSettingsPanelProps) {
   }
 
   const connected = notice.providerId === FIREBASE_GOOGLE_SYNC_PROVIDER_ID && Boolean(notice.account);
+  const payloadLevel = syncPayloadLevel(usage);
+  const usageWarning = usage ? isSyncUsageSoftWarning(usage) : false;
+  const diagnosticsWarning = payloadLevel !== 'normal' || usageWarning;
 
   return (
     <section className="settings-sync-panel" aria-label="Synchronizacja między urządzeniami">
@@ -365,6 +420,37 @@ export function SyncSettingsPanel({ onRemoteApplied }: SyncSettingsPanelProps) {
               </div>
             </div>
           )}
+        </div>
+      ) : null}
+
+      {connected ? (
+        <div className={`settings-sync-diagnostics${diagnosticsWarning ? ' is-warning' : ''}`} aria-label="Diagnostyka synchronizacji">
+          <div className="settings-sync-diagnostics-head">
+            <strong>Diagnostyka synchronizacji</strong>
+            <span>{payloadLevel === 'critical' ? 'Limit danych osiągnięty' : payloadLevel === 'warning' ? 'Duży snapshot' : usageWarning ? 'Nietypowo duży ruch' : 'W normie'}</span>
+          </div>
+          <div className="settings-sync-diagnostics-grid">
+            <div>
+              <span>Snapshot</span>
+              <strong>{formatSyncBytes(usage?.payloadBytes)}{typeof usage?.chunkCount === 'number' ? ` - ${usage.chunkCount} frag.` : ''}</strong>
+            </div>
+            <div>
+              <span>Dzisiaj</span>
+              <strong>{usage ? `${usage.firestoreReads} odcz. - ${usage.firestoreWrites} zap. - ${usage.firestoreDeletes} us.` : 'Brak danych'}</strong>
+            </div>
+            <div>
+              <span>Ostatni push</span>
+              <strong>{formatSyncTime(usage?.lastPushAt) || 'Brak'}</strong>
+            </div>
+            <div>
+              <span>Ostatni pull</span>
+              <strong>{formatSyncTime(usage?.lastPullAt) || 'Brak'}</strong>
+            </div>
+          </div>
+          <small>Sprawdzanie chmury co 60 s. Zmiany lokalne są grupowane przez 2,5 s. Liczniki są lokalnym przybliżeniem operacji aplikacji i nie zastępują panelu Firebase.</small>
+          {payloadLevel === 'warning' ? <small className="settings-sync-diagnostics-alert">Snapshot przekroczył 18 MB i zbliża się do twardego limitu 24 MB.</small> : null}
+          {payloadLevel === 'critical' ? <small className="settings-sync-diagnostics-alert">Snapshot osiągnął limit 24 MB. Kolejny push zostanie zatrzymany do czasu zmniejszenia danych synchronizacji.</small> : null}
+          {usageWarning ? <small className="settings-sync-diagnostics-alert">Dzisiejsza liczba operacji jest nietypowo wysoka. Synchronizacja nadal działa, ale warto sprawdzić panel Firebase.</small> : null}
         </div>
       ) : null}
 
