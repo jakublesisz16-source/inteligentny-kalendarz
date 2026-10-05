@@ -1,11 +1,11 @@
 {
   "source": "PRIVATE",
   "surface": "public-stable",
-  "buildId": "ik-1.2.0.329-20261005-calendar-today-micro-polish",
-  "appVersion": "1.2.0.329",
+  "buildId": "ik-1.2.0.330-20261005-dayoff-selection-action-row-fix",
+  "appVersion": "1.2.0.330",
   "releaseVersion": "1.2.0",
-  "packageVersion": "1.2.0-private.329",
-  "build": "329",
-  "contentFingerprint": "b11366f0c08263f18f068d5bbab2bfc094e30b697fb532d86724926984c4aa78",
-  "fileCount": 580
+  "packageVersion": "1.2.0-private.330",
+  "build": "330",
+  "contentFingerprint": "bc515d12e6c3f50f446a1c9782c726663df72534c0bc9012b4b988a5d20f2855",
+  "fileCount": 581
 }

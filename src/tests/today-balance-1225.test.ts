@@ -33,6 +33,15 @@ describe('1.2.0.25 Today balanced layout', () => {
     expect(responsive).toContain('1.2.0.25 - Today balance');
   });
 
+  it('keeps route and edit actions on one equal-height mobile row', () => {
+    const refinement = source('../styles/interface-refinement.css');
+    expect(refinement).toContain('Build330 - real-device correction: equal Today actions + visible selected state on day-off cells.');
+    expect(refinement).toContain('flex-wrap: nowrap;');
+    expect(refinement).toContain('min-height: 28px;');
+    expect(refinement).toContain('height: 28px;');
+    expect(refinement).toContain('line-height: 1;');
+  });
+
   it('keeps the private version and database schema synchronized', () => {
     const version = source('../core/version.ts');
     expect(version).toMatch(/APP_VERSION\s*=\s*'\d+\.\d+\.\d+\.\d+'/u);

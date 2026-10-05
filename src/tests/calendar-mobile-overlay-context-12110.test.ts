@@ -26,7 +26,9 @@ describe('1.2.0.110 mobile calendar overlay context', () => {
     expect(refinement).toContain('.today-calendar-context .overlay-wum_rector_day');
     expect(refinement).toContain('.calendar-day.day-off.selected:not(.multi-selected)');
     expect(refinement).toContain('.calendar-mobile-day-preview-overlays .overlay-polish_holiday');
-    expect(refinement).toContain('var(--calendar-day-off-border)');
+    expect(refinement).toContain('background: color-mix(in srgb, var(--calendar-day-off) 88%, var(--surface));');
+    expect(refinement).toContain('border-color: color-mix(in srgb, var(--accent) 86%, var(--calendar-day-off-border));');
+    expect(refinement).toContain('0 0 0 2px color-mix(in srgb, var(--accent) 18%, transparent)');
   });
 
   it('does not change the database schema', () => {
