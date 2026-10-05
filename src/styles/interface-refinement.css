@@ -5632,3 +5632,41 @@ body.modal-open { overflow: hidden; }
   background: color-mix(in srgb, var(--calendar-day-off) 86%, var(--surface));
   color: var(--calendar-day-off-strong);
 }
+
+/* Build330 - real-device correction: equal Today actions + visible selected state on day-off cells. */
+.calendar-day.day-off.selected:not(.multi-selected) {
+  background: color-mix(in srgb, var(--calendar-day-off) 88%, var(--surface));
+  border-color: color-mix(in srgb, var(--accent) 86%, var(--calendar-day-off-border));
+  box-shadow:
+    0 0 0 2px color-mix(in srgb, var(--accent) 18%, transparent),
+    inset 0 0 0 1px color-mix(in srgb, var(--accent) 18%, transparent),
+    0 3px 10px rgba(99,72,83,.045);
+}
+
+.calendar-day.day-off.selected:not(.multi-selected):hover {
+  border-color: color-mix(in srgb, var(--accent) 94%, var(--calendar-day-off-border));
+}
+
+@media (max-width: 620px) {
+  .today-view .event-actions-column {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 14px;
+    width: 100%;
+    padding-top: 0;
+  }
+
+  .today-view .event-actions-column .text-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 28px;
+    height: 28px;
+    margin: 0;
+    padding: 0;
+    line-height: 1;
+    vertical-align: middle;
+  }
+}
