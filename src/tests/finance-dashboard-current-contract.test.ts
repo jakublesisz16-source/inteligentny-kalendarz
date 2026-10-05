@@ -92,6 +92,47 @@ describe('current Finance dashboard contract', () => {
     expect(source).toContain('finance-transaction-detail-currency-note-v222');
   });
 
+  it('keeps the Finance entry surface concise and category filters directly actionable', () => {
+    const view = sourceText('src/finance/FinanceView.tsx');
+    const source = dashboard();
+    expect(view).toContain('<h1>Finanse</h1>');
+    expect(view).not.toContain('Skanuj paragony i od razu widz');
+    expect(source).toContain('onClick={() => filterByCategory(entry.categoryId)}');
+    expect(source).toContain('aria-pressed={activeCategoryId === entry.categoryId}');
+  });
+
+  it('keeps monthly necessity filtering and review work close to the expense list', () => {
+    const source = dashboard();
+    expect(source).toContain("filterByNecessity('essential')");
+    expect(source).toContain("filterByNecessity('nonessential')");
+    expect(source).toContain('finance-expense-review-link');
+    expect(source).toContain('Do poprawy <strong>{categoryReviewRows.length}</strong>');
+  });
+
+  it('keeps trip category cues and fast mobile expense entry', () => {
+    const source = dashboard();
+    const modal = sourceText('src/finance/FinanceQuickExpenseModal.tsx');
+    const responsive = sourceText('src/styles/responsive.css');
+    expect(source).toContain('finance-trip-expense-icon');
+    expect(source).toContain('<ExpenseCategoryIcon category={category ?? { id: categoryId }} />');
+    expect(modal).toContain('data-modal-autofocus="true"');
+    expect(modal).toContain('inputMode="decimal"');
+    expect(responsive).toContain('min-height: 46px');
+  });
+
+  it('keeps the trip dashboard hierarchy and scannable trip cards', () => {
+    const source = dashboard();
+    const responsive = sourceText('src/styles/responsive.css');
+    expect(source).toContain('finance-trip-hero-total');
+    expect(source).toContain('<strong>{activeTripName}</strong>');
+    expect(source).toContain('finance-trip-metric-grid');
+    expect(source).toContain('activeTripAverageMinor');
+    expect(source).toContain('activeTripCategoryCount');
+    expect(source).toContain('finance-trip-card-facts');
+    expect(source).toContain('finance-trip-card-total');
+    expect(responsive).toContain('.finance-trip-category-grid { grid-template-columns: 1fr; }');
+  });
+
   it('keeps mobile expense lists clear of bottom navigation', () => {
     const css = refinement();
     expect(css).toContain('.finance-dashboard-v2 .finance-purchases-section,');
