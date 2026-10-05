@@ -1,11 +1,11 @@
 {
   "source": "PRIVATE",
   "surface": "public-stable",
-  "buildId": "ik-1.2.0.317-20261005-provenance-test-type-fix",
-  "appVersion": "1.2.0.317",
+  "buildId": "ik-1.2.0.318-20261005-provenance-persistence-test-contract-fix",
+  "appVersion": "1.2.0.318",
   "releaseVersion": "1.2.0",
-  "packageVersion": "1.2.0-private.317",
-  "build": "317",
-  "contentFingerprint": "8e9e9d953af1b9540494a6e3eee3538e631b9ec4c6306fbf3b1f4c7111965332",
+  "packageVersion": "1.2.0-private.318",
+  "build": "318",
+  "contentFingerprint": "f0da74376eef14995d71c4b4cbd46b29c6fee734f6166b8d1d0ab533149bbac5",
   "fileCount": 587
 }

@@ -58,7 +58,10 @@ describe('Build316 study location provenance persistence', () => {
     });
 
     const entries = await listUniversityImportEntries(result.importRecord.id);
-    expect(entries).toHaveLength(1);
-    expect(entries[0]?.locationProvenance).toEqual(candidate.locationProvenance);
+    expect(entries).toHaveLength(2);
+    const eventEntry = entries.find((entry) => !entry.sourceOnly && Boolean(entry.eventId));
+    const sourceEntry = entries.find((entry) => entry.sourceOnly);
+    expect(eventEntry?.locationProvenance).toEqual(candidate.locationProvenance);
+    expect(sourceEntry?.locationProvenance).toEqual(candidate.locationProvenance);
   });
 });
