@@ -75,11 +75,15 @@ describe('current verified WUM plan 05.10.2026', () => {
   });
 
   it('keeps the incomplete POZ week source-only after its range shifted to AY9', () => {
-    const corrected = applyVerifiedStudyPlanManualCorrections([candidate({
+    const incomplete = candidate({
       sourceRange: 'AY9', subject: 'POZ',
       groupTags: ['G4:11B2'], address: 'ul. Jadżwingów 9', status: 'REVIEW_REQUIRED', include: false,
       sourceWeekStart: '2026-10-19', sourceWeekEnd: '2026-10-23',
-    })], VERIFIED_STUDY_PLAN_2026_10_05.sha256).candidates[0]!;
+    });
+    delete incomplete.date;
+    delete incomplete.startTime;
+    delete incomplete.endTime;
+    const corrected = applyVerifiedStudyPlanManualCorrections([incomplete], VERIFIED_STUDY_PLAN_2026_10_05.sha256).candidates[0]!;
     expect(corrected.include).toBe(false);
     expect(corrected.date).toBeUndefined();
     expect(corrected.startTime).toBeUndefined();
