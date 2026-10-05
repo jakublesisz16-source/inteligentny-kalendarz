@@ -1,11 +1,11 @@
 {
   "source": "PRIVATE",
   "surface": "public-stable",
-  "buildId": "ik-1.2.0.325-20261005-permanent-manual-study-plan-policy",
-  "appVersion": "1.2.0.325",
+  "buildId": "ik-1.2.0.326-20261005-study-test-exact-optional-fix",
+  "appVersion": "1.2.0.326",
   "releaseVersion": "1.2.0",
-  "packageVersion": "1.2.0-private.325",
-  "build": "325",
-  "contentFingerprint": "7df73407b34a1669595873ffeeedce5c0ac02e95a543b450bddd49a054b45778",
+  "packageVersion": "1.2.0-private.326",
+  "build": "326",
+  "contentFingerprint": "b42e5479782a2cb0eff46c2e0f7e1847509ffed33f69762866f5b28462436045",
   "fileCount": 580
 }
