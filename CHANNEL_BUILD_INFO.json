@@ -1,11 +1,11 @@
 {
   "source": "PRIVATE",
   "surface": "public-stable",
-  "buildId": "ik-1.2.0.319-20261005-release-state-firestore-rules-audit",
-  "appVersion": "1.2.0.319",
+  "buildId": "ik-1.2.0.320-20261005-firestore-probe-id-fix",
+  "appVersion": "1.2.0.320",
   "releaseVersion": "1.2.0",
-  "packageVersion": "1.2.0-private.319",
-  "build": "319",
-  "contentFingerprint": "fc3426d2f2536c5e6b566784c6cc14f42bbaa921b401c00fec8aaf62a9f7d3f1",
+  "packageVersion": "1.2.0-private.320",
+  "build": "320",
+  "contentFingerprint": "9614f55b39a5a82caa9e6ac01788de001007bfc7499d52a085b0872aeceac7e0",
   "fileCount": 589
 }

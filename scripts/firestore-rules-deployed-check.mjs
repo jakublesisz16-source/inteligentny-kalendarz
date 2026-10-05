@@ -1,5 +1,5 @@
 const PROJECT_ID = 'inteligentny-kalendarz-s-2cfc9';
-const PROBE_USER_ID = '__ik_anonymous_release_probe__';
+const PROBE_USER_ID = 'ik-anonymous-release-probe';
 const endpoint = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/users/${PROBE_USER_ID}/sync/current`;
 
 const controller = new AbortController();
