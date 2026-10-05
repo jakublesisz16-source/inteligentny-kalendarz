@@ -1,11 +1,11 @@
 {
   "source": "PRIVATE",
   "surface": "public-stable",
-  "buildId": "ik-1.2.0.318-20261005-provenance-persistence-test-contract-fix",
-  "appVersion": "1.2.0.318",
+  "buildId": "ik-1.2.0.319-20261005-release-state-firestore-rules-audit",
+  "appVersion": "1.2.0.319",
   "releaseVersion": "1.2.0",
-  "packageVersion": "1.2.0-private.318",
-  "build": "318",
-  "contentFingerprint": "f0da74376eef14995d71c4b4cbd46b29c6fee734f6166b8d1d0ab533149bbac5",
-  "fileCount": 587
+  "packageVersion": "1.2.0-private.319",
+  "build": "319",
+  "contentFingerprint": "fc3426d2f2536c5e6b566784c6cc14f42bbaa921b401c00fec8aaf62a9f7d3f1",
+  "fileCount": 589
 }

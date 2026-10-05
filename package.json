@@ -1,7 +1,7 @@
 {
   "name": "inteligentny-kalendarz",
   "private": true,
-  "version": "1.2.0-private.318",
+  "version": "1.2.0-private.319",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -13,6 +13,7 @@
     "security:release": "node scripts/security-release-gate.mjs",
     "security:public": "node scripts/public-package-gate.mjs .",
     "security:dependencies": "npm audit --omit=dev --audit-level=high",
+    "security:firestore:deployed": "node scripts/firestore-rules-deployed-check.mjs",
     "visual:qa": "node scripts/visual-qa-capture.mjs",
     "travel:gate": "node scripts/travel-release-gate.mjs",
     "release:preflight": "node scripts/release-preflight.mjs",

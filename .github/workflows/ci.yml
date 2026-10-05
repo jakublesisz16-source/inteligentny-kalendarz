@@ -39,6 +39,9 @@ jobs:
       - name: Public repository safety
         run: npm run security:public
 
+      - name: Deployed Firestore rules - anonymous deny probe
+        run: npm run security:firestore:deployed
+
       - name: Typecheck, public tests, production build and project gates
         run: npm run check:public
 

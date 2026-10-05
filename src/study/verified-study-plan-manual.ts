@@ -11,6 +11,19 @@ import { candidateSemanticFingerprint, VERIFIED_STUDY_PLAN_2026_10_02 } from './
 
 export const VERIFIED_STUDY_PROFILE_2026_10_02 = ['MAIN:11', 'G12:11B', 'G8:11B', 'G4:11B2'] as const;
 
+export const VERIFIED_STUDY_SOURCE_TEXT_CORRECTIONS_2026_10_02 = [
+  {
+    sourceRange: 'AZ9',
+    field: 'address',
+    sourceValue: 'ul. Jadżwingów 9',
+    canonicalValue: 'ul. Jadźwingów 9',
+    provenance: 'OFFICIAL_EXTERNAL' as const,
+    evidence: 'Zewnętrzne rejestry adresowe/EGiB potwierdzają nazwę ul. Jadźwingów 9. Surowy XLS zachowuje literówkę Jadżwingów.',
+    appliedToSchedule: false,
+    reason: 'Pozycja AZ9 pozostaje source-only bez jednoznacznego dnia i godzin, więc korekta tekstu nie może tworzyć ani zmieniać wydarzenia kalendarza.',
+  },
+] as const;
+
 export const VERIFIED_STUDY_MANUAL_AUDIT_2026_10_02 = {
   selectedGroups: VERIFIED_STUDY_PROFILE_2026_10_02,
   candidateCount: 77,
