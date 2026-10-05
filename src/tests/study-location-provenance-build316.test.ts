@@ -42,10 +42,10 @@ describe('Build316 study location provenance contract', () => {
   });
 
   it('keeps Excel-derived and external address evidence separate for Centrum Dydaktyczne', () => {
-    const [corrected] = applyVerifiedStudyPlanManualCorrections(
+    const corrected = applyVerifiedStudyPlanManualCorrections(
       [candidate({})],
       VERIFIED_STUDY_PLAN_2026_10_02.sha256,
-    ).candidates;
+    ).candidates[0]!;
     expect(corrected.locationProvenance).toEqual(expect.arrayContaining([
       expect.objectContaining({ field: 'room', source: 'SOURCE_CROSS_REFERENCE' }),
       expect.objectContaining({ field: 'locationLabel', source: 'SOURCE_CROSS_REFERENCE' }),
@@ -54,7 +54,7 @@ describe('Build316 study location provenance contract', () => {
   });
 
   it('marks the January surgery unit and Banacha 1a correction as external enrichment', () => {
-    const [corrected] = applyVerifiedStudyPlanManualCorrections([
+    const corrected = applyVerifiedStudyPlanManualCorrections([
       candidate({
         sourceRange: 'D20',
         subject: 'CHIRURGIA I BLOK OPERACYJNY',
@@ -62,7 +62,7 @@ describe('Build316 study location provenance contract', () => {
         groupTags: ['G8:11B'],
         address: 'ul. Banacha 1',
       }),
-    ], VERIFIED_STUDY_PLAN_2026_10_02.sha256).candidates;
+    ], VERIFIED_STUDY_PLAN_2026_10_02.sha256).candidates[0]!;
 
     expect(corrected.locationProvenance).toEqual(expect.arrayContaining([
       expect.objectContaining({ field: 'clinic', source: 'OFFICIAL_EXTERNAL' }),
@@ -72,7 +72,7 @@ describe('Build316 study location provenance contract', () => {
   });
 
   it('marks the Teams lecture correction as direct evidence from the lecture cell', () => {
-    const [corrected] = applyVerifiedStudyPlanManualCorrections([
+    const corrected = applyVerifiedStudyPlanManualCorrections([
       candidate({
         sourceSheet: 'WYKŁADY',
         sourceRange: 'A14,B14',
@@ -81,7 +81,7 @@ describe('Build316 study location provenance contract', () => {
         startTime: '15:00',
         endTime: '18:45',
       }),
-    ], VERIFIED_STUDY_PLAN_2026_10_02.sha256).candidates;
+    ], VERIFIED_STUDY_PLAN_2026_10_02.sha256).candidates[0]!;
 
     expect(corrected.clinic).toBe('Microsoft Teams');
     expect(corrected.locationProvenance).toEqual(expect.arrayContaining([

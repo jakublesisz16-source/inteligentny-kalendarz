@@ -1,11 +1,11 @@
 {
   "source": "PRIVATE",
   "surface": "public-stable",
-  "buildId": "ik-1.2.0.316-20261004-study-location-provenance-checkpoint-cleanup",
-  "appVersion": "1.2.0.316",
+  "buildId": "ik-1.2.0.317-20261005-provenance-test-type-fix",
+  "appVersion": "1.2.0.317",
   "releaseVersion": "1.2.0",
-  "packageVersion": "1.2.0-private.316",
-  "build": "316",
-  "contentFingerprint": "7f7240e4b905eb4d258d47a5cc5c3e0836737cc601f5dc3a4da38a3ab04235e8",
+  "packageVersion": "1.2.0-private.317",
+  "build": "317",
+  "contentFingerprint": "8e9e9d953af1b9540494a6e3eee3538e631b9ec4c6306fbf3b1f4c7111965332",
   "fileCount": 587
 }
