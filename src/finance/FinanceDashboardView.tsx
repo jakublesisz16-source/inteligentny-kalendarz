@@ -665,7 +665,7 @@ export function FinanceDashboardView() {
     () => aggregateExpensesByCategoryTree(categorizedReceipts, categories, monthKey),
     [categorizedReceipts, categories, monthKey],
   );
-  // Build218 used categoryAnalytics.slice(0, 4); Build219 deliberately compacts the visual to 3 + Pozostałe.
+  // Keep the visual compact at 3 primary categories plus Pozostałe.
   const categoryRemainder = useMemo<FinanceDonutEntry | null>(() => {
     if (categoryAnalytics.length <= FINANCE_DONUT_PRIMARY_CATEGORY_LIMIT) return null;
     const remainder = categoryAnalytics.slice(FINANCE_DONUT_PRIMARY_CATEGORY_LIMIT);
@@ -766,7 +766,7 @@ export function FinanceDashboardView() {
         sharePercent: activeTripTotalMinor > 0 ? (totalMinor / activeTripTotalMinor) * 100 : 0,
       }))
       .sort((left, right) => right.totalMinor - left.totalMinor || left.category.name.localeCompare(right.category.name, 'pl-PL'));
-    // Historical Build148 proof looked for entries.slice(0, 4); Build219 uses the shared compact 3 + remainder visual.
+    // Use the shared compact 3 + remainder visual for trip categories as well.
     return { count: entries.length, entries, top: entries.slice(0, FINANCE_DONUT_PRIMARY_CATEGORY_LIMIT) };
   }, [activeTripReceipts, activeTripTotalMinor, categories, productByKey]);
   const activeTripCategoryAnalytics = activeTripCategorySummary.entries;

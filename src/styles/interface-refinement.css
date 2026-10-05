@@ -2871,7 +2871,7 @@
   }
 }
 
-/* Build218 - Finance dashboard visual polish: trend, donut composition and compact monthly insights. */
+/* Finance dashboard: trend, donut composition and compact monthly insights. */
 .finance-month-dashboard-v218 {
   overflow: hidden;
 }
@@ -3393,13 +3393,13 @@
   }
 }
 
-/* Build219 - Finance + Trips compact responsive dashboard polish. */
+/* Finance + Trips: compact responsive dashboard composition. */
 .finance-month-dashboard-v219,
 .finance-trip-dashboard-v219 {
   overflow: hidden;
 }
 
-/* Month: keep the useful Build218 hierarchy, but reduce dead space and duplicated visual weight. */
+/* Month: keep the useful hierarchy while reducing dead space and duplicated visual weight. */
 .finance-month-dashboard-v219 .finance-month-dashboard-hero-v219 {
   grid-template-columns: minmax(0, .82fr) minmax(390px, 1.18fr);
 }
@@ -3988,7 +3988,7 @@
   }
 }
 
-/* Build220 - Category donut readability: legend colors map 1:1 to donut slices in Month and Trips. */
+/* Category donut readability: legend colors map 1:1 to donut slices in Month and Trips. */
 .finance-dashboard-v2 {
   --finance-chart-tone-1: var(--accent-strong);
   --finance-chart-tone-2: color-mix(in srgb, var(--work) 72%, var(--text-muted));
@@ -4076,7 +4076,7 @@
 }
 
 
-/* Build221 - Donut legend alignment polish: compact, explicit rows without adding dashboard height. */
+/* Donut legend alignment: compact, explicit rows without adding dashboard height. */
 .finance-month-dashboard-v221 .finance-month-category-composition,
 .finance-trip-dashboard-v221 .finance-trip-category-composition-v219 {
   grid-template-columns: 128px minmax(300px, 372px);
@@ -4243,7 +4243,7 @@
   }
 }
 
-/* Build222 - Finance currency context polish: current view currency is primary, conversion stays secondary. */
+/* Finance currency context: current view currency is primary, conversion stays secondary. */
 .finance-context-amount-v222 {
   display: grid;
   justify-items: end;

@@ -31,6 +31,7 @@ export const PUBLIC_SCRIPT_FILES = new Set([
   'scripts/travel-release-gate.mjs',
   'scripts/visual-qa-capture.mjs',
   'scripts/firestore-rules-deployed-check.mjs',
+  'scripts/test-suite-audit.mjs',
 ]);
 
 export const PRIVATE_ONLY_PUBLIC_TESTS = new Set([
@@ -48,7 +49,7 @@ export const PUBLIC_PACKAGE_SCRIPTS = new Set([
   'security:release', 'security:public', 'security:dependencies',
   'visual:qa', 'travel:gate', 'release:preflight',
   'test:public', 'check:public', 'study:mobile-smoke', 'source:hygiene',
-  'channel:contract', 'channel:monotonicity', 'security:firestore:deployed',
+  'channel:contract', 'channel:monotonicity', 'security:firestore:deployed', 'test:audit',
 ]);
 
 export function isAllowedPublicPath(rel) {

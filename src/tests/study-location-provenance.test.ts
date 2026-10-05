@@ -27,7 +27,7 @@ function candidate(patch: Partial<StudyScheduleCandidate>): StudyScheduleCandida
   };
 }
 
-describe('Build316 study location provenance contract', () => {
+describe('study location provenance contract', () => {
   it('marks each manual location patch field with an explicit provenance class', () => {
     for (const override of verifiedStudyPlanManualEvidence()) {
       for (const field of Object.keys(override.patch)) {

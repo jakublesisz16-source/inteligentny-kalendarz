@@ -17,7 +17,7 @@ afterEach(async () => {
   await deleteDatabaseForTests();
 });
 
-describe('Build316 study location provenance persistence', () => {
+describe('study location provenance persistence', () => {
   it('persists provenance with the import entry without a schema bump', async () => {
     const candidate: StudyScheduleCandidate = {
       id: 'build316-provenance',

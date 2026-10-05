@@ -4,7 +4,7 @@ import {
   VERIFIED_STUDY_SOURCE_TEXT_CORRECTIONS_2026_10_02,
 } from '../study/verified-study-plan-manual';
 
-describe('Build319 source text correction audit metadata', () => {
+describe('study source text correction audit metadata', () => {
   it('keeps the AZ9 source typo separate from the canonical external address', () => {
     expect(VERIFIED_STUDY_SOURCE_TEXT_CORRECTIONS_2026_10_02).toEqual([
       expect.objectContaining({

@@ -1,7 +1,7 @@
 {
   "name": "inteligentny-kalendarz",
   "private": true,
-  "version": "1.2.0-private.320",
+  "version": "1.2.0-private.321",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -18,11 +18,12 @@
     "travel:gate": "node scripts/travel-release-gate.mjs",
     "release:preflight": "node scripts/release-preflight.mjs",
     "test:public": "vitest run --config vitest.public.config.ts",
-    "check:public": "npm run typecheck && npm run test:public && npm run build",
+    "check:public": "npm run typecheck && npm run test:audit && npm run test:public && npm run build",
     "study:mobile-smoke": "node scripts/study-mobile-smoke.mjs",
     "source:hygiene": "node scripts/source-hygiene-gate.mjs",
     "channel:contract": "node scripts/channel-contract-gate.mjs .",
-    "channel:monotonicity": "node scripts/channel-monotonicity-gate.mjs"
+    "channel:monotonicity": "node scripts/channel-monotonicity-gate.mjs",
+    "test:audit": "node scripts/test-suite-audit.mjs"
   },
   "dependencies": {
     "react": "^19.1.1",
