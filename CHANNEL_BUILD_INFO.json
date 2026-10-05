@@ -1,11 +1,11 @@
 {
   "source": "PRIVATE",
   "surface": "public-stable",
-  "buildId": "ik-1.2.0.322-20261005-stale-test-contract-cleanup",
-  "appVersion": "1.2.0.322",
+  "buildId": "ik-1.2.0.325-20261005-permanent-manual-study-plan-policy",
+  "appVersion": "1.2.0.325",
   "releaseVersion": "1.2.0",
-  "packageVersion": "1.2.0-private.322",
-  "build": "322",
-  "contentFingerprint": "e1de309caa3afa1bfba6d5056d459ecea1d0470b3d3459f35231d9f594ed1978",
-  "fileCount": 577
+  "packageVersion": "1.2.0-private.325",
+  "build": "325",
+  "contentFingerprint": "7df73407b34a1669595873ffeeedce5c0ac02e95a543b450bddd49a054b45778",
+  "fileCount": 580
 }

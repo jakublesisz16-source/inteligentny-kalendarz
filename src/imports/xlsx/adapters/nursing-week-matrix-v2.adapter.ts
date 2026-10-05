@@ -1095,13 +1095,15 @@ function buildMatrixCandidates(sheet: SheetSnapshot, signals: MatrixSignals): { 
           });
         }
       }
-      if (dates.length && !inline?.date) {
-        const excluded = excludedDatesForCell(cell, context, range, groupCells, contexts, exceptions);
-        if (excluded.size) dates = dates.filter((date) => !excluded.has(date) || date === exception?.date);
+      const excludedDates = !inline?.date
+        ? [...excludedDatesForCell(cell, context, range, groupCells, contexts, exceptions)]
+        : [];
+      if (dates.length && excludedDates.length) {
+        const excluded = new Set(excludedDates);
+        dates = dates.filter((date) => !excluded.has(date) || date === exception?.date);
       }
       if (!dates.length && exception) dates = [exception.date];
       const unresolvedDates = !dates.length;
-      const excludedDates = dates.length && !inline?.date ? [...excludedDatesForCell(cell, context, range, groupCells, contexts, exceptions)] : [];
       if (!dates.length) dates = [''];
       const blockCandidateIds: string[] = [];
 

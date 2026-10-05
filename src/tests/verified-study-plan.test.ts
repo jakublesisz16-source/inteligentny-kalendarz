@@ -3,6 +3,7 @@ import type { ScheduleAnalysis, StudyScheduleCandidate } from '../study/study.ty
 import {
   candidateSemanticFingerprint,
   VERIFIED_STUDY_PLAN_2026_10_02,
+  VERIFIED_STUDY_PLAN_2026_10_05,
   verifyStudyPlanAgainstReference,
   verifyStudyPlanSource,
 } from '../study/verified-study-plan';
@@ -56,6 +57,7 @@ async function syntheticReference(source: ScheduleAnalysis) {
   return {
     id: 'synthetic-reference',
     sourceName: 'synthetic.xls',
+    sourceUpdatedAt: '2026-10-05T00:00:00+02:00',
     sizeBytes: 123,
     sha256: 'synthetic-hash',
     adapterId: 'test-adapter',
@@ -120,6 +122,17 @@ describe('Verified Study Plan', () => {
     const result = await verifyStudyPlanAgainstReference({ fileName: 'synthetic.xls', fileSize: 123, analysis: drifted }, reference);
     expect(result.state).toBe('BLOCKED_REFERENCE_DRIFT');
     expect(result.reasons.some((reason) => reason.includes('fingerprint semantyczny pełnego planu'))).toBe(true);
+  });
+
+
+
+  it('traktuje plan 05.10 jako bieżącą zweryfikowaną referencję po dokładnym SHA', async () => {
+    expect(VERIFIED_STUDY_PLAN_2026_10_05.sha256).toBe('d1c9b755b439014b1ad4da429b27d7c575cb953b75582765cf5eefd7ab521702');
+    expect(VERIFIED_STUDY_PLAN_2026_10_05.selectedProfile).toMatchObject({
+      candidateCount: 76,
+      importableCount: 73,
+      conflictCount: 0,
+    });
   });
 
   it('nie dziedziczy statusu verified po samej nazwie pliku', async () => {

@@ -252,7 +252,7 @@ export function StudyView({ onDataChanged }: StudyViewProps) {
         workbook,
       });
       if (verification.state === 'BLOCKED_REFERENCE_DRIFT') {
-        setError('Znany plan 02.10.2026 nie zgadza się ze zweryfikowaną referencją. Import został zablokowany, żeby nie zapisać cichej regresji parsera.');
+        setError('Znany plan nie zgadza się ze zweryfikowaną referencją dla jego dokładnego SHA-256. Import został zablokowany, żeby nie zapisać cichej regresji parsera.');
         setDiagnostics(verification.reasons);
         return;
       }

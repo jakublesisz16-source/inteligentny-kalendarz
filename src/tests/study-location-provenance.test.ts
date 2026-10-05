@@ -4,14 +4,14 @@ import {
   applyVerifiedStudyPlanManualCorrections,
   verifiedStudyPlanManualEvidence,
 } from '../study/verified-study-plan-manual';
-import { VERIFIED_STUDY_PLAN_2026_10_02 } from '../study/verified-study-plan';
+import { VERIFIED_STUDY_PLAN_2026_10_05 } from '../study/verified-study-plan';
 
 function candidate(patch: Partial<StudyScheduleCandidate>): StudyScheduleCandidate {
   return {
     id: 'candidate-build316',
     adapterId: 'nursing-week-matrix-v2',
     sourceSheet: 'PLAN ZAJĘĆ',
-    sourceRange: 'DE8',
+    sourceRange: 'DD8',
     sourceKey: 'build316',
     originalText: 'build316',
     subject: 'INTERNA (seminaria)',
@@ -44,7 +44,7 @@ describe('study location provenance contract', () => {
   it('keeps Excel-derived and external address evidence separate for Centrum Dydaktyczne', () => {
     const corrected = applyVerifiedStudyPlanManualCorrections(
       [candidate({})],
-      VERIFIED_STUDY_PLAN_2026_10_02.sha256,
+      VERIFIED_STUDY_PLAN_2026_10_05.sha256,
     ).candidates[0]!;
     expect(corrected.locationProvenance).toEqual(expect.arrayContaining([
       expect.objectContaining({ field: 'room', source: 'SOURCE_CROSS_REFERENCE' }),
@@ -62,12 +62,12 @@ describe('study location provenance contract', () => {
         groupTags: ['G8:11B'],
         address: 'ul. Banacha 1',
       }),
-    ], VERIFIED_STUDY_PLAN_2026_10_02.sha256).candidates[0]!;
+    ], VERIFIED_STUDY_PLAN_2026_10_05.sha256).candidates[0]!;
 
     expect(corrected.locationProvenance).toEqual(expect.arrayContaining([
-      expect.objectContaining({ field: 'clinic', source: 'OFFICIAL_EXTERNAL' }),
+      expect.objectContaining({ field: 'clinic', source: 'SOURCE_CROSS_REFERENCE' }),
       expect.objectContaining({ field: 'address', source: 'OFFICIAL_EXTERNAL' }),
-      expect.objectContaining({ field: 'locationLabel', source: 'OFFICIAL_EXTERNAL' }),
+      expect.objectContaining({ field: 'locationLabel', source: 'SOURCE_CROSS_REFERENCE' }),
     ]));
   });
 
@@ -81,7 +81,7 @@ describe('study location provenance contract', () => {
         startTime: '15:00',
         endTime: '18:45',
       }),
-    ], VERIFIED_STUDY_PLAN_2026_10_02.sha256).candidates[0]!;
+    ], VERIFIED_STUDY_PLAN_2026_10_05.sha256).candidates[0]!;
 
     expect(corrected.clinic).toBe('Microsoft Teams');
     expect(corrected.locationProvenance).toEqual(expect.arrayContaining([

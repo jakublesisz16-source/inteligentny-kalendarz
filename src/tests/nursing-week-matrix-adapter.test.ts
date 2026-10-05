@@ -783,6 +783,9 @@ describe('nursing-week-matrix-v2 dedicated exact-date marker columns', () => {
     expect(analyzeScheduleWorkbook(workbook)).not.toBeNull();
     expect(group.filter((entry) => entry.date === '2025-10-06')).toHaveLength(1);
     expect(group.filter((entry) => entry.date === '2025-10-10')).toHaveLength(1);
+    const broadSourceBlock = direct.sourceBlocks?.find((entry) => entry.sourceRange === 'B8');
+    expect(broadSourceBlock?.excludedDates).toContain('2025-10-06');
+    expect(expectedDatesForSourceBlock(broadSourceBlock!)).not.toContain('2025-10-06');
     expect(group.find((entry) => entry.date === '2025-10-06')).toMatchObject({
       startTime: '08:00',
       endTime: '14:00',

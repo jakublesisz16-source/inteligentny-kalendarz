@@ -49,6 +49,53 @@ export const VERIFIED_STUDY_PLAN_2026_10_02 = {
   },
 } as const;
 
+
+export const VERIFIED_STUDY_PLAN_2026_10_05 = {
+  id: 'wum-nursing-year2-2026-10-05',
+  sourceName: 'licencjat-ii-rok-piel.-05.10.2026-a.xls',
+  sourceUpdatedAt: '2026-10-05T00:00:00+02:00',
+  sizeBytes: 150_528,
+  sha256: 'd1c9b755b439014b1ad4da429b27d7c575cb953b75582765cf5eefd7ab521702',
+  adapterId: 'nursing-week-matrix-v2',
+  allCandidatesSha256: '99e1bac2ed84e51956092ef8ef1115987fddaa8ccdc92cef6f632f83ad5fe811',
+  selectedProfile: {
+    selectedGroups: ['MAIN:11', 'G12:11B', 'G8:11B', 'G4:11B2'],
+    candidatesSha256: '993ec1f96d806b7645a70dcd1926d58fd347fdac175b78a89e3fae7595ff392b',
+    candidateCount: 76,
+    importableCount: 73,
+    readyCount: 68,
+    warningCount: 5,
+    incompleteCount: 3,
+    blockingCount: 0,
+    conflictCount: 0,
+    importableMonthCounts: {
+      '2026-10': 16,
+      '2026-11': 20,
+      '2026-12': 19,
+      '2027-01': 18,
+    },
+  },
+  audit: {
+    candidateCount: 2171,
+    readyCount: 2015,
+    reviewRequiredCount: 156,
+    groupCount: 156,
+    groupKinds: { MAIN: 13, G12: 26, G8: 39, G4: 78, GENERIC: 0 },
+    sourceBlockCount: 823,
+    completenessSafe: true,
+    incompleteSourceBlockCount: 156,
+    hourAnomalyCount: 12,
+    profileCombinationCount: 156,
+    affectedProfileCombinationCount: 6,
+    uniqueConflictSignatureCount: 3,
+    weekdayMismatchCount: 3,
+    unparsedAssignmentCellCount: 0,
+    unappliedDateExceptionCount: 0,
+  },
+} as const;
+
+export const VERIFIED_STUDY_PLAN_CURRENT = VERIFIED_STUDY_PLAN_2026_10_05;
+
 export type StudyPlanVerificationState = 'VERIFIED_REFERENCE' | 'NEW_SOURCE' | 'BLOCKED_REFERENCE_DRIFT';
 
 export interface StudyPlanVerification {
@@ -71,6 +118,7 @@ export interface VerifyStudyPlanInput {
 interface StudyPlanReference {
   id: string;
   sourceName: string;
+  sourceUpdatedAt: string;
   sizeBytes: number;
   sha256: string;
   adapterId: string;
@@ -213,14 +261,18 @@ export async function verifyStudyPlanAgainstReference(
 
 export async function verifyStudyPlanSource(input: VerifyStudyPlanInput): Promise<StudyPlanVerification> {
   const normalizedHash = input.fileHash.toLowerCase();
-  const reference = VERIFIED_STUDY_PLAN_2026_10_02;
-  if (normalizedHash !== reference.sha256) {
-    return {
-      state: 'NEW_SOURCE',
-      reasons: input.fileName.toLowerCase() === reference.sourceName.toLowerCase()
-        ? ['Nazwa odpowiada zweryfikowanej wersji 02.10.2026, ale zawartość pliku ma inny SHA-256. Traktuję go jako nową wersję i nie dziedziczę statusu zweryfikowanego.']
-        : [],
-    };
-  }
-  return verifyStudyPlanAgainstReference(input, reference);
+  const references: readonly StudyPlanReference[] = [
+    VERIFIED_STUDY_PLAN_2026_10_05,
+    VERIFIED_STUDY_PLAN_2026_10_02,
+  ];
+  const reference = references.find((item) => item.sha256 === normalizedHash);
+  if (reference) return verifyStudyPlanAgainstReference(input, reference);
+
+  const sameNameReference = references.find((item) => item.sourceName.toLowerCase() === input.fileName.toLowerCase());
+  return {
+    state: 'NEW_SOURCE',
+    reasons: sameNameReference
+      ? [`Nazwa odpowiada zweryfikowanej wersji ${sameNameReference.sourceUpdatedAt.slice(0, 10)}, ale zawartość pliku ma inny SHA-256. Traktuję go jako nową wersję i nie dziedziczę statusu zweryfikowanego.`]
+      : [],
+  };
 }
