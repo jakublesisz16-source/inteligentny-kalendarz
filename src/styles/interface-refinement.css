@@ -5536,3 +5536,99 @@ body.modal-open { overflow: hidden; }
     padding: 9px 12px 10px !important;
   }
 }
+
+/* Build329 - micro polish only: preserve existing Calendar/Today composition. */
+.today-calendar-context .overlay-polish_holiday,
+.today-calendar-context .overlay-wum_break,
+.today-calendar-context .overlay-wum_rector_day {
+  border-color: color-mix(in srgb, var(--calendar-day-off-border) 88%, var(--line));
+  background: color-mix(in srgb, var(--calendar-day-off) 88%, var(--surface));
+  color: var(--calendar-day-off-strong);
+}
+
+.today-calendar-context .overlay-wum_session {
+  border-color: color-mix(in srgb, var(--calendar-session-border) 82%, var(--line));
+  background: color-mix(in srgb, var(--calendar-session) 74%, var(--surface));
+  color: var(--calendar-session-strong);
+}
+
+.today-calendar-context .overlay-wum_vacation {
+  border-color: color-mix(in srgb, var(--calendar-vacation-border) 82%, var(--line));
+  background: color-mix(in srgb, var(--calendar-vacation) 76%, var(--surface));
+  color: var(--calendar-vacation-strong);
+}
+
+/* A selected day keeps its semantic day-off tone. Selection is a border/ring, not a recolor. */
+.calendar-day.day-off.selected:not(.multi-selected) {
+  background: color-mix(in srgb, var(--calendar-day-off) 88%, var(--surface));
+  border-color: var(--calendar-day-off-border);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--calendar-day-off-strong) 14%, transparent), 0 3px 10px rgba(99,72,83,.045);
+}
+
+.calendar-day.day-off.selected.today:not(.multi-selected) .day-number {
+  border-color: color-mix(in srgb, var(--calendar-day-off-strong) 32%, var(--line));
+  background: color-mix(in srgb, var(--calendar-day-off) 58%, var(--surface));
+}
+
+/* Keep the compact next-event card stable with long Polish unit/location names. */
+.today-plan-panel .today-next-strip.today-future-preview {
+  min-width: 0;
+  align-items: baseline;
+}
+
+.today-plan-panel .today-next-strip.today-future-preview .today-next-when,
+.today-plan-panel .today-next-strip.today-future-preview > strong,
+.today-plan-panel .today-next-strip.today-future-preview > small {
+  min-width: 0;
+}
+
+.today-plan-panel .today-next-strip.today-future-preview > small {
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+
+@media (max-width: 620px) {
+  .today-plan-panel .today-next-strip.today-future-preview {
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 3px 8px;
+  }
+
+  .today-plan-panel .today-next-strip.today-future-preview .today-next-label {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .today-plan-panel .today-next-strip.today-future-preview .today-next-when {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .today-plan-panel .today-next-strip.today-future-preview > strong {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+
+  .today-plan-panel .today-next-strip.today-future-preview > small {
+    grid-column: 1 / -1;
+    grid-row: 3;
+  }
+
+  .today-view .event-actions-column {
+    width: 100%;
+    justify-content: flex-start;
+  }
+}
+
+/* Day-off chips use one semantic tone across Today and Calendar detail contexts. */
+.calendar-selected-day-overlays .overlay-polish_holiday,
+.calendar-selected-day-overlays .overlay-wum_break,
+.calendar-selected-day-overlays .overlay-wum_rector_day,
+.calendar-mobile-day-preview-overlays .overlay-polish_holiday,
+.calendar-mobile-day-preview-overlays .overlay-wum_break,
+.calendar-mobile-day-preview-overlays .overlay-wum_rector_day {
+  background: color-mix(in srgb, var(--calendar-day-off) 86%, var(--surface));
+  color: var(--calendar-day-off-strong);
+}

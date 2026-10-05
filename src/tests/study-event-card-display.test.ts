@@ -45,6 +45,12 @@ describe('DEV4-STUDY-CALENDAR-UI-FIX2 group visibility', () => {
     expect(display.groupLabel).toBe('Grupy 12A, 12B');
   });
 
+  it('hides internal group-key prefixes in event cards while preserving the actual group label', () => {
+    expect(studyEventDisplay(studyEvent({ studyGroupTags: ['MAIN:11'], studyGroupScope: 'SPECIFIC' })).groupLabel).toBe('Grupa 11');
+    expect(studyEventDisplay(studyEvent({ studyGroupTags: ['G8:11B'], studyGroupScope: 'SPECIFIC' })).groupLabel).toBe('Grupa 11B');
+    expect(studyEventDisplay(studyEvent({ studyGroupTags: ['G4:11B2'], studyGroupScope: 'SPECIFIC' })).groupLabel).toBe('Grupa 11B2');
+  });
+
   it('labels group-wide lectures as shared only when scope is explicitly ALL', () => {
     expect(studyEventDisplay(studyEvent({ studyGroupTags: [], studyGroupScope: 'ALL', description: 'Wykład - aula A' })).groupLabel).toBe('Wspólne');
     expect(studyEventDisplay(studyEvent({ studyGroupTags: [], studyGroupScope: 'UNKNOWN', description: 'Wykład - aula A' })).groupLabel).toBeUndefined();

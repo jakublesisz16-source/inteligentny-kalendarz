@@ -4,7 +4,7 @@ export const VERIFIED_STUDY_CURRENT_SCHEDULE_SOURCE_SHA256 = 'd1c9b755b439014b1a
 export const VERIFIED_STUDY_CURRENT_SCHEDULE_PROFILE = ['MAIN:11', 'G12:11B', 'G8:11B', 'G4:11B2'] as const;
 export const VERIFIED_STUDY_CURRENT_TIMED_EVENT_COUNT = 73;
 export const VERIFIED_STUDY_CURRENT_SOURCE_ONLY_COUNT = 3;
-export const VERIFIED_STUDY_CURRENT_CALENDAR_OPERATIONAL_SHA256 = '632a5b04682f0454508a3fa436a1304f07c81b4a0213c4f68000bf973c4a0d66';
+export const VERIFIED_STUDY_CURRENT_CALENDAR_OPERATIONAL_SHA256 = '57aafe1d4e11f95b92eef3f454f39a197d57da3b8e4597230e5c72e28e952e87';
 
 // Canonical, manually audited snapshot of every source position for the user's current profile.
 // This is intentionally explicit and hash-bound. The generic XLS parser remains a verification layer,
@@ -372,28 +372,17 @@ export const VERIFIED_STUDY_CURRENT_SCHEDULE_2026_10_05: readonly StudyScheduleC
     "sourceWeekEnd": "2026-10-30",
     "sourceSectionKey": "PLAN ZAJĘĆ|BA2:BC2",
     "declaredTeachingHours": 20,
-    "locationLabel": "Zakład Propedeutyki Pielęgniarstwa",
+    "clinic": "Zakład Propedeutyki Pielęgniarstwa",
     "status": "READY",
     "warnings": [],
     "include": true,
     "locationProvenance": [
       {
-        "field": "room",
+        "field": "clinic",
         "source": "SOURCE_CROSS_REFERENCE",
-        "evidence": "BA3: Zakład Propedeutyki Pielęgniarstwa; oficjalny adres jednostki: ul. Erazma Ciołka 27; źródło nie podaje numeru sali dla wtorku"
-      },
-      {
-        "field": "address",
-        "source": "OFFICIAL_EXTERNAL",
-        "evidence": "BA3: Zakład Propedeutyki Pielęgniarstwa; oficjalny adres jednostki: ul. Erazma Ciołka 27; źródło nie podaje numeru sali dla wtorku"
-      },
-      {
-        "field": "locationLabel",
-        "source": "SOURCE_CROSS_REFERENCE",
-        "evidence": "BA3: Zakład Propedeutyki Pielęgniarstwa; oficjalny adres jednostki: ul. Erazma Ciołka 27; źródło nie podaje numeru sali dla wtorku"
+        "evidence": "BA3-BC3 wskazuje jednostkę prowadzącą Zakład Propedeutyki Pielęgniarstwa, a BC5 przypisuje miejsca tylko poniedziałkowi i piątkom; dla wtorku źródło nie potwierdza sali ani miejsca zajęć"
       }
     ],
-    "address": "ul. Ciołka 27",
     "manuallyReviewed": true
   },
   {
@@ -439,28 +428,17 @@ export const VERIFIED_STUDY_CURRENT_SCHEDULE_2026_10_05: readonly StudyScheduleC
     "sourceWeekEnd": "2026-10-30",
     "sourceSectionKey": "PLAN ZAJĘĆ|BA2:BC2",
     "declaredTeachingHours": 20,
-    "locationLabel": "Zakład Propedeutyki Pielęgniarstwa",
+    "clinic": "Zakład Propedeutyki Pielęgniarstwa",
     "status": "READY",
     "warnings": [],
     "include": true,
     "locationProvenance": [
       {
-        "field": "room",
+        "field": "clinic",
         "source": "SOURCE_CROSS_REFERENCE",
-        "evidence": "BA3: Zakład Propedeutyki Pielęgniarstwa; oficjalny adres jednostki: ul. Erazma Ciołka 27; źródło nie podaje numeru sali dla środy"
-      },
-      {
-        "field": "address",
-        "source": "OFFICIAL_EXTERNAL",
-        "evidence": "BA3: Zakład Propedeutyki Pielęgniarstwa; oficjalny adres jednostki: ul. Erazma Ciołka 27; źródło nie podaje numeru sali dla środy"
-      },
-      {
-        "field": "locationLabel",
-        "source": "SOURCE_CROSS_REFERENCE",
-        "evidence": "BA3: Zakład Propedeutyki Pielęgniarstwa; oficjalny adres jednostki: ul. Erazma Ciołka 27; źródło nie podaje numeru sali dla środy"
+        "evidence": "BA3-BC3 wskazuje jednostkę prowadzącą Zakład Propedeutyki Pielęgniarstwa, a BC5 przypisuje miejsca tylko poniedziałkowi i piątkom; dla środy źródło nie potwierdza sali ani miejsca zajęć"
       }
     ],
-    "address": "ul. Ciołka 27",
     "manuallyReviewed": true
   },
   {
@@ -484,28 +462,17 @@ export const VERIFIED_STUDY_CURRENT_SCHEDULE_2026_10_05: readonly StudyScheduleC
     "sourceWeekEnd": "2026-10-30",
     "sourceSectionKey": "PLAN ZAJĘĆ|BA2:BC2",
     "declaredTeachingHours": 20,
-    "locationLabel": "Zakład Propedeutyki Pielęgniarstwa",
+    "clinic": "Zakład Propedeutyki Pielęgniarstwa",
     "status": "READY",
     "warnings": [],
     "include": true,
     "locationProvenance": [
       {
-        "field": "room",
+        "field": "clinic",
         "source": "SOURCE_CROSS_REFERENCE",
-        "evidence": "BA3: Zakład Propedeutyki Pielęgniarstwa; oficjalny adres jednostki: ul. Erazma Ciołka 27; źródło nie podaje numeru sali dla czwartku"
-      },
-      {
-        "field": "address",
-        "source": "OFFICIAL_EXTERNAL",
-        "evidence": "BA3: Zakład Propedeutyki Pielęgniarstwa; oficjalny adres jednostki: ul. Erazma Ciołka 27; źródło nie podaje numeru sali dla czwartku"
-      },
-      {
-        "field": "locationLabel",
-        "source": "SOURCE_CROSS_REFERENCE",
-        "evidence": "BA3: Zakład Propedeutyki Pielęgniarstwa; oficjalny adres jednostki: ul. Erazma Ciołka 27; źródło nie podaje numeru sali dla czwartku"
+        "evidence": "BA3-BC3 wskazuje jednostkę prowadzącą Zakład Propedeutyki Pielęgniarstwa, a BC5 przypisuje miejsca tylko poniedziałkowi i piątkom; dla czwartku źródło nie potwierdza sali ani miejsca zajęć"
       }
     ],
-    "address": "ul. Ciołka 27",
     "manuallyReviewed": true
   },
   {

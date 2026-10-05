@@ -1,11 +1,11 @@
 {
   "source": "PRIVATE",
   "surface": "public-stable",
-  "buildId": "ik-1.2.0.327-20261005-study-source-only-fixture-fix",
-  "appVersion": "1.2.0.327",
+  "buildId": "ik-1.2.0.329-20261005-calendar-today-micro-polish",
+  "appVersion": "1.2.0.329",
   "releaseVersion": "1.2.0",
-  "packageVersion": "1.2.0-private.327",
-  "build": "327",
-  "contentFingerprint": "94aac5459a2fd41f0beba2ed672d5e3d19fc46de0e5512717bed6e106f1d230b",
+  "packageVersion": "1.2.0-private.329",
+  "build": "329",
+  "contentFingerprint": "b11366f0c08263f18f068d5bbab2bfc094e30b697fb532d86724926984c4aa78",
   "fileCount": 580
 }

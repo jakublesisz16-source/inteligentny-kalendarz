@@ -24,7 +24,7 @@ describe('study source text correction audit metadata', () => {
       importableCount: 73,
       incompleteCount: 3,
       conflictCount: 0,
-      candidatesSha256: '34ced58eff09d97809aca986928f3bd0465a3ea3185f66ed5451100178dcaf70',
+      candidatesSha256: 'e04f8b7c71030c9df81633845f544c4f9d5543f7087b4ef1723cf775a09156b4',
     });
   });
 });

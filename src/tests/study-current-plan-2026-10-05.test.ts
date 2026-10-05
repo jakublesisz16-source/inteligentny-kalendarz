@@ -44,11 +44,11 @@ describe('current verified WUM plan 05.10.2026', () => {
     expect(VERIFIED_STUDY_MANUAL_AUDIT_2026_10_05).toMatchObject({
       candidateCount: 76,
       importableCount: 73,
-      readyCount: 72,
-      warningCount: 1,
+      readyCount: 69,
+      warningCount: 4,
       incompleteCount: 3,
       conflictCount: 0,
-      candidatesSha256: '34ced58eff09d97809aca986928f3bd0465a3ea3185f66ed5451100178dcaf70',
+      candidatesSha256: 'e04f8b7c71030c9df81633845f544c4f9d5543f7087b4ef1723cf775a09156b4',
     });
     expect(verifiedStudyPlanManualEvidence(VERIFIED_STUDY_PLAN_2026_10_05.sha256)).toHaveLength(33);
   });
@@ -89,6 +89,23 @@ describe('current verified WUM plan 05.10.2026', () => {
     expect(corrected.startTime).toBeUndefined();
     expect(corrected.endTime).toBeUndefined();
     expect(corrected.warnings.join(' ')).toContain('nie podaje jednoznacznego dnia ani pełnego zakresu godzin');
+  });
+
+  it('keeps 27-29 October Health Promotion timed but without an invented place', () => {
+    for (const date of ['2026-10-27', '2026-10-28', '2026-10-29']) {
+      const corrected = applyVerifiedStudyPlanManualCorrections([candidate({
+        sourceRange: 'BC10', subject: 'PROM. ZDROWIA', date,
+        startTime: '08:00', endTime: '11:00', groupTags: ['G8:11B'],
+        room: 'sala odziedziczona', address: 'ul. Ciołka 27', locationLabel: 'Zakład Propedeutyki Pielęgniarstwa',
+      })], VERIFIED_STUDY_PLAN_2026_10_05.sha256).candidates[0]!;
+      expect(corrected).toMatchObject({
+        date, startTime: '08:00', endTime: '11:00',
+        clinic: 'Zakład Propedeutyki Pielęgniarstwa',
+      });
+      expect(corrected.room).toBeUndefined();
+      expect(corrected.address).toBeUndefined();
+      expect(corrected.locationLabel).toBeUndefined();
+    }
   });
 
   it('keeps the Słodkowski surgery block at the verified Banacha 1a unit even on Friday rows', () => {

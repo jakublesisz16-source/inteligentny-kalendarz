@@ -53,7 +53,7 @@ describe('study location provenance contract', () => {
     ]));
   });
 
-  it('marks the January surgery unit and Banacha 1a correction as external enrichment', () => {
+  it('keeps the January surgery unit XLS-derived and only Banacha 1a external', () => {
     const corrected = applyVerifiedStudyPlanManualCorrections([
       candidate({
         sourceRange: 'D20',

@@ -39,8 +39,8 @@ export const VERIFIED_STUDY_MANUAL_AUDIT_2026_10_05 = {
   selectedGroups: VERIFIED_STUDY_PROFILE_2026_10_05,
   candidateCount: 76,
   importableCount: 73,
-  readyCount: 72,
-  warningCount: 1,
+  readyCount: 69,
+  warningCount: 4,
   incompleteCount: 3,
   blockingCount: 0,
   conflictCount: 0,
@@ -50,7 +50,7 @@ export const VERIFIED_STUDY_MANUAL_AUDIT_2026_10_05 = {
     '2026-12': 19,
     '2027-01': 18,
   },
-  candidatesSha256: '34ced58eff09d97809aca986928f3bd0465a3ea3185f66ed5451100178dcaf70',
+  candidatesSha256: 'e04f8b7c71030c9df81633845f544c4f9d5543f7087b4ef1723cf775a09156b4',
 } as const;
 
 
@@ -349,21 +349,21 @@ const VERIFIED_LOCATION_OVERRIDES_2026_10_05: readonly VerifiedLocationOverride[
   },
   {
     sourceRange: 'BC10', date: '2026-10-27', subject: 'PROM. ZDROWIA',
-    patch: { room: null, address: 'ul. Ciołka 27', locationLabel: 'Zakład Propedeutyki Pielęgniarstwa' },
-    evidence: 'BA3: Zakład Propedeutyki Pielęgniarstwa; oficjalny adres jednostki: ul. Erazma Ciołka 27; źródło nie podaje numeru sali dla wtorku',
-    provenance: { address: 'OFFICIAL_EXTERNAL' },
+    patch: { clinic: 'Zakład Propedeutyki Pielęgniarstwa', room: null, address: null, locationLabel: null },
+    evidence: 'BA3-BC3 wskazuje jednostkę prowadzącą Zakład Propedeutyki Pielęgniarstwa, a BC5 przypisuje miejsca tylko poniedziałkowi i piątkom; dla wtorku źródło nie potwierdza sali ani miejsca zajęć',
+    provenance: { clinic: 'SOURCE_CROSS_REFERENCE', room: 'SOURCE_CROSS_REFERENCE', address: 'SOURCE_CROSS_REFERENCE', locationLabel: 'SOURCE_CROSS_REFERENCE' },
   },
   {
     sourceRange: 'BC10', date: '2026-10-28', subject: 'PROM. ZDROWIA',
-    patch: { room: null, address: 'ul. Ciołka 27', locationLabel: 'Zakład Propedeutyki Pielęgniarstwa' },
-    evidence: 'BA3: Zakład Propedeutyki Pielęgniarstwa; oficjalny adres jednostki: ul. Erazma Ciołka 27; źródło nie podaje numeru sali dla środy',
-    provenance: { address: 'OFFICIAL_EXTERNAL' },
+    patch: { clinic: 'Zakład Propedeutyki Pielęgniarstwa', room: null, address: null, locationLabel: null },
+    evidence: 'BA3-BC3 wskazuje jednostkę prowadzącą Zakład Propedeutyki Pielęgniarstwa, a BC5 przypisuje miejsca tylko poniedziałkowi i piątkom; dla środy źródło nie potwierdza sali ani miejsca zajęć',
+    provenance: { clinic: 'SOURCE_CROSS_REFERENCE', room: 'SOURCE_CROSS_REFERENCE', address: 'SOURCE_CROSS_REFERENCE', locationLabel: 'SOURCE_CROSS_REFERENCE' },
   },
   {
     sourceRange: 'BC10', date: '2026-10-29', subject: 'PROM. ZDROWIA',
-    patch: { room: null, address: 'ul. Ciołka 27', locationLabel: 'Zakład Propedeutyki Pielęgniarstwa' },
-    evidence: 'BA3: Zakład Propedeutyki Pielęgniarstwa; oficjalny adres jednostki: ul. Erazma Ciołka 27; źródło nie podaje numeru sali dla czwartku',
-    provenance: { address: 'OFFICIAL_EXTERNAL' },
+    patch: { clinic: 'Zakład Propedeutyki Pielęgniarstwa', room: null, address: null, locationLabel: null },
+    evidence: 'BA3-BC3 wskazuje jednostkę prowadzącą Zakład Propedeutyki Pielęgniarstwa, a BC5 przypisuje miejsca tylko poniedziałkowi i piątkom; dla czwartku źródło nie potwierdza sali ani miejsca zajęć',
+    provenance: { clinic: 'SOURCE_CROSS_REFERENCE', room: 'SOURCE_CROSS_REFERENCE', address: 'SOURCE_CROSS_REFERENCE', locationLabel: 'SOURCE_CROSS_REFERENCE' },
   },
   {
     sourceRange: 'BC10', date: '2026-10-30', subject: 'PROM. ZDROWIA',

@@ -105,6 +105,24 @@ describe('current WUM calendar is fully manual and exact', () => {
     });
   });
 
+  it('keeps 27-29 October Health Promotion without a guessed room or address', () => {
+    for (const date of ['2026-10-27', '2026-10-28', '2026-10-29']) {
+      const entry = VERIFIED_STUDY_CURRENT_SCHEDULE_2026_10_05.find((candidate) => (
+        candidate.sourceRange === 'BC10' && candidate.subject === 'PROM. ZDROWIA' && candidate.date === date
+      ))!;
+      expect(entry).toMatchObject({
+        startTime: '08:00', endTime: '11:00', groupTags: ['G8:11B'],
+        clinic: 'Zakład Propedeutyki Pielęgniarstwa', include: true,
+      });
+      expect(entry.room).toBeUndefined();
+      expect(entry.address).toBeUndefined();
+      expect(entry.locationLabel).toBeUndefined();
+      expect(entry.locationProvenance).toEqual([
+        expect.objectContaining({ field: 'clinic', source: 'SOURCE_CROSS_REFERENCE' }),
+      ]);
+    }
+  });
+
   it('keeps the three source-incomplete classes visible to the calendar without inventing hours', () => {
     const incomplete = sourceOnlyEntries();
     const poz = incomplete.find((candidate) => candidate.sourceRange === 'AY9')!;
@@ -115,6 +133,7 @@ describe('current WUM calendar is fully manual and exact', () => {
     expect(poz.date).toBeUndefined();
     expect(poz.startTime).toBeUndefined();
     expect(poz.endTime).toBeUndefined();
+    expect(poz.originalText).toContain('Pierwsze spotkanie - szkolenie RODO i BHP od godz. 8.30');
     expect(incompleteStudyEntryMarkerAppliesOnDate(asImportEntry(poz), '2026-10-19')).toBe(true);
     expect(incompleteStudyEntryOverlapsRange(asImportEntry(poz), '2026-10-19', '2026-10-25')).toBe(true);
 

@@ -73,7 +73,7 @@ export function TodayView({ events, locations, timeFormat, showPolishHolidays = 
       <header className="view-header hero-header today-header today-header-minimal">
         <div>
           <h1>{formatLongDate(today)}</h1>
-          {todayMarkers.length ? <div className="today-calendar-context" aria-label="Informacje o dzisiejszym dniu">{todayMarkers.map((marker) => <span key={marker.kind}>{marker.label}</span>)}</div> : null}
+          {todayMarkers.length ? <div className="today-calendar-context" aria-label="Informacje o dzisiejszym dniu">{todayMarkers.map((marker) => <span key={marker.kind} className={`overlay-${marker.kind.toLowerCase()}`}>{marker.label}</span>)}</div> : null}
         </div>
         <div className="today-header-actions">
           <button type="button" className="button button-secondary button-small today-header-add" onClick={() => onAdd(today)}>+ Dodaj</button>

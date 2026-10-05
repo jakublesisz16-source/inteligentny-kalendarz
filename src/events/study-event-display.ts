@@ -1,3 +1,4 @@
+import { studyGroupPlainLabel } from '../imports/xlsx/group-normalizer';
 import type { CalendarEvent } from './event.types';
 
 export interface StudyEventDisplay {
@@ -39,8 +40,8 @@ export function studyEventDisplay(event: CalendarEvent): StudyEventDisplay {
   if (event.source !== 'UNIVERSITY_XLSX') return event.description ? { description: event.description } : {};
 
   const legacy = legacyGroupInfo(event.description);
-  const explicitGroups = uniqueGroups(event.studyGroupTags);
-  const groups = explicitGroups.length ? explicitGroups : legacy.groups;
+  const explicitGroups = uniqueGroups(event.studyGroupTags).map(studyGroupPlainLabel);
+  const groups = explicitGroups.length ? uniqueGroups(explicitGroups) : legacy.groups;
   const groupLabel = groups.length
     ? `${groups.length === 1 ? 'Grupa' : 'Grupy'} ${groups.join(', ')}`
     : event.studyGroupScope === 'ALL'
