@@ -1,11 +1,11 @@
 {
   "source": "PRIVATE",
   "surface": "public-stable",
-  "buildId": "ik-1.2.0.315-20261004-personal-mint-semantic-category",
-  "appVersion": "1.2.0.315",
+  "buildId": "ik-1.2.0.316-20261004-study-location-provenance-checkpoint-cleanup",
+  "appVersion": "1.2.0.316",
   "releaseVersion": "1.2.0",
-  "packageVersion": "1.2.0-private.315",
-  "build": "315",
-  "contentFingerprint": "0fc7d734097ee00433425d7b377eeeba55aa8a46b7bc39b0a11d480461776ff0",
-  "fileCount": 585
+  "packageVersion": "1.2.0-private.316",
+  "build": "316",
+  "contentFingerprint": "7f7240e4b905eb4d258d47a5cc5c3e0836737cc601f5dc3a4da38a3ab04235e8",
+  "fileCount": 587
 }

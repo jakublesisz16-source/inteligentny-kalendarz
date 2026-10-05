@@ -342,6 +342,7 @@ function candidateFromEntry(entry: UniversityImportEntry): StudyScheduleCandidat
     warnings: [...entry.warnings],
     ...(entry.inferredFields?.length ? { inferredFields: [...entry.inferredFields] } : {}),
     ...(entry.inferenceNotes?.length ? { inferenceNotes: [...entry.inferenceNotes] } : {}),
+    ...(entry.locationProvenance?.length ? { locationProvenance: entry.locationProvenance.map((item) => ({ ...item })) } : {}),
     ...(entry.seriesKey ? { seriesKey: entry.seriesKey } : {}),
     ...(entry.occurrenceKey ? { occurrenceKey: entry.occurrenceKey } : {}),
     ...(entry.sourceWeekStart ? { sourceWeekStart: entry.sourceWeekStart } : {}),
@@ -2510,6 +2511,7 @@ function entryFromCandidate(candidate: StudyScheduleCandidate, importId: string,
     warnings: [...identified.warnings],
     ...(identified.inferredFields?.length ? { inferredFields: [...identified.inferredFields] } : {}),
     ...(identified.inferenceNotes?.length ? { inferenceNotes: [...identified.inferenceNotes] } : {}),
+    ...(identified.locationProvenance?.length ? { locationProvenance: identified.locationProvenance.map((item) => ({ ...item })) } : {}),
     ...(identified.occurrenceKey ? { occurrenceKey: identified.occurrenceKey } : {}),
     ...(identified.seriesKey ? { seriesKey: identified.seriesKey } : {}),
     ...(identified.sourceWeekStart ? { sourceWeekStart: identified.sourceWeekStart } : {}),
@@ -2616,6 +2618,8 @@ function entryWithVerifiedCandidate(entry: UniversityImportEntry, candidate: Stu
   else delete next.inferredFields;
   if (candidate.inferenceNotes?.length) next.inferenceNotes = [...candidate.inferenceNotes];
   else delete next.inferenceNotes;
+  if (candidate.locationProvenance?.length) next.locationProvenance = candidate.locationProvenance.map((item) => ({ ...item }));
+  else delete next.locationProvenance;
   return next;
 }
 
@@ -2624,7 +2628,8 @@ function sameVerifiedEntryData(entry: UniversityImportEntry, candidate: StudySch
   const warningsMatch = JSON.stringify(entry.warnings ?? []) === JSON.stringify(candidate.warnings ?? []);
   const inferredMatch = JSON.stringify(entry.inferredFields ?? []) === JSON.stringify(candidate.inferredFields ?? []);
   const notesMatch = JSON.stringify(entry.inferenceNotes ?? []) === JSON.stringify(candidate.inferenceNotes ?? []);
-  return fieldsMatch && warningsMatch && inferredMatch && notesMatch;
+  const provenanceMatch = JSON.stringify(entry.locationProvenance ?? []) === JSON.stringify(candidate.locationProvenance ?? []);
+  return fieldsMatch && warningsMatch && inferredMatch && notesMatch && provenanceMatch;
 }
 
 function verifiedCandidateIsComplete(candidate: StudyScheduleCandidate): candidate is StudyScheduleCandidate & { date: string; startTime: string; endTime: string } {

@@ -60,6 +60,14 @@ export interface ParsedStudyLocation {
 
 export type StudyCandidateManualField = 'subject' | 'date' | 'startTime' | 'endTime' | 'room' | 'address' | 'clinic' | 'locationLabel';
 export type StudyCandidateInferredField = 'startTime' | 'endTime' | 'clinic' | 'room' | 'address' | 'locationLabel';
+export type StudyLocationField = 'clinic' | 'room' | 'address' | 'locationLabel';
+export type StudyLocationProvenanceSource = 'SOURCE_DIRECT' | 'SOURCE_CROSS_REFERENCE' | 'OFFICIAL_EXTERNAL';
+
+export interface StudyLocationProvenance {
+  field: StudyLocationField;
+  source: StudyLocationProvenanceSource;
+  evidence: string;
+}
 
 export interface StudyScheduleCandidate {
   id: string;
@@ -87,6 +95,7 @@ export interface StudyScheduleCandidate {
   manuallyModifiedFields?: StudyCandidateManualField[];
   inferredFields?: StudyCandidateInferredField[];
   inferenceNotes?: string[];
+  locationProvenance?: StudyLocationProvenance[];
   occurrenceKey?: string;
   seriesKey?: string;
   sourceWeekStart?: string;
@@ -186,6 +195,7 @@ export interface UniversityImportEntry {
   warnings: string[];
   inferredFields?: StudyCandidateInferredField[];
   inferenceNotes?: string[];
+  locationProvenance?: StudyLocationProvenance[];
   occurrenceKey?: string;
   seriesKey?: string;
   userDeleted?: boolean;

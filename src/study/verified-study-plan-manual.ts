@@ -1,4 +1,10 @@
-import type { ScheduleAnalysis, StudyScheduleCandidate } from './study.types';
+import type {
+  ScheduleAnalysis,
+  StudyLocationField,
+  StudyLocationProvenance,
+  StudyLocationProvenanceSource,
+  StudyScheduleCandidate,
+} from './study.types';
 import { candidatesForSelectedGroups } from './study.service';
 import { auditSelectedStudyProfile } from './study-source-audit';
 import { candidateSemanticFingerprint, VERIFIED_STUDY_PLAN_2026_10_02 } from './verified-study-plan';
@@ -23,8 +29,8 @@ export const VERIFIED_STUDY_MANUAL_AUDIT_2026_10_02 = {
   candidatesSha256: '3f39d3358e0d3f6423d5ae18ad41ea357d9a8d960e2f09af1d7d4e8ca1f5360a',
 } as const;
 
-const LOCATION_FIELDS = ['clinic', 'room', 'address', 'locationLabel'] as const;
-type LocationField = (typeof LOCATION_FIELDS)[number];
+const LOCATION_FIELDS = ['clinic', 'room', 'address', 'locationLabel'] as const satisfies readonly StudyLocationField[];
+type LocationField = StudyLocationField;
 type LocationPatch = Partial<Record<LocationField, string | null>>;
 
 interface VerifiedLocationOverride {
@@ -34,6 +40,7 @@ interface VerifiedLocationOverride {
   subject?: string;
   patch: LocationPatch;
   evidence: string;
+  provenance?: Partial<Record<LocationField, StudyLocationProvenanceSource>>;
 }
 
 // Manual review of the exact 02.10.2026 XLS for profile 11 / 11B / 11B / 11B2.
@@ -64,26 +71,31 @@ const VERIFIED_LOCATION_OVERRIDES: readonly VerifiedLocationOverride[] = [
     sourceRange: 'DE8', date: '2026-10-15', subject: 'INTERNA (seminaria)',
     patch: { room: 'Aula A', address: 'ul. Trojdena 2a', locationLabel: 'Centrum Dydaktyczne' },
     evidence: 'DE4: czwartek - aula A w CD; oficjalny adres CD: ul. Księcia Trojdena 2a',
+    provenance: { address: 'OFFICIAL_EXTERNAL' },
   },
   {
     sourceRange: 'BD10', date: '2026-10-26', subject: 'PROM. ZDROWIA',
     patch: { room: 'sala 126 w CD', address: 'ul. Trojdena 2a', locationLabel: 'Centrum Dydaktyczne' },
     evidence: 'BD5: pon. - sala 126 w CD',
+    provenance: { address: 'OFFICIAL_EXTERNAL' },
   },
   {
     sourceRange: 'BD10', date: '2026-10-27', subject: 'PROM. ZDROWIA',
     patch: { room: null, address: 'ul. Ciołka 27', locationLabel: 'Zakład Propedeutyki Pielęgniarstwa' },
     evidence: 'BB3: Zakład Propedeutyki Pielęgniarstwa; oficjalny adres jednostki: ul. Erazma Ciołka 27; źródło nie podaje numeru sali dla wtorku',
+    provenance: { address: 'OFFICIAL_EXTERNAL' },
   },
   {
     sourceRange: 'BD10', date: '2026-10-28', subject: 'PROM. ZDROWIA',
     patch: { room: null, address: 'ul. Ciołka 27', locationLabel: 'Zakład Propedeutyki Pielęgniarstwa' },
     evidence: 'BB3: Zakład Propedeutyki Pielęgniarstwa; oficjalny adres jednostki: ul. Erazma Ciołka 27; źródło nie podaje numeru sali dla środy',
+    provenance: { address: 'OFFICIAL_EXTERNAL' },
   },
   {
     sourceRange: 'BD10', date: '2026-10-29', subject: 'PROM. ZDROWIA',
     patch: { room: null, address: 'ul. Ciołka 27', locationLabel: 'Zakład Propedeutyki Pielęgniarstwa' },
     evidence: 'BB3: Zakład Propedeutyki Pielęgniarstwa; oficjalny adres jednostki: ul. Erazma Ciołka 27; źródło nie podaje numeru sali dla czwartku',
+    provenance: { address: 'OFFICIAL_EXTERNAL' },
   },
   {
     sourceRange: 'BD10', date: '2026-10-30', subject: 'PROM. ZDROWIA',
@@ -94,6 +106,7 @@ const VERIFIED_LOCATION_OVERRIDES: readonly VerifiedLocationOverride[] = [
     sourceRange: 'DE10', date: '2026-10-29', subject: 'INTERNA (seminaria)',
     patch: { room: 'Aula A', address: 'ul. Trojdena 2a', locationLabel: 'Centrum Dydaktyczne' },
     evidence: 'DE4: czwartek - aula A w CD; oficjalny adres CD: ul. Księcia Trojdena 2a',
+    provenance: { address: 'OFFICIAL_EXTERNAL' },
   },
   {
     sourceRange: 'DK11', date: '2026-11-06', subject: 'INTERNA (seminaria)',
@@ -104,6 +117,7 @@ const VERIFIED_LOCATION_OVERRIDES: readonly VerifiedLocationOverride[] = [
     sourceRange: 'CZ12', date: '2026-11-09', subject: 'FARMAKOLOGIA',
     patch: { room: 'sala 203 w CD', address: 'ul. Trojdena 2a', locationLabel: 'Centrum Dydaktyczne' },
     evidence: 'CZ5: sala 203 w CD',
+    provenance: { address: 'OFFICIAL_EXTERNAL' },
   },
   {
     sourceRange: 'DA12', date: '2026-11-10', subject: 'FARMAKOLOGIA',
@@ -129,6 +143,7 @@ const VERIFIED_LOCATION_OVERRIDES: readonly VerifiedLocationOverride[] = [
     sourceRange: 'AM14', subject: 'PEDIATRIA',
     patch: { clinic: 'Katedra i Klinika Pediatrii i Nefrologii', address: 'ul. Żwirki i Wigury 63A', locationLabel: 'Katedra i Klinika Pediatrii i Nefrologii' },
     evidence: 'AM4: prof. M. Mizerska-Wasiak; oficjalna jednostka prof. Mizerskiej-Wasiak: Katedra i Klinika Pediatrii i Nefrologii, Żwirki i Wigury 63A',
+    provenance: { clinic: 'OFFICIAL_EXTERNAL', address: 'OFFICIAL_EXTERNAL', locationLabel: 'OFFICIAL_EXTERNAL' },
   },
   {
     sourceRange: 'CY14', date: '2026-11-27', subject: 'POZ ćw.',
@@ -139,6 +154,7 @@ const VERIFIED_LOCATION_OVERRIDES: readonly VerifiedLocationOverride[] = [
     sourceRange: 'AM15', subject: 'PEDIATRIA',
     patch: { clinic: 'Katedra i Klinika Pediatrii i Nefrologii', address: 'ul. Żwirki i Wigury 63A', locationLabel: 'Katedra i Klinika Pediatrii i Nefrologii' },
     evidence: 'AM4: prof. M. Mizerska-Wasiak; oficjalna jednostka prof. Mizerskiej-Wasiak: Katedra i Klinika Pediatrii i Nefrologii, Żwirki i Wigury 63A',
+    provenance: { clinic: 'OFFICIAL_EXTERNAL', address: 'OFFICIAL_EXTERNAL', locationLabel: 'OFFICIAL_EXTERNAL' },
   },
   {
     sourceRange: 'O16', subject: 'INTERNA',
@@ -149,16 +165,19 @@ const VERIFIED_LOCATION_OVERRIDES: readonly VerifiedLocationOverride[] = [
     sourceRange: 'S16', date: '2026-12-07', subject: 'INTERNA',
     patch: { address: 'ul. Banacha 1a', locationLabel: 'Klinika Onkologii' },
     evidence: 'R4: prof. R. Stec; A44: ul. Banacha 1a; oficjalna Klinika Onkologii WUM: Banacha 1A',
+    provenance: { locationLabel: 'OFFICIAL_EXTERNAL' },
   },
   {
     sourceRange: 'T16', date: '2026-12-08', subject: 'INTERNA',
     patch: { address: 'ul. Banacha 1a', locationLabel: 'Klinika Onkologii' },
     evidence: 'R4: prof. R. Stec; A44: ul. Banacha 1a; oficjalna Klinika Onkologii WUM: Banacha 1A',
+    provenance: { locationLabel: 'OFFICIAL_EXTERNAL' },
   },
   {
     sourceRange: 'BF16', date: '2026-12-11', subject: 'PROMOCJA ZDROWIA (seminaria)',
     patch: { room: 'sala 119', address: 'ul. Żwirki i Wigury 63', locationLabel: 'Centrum Biblioteczno-Informacyjne' },
     evidence: 'BF4: piątek - 119 CBI; oficjalny adres CBI WUM: ul. Żwirki i Wigury 63',
+    provenance: { address: 'OFFICIAL_EXTERNAL' },
   },
   {
     sourceRange: 'O17', subject: 'INTERNA',
@@ -169,6 +188,7 @@ const VERIFIED_LOCATION_OVERRIDES: readonly VerifiedLocationOverride[] = [
     sourceRange: 'BF17', date: '2026-12-18', subject: 'PROMOCJA ZDROWIA (seminaria)',
     patch: { room: 'sala 119', address: 'ul. Żwirki i Wigury 63', locationLabel: 'Centrum Biblioteczno-Informacyjne' },
     evidence: 'BF4: piątek - 119 CBI; oficjalny adres CBI WUM: ul. Żwirki i Wigury 63',
+    provenance: { address: 'OFFICIAL_EXTERNAL' },
   },
   {
     sourceRange: 'DJ17', date: '2026-12-16', subject: 'INTERNA (seminaria)',
@@ -189,11 +209,13 @@ const VERIFIED_LOCATION_OVERRIDES: readonly VerifiedLocationOverride[] = [
     sourceRange: 'D20', subject: 'CHIRURGIA I BLOK OPERACYJNY',
     patch: { clinic: 'Katedra i Klinika Chirurgii Ogólnej, Gastroenterologicznej i Onkologicznej', address: 'ul. Banacha 1a', locationLabel: 'Katedra i Klinika Chirurgii Ogólnej, Gastroenterologicznej i Onkologicznej' },
     evidence: 'D4: prof. M. Słodkowski; A27/A28 wskazuje Banacha 1, ale aktualny oficjalny adres jednostki WUM to ul. Banacha 1a, budynek B',
+    provenance: { clinic: 'OFFICIAL_EXTERNAL', address: 'OFFICIAL_EXTERNAL', locationLabel: 'OFFICIAL_EXTERNAL' },
   },
   {
     sourceRange: 'D21', subject: 'CHIRURGIA I BLOK OPERACYJNY',
     patch: { clinic: 'Katedra i Klinika Chirurgii Ogólnej, Gastroenterologicznej i Onkologicznej', address: 'ul. Banacha 1a', locationLabel: 'Katedra i Klinika Chirurgii Ogólnej, Gastroenterologicznej i Onkologicznej' },
     evidence: 'D4: prof. M. Słodkowski; A27/A28 wskazuje Banacha 1, ale aktualny oficjalny adres jednostki WUM to ul. Banacha 1a, budynek B',
+    provenance: { clinic: 'OFFICIAL_EXTERNAL', address: 'OFFICIAL_EXTERNAL', locationLabel: 'OFFICIAL_EXTERNAL' },
   },
   {
     sourceRange: 'DL21', date: '2027-01-27', subject: 'CHIRURGIA (seminaria)',
@@ -204,6 +226,7 @@ const VERIFIED_LOCATION_OVERRIDES: readonly VerifiedLocationOverride[] = [
     sourceSheet: 'WYKŁADY', sourceRange: 'A14,B14', date: '2027-01-05', subject: 'POZ',
     patch: { clinic: 'Microsoft Teams', room: null, address: null, locationLabel: null },
     evidence: 'WYKŁADY B14: POZ ... 15.00-18.45 ... TEAMS; wpis online ma pierwszeństwo przed globalną Aulą B',
+    provenance: { clinic: 'SOURCE_DIRECT', room: 'SOURCE_DIRECT', address: 'SOURCE_DIRECT', locationLabel: 'SOURCE_DIRECT' },
   },
 ];
 
@@ -253,11 +276,37 @@ function matchesOverride(candidate: StudyScheduleCandidate, override: VerifiedLo
     && (!override.subject || candidate.subject === override.subject);
 }
 
-function applyLocationPatch(candidate: StudyScheduleCandidate, patch: LocationPatch): StudyScheduleCandidate {
-  const next: StudyScheduleCandidate = { ...candidate, groupTags: [...candidate.groupTags], warnings: [...candidate.warnings] };
+function provenanceForOverride(override: VerifiedLocationOverride): StudyLocationProvenance[] {
+  return LOCATION_FIELDS
+    .filter((field) => field in override.patch)
+    .map((field) => ({
+      field,
+      source: override.provenance?.[field] ?? 'SOURCE_CROSS_REFERENCE',
+      evidence: override.evidence,
+    }));
+}
+
+function mergeLocationProvenance(
+  current: StudyLocationProvenance[] | undefined,
+  added: StudyLocationProvenance[],
+): StudyLocationProvenance[] {
+  const byKey = new Map<string, StudyLocationProvenance>();
+  for (const item of [...(current ?? []), ...added]) {
+    byKey.set(`${item.field}|${item.source}|${item.evidence}`, item);
+  }
+  return [...byKey.values()];
+}
+
+function applyLocationPatch(candidate: StudyScheduleCandidate, override: VerifiedLocationOverride): StudyScheduleCandidate {
+  const next: StudyScheduleCandidate = {
+    ...candidate,
+    groupTags: [...candidate.groupTags],
+    warnings: [...candidate.warnings],
+    locationProvenance: mergeLocationProvenance(candidate.locationProvenance, provenanceForOverride(override)),
+  };
   for (const field of LOCATION_FIELDS) {
-    if (!(field in patch)) continue;
-    const value = patch[field];
+    if (!(field in override.patch)) continue;
+    const value = override.patch[field];
     if (value === null || value === undefined || !value.trim()) delete next[field];
     else next[field] = value.trim();
   }
@@ -311,7 +360,7 @@ export function applyVerifiedStudyPlanManualCorrections(
     let changed = false;
     VERIFIED_LOCATION_OVERRIDES.forEach((override, index) => {
       if (!matchesOverride(next, override)) return;
-      next = { ...applyLocationPatch(next, override.patch), manuallyReviewed: true };
+      next = { ...applyLocationPatch(next, override), manuallyReviewed: true };
       usedOverrides.add(index);
       changed = true;
     });
@@ -348,7 +397,7 @@ export function applyVerifiedStudyPlanManualCorrectionsToAnalysis(
         id: 'verified-manual-plan-2026-10-02',
         sheet: analysis.sheetNames[0] ?? 'PLAN ZAJĘĆ',
         title: 'Ręcznie zweryfikowany plan dla grupy 11 / 11B / 11B / 11B2',
-        message: `Ręcznie sprawdzono wszystkie ${VERIFIED_STUDY_MANUAL_AUDIT_2026_10_02.candidateCount} wpisów profilu: grupy, daty, godziny, sale, jednostki i adresy. Zastosowano ${result.appliedOverrideCount} jawnych reguł korekcyjnych. Audyt jest przypięty wyłącznie do dokładnego SHA-256 planu z 02.10.2026 i nie przechodzi na kolejny plik.`,
+        message: `Ręcznie sprawdzono wszystkie ${VERIFIED_STUDY_MANUAL_AUDIT_2026_10_02.candidateCount} wpisów profilu: grupy, daty, godziny, sale, jednostki i adresy. Zastosowano ${result.appliedOverrideCount} jawnych reguł korekcyjnych. Każde pole lokalizacji ma jawne pochodzenie: bezpośrednia komórka źródła, odwołanie do innego miejsca tego samego XLS albo oficjalne źródło zewnętrzne. Audyt jest przypięty wyłącznie do dokładnego SHA-256 planu z 02.10.2026 i nie przechodzi na kolejny plik.`,
       },
     ],
   };
