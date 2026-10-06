@@ -33,6 +33,80 @@ describe('schedule diff', () => {
     expect(result.summary.unchanged).toBe(1);
   });
 
+  it('nie zgłasza niezmienionego source-only jako nowego konfliktu przy aktualizacji planu', () => {
+    const oldSourceOnly = entry({
+      id: 'old-source-only',
+      sourceOnly: true,
+      sourceKey: 'PLAN|AY9|week|POZ|11B2',
+      sourceRange: 'AY9',
+      sourceWeekStart: '2026-10-19',
+      sourceWeekEnd: '2026-10-23',
+      warnings: ['Plan nie podaje jednoznacznego dnia ani pełnych godzin.'],
+    });
+    delete oldSourceOnly.eventId;
+    delete oldSourceOnly.date;
+    delete oldSourceOnly.startTime;
+    delete oldSourceOnly.endTime;
+    const newSourceOnly = candidate({
+      id: 'new-source-only',
+      sourceKey: 'PLAN|AY9|week|POZ|11B2',
+      sourceRange: 'AY9',
+      sourceWeekStart: '2026-10-19',
+      sourceWeekEnd: '2026-10-23',
+      status: 'REVIEW_REQUIRED',
+      warnings: ['Plan nie podaje jednoznacznego dnia ani pełnych godzin.'],
+    });
+    delete newSourceOnly.date;
+    delete newSourceOnly.startTime;
+    delete newSourceOnly.endTime;
+    const result = buildScheduleDiff({ oldEntries: [oldSourceOnly], oldEvents: [], newCandidates: [newSourceOnly], adapterId: 'nursing-plan-v1' });
+    expect(result.summary).toMatchObject({ added: 0, removed: 0, changed: 0, conflicts: 0, ambiguous: 0, unchanged: 1 });
+    expect(result.items[0]?.kind).toBe('UNCHANGED');
+  });
+
+  it('dla aktualizacji 05.10 -> 06.10 nie zamienia trzech niezmienionych source-only w konflikty', () => {
+    const sourceOnlyRows = [
+      { range: 'AY9', weekStart: '2026-10-19', weekEnd: '2026-10-23' },
+      { range: 'S16', date: '2026-12-07' },
+      { range: 'T16', date: '2026-12-08' },
+    ] as const;
+    const sourceOnlyPairs = sourceOnlyRows.map((row, index) => {
+      const old = entry({
+        id: `old-source-${index}`, sourceOnly: true, sourceKey: `PLAN|${row.range}|incomplete`, sourceRange: row.range,
+        warnings: ['Brak pełnego zakresu godzin.'],
+      });
+      delete old.eventId;
+      delete old.startTime;
+      delete old.endTime;
+      const next = candidate({
+        id: `new-source-${index}`, sourceKey: `PLAN|${row.range}|incomplete`, sourceRange: row.range,
+        status: 'REVIEW_REQUIRED', warnings: ['Brak pełnego zakresu godzin.'],
+      });
+      delete next.startTime;
+      delete next.endTime;
+      if ('date' in row) {
+        old.date = row.date;
+        next.date = row.date;
+      } else {
+        delete old.date;
+        delete next.date;
+        old.sourceWeekStart = row.weekStart;
+        old.sourceWeekEnd = row.weekEnd;
+        next.sourceWeekStart = row.weekStart;
+        next.sourceWeekEnd = row.weekEnd;
+      }
+      return { old, next };
+    });
+    const added = candidate({ id: 'new-da12', sourceKey: 'PLAN|DA12|2026-11-12|10:15|14:00|FARMAKOLOGIA|MAIN:11', sourceRange: 'DA12', date: '2026-11-12', startTime: '10:15', endTime: '14:00' });
+    const result = buildScheduleDiff({
+      oldEntries: sourceOnlyPairs.map((pair) => pair.old),
+      oldEvents: [],
+      newCandidates: [...sourceOnlyPairs.map((pair) => pair.next), added],
+      adapterId: 'nursing-plan-v1',
+    });
+    expect(result.summary).toMatchObject({ added: 1, removed: 0, changed: 0, conflicts: 0, ambiguous: 0, unchanged: 3 });
+  });
+
   it('rozpoznaje nowe wydarzenie', () => {
     const result = buildScheduleDiff({ oldEntries: [], oldEvents: [], newCandidates: [candidate()], adapterId: 'nursing-plan-v1' });
     expect(result.summary.added).toBe(1);

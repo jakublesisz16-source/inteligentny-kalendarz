@@ -1,11 +1,11 @@
 {
   "source": "PRIVATE",
   "surface": "public-stable",
-  "buildId": "ik-1.2.0.336-20261006-wum-study-plan-0610-reference-registration-fix",
-  "appVersion": "1.2.0.336",
+  "buildId": "ik-1.2.0.338-20261006-study-update-history-test-contract-fix",
+  "appVersion": "1.2.0.338",
   "releaseVersion": "1.2.0",
-  "packageVersion": "1.2.0-private.336",
-  "build": "336",
-  "contentFingerprint": "14552172b55868acf51c58e2902038ab9329cc2e1b006f127a30c68c555b6919",
-  "fileCount": 580
+  "packageVersion": "1.2.0-private.338",
+  "build": "338",
+  "contentFingerprint": "198327cfe4e66580860e6387addd6fb479b3d8199c777f99a257d721fbfa896f",
+  "fileCount": 582
 }

@@ -303,6 +303,23 @@ export interface ScheduleDiffSummary {
   ambiguous: number;
 }
 
+export interface ScheduleUpdateHistoryItem {
+  id: string;
+  kind: ScheduleDiffKind;
+  subject: string;
+  activityType?: string;
+  date?: string;
+  startTime?: string;
+  endTime?: string;
+  groupTags: string[];
+  clinic?: string;
+  room?: string;
+  address?: string;
+  locationLabel?: string;
+  changes: ScheduleDiffFieldChange[];
+  note?: string;
+}
+
 export interface ScheduleUpdatePreview {
   id: string;
   baseImport: UniversityScheduleImport;
@@ -344,6 +361,8 @@ export interface ScheduleUpdateSession {
   cancelledAt?: string;
   status: 'PREVIEW' | 'APPLIED' | 'CANCELLED';
   summary: ScheduleDiffSummary;
+  changeItems?: ScheduleUpdateHistoryItem[];
+  scheduleConflicts?: StudyScheduleConflict[];
 }
 
 export interface ApplyScheduleUpdateResult {
@@ -360,6 +379,16 @@ export interface StudyScheduleConflict {
   date: string;
   left: StudyScheduleCandidate;
   right: StudyScheduleCandidate;
+}
+
+export interface AppliedScheduleUpdateDetails {
+  session: ScheduleUpdateSession;
+  baseImport?: UniversityScheduleImport;
+  appliedImport?: UniversityScheduleImport;
+  summary: ScheduleDiffSummary;
+  changeItems: ScheduleUpdateHistoryItem[];
+  scheduleConflicts: StudyScheduleConflict[];
+  reconstructed: boolean;
 }
 
 export interface GroupRecalculationPreview {
