@@ -230,7 +230,7 @@
 .diff-stack { padding-bottom: 24px; }
 .diff-summary-panel { padding: 24px; }
 .diff-summary-panel h2 { margin-bottom: 6px; }
-.diff-summary-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 9px; margin-top: 20px; }
+.diff-summary-grid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 9px; margin-top: 20px; }
 .diff-metric { padding: 14px; border-radius: 13px; background: var(--surface-soft); }
 .diff-metric span, .diff-metric strong { display: block; }
 .diff-metric span { color: var(--text-muted); font-size: .68rem; margin-bottom: 4px; }
@@ -238,7 +238,7 @@
 .diff-metric.added { background: var(--success-soft); }
 .diff-metric.removed { background: var(--danger-soft); }
 .diff-metric.changed { background: var(--accent-soft); }
-.diff-metric.conflict { background: var(--warning-soft); }
+.diff-metric.conflict, .diff-metric.review { background: var(--warning-soft); }
 .diff-alert { margin-top: 12px; padding: 11px 13px; border-radius: 12px; background: var(--warning-soft); color: var(--warning); font-size: .74rem; line-height: 1.5; }
 .diff-filter-panel { padding: 14px 18px; overflow-x: auto; }
 .diff-list { display: grid; gap: 10px; }

@@ -11,7 +11,7 @@ interface ScheduleDiffViewProps {
   onCancel: () => void;
 }
 
-type DiffFilter = 'all' | 'added' | 'changed' | 'removed' | 'conflicts';
+type DiffFilter = 'all' | 'added' | 'changed' | 'removed' | 'conflicts' | 'review';
 
 function itemTitle(item: ScheduleDiffItem): string {
   return item.newCandidate?.subject ?? item.oldEntry?.subject ?? 'Nieustalone zajęcia';
@@ -36,7 +36,8 @@ function matchesFilter(item: ScheduleDiffItem, filter: DiffFilter): boolean {
   if (filter === 'added') return item.kind === 'ADDED';
   if (filter === 'changed') return item.kind === 'CHANGED';
   if (filter === 'removed') return item.kind === 'REMOVED';
-  if (filter === 'conflicts') return item.kind === 'CONFLICT_USER_MODIFIED' || item.kind === 'AMBIGUOUS';
+  if (filter === 'conflicts') return item.kind === 'CONFLICT_USER_MODIFIED';
+  if (filter === 'review') return item.kind === 'AMBIGUOUS';
   return item.kind !== 'UNCHANGED';
 }
 
@@ -73,7 +74,8 @@ export function ScheduleDiffView({ preview, saving, onChange, onApply, onCancel 
           <div className="diff-metric added"><span>Nowe</span><strong>+{preview.summary.added}</strong></div>
           <div className="diff-metric removed"><span>Usunięte</span><strong>-{preview.summary.removed}</strong></div>
           <div className="diff-metric changed"><span>Zmienione</span><strong>{preview.summary.changed}</strong></div>
-          <div className="diff-metric conflict"><span>Konflikty</span><strong>{preview.summary.conflicts + preview.summary.ambiguous}</strong></div>
+          <div className="diff-metric conflict"><span>Konflikty</span><strong>{preview.summary.conflicts}</strong></div>
+          <div className="diff-metric review"><span>Do sprawdzenia</span><strong>{preview.summary.ambiguous}</strong></div>
           <div className="diff-metric unchanged"><span>Bez zmian</span><strong>{preview.summary.unchanged}</strong></div>
         </div>
         {hasChangeBreakdown ? (
@@ -108,7 +110,8 @@ export function ScheduleDiffView({ preview, saving, onChange, onApply, onCancel 
           <button type="button" className={filter === 'added' ? 'filter-button active' : 'filter-button'} onClick={() => setFilter('added')}>Nowe ({preview.summary.added})</button>
           <button type="button" className={filter === 'changed' ? 'filter-button active' : 'filter-button'} onClick={() => setFilter('changed')}>Zmienione ({preview.summary.changed})</button>
           <button type="button" className={filter === 'removed' ? 'filter-button active' : 'filter-button'} onClick={() => setFilter('removed')}>Usunięte ({preview.summary.removed})</button>
-          <button type="button" className={filter === 'conflicts' ? 'filter-button active' : 'filter-button'} onClick={() => setFilter('conflicts')}>Konflikty ({preview.summary.conflicts + preview.summary.ambiguous})</button>
+          <button type="button" className={filter === 'conflicts' ? 'filter-button active' : 'filter-button'} onClick={() => setFilter('conflicts')}>Konflikty ({preview.summary.conflicts})</button>
+          <button type="button" className={filter === 'review' ? 'filter-button active' : 'filter-button'} onClick={() => setFilter('review')}>Do sprawdzenia ({preview.summary.ambiguous})</button>
         </div>
       </section>
 
