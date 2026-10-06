@@ -94,7 +94,51 @@ export const VERIFIED_STUDY_PLAN_2026_10_05 = {
   },
 } as const;
 
-export const VERIFIED_STUDY_PLAN_CURRENT = VERIFIED_STUDY_PLAN_2026_10_05;
+export const VERIFIED_STUDY_PLAN_2026_10_06 = {
+  id: 'wum-nursing-year2-2026-10-06',
+  sourceName: 'licencjat-ii-rok-piel.-06.10.2026.xls',
+  sourceUpdatedAt: '2026-10-06T00:00:00+02:00',
+  sizeBytes: 151_040,
+  sha256: '5e5ea210abbcc972b2928372505eaee5d9a58ffeba6c7d7162eb3514bb9570b9',
+  adapterId: 'nursing-week-matrix-v2',
+  allCandidatesSha256: 'e7178d5ec23bca44d43084bd7b945429daa4c9568201ad6d710cce16c8cf4b95',
+  selectedProfile: {
+    selectedGroups: ['MAIN:11', 'G12:11B', 'G8:11B', 'G4:11B2'],
+    candidatesSha256: 'a5772c3b766654759ce13f3bc323c4e0f0610683f81393f66cab6c38162357bb',
+    candidateCount: 77,
+    importableCount: 74,
+    readyCount: 69,
+    warningCount: 5,
+    incompleteCount: 3,
+    blockingCount: 0,
+    conflictCount: 0,
+    importableMonthCounts: {
+      '2026-10': 16,
+      '2026-11': 21,
+      '2026-12': 19,
+      '2027-01': 18,
+    },
+  },
+  audit: {
+    candidateCount: 2184,
+    readyCount: 1958,
+    reviewRequiredCount: 226,
+    groupCount: 156,
+    groupKinds: { MAIN: 13, G12: 26, G8: 39, G4: 78, GENERIC: 0 },
+    sourceBlockCount: 836,
+    completenessSafe: true,
+    incompleteSourceBlockCount: 156,
+    hourAnomalyCount: 12,
+    profileCombinationCount: 156,
+    affectedProfileCombinationCount: 6,
+    uniqueConflictSignatureCount: 3,
+    weekdayMismatchCount: 3,
+    unparsedAssignmentCellCount: 0,
+    unappliedDateExceptionCount: 0,
+  },
+} as const;
+
+export const VERIFIED_STUDY_PLAN_CURRENT = VERIFIED_STUDY_PLAN_2026_10_06;
 
 export type StudyPlanVerificationState = 'VERIFIED_REFERENCE' | 'NEW_SOURCE' | 'BLOCKED_REFERENCE_DRIFT';
 
@@ -262,6 +306,7 @@ export async function verifyStudyPlanAgainstReference(
 export async function verifyStudyPlanSource(input: VerifyStudyPlanInput): Promise<StudyPlanVerification> {
   const normalizedHash = input.fileHash.toLowerCase();
   const references: readonly StudyPlanReference[] = [
+    VERIFIED_STUDY_PLAN_2026_10_06,
     VERIFIED_STUDY_PLAN_2026_10_05,
     VERIFIED_STUDY_PLAN_2026_10_02,
   ];

@@ -1,15 +1,15 @@
 import type { StudyScheduleCandidate } from './study.types';
 
-export const VERIFIED_STUDY_CURRENT_SCHEDULE_SOURCE_SHA256 = 'd1c9b755b439014b1ad4da429b27d7c575cb953b75582765cf5eefd7ab521702';
+export const VERIFIED_STUDY_CURRENT_SCHEDULE_SOURCE_SHA256 = '5e5ea210abbcc972b2928372505eaee5d9a58ffeba6c7d7162eb3514bb9570b9';
 export const VERIFIED_STUDY_CURRENT_SCHEDULE_PROFILE = ['MAIN:11', 'G12:11B', 'G8:11B', 'G4:11B2'] as const;
-export const VERIFIED_STUDY_CURRENT_TIMED_EVENT_COUNT = 73;
+export const VERIFIED_STUDY_CURRENT_TIMED_EVENT_COUNT = 74;
 export const VERIFIED_STUDY_CURRENT_SOURCE_ONLY_COUNT = 3;
-export const VERIFIED_STUDY_CURRENT_CALENDAR_OPERATIONAL_SHA256 = '57aafe1d4e11f95b92eef3f454f39a197d57da3b8e4597230e5c72e28e952e87';
+export const VERIFIED_STUDY_CURRENT_CALENDAR_OPERATIONAL_SHA256 = '85555718ade7376a375332631ff52a2c182bfcc628c741f600a6a8d29093facd';
 
 // Canonical, manually audited snapshot of every source position for the user's current profile.
 // This is intentionally explicit and hash-bound. The generic XLS parser remains a verification layer,
 // but for this exact source/profile the calendar fields below are the final authority.
-export const VERIFIED_STUDY_CURRENT_SCHEDULE_2026_10_05: readonly StudyScheduleCandidate[] =
+export const VERIFIED_STUDY_CURRENT_SCHEDULE_2026_10_06: readonly StudyScheduleCandidate[] =
 [
   {
     "id": "candidate-4900ffbb",
@@ -86,17 +86,17 @@ export const VERIFIED_STUDY_CURRENT_SCHEDULE_2026_10_05: readonly StudyScheduleC
       {
         "field": "room",
         "source": "SOURCE_CROSS_REFERENCE",
-        "evidence": "BG9: środa, gr. 11 - sala 210 w NZJ; BF3/A66: NZJ, ul. Ciołka 27"
+        "evidence": "BG9: środa, gr. 11 - sala 210 w NZJ; BF3/A67: NZJ, ul. Ciołka 27"
       },
       {
         "field": "address",
         "source": "SOURCE_CROSS_REFERENCE",
-        "evidence": "BG9: środa, gr. 11 - sala 210 w NZJ; BF3/A66: NZJ, ul. Ciołka 27"
+        "evidence": "BG9: środa, gr. 11 - sala 210 w NZJ; BF3/A67: NZJ, ul. Ciołka 27"
       },
       {
         "field": "locationLabel",
         "source": "SOURCE_CROSS_REFERENCE",
-        "evidence": "BG9: środa, gr. 11 - sala 210 w NZJ; BF3/A66: NZJ, ul. Ciołka 27"
+        "evidence": "BG9: środa, gr. 11 - sala 210 w NZJ; BF3/A67: NZJ, ul. Ciołka 27"
       }
     ],
     "room": "sala 210 w NZJ",
@@ -222,17 +222,17 @@ export const VERIFIED_STUDY_CURRENT_SCHEDULE_2026_10_05: readonly StudyScheduleC
       {
         "field": "room",
         "source": "SOURCE_CROSS_REFERENCE",
-        "evidence": "DC4: środa - sala 210 w NZJ; A64/A66/A71: NZJ, ul. Ciołka 27"
+        "evidence": "DC4: środa - sala 210 w NZJ; A64/A67/A72: NZJ, ul. Ciołka 27"
       },
       {
         "field": "address",
         "source": "SOURCE_CROSS_REFERENCE",
-        "evidence": "DC4: środa - sala 210 w NZJ; A64/A66/A71: NZJ, ul. Ciołka 27"
+        "evidence": "DC4: środa - sala 210 w NZJ; A64/A67/A72: NZJ, ul. Ciołka 27"
       },
       {
         "field": "locationLabel",
         "source": "SOURCE_CROSS_REFERENCE",
-        "evidence": "DC4: środa - sala 210 w NZJ; A64/A66/A71: NZJ, ul. Ciołka 27"
+        "evidence": "DC4: środa - sala 210 w NZJ; A64/A67/A72: NZJ, ul. Ciołka 27"
       }
     ],
     "manuallyReviewed": true
@@ -574,17 +574,17 @@ export const VERIFIED_STUDY_CURRENT_SCHEDULE_2026_10_05: readonly StudyScheduleC
       {
         "field": "room",
         "source": "SOURCE_CROSS_REFERENCE",
-        "evidence": "BC5: pt. 16.10-30.10 - sala 210 w NZJ; A71: NZJ, ul. Ciołka 27"
+        "evidence": "BC5: pt. 16.10-30.10 - sala 210 w NZJ; A72: NZJ, ul. Ciołka 27"
       },
       {
         "field": "address",
         "source": "SOURCE_CROSS_REFERENCE",
-        "evidence": "BC5: pt. 16.10-30.10 - sala 210 w NZJ; A71: NZJ, ul. Ciołka 27"
+        "evidence": "BC5: pt. 16.10-30.10 - sala 210 w NZJ; A72: NZJ, ul. Ciołka 27"
       },
       {
         "field": "locationLabel",
         "source": "SOURCE_CROSS_REFERENCE",
-        "evidence": "BC5: pt. 16.10-30.10 - sala 210 w NZJ; A71: NZJ, ul. Ciołka 27"
+        "evidence": "BC5: pt. 16.10-30.10 - sala 210 w NZJ; A72: NZJ, ul. Ciołka 27"
       }
     ],
     "manuallyReviewed": true
@@ -641,17 +641,17 @@ export const VERIFIED_STUDY_CURRENT_SCHEDULE_2026_10_05: readonly StudyScheduleC
       {
         "field": "room",
         "source": "SOURCE_CROSS_REFERENCE",
-        "evidence": "DI3/A73: sala seminaryjna I p., pawilon VIII, ul. Nowogrodzka 59"
+        "evidence": "DI3/A74: sala seminaryjna I p., pawilon VIII, ul. Nowogrodzka 59"
       },
       {
         "field": "address",
         "source": "SOURCE_CROSS_REFERENCE",
-        "evidence": "DI3/A73: sala seminaryjna I p., pawilon VIII, ul. Nowogrodzka 59"
+        "evidence": "DI3/A74: sala seminaryjna I p., pawilon VIII, ul. Nowogrodzka 59"
       },
       {
         "field": "locationLabel",
         "source": "SOURCE_CROSS_REFERENCE",
-        "evidence": "DI3/A73: sala seminaryjna I p., pawilon VIII, ul. Nowogrodzka 59"
+        "evidence": "DI3/A74: sala seminaryjna I p., pawilon VIII, ul. Nowogrodzka 59"
       }
     ],
     "room": "sala seminaryjna, I piętro, pawilon VIII",
@@ -766,6 +766,51 @@ export const VERIFIED_STUDY_CURRENT_SCHEDULE_2026_10_05: readonly StudyScheduleC
     "status": "READY",
     "warnings": [],
     "include": true,
+    "manuallyReviewed": true
+  },
+  {
+    "id": "candidate-99e2354e",
+    "adapterId": "nursing-week-matrix-v2",
+    "sourceSheet": "PLAN ZAJĘĆ",
+    "sourceRange": "DA12",
+    "sourceKey": "PLAN ZAJĘĆ|DA12|2026-11-12|10:15|14:00|FARMAKOLOGIA|MAIN:11",
+    "originalText": "09.11. - 13.11.2026 | grupa 11 | FARMAKOLOGIA | Prof. dr hab. D. Mirowska-Guzel, seminaria PON. , WT. i CZW. 10.15 - 14.00 | czwartek | sala komputerowa sala 234 w CD",
+    "subject": "FARMAKOLOGIA",
+    "activityType": "Seminaria",
+    "date": "2026-11-12",
+    "startTime": "10:15",
+    "endTime": "14:00",
+    "groupScope": "SPECIFIC",
+    "groupTags": [
+      "MAIN:11"
+    ],
+    "originalGroupText": "grupa 11",
+    "sourceWeekStart": "2026-11-09",
+    "sourceWeekEnd": "2026-11-13",
+    "sourceSectionKey": "PLAN ZAJĘĆ|CY2:DA2",
+    "room": "sala komputerowa, sala 234 w CD",
+    "address": "ul. Trojdena 2a",
+    "locationLabel": "Centrum Dydaktyczne",
+    "status": "READY",
+    "warnings": [],
+    "include": true,
+    "locationProvenance": [
+      {
+        "field": "room",
+        "source": "SOURCE_CROSS_REFERENCE",
+        "evidence": "DA5: sala komputerowa, sala 234 w CD"
+      },
+      {
+        "field": "address",
+        "source": "SOURCE_CROSS_REFERENCE",
+        "evidence": "DA5: sala komputerowa, sala 234 w CD; WYKŁADY A1: Centrum Dydaktyczne, ul. Trojdena 2a"
+      },
+      {
+        "field": "locationLabel",
+        "source": "SOURCE_CROSS_REFERENCE",
+        "evidence": "DA5: sala komputerowa, sala 234 w CD; WYKŁADY A1: Centrum Dydaktyczne, ul. Trojdena 2a"
+      }
+    ],
     "manuallyReviewed": true
   },
   {
@@ -1466,7 +1511,7 @@ export const VERIFIED_STUDY_CURRENT_SCHEDULE_2026_10_05: readonly StudyScheduleC
     "address": "ul. Banacha 1a",
     "status": "REVIEW_REQUIRED",
     "warnings": [
-      "Plan z 05.10.2026 wskazuje zajęcia u prof. R. Steca 07.12.2026 przy ul. Banacha 1a, ale nie podaje pełnego zakresu godzin. Nie wolno uzupełniać czasu z powtarzalnego wzorca."
+      "Plan z 06.10.2026 wskazuje zajęcia u prof. R. Steca 07.12.2026 przy ul. Banacha 1a, ale nie podaje pełnego zakresu godzin. Nie wolno uzupełniać czasu z powtarzalnego wzorca."
     ],
     "include": false,
     "locationProvenance": [
@@ -1523,7 +1568,7 @@ export const VERIFIED_STUDY_CURRENT_SCHEDULE_2026_10_05: readonly StudyScheduleC
     "address": "ul. Banacha 1a",
     "status": "REVIEW_REQUIRED",
     "warnings": [
-      "Plan z 05.10.2026 wskazuje zajęcia u prof. R. Steca 08.12.2026 przy ul. Banacha 1a, ale nie podaje pełnego zakresu godzin. Nie wolno uzupełniać czasu z powtarzalnego wzorca."
+      "Plan z 06.10.2026 wskazuje zajęcia u prof. R. Steca 08.12.2026 przy ul. Banacha 1a, ale nie podaje pełnego zakresu godzin. Nie wolno uzupełniać czasu z powtarzalnego wzorca."
     ],
     "include": false,
     "locationProvenance": [
@@ -1910,17 +1955,17 @@ export const VERIFIED_STUDY_CURRENT_SCHEDULE_2026_10_05: readonly StudyScheduleC
       {
         "field": "room",
         "source": "SOURCE_CROSS_REFERENCE",
-        "evidence": "DI3/A73: sala seminaryjna I p., pawilon VIII, ul. Nowogrodzka 59"
+        "evidence": "DI3/A74: sala seminaryjna I p., pawilon VIII, ul. Nowogrodzka 59"
       },
       {
         "field": "address",
         "source": "SOURCE_CROSS_REFERENCE",
-        "evidence": "DI3/A73: sala seminaryjna I p., pawilon VIII, ul. Nowogrodzka 59"
+        "evidence": "DI3/A74: sala seminaryjna I p., pawilon VIII, ul. Nowogrodzka 59"
       },
       {
         "field": "locationLabel",
         "source": "SOURCE_CROSS_REFERENCE",
-        "evidence": "DI3/A73: sala seminaryjna I p., pawilon VIII, ul. Nowogrodzka 59"
+        "evidence": "DI3/A74: sala seminaryjna I p., pawilon VIII, ul. Nowogrodzka 59"
       }
     ],
     "room": "sala seminaryjna, I piętro, pawilon VIII",
@@ -2719,22 +2764,22 @@ export const VERIFIED_STUDY_CURRENT_SCHEDULE_2026_10_05: readonly StudyScheduleC
       {
         "field": "clinic",
         "source": "SOURCE_CROSS_REFERENCE",
-        "evidence": "DK3/A76: sala seminaryjna 128 w NZS, ul. Nowogrodzka 59, pawilon XI D1"
+        "evidence": "DK3/A77: sala seminaryjna 128 w NZS, ul. Nowogrodzka 59, pawilon XI D1"
       },
       {
         "field": "room",
         "source": "SOURCE_CROSS_REFERENCE",
-        "evidence": "DK3/A76: sala seminaryjna 128 w NZS, ul. Nowogrodzka 59, pawilon XI D1"
+        "evidence": "DK3/A77: sala seminaryjna 128 w NZS, ul. Nowogrodzka 59, pawilon XI D1"
       },
       {
         "field": "address",
         "source": "SOURCE_CROSS_REFERENCE",
-        "evidence": "DK3/A76: sala seminaryjna 128 w NZS, ul. Nowogrodzka 59, pawilon XI D1"
+        "evidence": "DK3/A77: sala seminaryjna 128 w NZS, ul. Nowogrodzka 59, pawilon XI D1"
       },
       {
         "field": "locationLabel",
         "source": "SOURCE_CROSS_REFERENCE",
-        "evidence": "DK3/A76: sala seminaryjna 128 w NZS, ul. Nowogrodzka 59, pawilon XI D1"
+        "evidence": "DK3/A77: sala seminaryjna 128 w NZS, ul. Nowogrodzka 59, pawilon XI D1"
       }
     ],
     "clinic": "Zakład Pielęgniarstwa Chirurgicznego, Transplantacyjnego i Leczenia Pozaustrojowego",
@@ -2853,14 +2898,14 @@ export const VERIFIED_STUDY_CURRENT_SCHEDULE_2026_10_05: readonly StudyScheduleC
     "address": "ul. Jadżwingów 9",
     "status": "REVIEW_REQUIRED",
     "warnings": [
-      "Plan z 05.10.2026 przypisuje POZ grupy 11B2 do tygodnia 19-23.10.2026 przy ul. Jadżwingów 9, ale nie podaje jednoznacznego dnia ani pełnego zakresu godzin. Wpis pozostaje source-only i nie tworzy fikcyjnego wydarzenia."
+      "Plan z 06.10.2026 przypisuje POZ grupy 11B2 do tygodnia 19-23.10.2026 przy ul. Jadżwingów 9, ale nie podaje jednoznacznego dnia ani pełnego zakresu godzin. Wpis pozostaje source-only i nie tworzy fikcyjnego wydarzenia."
     ],
     "include": false,
     "manuallyReviewed": true
   }
 ];
 
-export const VERIFIED_STUDY_CURRENT_UNDATED_REQUIREMENTS_2026_10_05 = [
+export const VERIFIED_STUDY_CURRENT_UNDATED_REQUIREMENTS_2026_10_06 = [
   {
     sourceSheet: 'WYKŁADY',
     sourceRange: 'A20',
@@ -2872,7 +2917,7 @@ export const VERIFIED_STUDY_CURRENT_UNDATED_REQUIREMENTS_2026_10_05 = [
 ] as const;
 
 export function verifiedStudyCurrentScheduleCandidates(): StudyScheduleCandidate[] {
-  return VERIFIED_STUDY_CURRENT_SCHEDULE_2026_10_05.map((candidate) => ({
+  return VERIFIED_STUDY_CURRENT_SCHEDULE_2026_10_06.map((candidate) => ({
     ...candidate,
     groupTags: [...candidate.groupTags],
     warnings: [...candidate.warnings],

@@ -1,2 +1,2 @@
-export const APP_BUILD = '334';
+export const APP_BUILD = '336';
 export const BUILD_NUMBER = APP_BUILD;

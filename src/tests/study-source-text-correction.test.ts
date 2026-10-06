@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import {
-  VERIFIED_STUDY_MANUAL_AUDIT_2026_10_05,
-  VERIFIED_STUDY_SOURCE_TEXT_CORRECTIONS_2026_10_05,
+  VERIFIED_STUDY_MANUAL_AUDIT_2026_10_06,
+  VERIFIED_STUDY_SOURCE_TEXT_CORRECTIONS_2026_10_06,
 } from '../study/verified-study-plan-manual';
 
 describe('study source text correction audit metadata', () => {
   it('keeps the AY9 source typo separate from the canonical external address', () => {
-    expect(VERIFIED_STUDY_SOURCE_TEXT_CORRECTIONS_2026_10_05).toEqual([
+    expect(VERIFIED_STUDY_SOURCE_TEXT_CORRECTIONS_2026_10_06).toEqual([
       expect.objectContaining({
         sourceRange: 'AY9',
         field: 'address',
@@ -19,12 +19,12 @@ describe('study source text correction audit metadata', () => {
   });
 
   it('does not change the frozen operational plan counts', () => {
-    expect(VERIFIED_STUDY_MANUAL_AUDIT_2026_10_05).toMatchObject({
-      candidateCount: 76,
-      importableCount: 73,
+    expect(VERIFIED_STUDY_MANUAL_AUDIT_2026_10_06).toMatchObject({
+      candidateCount: 77,
+      importableCount: 74,
       incompleteCount: 3,
       conflictCount: 0,
-      candidatesSha256: 'e04f8b7c71030c9df81633845f544c4f9d5543f7087b4ef1723cf775a09156b4',
+      candidatesSha256: '6c18a0eafb6fcca3d89b5ba09f9276bb4709fddd2b7a6d744f2b22052804aada',
     });
   });
 });

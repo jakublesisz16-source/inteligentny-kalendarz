@@ -1,11 +1,11 @@
 {
   "source": "PRIVATE",
   "surface": "public-stable",
-  "buildId": "ik-1.2.0.334-20261006-today-future-wrap-calendar-add-parity-exact-public-projection",
-  "appVersion": "1.2.0.334",
+  "buildId": "ik-1.2.0.336-20261006-wum-study-plan-0610-reference-registration-fix",
+  "appVersion": "1.2.0.336",
   "releaseVersion": "1.2.0",
-  "packageVersion": "1.2.0-private.334",
-  "build": "334",
-  "contentFingerprint": "38f93b0f27ecf5fbe60ca241e9fe01ec11b78f797457f7f361f0ddd6dc8d0006",
+  "packageVersion": "1.2.0-private.336",
+  "build": "336",
+  "contentFingerprint": "14552172b55868acf51c58e2902038ab9329cc2e1b006f127a30c68c555b6919",
   "fileCount": 580
 }
