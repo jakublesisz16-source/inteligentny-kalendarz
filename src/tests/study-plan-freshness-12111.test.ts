@@ -25,7 +25,8 @@ describe('1.2.0.111 study plan freshness and diff summary', () => {
     expect(studyView).toContain('Status aktualnego planu studiów');
     expect(studyView).toContain('study-current-plan-line');
     expect(studyView).toContain('activeImport.importedEventCount');
-    expect(studyView).toContain('formatUpdateSummary(activePlanUpdate.summary)');
+    expect(studyView).toContain('formatUpdateSummary(activePlanUpdateSummary, activePlanScheduleConflictCount)');
+    expect(studyView).toContain('activePlanUpdateDetails?.scheduleConflicts.length');
     expect(studyView).toContain('latestAppliedUpdate?.newFileHash === activeImport.fileHash');
   });
 

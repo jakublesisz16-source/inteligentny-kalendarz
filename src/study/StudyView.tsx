@@ -12,6 +12,7 @@ import {
   deleteUniversityImport,
   findUniversityImportByHash,
   getActiveUniversityImport,
+  getAppliedScheduleUpdateDetails,
   getLatestAppliedScheduleUpdateSession,
   getStudyProfile,
   listUniversityImports,
@@ -31,10 +32,12 @@ import { completenessForSelectedGroups } from './study-completeness';
 import { verifyStudyPlanSource } from './verified-study-plan';
 import { applyVerifiedStudyPlanManualCorrectionsToAnalysis, isVerifiedStudyProfileSelection, verifyVerifiedStudyPlanManualAudit } from './verified-study-plan-manual';
 import { ScheduleDiffView } from './ScheduleDiffView';
+import { ScheduleUpdateHistoryModal } from './ScheduleUpdateHistoryModal';
 import { StudyGroupPreviewPanel } from './StudyGroupPreviewPanel';
 import { StudyGroupChoiceFields, studyGroupChoiceProgress } from './StudyGroupChoiceFields';
 import { StudyProfileSettings } from './StudyProfileSettings';
 import type {
+  AppliedScheduleUpdateDetails,
   PendingStudyCorrectionRule,
   ScheduleAnalysis,
   ScheduleDiffSummary,
@@ -62,13 +65,14 @@ function formatImportDate(value: string): string {
   return new Intl.DateTimeFormat('pl-PL', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value));
 }
 
-function formatUpdateSummary(summary: ScheduleDiffSummary): string {
-  const conflicts = summary.conflicts + summary.ambiguous;
+function formatUpdateSummary(summary: ScheduleDiffSummary, scheduleConflictCount = 0): string {
+  const reviewCount = summary.conflicts + summary.ambiguous;
   const parts = [
     summary.added ? `Nowe +${summary.added}` : '',
     summary.changed ? `Zmienione ${summary.changed}` : '',
     summary.removed ? `Usunięte -${summary.removed}` : '',
-    conflicts ? `Konflikty ${conflicts}` : '',
+    scheduleConflictCount ? `Konflikty ${scheduleConflictCount}` : '',
+    reviewCount ? `Do sprawdzenia ${reviewCount}` : '',
   ].filter(Boolean);
   if (parts.length) return parts.join(' · ');
   return 'bez zmian w zajęciach';
@@ -196,6 +200,8 @@ export function StudyView({ onDataChanged }: StudyViewProps) {
   const [profileGroups, setProfileGroups] = useState<string[]>([]);
   const [activeImport, setActiveImport] = useState<UniversityScheduleImport | null>(null);
   const [latestAppliedUpdate, setLatestAppliedUpdate] = useState<ScheduleUpdateSession | null>(null);
+  const [latestAppliedUpdateDetails, setLatestAppliedUpdateDetails] = useState<AppliedScheduleUpdateDetails | null>(null);
+  const [updateHistoryOpen, setUpdateHistoryOpen] = useState(false);
   const [updatePreview, setUpdatePreview] = useState<ScheduleUpdatePreview | null>(null);
   const [pendingCorrectionRules, setPendingCorrectionRules] = useState<PendingStudyCorrectionRule[]>([]);
   const [diagnostics, setDiagnostics] = useState<string[]>([]);
@@ -211,10 +217,13 @@ export function StudyView({ onDataChanged }: StudyViewProps) {
       getActiveUniversityImport(),
       getLatestAppliedScheduleUpdateSession(),
     ]);
+    const latestUpdateDetails = latestUpdate ? await getAppliedScheduleUpdateDetails(latestUpdate.id) : undefined;
     setImports(loadedImports);
     setProfileGroups(profile?.selectedGroups ?? []);
     setActiveImport(active ?? null);
     setLatestAppliedUpdate(latestUpdate ?? null);
+    setLatestAppliedUpdateDetails(latestUpdateDetails ?? null);
+    if (!latestUpdateDetails) setUpdateHistoryOpen(false);
     if (assumptionUpdate.addedEventCount > 0 || assumptionUpdate.updatedEventCount > 0 || supplementUpdate.addedEventCount > 0) await onDataChanged();
   }
 
@@ -552,6 +561,9 @@ export function StudyView({ onDataChanged }: StudyViewProps) {
   const selectedGroupSummary = formatStudyGroupList(selectedGroups) || 'Wspólne / bez grup';
   const groupChoiceProgress = analysis ? studyGroupChoiceProgress(analysis.groups, selectedGroups) : { completed: 0, required: 0 };
   const activePlanUpdate = activeImport && latestAppliedUpdate?.newFileHash === activeImport.fileHash ? latestAppliedUpdate : null;
+  const activePlanUpdateDetails = activePlanUpdate && latestAppliedUpdateDetails?.session.id === activePlanUpdate.id ? latestAppliedUpdateDetails : null;
+  const activePlanUpdateSummary = activePlanUpdateDetails?.summary ?? activePlanUpdate?.summary;
+  const activePlanScheduleConflictCount = activePlanUpdateDetails?.scheduleConflicts.length ?? activePlanUpdate?.scheduleConflicts?.length ?? 0;
 
   return (
     <section className="view-shell study-view">
@@ -574,7 +586,7 @@ export function StudyView({ onDataChanged }: StudyViewProps) {
             {activeImport ? (
               <div className="study-current-plan-line" aria-label="Status aktualnego planu studiów">
                 <div className="study-current-plan-main"><strong>{activeImport.fileName}</strong><small>{activeImport.importedEventCount} wydarzeń · {formatImportDate(activeImport.importedAt)}</small>{activeImport.selectedGroups.length ? <span className="study-current-plan-groups">{activeImport.selectedGroups.map(studyGroupCompactLabel).join(' / ')}</span> : null}</div>
-                {activePlanUpdate ? <span className="study-current-plan-change" title={activePlanUpdate.appliedAt ? formatImportDate(activePlanUpdate.appliedAt) : undefined}>{formatUpdateSummary(activePlanUpdate.summary)}</span> : null}
+                {activePlanUpdate && activePlanUpdateSummary ? <button type="button" className="study-current-plan-change" title="Pokaż dokładne zmiany ostatniej aktualizacji planu" aria-label={`Pokaż zmiany planu: ${formatUpdateSummary(activePlanUpdateSummary, activePlanScheduleConflictCount)}`} onClick={() => setUpdateHistoryOpen(true)}>{formatUpdateSummary(activePlanUpdateSummary, activePlanScheduleConflictCount)}</button> : null}
               </div>
             ) : null}
             {!activeImport ? <span className="upload-hint">Możesz też przeciągnąć plik tutaj.</span> : null}
@@ -661,6 +673,8 @@ export function StudyView({ onDataChanged }: StudyViewProps) {
       ) : null}
 
       {phase === 'diff' && updatePreview ? <ScheduleDiffView preview={updatePreview} saving={saving} onChange={setUpdatePreview} onApply={() => void applyUpdate()} onCancel={() => void cancelUpdate()} /> : null}
+
+      {updateHistoryOpen && activePlanUpdateDetails ? <ScheduleUpdateHistoryModal details={activePlanUpdateDetails} onClose={() => setUpdateHistoryOpen(false)} /> : null}
 
       {phase === 'idle' && (activeImport || profileGroups.length) ? <section className="study-groups-primary" aria-label="Wybór grup studiów"><StudyProfileSettings onDataChanged={async () => { await Promise.all([refreshStudyData(), onDataChanged()]); }} />{activeImport ? <StudyGroupPreviewPanel activeImport={activeImport} primaryGroups={profileGroups} /> : null}</section> : null}
 

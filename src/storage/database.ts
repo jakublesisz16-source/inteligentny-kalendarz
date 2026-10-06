@@ -11,7 +11,7 @@ import type { BackupDocument, BackupInspection, BackupSummary, ChangeJournalEntr
 import { nextJournalTimestampIso } from '../safety/change-journal-order';
 import { reviewCandidate } from '../study/import-review';
 import { applyCorrectionRules } from '../study/study-corrections';
-import { buildScheduleDiff, recalculateDiffSummary } from '../study/study-diff';
+import { buildScheduleDiff, recalculateDiffSummary, scheduleUpdateHistoryItems } from '../study/study-diff';
 import { identifyCandidate, identifyEntry } from '../study/study-identity';
 import { candidatesForSelectedGroups, findStudyScheduleConflicts, findStudyUpdateDecisionConflicts, validateStudyGroupSelection } from '../study/study.service';
 import { completenessForSelectedGroups } from '../study/study-completeness';
@@ -44,6 +44,7 @@ import { cycleDaysBetween, isValidCycleDateKey } from '../cycle/cycle-prediction
 import { normalizeShoppingName, normalizeShoppingQuantity, sortShoppingItems } from '../shopping/shopping.utils';
 import { DEFAULT_EXPENSE_CATEGORY_DEFINITIONS, expenseCategoryNameKey, inferExpenseNecessity, isDepositExpenseCategoryName, isFinanceCurrencyCode, normalizeExpenseProductKey, normalizeExpenseText, normalizeReceiptSourceFingerprint } from '../shopping/expenses.utils';
 import type {
+  AppliedScheduleUpdateDetails,
   ApplyScheduleUpdateResult,
   CommitUniversityImportInput,
   CommitUniversityImportResult,
@@ -2358,6 +2359,81 @@ export async function getLatestAppliedScheduleUpdateSession(): Promise<ScheduleU
     .sort((a, b) => (b.appliedAt ?? b.createdAt).localeCompare(a.appliedAt ?? a.createdAt))[0];
 }
 
+export async function getAppliedScheduleUpdateDetails(sessionId?: string): Promise<AppliedScheduleUpdateDetails | undefined> {
+  const db = await openDatabase();
+  const tx = db.transaction(STORE_SCHEDULE_UPDATE_SESSIONS, 'readonly');
+  const sessions = await requestToPromise(tx.objectStore(STORE_SCHEDULE_UPDATE_SESSIONS).getAll() as IDBRequest<ScheduleUpdateSession[]>);
+  await transactionDone(tx);
+  const session = (sessionId
+    ? sessions.find((item) => item.id === sessionId && item.status === 'APPLIED')
+    : sessions
+      .filter((item) => item.status === 'APPLIED' && Boolean(item.appliedAt))
+      .sort((a, b) => (b.appliedAt ?? b.createdAt).localeCompare(a.appliedAt ?? a.createdAt))[0]);
+  if (!session) return undefined;
+
+  const imports = await listUniversityImports();
+  const baseImport = imports.find((item) => item.id === session.baseImportId);
+  const appliedImport = imports.find((item) => item.fileHash === session.newFileHash);
+
+  if (Array.isArray(session.changeItems)) {
+    return {
+      session,
+      ...(baseImport ? { baseImport } : {}),
+      ...(appliedImport ? { appliedImport } : {}),
+      summary: session.summary,
+      changeItems: session.changeItems.map((item) => ({
+        ...item,
+        groupTags: [...item.groupTags],
+        changes: item.changes.map((change) => ({ ...change })),
+      })),
+      scheduleConflicts: (session.scheduleConflicts ?? []).map((conflict) => ({
+        ...conflict,
+        left: { ...conflict.left, groupTags: [...conflict.left.groupTags], warnings: [...conflict.left.warnings] },
+        right: { ...conflict.right, groupTags: [...conflict.right.groupTags], warnings: [...conflict.right.warnings] },
+      })),
+      reconstructed: false,
+    };
+  }
+
+  if (!baseImport || !appliedImport) {
+    return {
+      session,
+      ...(baseImport ? { baseImport } : {}),
+      ...(appliedImport ? { appliedImport } : {}),
+      summary: session.summary,
+      changeItems: [],
+      scheduleConflicts: session.scheduleConflicts ?? [],
+      reconstructed: true,
+    };
+  }
+
+  const [baseEntries, appliedEntries] = await Promise.all([
+    listUniversityImportEntries(baseImport.id),
+    listUniversityImportEntries(appliedImport.id),
+  ]);
+  const oldEntries = entriesForStudyPlanDiff(baseEntries, baseImport.selectedGroups);
+  const newEntries = entriesForStudyPlanDiff(appliedEntries, appliedImport.selectedGroups);
+  const newCandidates = newEntries.map((entry) => ({
+    ...candidateFromEntry(entry),
+    include: !entry.sourceOnly,
+  }));
+  const reconstructed = buildScheduleDiff({
+    oldEntries,
+    oldEvents: [],
+    newCandidates,
+    adapterId: appliedImport.adapterId,
+  });
+  return {
+    session,
+    baseImport,
+    appliedImport,
+    summary: reconstructed.summary,
+    changeItems: scheduleUpdateHistoryItems(reconstructed.items),
+    scheduleConflicts: findStudyScheduleConflicts(newCandidates),
+    reconstructed: true,
+  };
+}
+
 export async function getUniversityImport(id: string): Promise<UniversityScheduleImport | undefined> {
   const db = await openDatabase();
   const tx = db.transaction(STORE_UNIVERSITY_IMPORTS, 'readonly');
@@ -2453,6 +2529,16 @@ function requireCompleteImportCandidate(candidate: StudyScheduleCandidate): Comp
 function candidateMatchesSelectedGroups(candidate: StudyScheduleCandidate, selectedGroups: string[]): boolean {
   if (candidate.groupScope === 'ALL' || candidate.groupScope === 'UNKNOWN') return true;
   return groupSetsIntersect(candidate.groupTags, selectedGroups);
+}
+
+function entriesForStudyPlanDiff(entries: UniversityImportEntry[], selectedGroups: string[]): UniversityImportEntry[] {
+  const linked = entries.filter((entry) => !entry.sourceOnly && (Boolean(entry.eventId) || entry.userDeleted));
+  const incompleteSourceEvidence = entries.filter((entry) => {
+    if (!entry.sourceOnly) return false;
+    const candidate = candidateFromEntry(entry);
+    return !reviewCandidate(candidate).canImport && candidateMatchesSelectedGroups(candidate, selectedGroups);
+  });
+  return [...linked, ...incompleteSourceEvidence];
 }
 
 function assertCandidatesBelongToSelection(
@@ -3124,7 +3210,7 @@ export async function prepareUniversityScheduleUpdate(input: PrepareScheduleUpda
     listEvents(),
     listStudyCorrectionRules(),
   ]);
-  const oldEntries = entries.filter((entry) => (Boolean(entry.eventId) || entry.userDeleted) && !entry.sourceOnly);
+  const oldEntries = entriesForStudyPlanDiff(entries, baseImport.selectedGroups);
   const candidateCorrections = applyCorrectionRules(selectedCandidates, rules);
   const candidates = candidateCorrections.candidates.map(identifyCandidate);
   const diff = buildScheduleDiff({ oldEntries, oldEvents: events, newCandidates: candidates, adapterId: input.adapterId });
@@ -3185,6 +3271,8 @@ export async function prepareUniversityScheduleUpdate(input: PrepareScheduleUpda
     createdAt: preview.createdAt,
     status: 'PREVIEW',
     summary: preview.summary,
+    changeItems: scheduleUpdateHistoryItems(preview.items),
+    ...(decisionConflicts.length ? { scheduleConflicts: decisionConflicts } : {}),
   };
   const db = await openDatabase();
   const tx = db.transaction(STORE_SCHEDULE_UPDATE_SESSIONS, 'readwrite');
@@ -3445,6 +3533,7 @@ export async function applyUniversityScheduleUpdate(preview: ScheduleUpdatePrevi
     }
 
     if (!candidate) continue;
+    if (item.kind === 'UNCHANGED' && item.oldEntry?.sourceOnly && !oldEvent) continue;
     const complete = requireCompleteImportCandidate(candidate);
     if (!reviewCandidate(candidate).canImport) continue;
 
@@ -3581,6 +3670,8 @@ export async function applyUniversityScheduleUpdate(preview: ScheduleUpdatePrevi
     appliedAt: timestamp,
     status: 'APPLIED',
     summary: preview.summary,
+    changeItems: scheduleUpdateHistoryItems(preview.items),
+    ...(preview.scheduleConflicts?.length ? { scheduleConflicts: preview.scheduleConflicts } : {}),
   } satisfies ScheduleUpdateSession);
   const correctionStore = tx.objectStore(STORE_STUDY_CORRECTION_RULES);
   for (const rule of existingRules) {
@@ -3612,6 +3703,8 @@ export async function cancelScheduleUpdate(preview: ScheduleUpdatePreview): Prom
     cancelledAt: nowIso(),
     status: 'CANCELLED',
     summary: preview.summary,
+    changeItems: scheduleUpdateHistoryItems(preview.items),
+    ...(preview.scheduleConflicts?.length ? { scheduleConflicts: preview.scheduleConflicts } : {}),
   } satisfies ScheduleUpdateSession);
   await transactionDone(tx);
 }

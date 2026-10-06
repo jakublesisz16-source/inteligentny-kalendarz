@@ -58,6 +58,9 @@ const verifiedStudyManualPlanV310 = source('src/study/verified-study-plan-manual
 const sha256 = source('src/core/sha256.ts');
 const studyService = source('src/study/study.service.ts');
 const studyDiffLogic = source('src/study/study-diff.ts');
+const studyUpdateHistoryModal = source('src/study/ScheduleUpdateHistoryModal.tsx');
+const studyUpdateHistoryTest = source('src/tests/study-update-history.test.ts');
+const studyDiffTest = source('src/tests/study-diff.test.ts');
 const availabilityService = source('src/availability/availability.service.ts');
 const modal = source('src/ui/Modal.tsx');
 const settingsView = source('src/settings/SettingsView.tsx');
@@ -508,6 +511,12 @@ const responsiveCss = source('src/styles/responsive.css');
 for (const uiSource of [studyView, studyProfile, studyDiff]) assert(!uiSource.includes('className="decision-toggle"'), 'study warnings require an extra consent checkbox');
 assert(studyView.includes('Konflikty pozostają widoczne, ale nie wymagają dodatkowego potwierdzenia'), 'initial study import conflict notice is no longer low-friction');
 assert(studyDiff.includes('zapisze wybrane zmiany także wtedy, gdy część zajęć się nakłada'), 'schedule update conflict notice lost explicit action semantics');
+assert(studyView.includes('className="study-current-plan-change"') && studyView.includes('onClick={() => setUpdateHistoryOpen(true)}') && studyView.includes('<ScheduleUpdateHistoryModal'), 'Build337 latest Study update badge is not an explicit change-history control');
+assert(studyView.includes('activePlanUpdateDetails?.scheduleConflicts.length') && studyView.includes('scheduleConflictCount ? `Konflikty ${scheduleConflictCount}`'), 'Build337 Study badge does not distinguish real schedule conflicts from diff review items');
+assert(studyUpdateHistoryModal.includes('title="Zmiany w planie"') && studyUpdateHistoryModal.includes('było') && studyUpdateHistoryModal.includes('jest') && studyUpdateHistoryModal.includes('Konflikty godzin po aktualizacji'), 'Build337 exact Study update history modal is incomplete');
+assert(db.includes('export async function getAppliedScheduleUpdateDetails') && db.includes('changeItems: scheduleUpdateHistoryItems(preview.items)') && db.includes('reconstructed: true'), 'Build337 applied Study update history persistence/reconstruction is missing');
+assert(studyDiffLogic.includes('entry.userDeleted || entry.sourceOnly') && studyDiffLogic.includes("if (oldEntry.sourceOnly && blocking && changes.length === 0) return 'UNCHANGED'"), 'Build337 unchanged incomplete source-only rows can regress to false update conflicts');
+assert(studyUpdateHistoryTest.includes('Build337 Study update history') && studyDiffTest.includes('05.10 -> 06.10') && studyDiffTest.includes('nie zamienia trzech niezmienionych source-only w konflikty'), 'Build337 Study update-history/false-conflict regression proof is missing');
 assert(studyProfile.includes('bez dodatkowego checkboxa'), 'group recalculation still implies a separate conflict-confirmation click');
 assert(studyView.includes('allowScheduleConflicts: scheduleConflicts.length > 0'), 'initial study import no longer binds the primary action to the displayed conflict set');
 assert(studyView.includes('allowScheduleConflicts: Boolean(updatePreview.scheduleConflicts?.length)'), 'schedule update apply action no longer binds to displayed conflicts');
@@ -681,7 +690,7 @@ assert(responsiveCss.includes('1.2.0.110 - mobile calendar overlay meaning is vi
 
 // 1.2.0.111 keeps Study plan freshness factual and makes update diffs easier to scan.
 assert(db.includes('getLatestAppliedScheduleUpdateSession') && db.includes("item.status === 'APPLIED'"), '1.2.0.111 latest applied Study update lookup missing');
-assert(studyView.includes('study-current-plan-line') && studyView.includes('const activePlanUpdate = activeImport && latestAppliedUpdate?.newFileHash === activeImport.fileHash') && studyView.includes('formatUpdateSummary(activePlanUpdate.summary)'), '1.2.0.174 compact Study plan freshness status missing or not tied to the active file');
+assert(studyView.includes('study-current-plan-line') && studyView.includes('const activePlanUpdate = activeImport && latestAppliedUpdate?.newFileHash === activeImport.fileHash') && studyView.includes('formatUpdateSummary(activePlanUpdateSummary, activePlanScheduleConflictCount)'), '1.2.0.174 compact Study plan freshness status missing or not tied to the active file');
 assert(studyDiff.includes('summarizeScheduleDiffChangeTypes') && studyDiff.includes('W zmienionych zajęciach:') && studyDiff.includes('Lokalizacje') && studyDiff.includes('Grupy'), '1.2.0.111 Study update change-type breakdown missing');
 assert(interfaceConsistency.includes('/* 1.2.0.111 - compact study plan freshness and readable update breakdown. */'), '1.2.0.111 Study freshness styles missing');
 

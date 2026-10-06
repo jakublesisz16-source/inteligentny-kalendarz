@@ -4,7 +4,10 @@ import { identifyCandidate, identifyEntry } from './study-identity';
 import type {
   ScheduleDiffFieldChange,
   ScheduleDiffItem,
+  ScheduleDiffKind,
+  ScheduleDiffResolution,
   ScheduleDiffSummary,
+  ScheduleUpdateHistoryItem,
   StudyScheduleCandidate,
   UniversityImportEntry,
 } from './study.types';
@@ -140,6 +143,50 @@ function summarize(items: ScheduleDiffItem[]): ScheduleDiffSummary {
   }, { added: 0, removed: 0, changed: 0, conflicts: 0, unchanged: 0, ambiguous: 0 });
 }
 
+function matchedDiffKind(
+  oldEntry: UniversityImportEntry,
+  blocking: boolean,
+  conflict: boolean,
+  changes: ScheduleDiffFieldChange[],
+): ScheduleDiffKind {
+  // Source-only evidence can be intentionally incomplete. If the same incomplete
+  // source position is present in both plan versions and its data did not change,
+  // it is not a new conflict and must stay out of the visible update summary.
+  if (oldEntry.sourceOnly && blocking && changes.length === 0) return 'UNCHANGED';
+  if (blocking) return 'AMBIGUOUS';
+  if (conflict) return 'CONFLICT_USER_MODIFIED';
+  return changes.length ? 'CHANGED' : 'UNCHANGED';
+}
+
+function matchedDiffResolution(kind: ScheduleDiffKind): ScheduleDiffResolution {
+  if (kind === 'AMBIGUOUS' || kind === 'CONFLICT_USER_MODIFIED' || kind === 'UNCHANGED') return 'SKIP';
+  return 'APPLY';
+}
+
+export function scheduleUpdateHistoryItems(items: ScheduleDiffItem[]): ScheduleUpdateHistoryItem[] {
+  return items
+    .filter((item) => item.kind !== 'UNCHANGED')
+    .map((item) => {
+      const source = item.newCandidate ?? item.oldEntry;
+      return {
+        id: item.id,
+        kind: item.kind,
+        subject: source?.subject ?? 'Nieustalone zajęcia',
+        ...(source?.activityType ? { activityType: source.activityType } : {}),
+        ...(source?.date ? { date: source.date } : {}),
+        ...(source?.startTime ? { startTime: source.startTime } : {}),
+        ...(source?.endTime ? { endTime: source.endTime } : {}),
+        groupTags: [...(source?.groupTags ?? [])],
+        ...(source?.clinic ? { clinic: source.clinic } : {}),
+        ...(source?.room ? { room: source.room } : {}),
+        ...(source?.address ? { address: source.address } : {}),
+        ...(source?.locationLabel ? { locationLabel: source.locationLabel } : {}),
+        changes: item.changes.map((change) => ({ ...change })),
+        ...(item.note ? { note: item.note } : {}),
+      };
+    });
+}
+
 export interface BuildScheduleDiffInput {
   oldEntries: UniversityImportEntry[];
   oldEvents: CalendarEvent[];
@@ -154,7 +201,7 @@ export interface BuildScheduleDiffResult {
 
 export function buildScheduleDiff(input: BuildScheduleDiffInput): BuildScheduleDiffResult {
   const oldEntries = input.oldEntries
-    .filter((entry) => Boolean(entry.eventId) || entry.userDeleted)
+    .filter((entry) => Boolean(entry.eventId) || entry.userDeleted || entry.sourceOnly)
     .map((entry) => identifyEntry(entry, input.adapterId));
   const newCandidates = input.newCandidates.map(identifyCandidate);
   const eventById = new Map(input.oldEvents.map((event) => [event.id, event]));
@@ -182,9 +229,10 @@ export function buildScheduleDiff(input: BuildScheduleDiffInput): BuildScheduleD
     const review = reviewCandidate(candidate);
     const blocking = !review.canImport;
     const conflict = hasUserConflict(event, changes);
+    const kind = matchedDiffKind(oldEntry, blocking, conflict, changes);
     items.push({
-      id: diffId(blocking ? 'ambiguous' : conflict ? 'conflict' : changes.length ? 'changed' : 'unchanged', oldEntry, candidate),
-      kind: blocking ? 'AMBIGUOUS' : conflict ? 'CONFLICT_USER_MODIFIED' : changes.length ? 'CHANGED' : 'UNCHANGED',
+      id: diffId(kind === 'AMBIGUOUS' ? 'ambiguous' : kind === 'CONFLICT_USER_MODIFIED' ? 'conflict' : kind === 'CHANGED' ? 'changed' : 'unchanged', oldEntry, candidate),
+      kind,
       changeTypes: [...new Set(changes.map((entry) => entry.changeType))],
       changes,
       oldEntry,
@@ -193,7 +241,7 @@ export function buildScheduleDiff(input: BuildScheduleDiffInput): BuildScheduleD
       ...(event ? { oldEventSnapshot: eventSnapshot(event) } : {}),
       ...(event?.userModified ? { oldEventUserModified: true } : {}),
       ...(event?.userModifiedFields?.length ? { oldEventUserModifiedFields: [...event.userModifiedFields] } : {}),
-      resolution: blocking ? 'SKIP' : conflict ? 'SKIP' : 'APPLY',
+      resolution: matchedDiffResolution(kind),
       ...(blocking ? { note: review.state === 'INCOMPLETE' ? 'Nowy wpis jest niepełny w planie źródłowym i pozostaje do wglądu; nie zostanie zastosowany automatycznie.' : 'Nowy wpis ma nierozwiązany brak krytyczny i nie zostanie zastosowany automatycznie.' } : {}),
     });
   }
@@ -219,9 +267,10 @@ export function buildScheduleDiff(input: BuildScheduleDiffInput): BuildScheduleD
     const review = reviewCandidate(candidate);
     const blocking = !review.canImport;
     const conflict = hasUserConflict(event, changes);
+    const kind = matchedDiffKind(oldEntry, blocking, conflict, changes);
     items.push({
-      id: diffId(blocking ? 'ambiguous-source' : conflict ? 'conflict-source' : changes.length ? 'changed-source' : 'unchanged-source', oldEntry, candidate),
-      kind: blocking ? 'AMBIGUOUS' : conflict ? 'CONFLICT_USER_MODIFIED' : changes.length ? 'CHANGED' : 'UNCHANGED',
+      id: diffId(kind === 'AMBIGUOUS' ? 'ambiguous-source' : kind === 'CONFLICT_USER_MODIFIED' ? 'conflict-source' : kind === 'CHANGED' ? 'changed-source' : 'unchanged-source', oldEntry, candidate),
+      kind,
       changeTypes: [...new Set(changes.map((entry) => entry.changeType))],
       changes,
       oldEntry,
@@ -230,7 +279,7 @@ export function buildScheduleDiff(input: BuildScheduleDiffInput): BuildScheduleD
       ...(event ? { oldEventSnapshot: eventSnapshot(event) } : {}),
       ...(event?.userModified ? { oldEventUserModified: true } : {}),
       ...(event?.userModifiedFields?.length ? { oldEventUserModifiedFields: [...event.userModifiedFields] } : {}),
-      resolution: blocking ? 'SKIP' : conflict ? 'SKIP' : 'APPLY',
+      resolution: matchedDiffResolution(kind),
       ...(blocking ? { note: review.state === 'INCOMPLETE' ? 'Nowy wpis jest niepełny w planie źródłowym i pozostaje do wglądu; nie zostanie zastosowany automatycznie.' : 'Nowy wpis ma nierozwiązany brak krytyczny i wymaga ręcznej kontroli.' } : {}),
     });
   }
@@ -270,9 +319,10 @@ export function buildScheduleDiff(input: BuildScheduleDiffInput): BuildScheduleD
       const review = reviewCandidate(pair.candidate);
       const blocking = !review.canImport;
       const conflict = hasUserConflict(event, changes);
+      const kind = matchedDiffKind(pair.entry, blocking, conflict, changes);
       items.push({
-        id: diffId(blocking ? 'ambiguous' : conflict ? 'conflict' : 'changed', pair.entry, pair.candidate),
-        kind: blocking ? 'AMBIGUOUS' : conflict ? 'CONFLICT_USER_MODIFIED' : changes.length ? 'CHANGED' : 'UNCHANGED',
+        id: diffId(kind === 'AMBIGUOUS' ? 'ambiguous' : kind === 'CONFLICT_USER_MODIFIED' ? 'conflict' : kind === 'CHANGED' ? 'changed' : 'unchanged', pair.entry, pair.candidate),
+        kind,
         changeTypes: [...new Set(changes.map((entry) => entry.changeType))],
         changes,
         oldEntry: pair.entry,
@@ -281,7 +331,7 @@ export function buildScheduleDiff(input: BuildScheduleDiffInput): BuildScheduleD
         ...(event ? { oldEventSnapshot: eventSnapshot(event) } : {}),
         ...(event?.userModified ? { oldEventUserModified: true } : {}),
         ...(event?.userModifiedFields?.length ? { oldEventUserModifiedFields: [...event.userModifiedFields] } : {}),
-        resolution: blocking ? 'SKIP' : conflict ? 'SKIP' : 'APPLY',
+        resolution: matchedDiffResolution(kind),
         ...(blocking ? { note: review.state === 'INCOMPLETE' ? 'Nowy wpis jest niepełny w planie źródłowym i pozostaje do wglądu; nie zostanie zastosowany automatycznie.' : 'Nowy wpis ma nierozwiązany brak krytyczny i wymaga ręcznej kontroli.' } : {}),
       });
     }
@@ -307,9 +357,10 @@ export function buildScheduleDiff(input: BuildScheduleDiffInput): BuildScheduleD
     const review = reviewCandidate(candidate);
     const blocking = !review.canImport;
     const conflict = hasUserConflict(event, changes);
+    const kind = matchedDiffKind(oldEntry, blocking, conflict, changes);
     items.push({
-      id: diffId(blocking ? 'ambiguous-slot' : conflict ? 'conflict-slot' : changes.length ? 'changed-slot' : 'unchanged-slot', oldEntry, candidate),
-      kind: blocking ? 'AMBIGUOUS' : conflict ? 'CONFLICT_USER_MODIFIED' : changes.length ? 'CHANGED' : 'UNCHANGED',
+      id: diffId(kind === 'AMBIGUOUS' ? 'ambiguous-slot' : kind === 'CONFLICT_USER_MODIFIED' ? 'conflict-slot' : kind === 'CHANGED' ? 'changed-slot' : 'unchanged-slot', oldEntry, candidate),
+      kind,
       changeTypes: [...new Set(changes.map((entry) => entry.changeType))],
       changes,
       oldEntry,
@@ -318,7 +369,7 @@ export function buildScheduleDiff(input: BuildScheduleDiffInput): BuildScheduleD
       ...(event ? { oldEventSnapshot: eventSnapshot(event) } : {}),
       ...(event?.userModified ? { oldEventUserModified: true } : {}),
       ...(event?.userModifiedFields?.length ? { oldEventUserModifiedFields: [...event.userModifiedFields] } : {}),
-      resolution: blocking ? 'SKIP' : conflict ? 'SKIP' : 'APPLY',
+      resolution: matchedDiffResolution(kind),
       ...(blocking ? { note: review.state === 'INCOMPLETE' ? 'Nowy wpis jest niepełny w planie źródłowym i pozostaje do wglądu; nie zostanie zastosowany automatycznie.' : 'Nowy wpis ma nierozwiązany brak krytyczny i wymaga ręcznej kontroli.' } : {}),
     });
   }
