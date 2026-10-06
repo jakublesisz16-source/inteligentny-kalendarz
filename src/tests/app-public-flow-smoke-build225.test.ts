@@ -33,7 +33,7 @@ describe('Build225 public-data end-to-end smoke contracts', () => {
     expect(calendar).toContain("type CalendarDisplayMode = 'MONTH' | 'WEEK'");
     expect(calendar).toContain("onClick={() => setDisplayMode('MONTH')}");
     expect(calendar).toContain("onClick={() => setDisplayMode('WEEK')}");
-    expect(calendar).toContain('className="button button-primary button-small calendar-mobile-explicit-add"');
+    expect(calendar).toContain('className="button button-secondary button-small calendar-mobile-explicit-add"');
     expect(calendar).not.toContain("displayMode === 'MONTH' ? <button type=\"button\" className=\"button button-primary button-small calendar-mobile-explicit-add\"");
   });
 
