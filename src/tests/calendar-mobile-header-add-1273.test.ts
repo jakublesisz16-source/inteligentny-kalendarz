@@ -7,7 +7,7 @@ const version = readFileSync('src/core/version.ts', 'utf8');
 
 describe('1.2.0.73 compact mobile Calendar add action', () => {
   it('keeps explicit creation separate from selecting a day', () => {
-    expect(calendar).toContain('className="button button-primary button-small calendar-mobile-explicit-add"');
+    expect(calendar).toContain('className="button button-secondary button-small calendar-mobile-explicit-add"');
     expect(calendar).toContain('onClick={() => onAdd(selectedDate)}>+ Dodaj</button>');
   });
 

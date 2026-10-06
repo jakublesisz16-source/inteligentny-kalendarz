@@ -42,6 +42,25 @@ describe('1.2.0.25 Today balanced layout', () => {
     expect(refinement).toContain('line-height: 1;');
   });
 
+  it('lets future location copy use two lines instead of mobile ellipsis', () => {
+    const refinement = source('../styles/interface-refinement.css');
+    expect(refinement).toContain('Build333 - mobile future-copy wrap + Today/Calendar header-add parity.');
+    expect(refinement).toContain('.today-view .today-tomorrow-row > div > small');
+    expect(refinement).toContain('white-space: normal;');
+    expect(refinement).toContain('text-overflow: clip;');
+    expect(refinement).toContain('-webkit-line-clamp: 2;');
+  });
+
+  it('keeps Today and Calendar +Dodaj on one mobile header-action contract', () => {
+    const calendar = source('../calendar/CalendarView.tsx');
+    const refinement = source('../styles/interface-refinement.css');
+    expect(calendar).toContain('button button-secondary button-small calendar-mobile-explicit-add');
+    expect(refinement).toContain('.today-header-add,');
+    expect(refinement).toContain('.calendar-mobile-explicit-add {');
+    expect(refinement).toContain('min-height: 44px;');
+    expect(refinement).toContain('min-width: 76px;');
+  });
+
   it('keeps the private version and database schema synchronized', () => {
     const version = source('../core/version.ts');
     expect(version).toMatch(/APP_VERSION\s*=\s*'\d+\.\d+\.\d+\.\d+'/u);

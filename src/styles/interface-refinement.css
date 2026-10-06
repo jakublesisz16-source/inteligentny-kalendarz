@@ -5670,3 +5670,50 @@ body.modal-open { overflow: hidden; }
     vertical-align: middle;
   }
 }
+
+/* Build333 - mobile future-copy wrap + Today/Calendar header-add parity. */
+@media (max-width: 620px) {
+  /* Future context must prefer readable two-line copy over an ellipsis. */
+  .today-plan-panel .today-next-strip.today-future-preview > small,
+  .today-view .today-tomorrow-row > div > small {
+    min-width: 0;
+    max-width: none;
+    overflow: hidden;
+    text-overflow: clip;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    text-align: left;
+  }
+
+  /* The same +Dodaj action gets the same geometry and visual hierarchy in Today and Calendar. */
+  .today-header-add,
+  .calendar-mobile-explicit-add {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: auto !important;
+    min-width: 76px;
+    min-height: 44px;
+    margin: 0;
+    padding-inline: 10px;
+    border: 1px solid color-mix(in srgb, var(--line-strong) 72%, var(--line));
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--surface) 92%, var(--accent-surface));
+    color: var(--accent-strong);
+    box-shadow: none;
+    font-size: .72rem;
+    font-weight: 800;
+    line-height: 1;
+    white-space: nowrap;
+  }
+
+  .today-header-add:hover,
+  .calendar-mobile-explicit-add:hover {
+    background: var(--accent-surface);
+  }
+}
+

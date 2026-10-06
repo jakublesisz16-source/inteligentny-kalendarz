@@ -1,11 +1,11 @@
 {
   "source": "PRIVATE",
   "surface": "public-stable",
-  "buildId": "ik-1.2.0.331-20261005-dayoff-selection-action-row-fix-channel-corrected",
-  "appVersion": "1.2.0.331",
+  "buildId": "ik-1.2.0.333-20261006-today-future-wrap-calendar-add-parity-test-contract-fix",
+  "appVersion": "1.2.0.333",
   "releaseVersion": "1.2.0",
-  "packageVersion": "1.2.0-private.331",
-  "build": "331",
-  "contentFingerprint": "4086a37ff24fafd2dc97759940d01d18d07dc0e1bd1a8c2cface5d1b2abe75bd",
+  "packageVersion": "1.2.0-private.333",
+  "build": "333",
+  "contentFingerprint": "b386163bffa32b70f2f8da6dbe442da842153058197d89d862382a1ab8c4e7f7",
   "fileCount": 580
 }
