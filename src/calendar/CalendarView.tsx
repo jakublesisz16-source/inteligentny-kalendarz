@@ -1001,7 +1001,7 @@ export function CalendarView({ events, locations, timeFormat, showPolishHolidays
       <header className="view-header calendar-view-header">
         <div className="calendar-header-title-row"><h1>Kalendarz</h1></div>
         <div className="calendar-mobile-header-actions">
-          <button type="button" className="button button-primary button-small calendar-mobile-explicit-add" onClick={() => onAdd(selectedDate)}>+ Dodaj</button>
+          <button type="button" className="button button-secondary button-small calendar-mobile-explicit-add" onClick={() => onAdd(selectedDate)}>+ Dodaj</button>
         </div>
       </header>
 
