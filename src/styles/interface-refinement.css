@@ -5802,3 +5802,119 @@ body.modal-open { overflow: hidden; }
 .study-update-history-conflicts {
   margin-top: 0;
 }
+
+
+/* Build340 - Study update history control uses the same quiet, modular visual language as the rest of the app. */
+.study-current-plan-change {
+  width: fit-content;
+  max-width: min(100%, 520px);
+  min-height: 34px;
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid color-mix(in srgb, var(--line-strong) 72%, var(--line));
+  border-radius: 11px;
+  background: color-mix(in srgb, var(--surface) 94%, var(--surface-soft));
+  color: var(--text);
+  box-shadow: none;
+  text-align: left;
+  white-space: normal;
+  overflow: visible;
+  transition: border-color .16s ease, background-color .16s ease, box-shadow .16s ease, transform .16s ease;
+}
+.study-current-plan-change-label {
+  padding: 0 5px;
+  color: var(--text-muted);
+  font-size: .58rem;
+  font-weight: 780;
+  letter-spacing: .025em;
+  text-transform: uppercase;
+}
+.study-current-plan-change-chips {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.study-current-plan-change-chip {
+  min-height: 24px;
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 7px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  font-size: .6rem;
+  font-weight: 760;
+  line-height: 1;
+  white-space: nowrap;
+}
+.study-current-plan-change-chip.is-added {
+  background: var(--success-soft);
+  color: var(--success);
+}
+.study-current-plan-change-chip.is-changed {
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+}
+.study-current-plan-change-chip.is-removed {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+.study-current-plan-change-chip.is-conflict,
+.study-current-plan-change-chip.is-review {
+  background: var(--warning-soft);
+  color: var(--warning);
+}
+.study-current-plan-change-chip.is-neutral {
+  background: var(--surface-soft);
+  color: var(--text-muted);
+}
+.study-current-plan-change-open {
+  min-height: 24px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 5px 0 6px;
+  color: var(--accent-strong);
+  font-size: .59rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+.study-current-plan-change-chevron {
+  display: inline-block;
+  font-size: .9rem;
+  line-height: 1;
+  transform: translateY(-.5px);
+  transition: transform .16s ease;
+}
+@media (hover: hover) and (pointer: fine) {
+  .study-current-plan-change:hover {
+    border-color: color-mix(in srgb, var(--accent) 34%, var(--line-strong));
+    background: color-mix(in srgb, var(--accent-surface) 45%, var(--surface));
+    color: var(--text);
+    box-shadow: 0 5px 14px rgba(99,72,83,.045);
+  }
+  .study-current-plan-change:hover .study-current-plan-change-chevron { transform: translate(2px, -.5px); }
+}
+.study-current-plan-change:active {
+  transform: translateY(1px);
+  box-shadow: none;
+}
+.study-current-plan-change:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent) 68%, transparent);
+  outline-offset: 2px;
+}
+@media (max-width: 620px) {
+  .study-current-plan-change {
+    width: fit-content;
+    max-width: 100%;
+    min-height: 38px;
+    gap: 5px;
+    padding: 5px;
+  }
+  .study-current-plan-change-label { font-size: .6rem; }
+  .study-current-plan-change-chip { min-height: 26px; font-size: .64rem; }
+  .study-current-plan-change-open { min-height: 26px; font-size: .62rem; }
+}

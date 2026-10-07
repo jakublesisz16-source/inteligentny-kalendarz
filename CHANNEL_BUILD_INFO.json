@@ -1,11 +1,11 @@
 {
   "source": "PRIVATE",
   "surface": "public-stable",
-  "buildId": "ik-1.2.0.339-20261006-study-update-history-freshness-test-fix",
-  "appVersion": "1.2.0.339",
+  "buildId": "ik-1.2.0.340-20261007-study-update-status-polish-legacy-summary-fix",
+  "appVersion": "1.2.0.340",
   "releaseVersion": "1.2.0",
-  "packageVersion": "1.2.0-private.339",
-  "build": "339",
-  "contentFingerprint": "4716ad15a23b2822f3eb4dd610bfe18547b9bc13ed89b7421196e5054eedfe95",
+  "packageVersion": "1.2.0-private.340",
+  "build": "340",
+  "contentFingerprint": "7d9abca0a5a678c84e0cf3fc710b5ce6ed38331354f35878215e79207a156382",
   "fileCount": 582
 }

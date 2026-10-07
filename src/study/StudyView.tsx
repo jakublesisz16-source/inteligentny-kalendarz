@@ -78,6 +78,26 @@ function formatUpdateSummary(summary: ScheduleDiffSummary, scheduleConflictCount
   return 'bez zmian w zajęciach';
 }
 
+type UpdateStatusTone = 'added' | 'changed' | 'removed' | 'conflict' | 'review' | 'neutral';
+
+interface UpdateStatusItem {
+  key: string;
+  label: string;
+  tone: UpdateStatusTone;
+}
+
+function updateStatusItems(summary: ScheduleDiffSummary, scheduleConflictCount = 0): UpdateStatusItem[] {
+  const reviewCount = summary.conflicts + summary.ambiguous;
+  const items: UpdateStatusItem[] = [];
+  if (summary.added) items.push({ key: 'added', label: `+${summary.added} nowe`, tone: 'added' });
+  if (summary.changed) items.push({ key: 'changed', label: `${summary.changed} zmienione`, tone: 'changed' });
+  if (summary.removed) items.push({ key: 'removed', label: `-${summary.removed} usunięte`, tone: 'removed' });
+  if (scheduleConflictCount) items.push({ key: 'conflict', label: `${scheduleConflictCount} konflikty`, tone: 'conflict' });
+  if (reviewCount) items.push({ key: 'review', label: `${reviewCount} do sprawdzenia`, tone: 'review' });
+  if (!items.length) items.push({ key: 'neutral', label: 'bez zmian', tone: 'neutral' });
+  return items;
+}
+
 function candidateLabel(candidate: StudyScheduleCandidate): string {
   const date = candidate.date
     ? new Intl.DateTimeFormat('pl-PL', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(new Date(`${candidate.date}T12:00:00`))
@@ -564,6 +584,7 @@ export function StudyView({ onDataChanged }: StudyViewProps) {
   const activePlanUpdateDetails = activePlanUpdate && latestAppliedUpdateDetails?.session.id === activePlanUpdate.id ? latestAppliedUpdateDetails : null;
   const activePlanUpdateSummary = activePlanUpdateDetails?.summary ?? activePlanUpdate?.summary;
   const activePlanScheduleConflictCount = activePlanUpdateDetails?.scheduleConflicts.length ?? activePlanUpdate?.scheduleConflicts?.length ?? 0;
+  const activePlanUpdateItems = activePlanUpdateSummary ? updateStatusItems(activePlanUpdateSummary, activePlanScheduleConflictCount) : [];
 
   return (
     <section className="view-shell study-view">
@@ -586,7 +607,15 @@ export function StudyView({ onDataChanged }: StudyViewProps) {
             {activeImport ? (
               <div className="study-current-plan-line" aria-label="Status aktualnego planu studiów">
                 <div className="study-current-plan-main"><strong>{activeImport.fileName}</strong><small>{activeImport.importedEventCount} wydarzeń · {formatImportDate(activeImport.importedAt)}</small>{activeImport.selectedGroups.length ? <span className="study-current-plan-groups">{activeImport.selectedGroups.map(studyGroupCompactLabel).join(' / ')}</span> : null}</div>
-                {activePlanUpdate && activePlanUpdateSummary ? <button type="button" className="study-current-plan-change" title="Pokaż dokładne zmiany ostatniej aktualizacji planu" aria-label={`Pokaż zmiany planu: ${formatUpdateSummary(activePlanUpdateSummary, activePlanScheduleConflictCount)}`} onClick={() => setUpdateHistoryOpen(true)}>{formatUpdateSummary(activePlanUpdateSummary, activePlanScheduleConflictCount)}</button> : null}
+                {activePlanUpdate && activePlanUpdateSummary ? (
+                  <button type="button" className="study-current-plan-change" title="Pokaż dokładne zmiany ostatniej aktualizacji planu" aria-label={`Pokaż zmiany planu: ${formatUpdateSummary(activePlanUpdateSummary, activePlanScheduleConflictCount)}`} onClick={() => setUpdateHistoryOpen(true)}>
+                    <span className="study-current-plan-change-label">Zmiany</span>
+                    <span className="study-current-plan-change-chips" aria-hidden="true">
+                      {activePlanUpdateItems.map((item) => <span key={item.key} className={`study-current-plan-change-chip is-${item.tone}`}>{item.label}</span>)}
+                    </span>
+                    <span className="study-current-plan-change-open" aria-hidden="true">Pokaż <span className="study-current-plan-change-chevron">›</span></span>
+                  </button>
+                ) : null}
               </div>
             ) : null}
             {!activeImport ? <span className="upload-hint">Możesz też przeciągnąć plik tutaj.</span> : null}

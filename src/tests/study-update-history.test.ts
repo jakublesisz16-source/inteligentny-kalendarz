@@ -8,11 +8,14 @@ const modal = readFileSync(new URL('../study/ScheduleUpdateHistoryModal.tsx', im
 const database = readFileSync(new URL('../storage/database.ts', import.meta.url), 'utf8');
 const refinement = readFileSync(new URL('../styles/interface-refinement.css', import.meta.url), 'utf8');
 
-describe('Build337 Study update history', () => {
-  it('makes the latest update badge an explicit clickable control', () => {
+describe('Build340 Study update history', () => {
+  it('makes the latest update badge an explicit clickable control with structured status chips', () => {
     expect(view).toContain('className="study-current-plan-change"');
     expect(view).toContain('onClick={() => setUpdateHistoryOpen(true)}');
     expect(view).toContain('<ScheduleUpdateHistoryModal');
+    expect(view).toContain('className="study-current-plan-change-label">Zmiany</span>');
+    expect(view).toContain('study-current-plan-change-chip is-${item.tone}');
+    expect(view).toContain('className="study-current-plan-change-open"');
     expect(view).toContain('const reviewCount = summary.conflicts + summary.ambiguous');
     expect(view).toContain('scheduleConflictCount ? `Konflikty ${scheduleConflictCount}`');
     expect(view).toContain('activePlanUpdateDetails?.scheduleConflicts.length');
@@ -53,8 +56,20 @@ describe('Build337 Study update history', () => {
     ]);
   });
 
-  it('adds hover and focus affordances to the badge', () => {
+  it('uses quiet modular status styling instead of the old flat pink text badge', () => {
+    expect(refinement).toContain('Build340 - Study update history control');
+    expect(refinement).toContain('.study-current-plan-change-chip.is-added');
+    expect(refinement).toContain('background: var(--success-soft)');
+    expect(refinement).toContain('.study-current-plan-change-chip.is-review');
+    expect(refinement).toContain('background: var(--warning-soft)');
+    expect(refinement).toContain('.study-current-plan-change-open');
     expect(refinement).toContain('.study-current-plan-change:hover');
     expect(refinement).toContain('.study-current-plan-change:focus-visible');
+  });
+
+  it('does not reconstruct a compacted legacy plan as dozens of newly added lessons', () => {
+    expect(database).toContain('if (!baseEntries.length && appliedEntries.length)');
+    expect(database).toContain('summary: { ...session.summary, conflicts: 0, ambiguous: 0 }');
+    expect(database).toContain('the persisted session summary remains the only trustworthy delta');
   });
 });

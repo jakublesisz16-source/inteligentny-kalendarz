@@ -2411,6 +2411,20 @@ export async function getAppliedScheduleUpdateDetails(sessionId?: string): Promi
     listUniversityImportEntries(baseImport.id),
     listUniversityImportEntries(appliedImport.id),
   ]);
+  // Historical Study entries are intentionally compacted. Reconstructing against an empty
+  // historical payload would falsely classify the whole active plan as newly added. In that
+  // legacy case the persisted session summary remains the only trustworthy delta.
+  if (!baseEntries.length && appliedEntries.length) {
+    return {
+      session,
+      baseImport,
+      appliedImport,
+      summary: { ...session.summary, conflicts: 0, ambiguous: 0 },
+      changeItems: [],
+      scheduleConflicts: session.scheduleConflicts ?? [],
+      reconstructed: true,
+    };
+  }
   const oldEntries = entriesForStudyPlanDiff(baseEntries, baseImport.selectedGroups);
   const newEntries = entriesForStudyPlanDiff(appliedEntries, appliedImport.selectedGroups);
   const newCandidates = newEntries.map((entry) => ({
