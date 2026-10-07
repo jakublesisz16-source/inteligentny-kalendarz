@@ -18,6 +18,7 @@ import { completenessForSelectedGroups } from '../study/study-completeness';
 import { applyRecurringPatternToCandidates } from '../study/study-recurring-pattern-assumptions';
 import { ENGLISH_MONDAY_SUPPLEMENT_END, ENGLISH_MONDAY_SUPPLEMENT_LEGACY_DESCRIPTION, ENGLISH_MONDAY_SUPPLEMENT_META_KEY, ENGLISH_MONDAY_SUPPLEMENT_SERIES_ID, ENGLISH_MONDAY_SUPPLEMENT_START, ENGLISH_MONDAY_SUPPLEMENT_TITLE, englishMondaySupplementDates, matchesEnglishMondaySupplementProfile } from '../study/user-confirmed-study-supplements';
 import { applyVerifiedStudyPlanManualCorrections, isVerifiedManualStudySource } from '../study/verified-study-plan-manual';
+import { verifiedLegacyScheduleUpdateHistory } from '../study/verified-study-update-history';
 import { formatStudyGroupList, groupSetsIntersect } from '../imports/xlsx/group-normalizer';
 import { validateCandidateForImport } from '../imports/xlsx/import-validation';
 import { sha256Hex } from '../core/sha256';
@@ -2415,12 +2416,13 @@ export async function getAppliedScheduleUpdateDetails(sessionId?: string): Promi
   // historical payload would falsely classify the whole active plan as newly added. In that
   // legacy case the persisted session summary remains the only trustworthy delta.
   if (!baseEntries.length && appliedEntries.length) {
+    const verifiedHistory = verifiedLegacyScheduleUpdateHistory(baseImport, appliedImport, session.summary);
     return {
       session,
       baseImport,
       appliedImport,
       summary: { ...session.summary, conflicts: 0, ambiguous: 0 },
-      changeItems: [],
+      changeItems: verifiedHistory ?? [],
       scheduleConflicts: session.scheduleConflicts ?? [],
       reconstructed: true,
     };

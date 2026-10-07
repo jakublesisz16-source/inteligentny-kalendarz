@@ -5918,3 +5918,59 @@ body.modal-open { overflow: hidden; }
   .study-current-plan-change-chip { min-height: 26px; font-size: .64rem; }
   .study-current-plan-change-open { min-height: 26px; font-size: .62rem; }
 }
+
+/* Build341 - compact, internally consistent Study update-history modal. */
+.study-update-history-summary-compact {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+}
+.study-update-history-summary-compact > span {
+  min-height: 30px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 9px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  font-size: .66rem;
+  font-weight: 720;
+  line-height: 1;
+  white-space: nowrap;
+}
+.study-update-history-summary-compact > span > strong { font-size: .76rem; }
+.study-update-history-summary-compact .is-added { background: var(--success-soft); color: var(--success); }
+.study-update-history-summary-compact .is-changed { background: var(--accent-soft); color: var(--accent-strong); }
+.study-update-history-summary-compact .is-removed { background: var(--danger-soft); color: var(--danger); }
+.study-update-history-summary-compact .is-conflict,
+.study-update-history-summary-compact .is-review { background: var(--warning-soft); color: var(--warning); }
+.study-update-history-summary-compact .is-unchanged {
+  border-color: color-mix(in srgb, var(--line-strong) 65%, var(--line));
+  background: var(--surface);
+  color: var(--text-muted);
+}
+.study-update-history-unavailable {
+  display: grid;
+  gap: 4px;
+  margin-top: 2px;
+}
+.study-update-history-unavailable > span {
+  color: var(--text-muted);
+  font-size: .68rem;
+  line-height: 1.45;
+}
+@media (max-width: 620px) {
+  .study-update-history-modal { gap: 11px; }
+  .study-update-history-head { gap: 6px; padding-bottom: 11px; }
+  .study-update-history-summary-compact { gap: 5px; margin-top: 8px; }
+  .study-update-history-summary-compact > span {
+    min-height: 28px;
+    padding: 4px 8px;
+    font-size: .64rem;
+  }
+  .study-update-history-summary-compact > span > strong { font-size: .72rem; }
+  .study-update-history-card { padding: 14px; }
+  .study-update-history-facts { gap: 7px; }
+}
