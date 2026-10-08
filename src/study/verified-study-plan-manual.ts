@@ -12,9 +12,10 @@ import {
   VERIFIED_STUDY_PLAN_2026_10_02,
   VERIFIED_STUDY_PLAN_2026_10_05,
   VERIFIED_STUDY_PLAN_2026_10_06,
+  VERIFIED_STUDY_PLAN_2026_10_08,
 } from './verified-study-plan';
 import {
-  VERIFIED_STUDY_CURRENT_SCHEDULE_2026_10_06,
+  VERIFIED_STUDY_CURRENT_SCHEDULE_2026_10_08,
   verifiedStudyCurrentScheduleCandidates,
 } from './verified-study-current-schedule';
 
@@ -22,7 +23,40 @@ export const VERIFIED_STUDY_PROFILE_2026_10_02 = ['MAIN:11', 'G12:11B', 'G8:11B'
 
 export const VERIFIED_STUDY_PROFILE_2026_10_05 = ['MAIN:11', 'G12:11B', 'G8:11B', 'G4:11B2'] as const;
 export const VERIFIED_STUDY_PROFILE_2026_10_06 = ['MAIN:11', 'G12:11B', 'G8:11B', 'G4:11B2'] as const;
-export const VERIFIED_STUDY_PROFILE_CURRENT = VERIFIED_STUDY_PROFILE_2026_10_06;
+export const VERIFIED_STUDY_PROFILE_2026_10_08 = ['MAIN:11', 'G12:11B', 'G8:11B', 'G4:11B2'] as const;
+export const VERIFIED_STUDY_PROFILE_CURRENT = VERIFIED_STUDY_PROFILE_2026_10_08;
+
+export const VERIFIED_STUDY_SOURCE_TEXT_CORRECTIONS_2026_10_08 = [
+  {
+    sourceRange: 'AY9',
+    field: 'address',
+    sourceValue: 'ul. Jadżwingów 9',
+    canonicalValue: 'ul. Jadźwingów 9',
+    provenance: 'OFFICIAL_EXTERNAL' as const,
+    evidence: 'Zewnętrzne rejestry adresowe/EGiB potwierdzają nazwę ul. Jadźwingów 9. Surowy XLS z 08.10.2026 nadal zachowuje literówkę Jadżwingów.',
+    appliedToSchedule: false,
+    reason: 'Pozycja AY9 pozostaje source-only bez jednoznacznego dnia i godzin, więc korekta tekstu nie może tworzyć ani zmieniać wydarzenia kalendarza.',
+  },
+] as const;
+
+export const VERIFIED_STUDY_MANUAL_AUDIT_2026_10_08 = {
+  selectedGroups: VERIFIED_STUDY_PROFILE_2026_10_08,
+  candidateCount: 77,
+  importableCount: 74,
+  readyCount: 70,
+  warningCount: 4,
+  incompleteCount: 3,
+  blockingCount: 0,
+  conflictCount: 0,
+  importableMonthCounts: {
+    '2026-10': 16,
+    '2026-11': 21,
+    '2026-12': 19,
+    '2027-01': 18,
+  },
+  candidatesSha256: '334b3271484a333a8dd5387281ba554ead2ea7b2ecf5372ab371edae39dc441b',
+} as const;
+
 
 export const VERIFIED_STUDY_SOURCE_TEXT_CORRECTIONS_2026_10_06 = [
   {
@@ -713,6 +747,192 @@ const VERIFIED_LOCATION_OVERRIDES_2026_10_06: readonly VerifiedLocationOverride[
   },
 ];
 
+const VERIFIED_LOCATION_OVERRIDES_2026_10_08: readonly VerifiedLocationOverride[] = [
+  {
+    sourceRange: 'BJ7', date: '2026-10-05', subject: 'POZ seminaria',
+    patch: { room: 's. 101 Pato', address: 'ul. Litewska 14/16', locationLabel: null },
+    evidence: 'BG9: poniedziałek, gr. 11 - s. 101 Pato, ul. Litewska 14/16',
+  },
+  {
+    sourceRange: 'CB7', date: '2026-10-07', subject: 'POZ seminaria',
+    patch: { room: 'sala 210 w NZJ', address: 'ul. Ciołka 27', locationLabel: 'Zakład Rozwoju Pielęgniarstwa, Nauk Społecznych i Medycznych' },
+    evidence: 'BG9: środa, gr. 11 - sala 210 w NZJ; BF3/A66: NZJ, ul. Ciołka 27',
+  },
+  {
+    sourceRange: 'CK7', date: '2026-10-08', subject: 'POZ seminaria',
+    patch: { room: 's. 101 Pato', address: 'ul. Litewska 14/16', locationLabel: null },
+    evidence: 'BG9: czwartek, gr. 11 - sala 101 Pato, ul. Litewska 14/16',
+  },
+  {
+    sourceRange: 'DC8', date: '2026-10-14', subject: 'INTERNA (seminaria)',
+    patch: { room: 'sala 210 w NZJ', address: 'ul. Ciołka 27', locationLabel: 'Zakład Rozwoju Pielęgniarstwa, Nauk Społecznych i Medycznych' },
+    evidence: 'DC4: środa - sala 210 w NZJ; A63/A66/A71: NZJ, ul. Ciołka 27',
+  },
+  {
+    sourceRange: 'DD8', date: '2026-10-15', subject: 'INTERNA (seminaria)',
+    patch: { room: 'Aula A', address: 'ul. Trojdena 2a', locationLabel: 'Centrum Dydaktyczne' },
+    evidence: 'DD4: czwartek - aula A w CD; oficjalny adres CD: ul. Księcia Trojdena 2a',
+    provenance: { address: 'OFFICIAL_EXTERNAL' },
+  },
+  {
+    sourceRange: 'BC10', date: '2026-10-26', subject: 'PROM. ZDROWIA',
+    patch: { room: 'sala 126 w CD', address: 'ul. Trojdena 2a', locationLabel: 'Centrum Dydaktyczne' },
+    evidence: 'BC5: pon. - sala 126 w CD; oficjalny adres CD: ul. Księcia Trojdena 2a',
+    provenance: { address: 'OFFICIAL_EXTERNAL' },
+  },
+  {
+    sourceRange: 'BC10', date: '2026-10-27', subject: 'PROM. ZDROWIA',
+    patch: { clinic: 'Zakład Propedeutyki Pielęgniarstwa', room: null, address: null, locationLabel: null },
+    evidence: 'BA3-BC3 wskazuje jednostkę prowadzącą Zakład Propedeutyki Pielęgniarstwa, a BC5 przypisuje miejsca tylko poniedziałkowi i piątkom; dla wtorku źródło nie potwierdza sali ani miejsca zajęć',
+    provenance: { clinic: 'SOURCE_CROSS_REFERENCE', room: 'SOURCE_CROSS_REFERENCE', address: 'SOURCE_CROSS_REFERENCE', locationLabel: 'SOURCE_CROSS_REFERENCE' },
+  },
+  {
+    sourceRange: 'BC10', date: '2026-10-28', subject: 'PROM. ZDROWIA',
+    patch: { clinic: 'Zakład Propedeutyki Pielęgniarstwa', room: null, address: null, locationLabel: null },
+    evidence: 'BA3-BC3 wskazuje jednostkę prowadzącą Zakład Propedeutyki Pielęgniarstwa, a BC5 przypisuje miejsca tylko poniedziałkowi i piątkom; dla środy źródło nie potwierdza sali ani miejsca zajęć',
+    provenance: { clinic: 'SOURCE_CROSS_REFERENCE', room: 'SOURCE_CROSS_REFERENCE', address: 'SOURCE_CROSS_REFERENCE', locationLabel: 'SOURCE_CROSS_REFERENCE' },
+  },
+  {
+    sourceRange: 'BC10', date: '2026-10-29', subject: 'PROM. ZDROWIA',
+    patch: { clinic: 'Zakład Propedeutyki Pielęgniarstwa', room: null, address: null, locationLabel: null },
+    evidence: 'BA3-BC3 wskazuje jednostkę prowadzącą Zakład Propedeutyki Pielęgniarstwa, a BC5 przypisuje miejsca tylko poniedziałkowi i piątkom; dla czwartku źródło nie potwierdza sali ani miejsca zajęć',
+    provenance: { clinic: 'SOURCE_CROSS_REFERENCE', room: 'SOURCE_CROSS_REFERENCE', address: 'SOURCE_CROSS_REFERENCE', locationLabel: 'SOURCE_CROSS_REFERENCE' },
+  },
+  {
+    sourceRange: 'BC10', date: '2026-10-30', subject: 'PROM. ZDROWIA',
+    patch: { room: 'sala 210 w NZJ', address: 'ul. Ciołka 27', locationLabel: 'Zakład Rozwoju Pielęgniarstwa, Nauk Społecznych i Medycznych' },
+    evidence: 'BC5: pt. 16.10-30.10 - sala 210 w NZJ; A71: NZJ, ul. Ciołka 27',
+  },
+  {
+    sourceRange: 'DD10', date: '2026-10-29', subject: 'INTERNA (seminaria)',
+    patch: { room: 'Aula A', address: 'ul. Trojdena 2a', locationLabel: 'Centrum Dydaktyczne' },
+    evidence: 'DD4: czwartek - aula A w CD; oficjalny adres CD: ul. Księcia Trojdena 2a',
+    provenance: { address: 'OFFICIAL_EXTERNAL' },
+  },
+  {
+    sourceRange: 'DJ11', date: '2026-11-06', subject: 'INTERNA (seminaria)',
+    patch: { room: 'sala seminaryjna, I piętro, pawilon VIII', address: 'ul. Nowogrodzka 59', locationLabel: 'Zakład Podstaw Pielęgniarstwa' },
+    evidence: 'DI3/A73: sala seminaryjna I p., pawilon VIII, ul. Nowogrodzka 59',
+  },
+  {
+    sourceRange: 'CY12', date: '2026-11-09', subject: 'FARMAKOLOGIA',
+    patch: { room: 'sala 203 w CD', address: 'ul. Trojdena 2a', locationLabel: 'Centrum Dydaktyczne' },
+    evidence: 'CY5: sala 203 w CD; oficjalny adres CD: ul. Księcia Trojdena 2a',
+    provenance: { address: 'OFFICIAL_EXTERNAL' },
+  },
+  {
+    sourceRange: 'CZ12', date: '2026-11-10', subject: 'FARMAKOLOGIA',
+    patch: { room: 'sala nr 7, niski parter', address: 'ul. Pawińskiego 3c', locationLabel: null },
+    evidence: 'CZ5: sala nr 7 niski parter, ul. Pawińskiego 3c',
+  },
+  {
+    sourceRange: 'AP13', date: '2026-11-16', subject: 'Podst. Rehab. ćw.',
+    patch: { room: 'sala 101', address: 'ul. Ciołka 27', locationLabel: 'Zakład Pielęgniarstwa Klinicznego' },
+    evidence: 'AO3/A61: Zakład Pielęgniarstwa Klinicznego, sala 101, ul. Ciołka 27',
+  },
+  {
+    sourceRange: 'AR13', date: '2026-11-18', subject: 'Podst. Rehab. ćw.',
+    patch: { room: 'sala 101', address: 'ul. Ciołka 27', locationLabel: 'Zakład Pielęgniarstwa Klinicznego' },
+    evidence: 'AO3/A61: Zakład Pielęgniarstwa Klinicznego, sala 101, ul. Ciołka 27',
+  },
+  {
+    sourceRange: 'AT13', date: '2026-11-20', subject: 'Podst. Rehab. ćw.',
+    patch: { room: 'sala 101', address: 'ul. Ciołka 27', locationLabel: 'Zakład Pielęgniarstwa Klinicznego' },
+    evidence: 'AO3/A61: Zakład Pielęgniarstwa Klinicznego, sala 101, ul. Ciołka 27',
+  },
+  {
+    sourceRange: 'AM14', subject: 'PEDIATRIA',
+    patch: { clinic: 'Katedra i Klinika Pediatrii i Nefrologii' },
+    evidence: 'AM4: prof. M. Mizerska-Wasiak; A58: Katedra i Klinika Pediatrii i Nefrologii, ul. Żwirki i Wigury 63A',
+  },
+  {
+    sourceRange: 'CX14', date: '2026-11-27', subject: 'POZ ćw.',
+    patch: { room: 'sala 102 w NZN', address: 'ul. Ciołka 27', locationLabel: 'Zakład Pielęgniarstwa Klinicznego' },
+    evidence: 'CX3: piątek - sala 102 w NZN; A61: Zakład Pielęgniarstwa Klinicznego, ul. Ciołka 27',
+  },
+  {
+    sourceRange: 'AM15', subject: 'PEDIATRIA',
+    patch: { clinic: 'Katedra i Klinika Pediatrii i Nefrologii' },
+    evidence: 'AM4: prof. M. Mizerska-Wasiak; A58: Katedra i Klinika Pediatrii i Nefrologii, ul. Żwirki i Wigury 63A',
+  },
+  {
+    sourceRange: 'O16', subject: 'INTERNA',
+    patch: { clinic: 'Klinika Chorób Wewnętrznych i Kardiologii', address: 'ul. Lindleya 4', locationLabel: 'Klinika Chorób Wewnętrznych i Kardiologii' },
+    evidence: 'O4: dr hab. Ł. Czyżewski; A38: zajęcia realizowane w Klinice Chorób Wewnętrznych i Kardiologii, ul. Lindleya 4',
+  },
+  {
+    sourceRange: 'S16', date: '2026-12-07', subject: 'INTERNA',
+    patch: { locationLabel: 'Klinika Onkologii' },
+    evidence: 'R4: prof. R. Stec; A43/A44: Klinika Onkologii, ul. Banacha 1a',
+  },
+  {
+    sourceRange: 'T16', date: '2026-12-08', subject: 'INTERNA',
+    patch: { locationLabel: 'Klinika Onkologii' },
+    evidence: 'R4: prof. R. Stec; A43/A44: Klinika Onkologii, ul. Banacha 1a',
+  },
+  {
+    sourceRange: 'BE16', date: '2026-12-11', subject: 'PROMOCJA ZDROWIA (seminaria)',
+    patch: { room: 'sala 119', address: 'ul. Żwirki i Wigury 63', locationLabel: 'Centrum Biblioteczno-Informacyjne' },
+    evidence: 'BE4: piątek - 119 CBI; oficjalny adres CBI WUM: ul. Żwirki i Wigury 63',
+    provenance: { address: 'OFFICIAL_EXTERNAL' },
+  },
+  {
+    sourceRange: 'O17', subject: 'INTERNA',
+    patch: { clinic: 'Klinika Chorób Wewnętrznych i Kardiologii', address: 'ul. Lindleya 4', locationLabel: 'Klinika Chorób Wewnętrznych i Kardiologii' },
+    evidence: 'O4: dr hab. Ł. Czyżewski; A38: zajęcia realizowane w Klinice Chorób Wewnętrznych i Kardiologii, ul. Lindleya 4',
+  },
+  {
+    sourceRange: 'BE17', date: '2026-12-18', subject: 'PROMOCJA ZDROWIA (seminaria)',
+    patch: { room: 'sala 119', address: 'ul. Żwirki i Wigury 63', locationLabel: 'Centrum Biblioteczno-Informacyjne' },
+    evidence: 'BE4: piątek - 119 CBI; oficjalny adres CBI WUM: ul. Żwirki i Wigury 63',
+    provenance: { address: 'OFFICIAL_EXTERNAL' },
+  },
+  {
+    sourceRange: 'DI17', date: '2026-12-16', subject: 'INTERNA (seminaria)',
+    patch: { room: 'sala seminaryjna, I piętro, pawilon VIII', address: 'ul. Nowogrodzka 59', locationLabel: 'Zakład Podstaw Pielęgniarstwa' },
+    evidence: 'DI3/A73: sala seminaryjna I p., pawilon VIII, ul. Nowogrodzka 59',
+  },
+  {
+    sourceRange: 'DH18', date: '2027-01-08', subject: 'PEDIATRIA NZYN (seminaria)',
+    patch: { clinic: 'Klinika Neonatologii i Chorób Rzadkich', room: 'sala seminaryjna', address: 'ul. Żwirki i Wigury 63A', locationLabel: 'Klinika Neonatologii i Chorób Rzadkich' },
+    evidence: 'DG3: sala seminaryjna w Klinice Neonatologii i Chorób Rzadkich, ul. Żwirki i Wigury 63a',
+  },
+  {
+    sourceRange: 'DH19', date: '2027-01-15', subject: 'PEDIATRIA NZYN (seminaria)',
+    patch: { clinic: 'Klinika Neonatologii i Chorób Rzadkich', room: 'sala seminaryjna', address: 'ul. Żwirki i Wigury 63A', locationLabel: 'Klinika Neonatologii i Chorób Rzadkich' },
+    evidence: 'DG3: sala seminaryjna w Klinice Neonatologii i Chorób Rzadkich, ul. Żwirki i Wigury 63a',
+  },
+  {
+    sourceRange: 'D20', subject: 'CHIRURGIA I BLOK OPERACYJNY',
+    patch: { clinic: 'Katedra i Klinika Chirurgii Ogólnej, Gastroenterologicznej i Onkologicznej', address: 'ul. Banacha 1a', locationLabel: 'Katedra i Klinika Chirurgii Ogólnej, Gastroenterologicznej i Onkologicznej' },
+    evidence: 'B3/D4/A27-A28: blok prof. M. Słodkowskiego w Katedrze i Klinice Chirurgii Ogólnej, Gastroenterologicznej i Onkologicznej; arkusz podaje Banacha 1, aktualny oficjalny adres jednostki WUM to ul. Banacha 1a, budynek B',
+    provenance: { clinic: 'SOURCE_CROSS_REFERENCE', address: 'OFFICIAL_EXTERNAL', locationLabel: 'SOURCE_CROSS_REFERENCE' },
+  },
+  {
+    sourceRange: 'D21', subject: 'CHIRURGIA I BLOK OPERACYJNY',
+    patch: { clinic: 'Katedra i Klinika Chirurgii Ogólnej, Gastroenterologicznej i Onkologicznej', address: 'ul. Banacha 1a', locationLabel: 'Katedra i Klinika Chirurgii Ogólnej, Gastroenterologicznej i Onkologicznej' },
+    evidence: 'B3/D4/A27-A28: blok prof. M. Słodkowskiego w Katedrze i Klinice Chirurgii Ogólnej, Gastroenterologicznej i Onkologicznej; arkusz podaje Banacha 1, aktualny oficjalny adres jednostki WUM to ul. Banacha 1a, budynek B',
+    provenance: { clinic: 'SOURCE_CROSS_REFERENCE', address: 'OFFICIAL_EXTERNAL', locationLabel: 'SOURCE_CROSS_REFERENCE' },
+  },
+  {
+    sourceRange: 'DK21', date: '2027-01-27', subject: 'CHIRURGIA (seminaria)',
+    patch: { clinic: 'Zakład Pielęgniarstwa Chirurgicznego, Transplantacyjnego i Leczenia Pozaustrojowego', room: 'sala seminaryjna 128 w NZS, pawilon XI D1', address: 'ul. Nowogrodzka 59', locationLabel: 'Zakład Pielęgniarstwa Chirurgicznego, Transplantacyjnego i Leczenia Pozaustrojowego' },
+    evidence: 'DK3/A76: sala seminaryjna 128 w NZS, ul. Nowogrodzka 59, pawilon XI D1',
+  },
+  {
+    sourceSheet: 'WYKŁADY', sourceRange: 'A14,B14', date: '2027-01-05', subject: 'POZ',
+    patch: { clinic: 'Microsoft Teams', room: null, address: null, locationLabel: null },
+    evidence: 'WYKŁADY B14: POZ 15.00-18.45 TEAMS; wpis online ma pierwszeństwo przed globalną Aulą B',
+    provenance: { clinic: 'SOURCE_DIRECT', room: 'SOURCE_DIRECT', address: 'SOURCE_DIRECT', locationLabel: 'SOURCE_DIRECT' },
+  },
+  {
+    sourceRange: 'DA12', date: '2026-11-12', subject: 'FARMAKOLOGIA',
+    patch: { room: 'sala komputerowa, sala 234 w CD', address: 'ul. Trojdena 2a', locationLabel: 'Centrum Dydaktyczne' },
+    evidence: 'DA5: sala komputerowa, sala 234 w CD; WYKŁADY A1: Centrum Dydaktyczne, ul. Trojdena 2a',
+  },
+];
+
+
 const VERIFIED_SOURCE_INCOMPLETE_2026_10_05: ReadonlyArray<{
   sourceRange: string;
   date?: string;
@@ -735,6 +955,31 @@ const VERIFIED_SOURCE_INCOMPLETE_2026_10_05: ReadonlyArray<{
     date: '2026-12-08',
     subject: 'INTERNA',
     warning: 'Plan z 05.10.2026 wskazuje zajęcia u prof. R. Steca 08.12.2026 przy ul. Banacha 1a, ale nie podaje pełnego zakresu godzin. Nie wolno uzupełniać czasu z powtarzalnego wzorca.',
+  },
+];
+
+const VERIFIED_SOURCE_INCOMPLETE_2026_10_08: ReadonlyArray<{
+  sourceRange: string;
+  date?: string;
+  subject: string;
+  warning: string;
+}> = [
+  {
+    sourceRange: 'AY9',
+    subject: 'POZ',
+    warning: 'Plan z 08.10.2026 przypisuje POZ grupy 11B2 do tygodnia 19-23.10.2026 przy ul. Jadżwingów 9, ale nie podaje jednoznacznego dnia ani pełnego zakresu godzin. Wpis pozostaje source-only i nie tworzy fikcyjnego wydarzenia.',
+  },
+  {
+    sourceRange: 'S16',
+    date: '2026-12-07',
+    subject: 'INTERNA',
+    warning: 'Plan z 08.10.2026 wskazuje zajęcia u prof. R. Steca 07.12.2026 przy ul. Banacha 1a, ale nie podaje pełnego zakresu godzin. Nie wolno uzupełniać czasu z powtarzalnego wzorca.',
+  },
+  {
+    sourceRange: 'T16',
+    date: '2026-12-08',
+    subject: 'INTERNA',
+    warning: 'Plan z 08.10.2026 wskazuje zajęcia u prof. R. Steca 08.12.2026 przy ul. Banacha 1a, ale nie podaje pełnego zakresu godzin. Nie wolno uzupełniać czasu z powtarzalnego wzorca.',
   },
 ];
 
@@ -769,6 +1014,17 @@ function normalizedHash(value: string): string {
 
 function manualConfigForHash(fileHash: string) {
   const hash = normalizedHash(fileHash);
+  if (hash === VERIFIED_STUDY_PLAN_2026_10_08.sha256) {
+    return {
+      plan: VERIFIED_STUDY_PLAN_2026_10_08,
+      selectedGroups: VERIFIED_STUDY_PROFILE_2026_10_08,
+      audit: VERIFIED_STUDY_MANUAL_AUDIT_2026_10_08,
+      overrides: VERIFIED_LOCATION_OVERRIDES_2026_10_08,
+      incomplete: VERIFIED_SOURCE_INCOMPLETE_2026_10_08,
+      auditDateLabel: '08.10.2026',
+      informationId: 'verified-manual-plan-2026-10-08',
+    } as const;
+  }
   if (hash === VERIFIED_STUDY_PLAN_2026_10_06.sha256) {
     return {
       plan: VERIFIED_STUDY_PLAN_2026_10_06,
@@ -892,7 +1148,7 @@ function applyCurrentManualScheduleSnapshot(candidates: StudyScheduleCandidate[]
   candidates: StudyScheduleCandidate[];
   matchedCanonicalCount: number;
 } {
-  if (normalizedHash(fileHash) !== VERIFIED_STUDY_PLAN_2026_10_06.sha256) {
+  if (normalizedHash(fileHash) !== VERIFIED_STUDY_PLAN_2026_10_08.sha256) {
     return { candidates, matchedCanonicalCount: 0 };
   }
   const canonical = verifiedStudyCurrentScheduleCandidates();
@@ -998,8 +1254,8 @@ export async function verifyVerifiedStudyPlanManualAudit(
   const audit = auditSelectedStudyProfile(corrected, selectedGroups);
   const expected = config.audit;
   const reasons: string[] = [];
-  if (normalizedHash(fileHash) === VERIFIED_STUDY_PLAN_2026_10_06.sha256) {
-    const expectedKeys = new Set(VERIFIED_STUDY_CURRENT_SCHEDULE_2026_10_06.map((candidate) => candidate.sourceKey));
+  if (normalizedHash(fileHash) === VERIFIED_STUDY_PLAN_2026_10_08.sha256) {
+    const expectedKeys = new Set(VERIFIED_STUDY_CURRENT_SCHEDULE_2026_10_08.map((candidate) => candidate.sourceKey));
     const selectedKeys = new Set(selected.map((candidate) => candidate.sourceKey));
     if (selectedKeys.size !== expectedKeys.size || [...expectedKeys].some((key) => !selectedKeys.has(key))) {
       reasons.push('Ręczna lista bieżącego kalendarza nie pokrywa dokładnie wszystkich 77 pozycji źródłowych.');
@@ -1015,6 +1271,6 @@ export async function verifyVerifiedStudyPlanManualAudit(
   return { verified: reasons.length === 0, reasons, candidatesSha256 };
 }
 
-export function verifiedStudyPlanManualEvidence(fileHash = VERIFIED_STUDY_PLAN_2026_10_06.sha256): ReadonlyArray<Readonly<VerifiedLocationOverride>> {
+export function verifiedStudyPlanManualEvidence(fileHash = VERIFIED_STUDY_PLAN_2026_10_08.sha256): ReadonlyArray<Readonly<VerifiedLocationOverride>> {
   return manualConfigForHash(fileHash)?.overrides ?? [];
 }

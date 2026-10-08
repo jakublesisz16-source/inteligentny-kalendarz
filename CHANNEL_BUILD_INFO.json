@@ -1,11 +1,11 @@
 {
   "source": "PRIVATE",
   "surface": "public-stable",
-  "buildId": "ik-1.2.0.341-20261007-study-update-history-modal-consistency-verified-delta-recovery",
-  "appVersion": "1.2.0.341",
+  "buildId": "ik-1.2.0.342-20261008-wum-study-plan-0810-full-manual-reaudit-no-calendar-delta",
+  "appVersion": "1.2.0.342",
   "releaseVersion": "1.2.0",
-  "packageVersion": "1.2.0-private.341",
-  "build": "341",
-  "contentFingerprint": "c47953006157c2e7084c808dbcab2fc447ba59230688569c7bff157040842322",
-  "fileCount": 584
+  "packageVersion": "1.2.0-private.342",
+  "build": "342",
+  "contentFingerprint": "af477b3a743f221c4cbf5cda6fa07d70eeb5464c4cb37872d59c6960562ea914",
+  "fileCount": 585
 }

@@ -5,6 +5,7 @@ import {
   VERIFIED_STUDY_PLAN_2026_10_02,
   VERIFIED_STUDY_PLAN_2026_10_05,
   VERIFIED_STUDY_PLAN_2026_10_06,
+  VERIFIED_STUDY_PLAN_2026_10_08,
   verifyStudyPlanAgainstReference,
   verifyStudyPlanSource,
 } from '../study/verified-study-plan';
@@ -127,7 +128,27 @@ describe('Verified Study Plan', () => {
 
 
 
-  it('rozpoznaje dokładny SHA planu 06.10 jako bieżącą referencję, a nie NEW_SOURCE', async () => {
+  it('rozpoznaje dokładny SHA planu 08.10 jako bieżącą referencję, a nie NEW_SOURCE', async () => {
+    expect(VERIFIED_STUDY_PLAN_2026_10_08.sha256).toBe('5116ed4520f5bce1a1e261062a923938dba842d2d58becdd88159e066fad9f54');
+    expect(VERIFIED_STUDY_PLAN_2026_10_08.selectedProfile).toMatchObject({
+      candidateCount: 77,
+      importableCount: 74,
+      conflictCount: 0,
+    });
+
+    const result = await verifyStudyPlanSource({
+      fileName: VERIFIED_STUDY_PLAN_2026_10_08.sourceName,
+      fileSize: VERIFIED_STUDY_PLAN_2026_10_08.sizeBytes,
+      fileHash: VERIFIED_STUDY_PLAN_2026_10_08.sha256,
+      analysis: analysis(),
+    });
+
+    expect(result.state).not.toBe('NEW_SOURCE');
+    expect(result.referenceId).toBe(VERIFIED_STUDY_PLAN_2026_10_08.id);
+    expect(result.referenceSourceName).toBe(VERIFIED_STUDY_PLAN_2026_10_08.sourceName);
+  });
+
+  it('rozpoznaje dokładny SHA planu 06.10 jako historyczną zweryfikowaną referencję', async () => {
     expect(VERIFIED_STUDY_PLAN_2026_10_06.sha256).toBe('5e5ea210abbcc972b2928372505eaee5d9a58ffeba6c7d7162eb3514bb9570b9');
     expect(VERIFIED_STUDY_PLAN_2026_10_06.selectedProfile).toMatchObject({
       candidateCount: 77,
