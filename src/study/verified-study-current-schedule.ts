@@ -1,6 +1,6 @@
 import type { StudyScheduleCandidate } from './study.types';
 
-export const VERIFIED_STUDY_CURRENT_SCHEDULE_SOURCE_SHA256 = '5e5ea210abbcc972b2928372505eaee5d9a58ffeba6c7d7162eb3514bb9570b9';
+export const VERIFIED_STUDY_CURRENT_SCHEDULE_SOURCE_SHA256 = '5116ed4520f5bce1a1e261062a923938dba842d2d58becdd88159e066fad9f54';
 export const VERIFIED_STUDY_CURRENT_SCHEDULE_PROFILE = ['MAIN:11', 'G12:11B', 'G8:11B', 'G4:11B2'] as const;
 export const VERIFIED_STUDY_CURRENT_TIMED_EVENT_COUNT = 74;
 export const VERIFIED_STUDY_CURRENT_SOURCE_ONLY_COUNT = 3;
@@ -9,7 +9,7 @@ export const VERIFIED_STUDY_CURRENT_CALENDAR_OPERATIONAL_SHA256 = '85555718ade73
 // Canonical, manually audited snapshot of every source position for the user's current profile.
 // This is intentionally explicit and hash-bound. The generic XLS parser remains a verification layer,
 // but for this exact source/profile the calendar fields below are the final authority.
-export const VERIFIED_STUDY_CURRENT_SCHEDULE_2026_10_06: readonly StudyScheduleCandidate[] =
+export const VERIFIED_STUDY_CURRENT_SCHEDULE_2026_10_08: readonly StudyScheduleCandidate[] =
 [
   {
     "id": "candidate-4900ffbb",
@@ -86,17 +86,17 @@ export const VERIFIED_STUDY_CURRENT_SCHEDULE_2026_10_06: readonly StudyScheduleC
       {
         "field": "room",
         "source": "SOURCE_CROSS_REFERENCE",
-        "evidence": "BG9: środa, gr. 11 - sala 210 w NZJ; BF3/A67: NZJ, ul. Ciołka 27"
+        "evidence": "BG9: środa, gr. 11 - sala 210 w NZJ; BF3/A66: NZJ, ul. Ciołka 27"
       },
       {
         "field": "address",
         "source": "SOURCE_CROSS_REFERENCE",
-        "evidence": "BG9: środa, gr. 11 - sala 210 w NZJ; BF3/A67: NZJ, ul. Ciołka 27"
+        "evidence": "BG9: środa, gr. 11 - sala 210 w NZJ; BF3/A66: NZJ, ul. Ciołka 27"
       },
       {
         "field": "locationLabel",
         "source": "SOURCE_CROSS_REFERENCE",
-        "evidence": "BG9: środa, gr. 11 - sala 210 w NZJ; BF3/A67: NZJ, ul. Ciołka 27"
+        "evidence": "BG9: środa, gr. 11 - sala 210 w NZJ; BF3/A66: NZJ, ul. Ciołka 27"
       }
     ],
     "room": "sala 210 w NZJ",
@@ -222,17 +222,17 @@ export const VERIFIED_STUDY_CURRENT_SCHEDULE_2026_10_06: readonly StudyScheduleC
       {
         "field": "room",
         "source": "SOURCE_CROSS_REFERENCE",
-        "evidence": "DC4: środa - sala 210 w NZJ; A64/A67/A72: NZJ, ul. Ciołka 27"
+        "evidence": "DC4: środa - sala 210 w NZJ; A63/A66/A71: NZJ, ul. Ciołka 27"
       },
       {
         "field": "address",
         "source": "SOURCE_CROSS_REFERENCE",
-        "evidence": "DC4: środa - sala 210 w NZJ; A64/A67/A72: NZJ, ul. Ciołka 27"
+        "evidence": "DC4: środa - sala 210 w NZJ; A63/A66/A71: NZJ, ul. Ciołka 27"
       },
       {
         "field": "locationLabel",
         "source": "SOURCE_CROSS_REFERENCE",
-        "evidence": "DC4: środa - sala 210 w NZJ; A64/A67/A72: NZJ, ul. Ciołka 27"
+        "evidence": "DC4: środa - sala 210 w NZJ; A63/A66/A71: NZJ, ul. Ciołka 27"
       }
     ],
     "manuallyReviewed": true
@@ -574,17 +574,17 @@ export const VERIFIED_STUDY_CURRENT_SCHEDULE_2026_10_06: readonly StudyScheduleC
       {
         "field": "room",
         "source": "SOURCE_CROSS_REFERENCE",
-        "evidence": "BC5: pt. 16.10-30.10 - sala 210 w NZJ; A72: NZJ, ul. Ciołka 27"
+        "evidence": "BC5: pt. 16.10-30.10 - sala 210 w NZJ; A71: NZJ, ul. Ciołka 27"
       },
       {
         "field": "address",
         "source": "SOURCE_CROSS_REFERENCE",
-        "evidence": "BC5: pt. 16.10-30.10 - sala 210 w NZJ; A72: NZJ, ul. Ciołka 27"
+        "evidence": "BC5: pt. 16.10-30.10 - sala 210 w NZJ; A71: NZJ, ul. Ciołka 27"
       },
       {
         "field": "locationLabel",
         "source": "SOURCE_CROSS_REFERENCE",
-        "evidence": "BC5: pt. 16.10-30.10 - sala 210 w NZJ; A72: NZJ, ul. Ciołka 27"
+        "evidence": "BC5: pt. 16.10-30.10 - sala 210 w NZJ; A71: NZJ, ul. Ciołka 27"
       }
     ],
     "manuallyReviewed": true
@@ -641,17 +641,17 @@ export const VERIFIED_STUDY_CURRENT_SCHEDULE_2026_10_06: readonly StudyScheduleC
       {
         "field": "room",
         "source": "SOURCE_CROSS_REFERENCE",
-        "evidence": "DI3/A74: sala seminaryjna I p., pawilon VIII, ul. Nowogrodzka 59"
+        "evidence": "DI3/A73: sala seminaryjna I p., pawilon VIII, ul. Nowogrodzka 59"
       },
       {
         "field": "address",
         "source": "SOURCE_CROSS_REFERENCE",
-        "evidence": "DI3/A74: sala seminaryjna I p., pawilon VIII, ul. Nowogrodzka 59"
+        "evidence": "DI3/A73: sala seminaryjna I p., pawilon VIII, ul. Nowogrodzka 59"
       },
       {
         "field": "locationLabel",
         "source": "SOURCE_CROSS_REFERENCE",
-        "evidence": "DI3/A74: sala seminaryjna I p., pawilon VIII, ul. Nowogrodzka 59"
+        "evidence": "DI3/A73: sala seminaryjna I p., pawilon VIII, ul. Nowogrodzka 59"
       }
     ],
     "room": "sala seminaryjna, I piętro, pawilon VIII",
@@ -866,17 +866,17 @@ export const VERIFIED_STUDY_CURRENT_SCHEDULE_2026_10_06: readonly StudyScheduleC
       {
         "field": "room",
         "source": "SOURCE_CROSS_REFERENCE",
-        "evidence": "AO3/A62: Zakład Pielęgniarstwa Klinicznego, sala 101, ul. Ciołka 27"
+        "evidence": "AO3/A61: Zakład Pielęgniarstwa Klinicznego, sala 101, ul. Ciołka 27"
       },
       {
         "field": "address",
         "source": "SOURCE_CROSS_REFERENCE",
-        "evidence": "AO3/A62: Zakład Pielęgniarstwa Klinicznego, sala 101, ul. Ciołka 27"
+        "evidence": "AO3/A61: Zakład Pielęgniarstwa Klinicznego, sala 101, ul. Ciołka 27"
       },
       {
         "field": "locationLabel",
         "source": "SOURCE_CROSS_REFERENCE",
-        "evidence": "AO3/A62: Zakład Pielęgniarstwa Klinicznego, sala 101, ul. Ciołka 27"
+        "evidence": "AO3/A61: Zakład Pielęgniarstwa Klinicznego, sala 101, ul. Ciołka 27"
       }
     ],
     "manuallyReviewed": true
@@ -934,17 +934,17 @@ export const VERIFIED_STUDY_CURRENT_SCHEDULE_2026_10_06: readonly StudyScheduleC
       {
         "field": "room",
         "source": "SOURCE_CROSS_REFERENCE",
-        "evidence": "AO3/A62: Zakład Pielęgniarstwa Klinicznego, sala 101, ul. Ciołka 27"
+        "evidence": "AO3/A61: Zakład Pielęgniarstwa Klinicznego, sala 101, ul. Ciołka 27"
       },
       {
         "field": "address",
         "source": "SOURCE_CROSS_REFERENCE",
-        "evidence": "AO3/A62: Zakład Pielęgniarstwa Klinicznego, sala 101, ul. Ciołka 27"
+        "evidence": "AO3/A61: Zakład Pielęgniarstwa Klinicznego, sala 101, ul. Ciołka 27"
       },
       {
         "field": "locationLabel",
         "source": "SOURCE_CROSS_REFERENCE",
-        "evidence": "AO3/A62: Zakład Pielęgniarstwa Klinicznego, sala 101, ul. Ciołka 27"
+        "evidence": "AO3/A61: Zakład Pielęgniarstwa Klinicznego, sala 101, ul. Ciołka 27"
       }
     ],
     "manuallyReviewed": true
@@ -1002,17 +1002,17 @@ export const VERIFIED_STUDY_CURRENT_SCHEDULE_2026_10_06: readonly StudyScheduleC
       {
         "field": "room",
         "source": "SOURCE_CROSS_REFERENCE",
-        "evidence": "AO3/A62: Zakład Pielęgniarstwa Klinicznego, sala 101, ul. Ciołka 27"
+        "evidence": "AO3/A61: Zakład Pielęgniarstwa Klinicznego, sala 101, ul. Ciołka 27"
       },
       {
         "field": "address",
         "source": "SOURCE_CROSS_REFERENCE",
-        "evidence": "AO3/A62: Zakład Pielęgniarstwa Klinicznego, sala 101, ul. Ciołka 27"
+        "evidence": "AO3/A61: Zakład Pielęgniarstwa Klinicznego, sala 101, ul. Ciołka 27"
       },
       {
         "field": "locationLabel",
         "source": "SOURCE_CROSS_REFERENCE",
-        "evidence": "AO3/A62: Zakład Pielęgniarstwa Klinicznego, sala 101, ul. Ciołka 27"
+        "evidence": "AO3/A61: Zakład Pielęgniarstwa Klinicznego, sala 101, ul. Ciołka 27"
       }
     ],
     "manuallyReviewed": true
@@ -1023,7 +1023,7 @@ export const VERIFIED_STUDY_CURRENT_SCHEDULE_2026_10_06: readonly StudyScheduleC
     "sourceSheet": "PLAN ZAJĘĆ",
     "sourceRange": "AM14",
     "sourceKey": "PLAN ZAJĘĆ|AM14|2026-11-23|08:00|14:00|PEDIATRIA|G4:11B2",
-    "originalText": "23.11. - 27.11.2026 | 11b2 | PEDIATRIA zajęcia praktyczne 80 godz. grupy 4-osobowe | pon. - pt. 8.00 - 14.00 | prof. m. Mizerska-Wasiak",
+    "originalText": "23.11. - 27.11.2026 | 11b2 | PEDIATRIA zajęcia praktyczne 80 godz. grupy 4-osobowe | pon. - pt. 8.00 - 14.00 UWAGA! Wszyscy Studenci realizujący zajęcia praktyczne z pediatrii w DSK mają pierwsze spotkanie z Asystentem o godz. 8.00 przed wejściem do Kliniki wskazanej w planie zajęć. | prof. m. Mizerska-Wasiak",
     "subject": "PEDIATRIA",
     "activityType": "Zajęcia praktyczne",
     "date": "2026-11-23",
@@ -1047,7 +1047,7 @@ export const VERIFIED_STUDY_CURRENT_SCHEDULE_2026_10_06: readonly StudyScheduleC
       {
         "field": "clinic",
         "source": "SOURCE_CROSS_REFERENCE",
-        "evidence": "AM4: prof. M. Mizerska-Wasiak; A59: Katedra i Klinika Pediatrii i Nefrologii, ul. Żwirki i Wigury 63A"
+        "evidence": "AM4: prof. M. Mizerska-Wasiak; A58: Katedra i Klinika Pediatrii i Nefrologii, ul. Żwirki i Wigury 63A"
       }
     ],
     "clinic": "Katedra i Klinika Pediatrii i Nefrologii",
@@ -1059,7 +1059,7 @@ export const VERIFIED_STUDY_CURRENT_SCHEDULE_2026_10_06: readonly StudyScheduleC
     "sourceSheet": "PLAN ZAJĘĆ",
     "sourceRange": "AM14",
     "sourceKey": "PLAN ZAJĘĆ|AM14|2026-11-24|08:00|14:00|PEDIATRIA|G4:11B2",
-    "originalText": "23.11. - 27.11.2026 | 11b2 | PEDIATRIA zajęcia praktyczne 80 godz. grupy 4-osobowe | pon. - pt. 8.00 - 14.00 | prof. m. Mizerska-Wasiak",
+    "originalText": "23.11. - 27.11.2026 | 11b2 | PEDIATRIA zajęcia praktyczne 80 godz. grupy 4-osobowe | pon. - pt. 8.00 - 14.00 UWAGA! Wszyscy Studenci realizujący zajęcia praktyczne z pediatrii w DSK mają pierwsze spotkanie z Asystentem o godz. 8.00 przed wejściem do Kliniki wskazanej w planie zajęć. | prof. m. Mizerska-Wasiak",
     "subject": "PEDIATRIA",
     "activityType": "Zajęcia praktyczne",
     "date": "2026-11-24",
@@ -1083,7 +1083,7 @@ export const VERIFIED_STUDY_CURRENT_SCHEDULE_2026_10_06: readonly StudyScheduleC
       {
         "field": "clinic",
         "source": "SOURCE_CROSS_REFERENCE",
-        "evidence": "AM4: prof. M. Mizerska-Wasiak; A59: Katedra i Klinika Pediatrii i Nefrologii, ul. Żwirki i Wigury 63A"
+        "evidence": "AM4: prof. M. Mizerska-Wasiak; A58: Katedra i Klinika Pediatrii i Nefrologii, ul. Żwirki i Wigury 63A"
       }
     ],
     "clinic": "Katedra i Klinika Pediatrii i Nefrologii",
@@ -1117,7 +1117,7 @@ export const VERIFIED_STUDY_CURRENT_SCHEDULE_2026_10_06: readonly StudyScheduleC
     "sourceSheet": "PLAN ZAJĘĆ",
     "sourceRange": "AM14",
     "sourceKey": "PLAN ZAJĘĆ|AM14|2026-11-25|08:00|14:00|PEDIATRIA|G4:11B2",
-    "originalText": "23.11. - 27.11.2026 | 11b2 | PEDIATRIA zajęcia praktyczne 80 godz. grupy 4-osobowe | pon. - pt. 8.00 - 14.00 | prof. m. Mizerska-Wasiak",
+    "originalText": "23.11. - 27.11.2026 | 11b2 | PEDIATRIA zajęcia praktyczne 80 godz. grupy 4-osobowe | pon. - pt. 8.00 - 14.00 UWAGA! Wszyscy Studenci realizujący zajęcia praktyczne z pediatrii w DSK mają pierwsze spotkanie z Asystentem o godz. 8.00 przed wejściem do Kliniki wskazanej w planie zajęć. | prof. m. Mizerska-Wasiak",
     "subject": "PEDIATRIA",
     "activityType": "Zajęcia praktyczne",
     "date": "2026-11-25",
@@ -1141,7 +1141,7 @@ export const VERIFIED_STUDY_CURRENT_SCHEDULE_2026_10_06: readonly StudyScheduleC
       {
         "field": "clinic",
         "source": "SOURCE_CROSS_REFERENCE",
-        "evidence": "AM4: prof. M. Mizerska-Wasiak; A59: Katedra i Klinika Pediatrii i Nefrologii, ul. Żwirki i Wigury 63A"
+        "evidence": "AM4: prof. M. Mizerska-Wasiak; A58: Katedra i Klinika Pediatrii i Nefrologii, ul. Żwirki i Wigury 63A"
       }
     ],
     "clinic": "Katedra i Klinika Pediatrii i Nefrologii",
@@ -1153,7 +1153,7 @@ export const VERIFIED_STUDY_CURRENT_SCHEDULE_2026_10_06: readonly StudyScheduleC
     "sourceSheet": "PLAN ZAJĘĆ",
     "sourceRange": "AM14",
     "sourceKey": "PLAN ZAJĘĆ|AM14|2026-11-26|08:00|14:00|PEDIATRIA|G4:11B2",
-    "originalText": "23.11. - 27.11.2026 | 11b2 | PEDIATRIA zajęcia praktyczne 80 godz. grupy 4-osobowe | pon. - pt. 8.00 - 14.00 | prof. m. Mizerska-Wasiak",
+    "originalText": "23.11. - 27.11.2026 | 11b2 | PEDIATRIA zajęcia praktyczne 80 godz. grupy 4-osobowe | pon. - pt. 8.00 - 14.00 UWAGA! Wszyscy Studenci realizujący zajęcia praktyczne z pediatrii w DSK mają pierwsze spotkanie z Asystentem o godz. 8.00 przed wejściem do Kliniki wskazanej w planie zajęć. | prof. m. Mizerska-Wasiak",
     "subject": "PEDIATRIA",
     "activityType": "Zajęcia praktyczne",
     "date": "2026-11-26",
@@ -1177,7 +1177,7 @@ export const VERIFIED_STUDY_CURRENT_SCHEDULE_2026_10_06: readonly StudyScheduleC
       {
         "field": "clinic",
         "source": "SOURCE_CROSS_REFERENCE",
-        "evidence": "AM4: prof. M. Mizerska-Wasiak; A59: Katedra i Klinika Pediatrii i Nefrologii, ul. Żwirki i Wigury 63A"
+        "evidence": "AM4: prof. M. Mizerska-Wasiak; A58: Katedra i Klinika Pediatrii i Nefrologii, ul. Żwirki i Wigury 63A"
       }
     ],
     "clinic": "Katedra i Klinika Pediatrii i Nefrologii",
@@ -1211,7 +1211,7 @@ export const VERIFIED_STUDY_CURRENT_SCHEDULE_2026_10_06: readonly StudyScheduleC
     "sourceSheet": "PLAN ZAJĘĆ",
     "sourceRange": "AM14",
     "sourceKey": "PLAN ZAJĘĆ|AM14|2026-11-27|08:00|14:00|PEDIATRIA|G4:11B2",
-    "originalText": "23.11. - 27.11.2026 | 11b2 | PEDIATRIA zajęcia praktyczne 80 godz. grupy 4-osobowe | pon. - pt. 8.00 - 14.00 | prof. m. Mizerska-Wasiak",
+    "originalText": "23.11. - 27.11.2026 | 11b2 | PEDIATRIA zajęcia praktyczne 80 godz. grupy 4-osobowe | pon. - pt. 8.00 - 14.00 UWAGA! Wszyscy Studenci realizujący zajęcia praktyczne z pediatrii w DSK mają pierwsze spotkanie z Asystentem o godz. 8.00 przed wejściem do Kliniki wskazanej w planie zajęć. | prof. m. Mizerska-Wasiak",
     "subject": "PEDIATRIA",
     "activityType": "Zajęcia praktyczne",
     "date": "2026-11-27",
@@ -1235,7 +1235,7 @@ export const VERIFIED_STUDY_CURRENT_SCHEDULE_2026_10_06: readonly StudyScheduleC
       {
         "field": "clinic",
         "source": "SOURCE_CROSS_REFERENCE",
-        "evidence": "AM4: prof. M. Mizerska-Wasiak; A59: Katedra i Klinika Pediatrii i Nefrologii, ul. Żwirki i Wigury 63A"
+        "evidence": "AM4: prof. M. Mizerska-Wasiak; A58: Katedra i Klinika Pediatrii i Nefrologii, ul. Żwirki i Wigury 63A"
       }
     ],
     "clinic": "Katedra i Klinika Pediatrii i Nefrologii",
@@ -1272,17 +1272,17 @@ export const VERIFIED_STUDY_CURRENT_SCHEDULE_2026_10_06: readonly StudyScheduleC
       {
         "field": "room",
         "source": "SOURCE_CROSS_REFERENCE",
-        "evidence": "CX3: piątek - sala 102 w NZN; A62: Zakład Pielęgniarstwa Klinicznego, ul. Ciołka 27"
+        "evidence": "CX3: piątek - sala 102 w NZN; A61: Zakład Pielęgniarstwa Klinicznego, ul. Ciołka 27"
       },
       {
         "field": "address",
         "source": "SOURCE_CROSS_REFERENCE",
-        "evidence": "CX3: piątek - sala 102 w NZN; A62: Zakład Pielęgniarstwa Klinicznego, ul. Ciołka 27"
+        "evidence": "CX3: piątek - sala 102 w NZN; A61: Zakład Pielęgniarstwa Klinicznego, ul. Ciołka 27"
       },
       {
         "field": "locationLabel",
         "source": "SOURCE_CROSS_REFERENCE",
-        "evidence": "CX3: piątek - sala 102 w NZN; A62: Zakład Pielęgniarstwa Klinicznego, ul. Ciołka 27"
+        "evidence": "CX3: piątek - sala 102 w NZN; A61: Zakład Pielęgniarstwa Klinicznego, ul. Ciołka 27"
       }
     ],
     "manuallyReviewed": true
@@ -1293,7 +1293,7 @@ export const VERIFIED_STUDY_CURRENT_SCHEDULE_2026_10_06: readonly StudyScheduleC
     "sourceSheet": "PLAN ZAJĘĆ",
     "sourceRange": "AM15",
     "sourceKey": "PLAN ZAJĘĆ|AM15|2026-11-30|08:00|14:00|PEDIATRIA|G4:11B2",
-    "originalText": "30.11. - 04.12.2026 | 11b2 | PEDIATRIA zajęcia praktyczne 80 godz. grupy 4-osobowe | pon. - pt. 8.00 - 14.00 | prof. m. Mizerska-Wasiak",
+    "originalText": "30.11. - 04.12.2026 | 11b2 | PEDIATRIA zajęcia praktyczne 80 godz. grupy 4-osobowe | pon. - pt. 8.00 - 14.00 UWAGA! Wszyscy Studenci realizujący zajęcia praktyczne z pediatrii w DSK mają pierwsze spotkanie z Asystentem o godz. 8.00 przed wejściem do Kliniki wskazanej w planie zajęć. | prof. m. Mizerska-Wasiak",
     "subject": "PEDIATRIA",
     "activityType": "Zajęcia praktyczne",
     "date": "2026-11-30",
@@ -1317,7 +1317,7 @@ export const VERIFIED_STUDY_CURRENT_SCHEDULE_2026_10_06: readonly StudyScheduleC
       {
         "field": "clinic",
         "source": "SOURCE_CROSS_REFERENCE",
-        "evidence": "AM4: prof. M. Mizerska-Wasiak; A59: Katedra i Klinika Pediatrii i Nefrologii, ul. Żwirki i Wigury 63A"
+        "evidence": "AM4: prof. M. Mizerska-Wasiak; A58: Katedra i Klinika Pediatrii i Nefrologii, ul. Żwirki i Wigury 63A"
       }
     ],
     "clinic": "Katedra i Klinika Pediatrii i Nefrologii",
@@ -1329,7 +1329,7 @@ export const VERIFIED_STUDY_CURRENT_SCHEDULE_2026_10_06: readonly StudyScheduleC
     "sourceSheet": "PLAN ZAJĘĆ",
     "sourceRange": "AM15",
     "sourceKey": "PLAN ZAJĘĆ|AM15|2026-12-01|08:00|14:00|PEDIATRIA|G4:11B2",
-    "originalText": "30.11. - 04.12.2026 | 11b2 | PEDIATRIA zajęcia praktyczne 80 godz. grupy 4-osobowe | pon. - pt. 8.00 - 14.00 | prof. m. Mizerska-Wasiak",
+    "originalText": "30.11. - 04.12.2026 | 11b2 | PEDIATRIA zajęcia praktyczne 80 godz. grupy 4-osobowe | pon. - pt. 8.00 - 14.00 UWAGA! Wszyscy Studenci realizujący zajęcia praktyczne z pediatrii w DSK mają pierwsze spotkanie z Asystentem o godz. 8.00 przed wejściem do Kliniki wskazanej w planie zajęć. | prof. m. Mizerska-Wasiak",
     "subject": "PEDIATRIA",
     "activityType": "Zajęcia praktyczne",
     "date": "2026-12-01",
@@ -1353,7 +1353,7 @@ export const VERIFIED_STUDY_CURRENT_SCHEDULE_2026_10_06: readonly StudyScheduleC
       {
         "field": "clinic",
         "source": "SOURCE_CROSS_REFERENCE",
-        "evidence": "AM4: prof. M. Mizerska-Wasiak; A59: Katedra i Klinika Pediatrii i Nefrologii, ul. Żwirki i Wigury 63A"
+        "evidence": "AM4: prof. M. Mizerska-Wasiak; A58: Katedra i Klinika Pediatrii i Nefrologii, ul. Żwirki i Wigury 63A"
       }
     ],
     "clinic": "Katedra i Klinika Pediatrii i Nefrologii",
@@ -1387,7 +1387,7 @@ export const VERIFIED_STUDY_CURRENT_SCHEDULE_2026_10_06: readonly StudyScheduleC
     "sourceSheet": "PLAN ZAJĘĆ",
     "sourceRange": "AM15",
     "sourceKey": "PLAN ZAJĘĆ|AM15|2026-12-02|08:00|14:00|PEDIATRIA|G4:11B2",
-    "originalText": "30.11. - 04.12.2026 | 11b2 | PEDIATRIA zajęcia praktyczne 80 godz. grupy 4-osobowe | pon. - pt. 8.00 - 14.00 | prof. m. Mizerska-Wasiak",
+    "originalText": "30.11. - 04.12.2026 | 11b2 | PEDIATRIA zajęcia praktyczne 80 godz. grupy 4-osobowe | pon. - pt. 8.00 - 14.00 UWAGA! Wszyscy Studenci realizujący zajęcia praktyczne z pediatrii w DSK mają pierwsze spotkanie z Asystentem o godz. 8.00 przed wejściem do Kliniki wskazanej w planie zajęć. | prof. m. Mizerska-Wasiak",
     "subject": "PEDIATRIA",
     "activityType": "Zajęcia praktyczne",
     "date": "2026-12-02",
@@ -1411,7 +1411,7 @@ export const VERIFIED_STUDY_CURRENT_SCHEDULE_2026_10_06: readonly StudyScheduleC
       {
         "field": "clinic",
         "source": "SOURCE_CROSS_REFERENCE",
-        "evidence": "AM4: prof. M. Mizerska-Wasiak; A59: Katedra i Klinika Pediatrii i Nefrologii, ul. Żwirki i Wigury 63A"
+        "evidence": "AM4: prof. M. Mizerska-Wasiak; A58: Katedra i Klinika Pediatrii i Nefrologii, ul. Żwirki i Wigury 63A"
       }
     ],
     "clinic": "Katedra i Klinika Pediatrii i Nefrologii",
@@ -1423,7 +1423,7 @@ export const VERIFIED_STUDY_CURRENT_SCHEDULE_2026_10_06: readonly StudyScheduleC
     "sourceSheet": "PLAN ZAJĘĆ",
     "sourceRange": "AM15",
     "sourceKey": "PLAN ZAJĘĆ|AM15|2026-12-03|08:00|14:00|PEDIATRIA|G4:11B2",
-    "originalText": "30.11. - 04.12.2026 | 11b2 | PEDIATRIA zajęcia praktyczne 80 godz. grupy 4-osobowe | pon. - pt. 8.00 - 14.00 | prof. m. Mizerska-Wasiak",
+    "originalText": "30.11. - 04.12.2026 | 11b2 | PEDIATRIA zajęcia praktyczne 80 godz. grupy 4-osobowe | pon. - pt. 8.00 - 14.00 UWAGA! Wszyscy Studenci realizujący zajęcia praktyczne z pediatrii w DSK mają pierwsze spotkanie z Asystentem o godz. 8.00 przed wejściem do Kliniki wskazanej w planie zajęć. | prof. m. Mizerska-Wasiak",
     "subject": "PEDIATRIA",
     "activityType": "Zajęcia praktyczne",
     "date": "2026-12-03",
@@ -1447,7 +1447,7 @@ export const VERIFIED_STUDY_CURRENT_SCHEDULE_2026_10_06: readonly StudyScheduleC
       {
         "field": "clinic",
         "source": "SOURCE_CROSS_REFERENCE",
-        "evidence": "AM4: prof. M. Mizerska-Wasiak; A59: Katedra i Klinika Pediatrii i Nefrologii, ul. Żwirki i Wigury 63A"
+        "evidence": "AM4: prof. M. Mizerska-Wasiak; A58: Katedra i Klinika Pediatrii i Nefrologii, ul. Żwirki i Wigury 63A"
       }
     ],
     "clinic": "Katedra i Klinika Pediatrii i Nefrologii",
@@ -1459,7 +1459,7 @@ export const VERIFIED_STUDY_CURRENT_SCHEDULE_2026_10_06: readonly StudyScheduleC
     "sourceSheet": "PLAN ZAJĘĆ",
     "sourceRange": "AM15",
     "sourceKey": "PLAN ZAJĘĆ|AM15|2026-12-04|08:00|14:00|PEDIATRIA|G4:11B2",
-    "originalText": "30.11. - 04.12.2026 | 11b2 | PEDIATRIA zajęcia praktyczne 80 godz. grupy 4-osobowe | pon. - pt. 8.00 - 14.00 | prof. m. Mizerska-Wasiak",
+    "originalText": "30.11. - 04.12.2026 | 11b2 | PEDIATRIA zajęcia praktyczne 80 godz. grupy 4-osobowe | pon. - pt. 8.00 - 14.00 UWAGA! Wszyscy Studenci realizujący zajęcia praktyczne z pediatrii w DSK mają pierwsze spotkanie z Asystentem o godz. 8.00 przed wejściem do Kliniki wskazanej w planie zajęć. | prof. m. Mizerska-Wasiak",
     "subject": "PEDIATRIA",
     "activityType": "Zajęcia praktyczne",
     "date": "2026-12-04",
@@ -1483,7 +1483,7 @@ export const VERIFIED_STUDY_CURRENT_SCHEDULE_2026_10_06: readonly StudyScheduleC
       {
         "field": "clinic",
         "source": "SOURCE_CROSS_REFERENCE",
-        "evidence": "AM4: prof. M. Mizerska-Wasiak; A59: Katedra i Klinika Pediatrii i Nefrologii, ul. Żwirki i Wigury 63A"
+        "evidence": "AM4: prof. M. Mizerska-Wasiak; A58: Katedra i Klinika Pediatrii i Nefrologii, ul. Żwirki i Wigury 63A"
       }
     ],
     "clinic": "Katedra i Klinika Pediatrii i Nefrologii",
@@ -1511,7 +1511,7 @@ export const VERIFIED_STUDY_CURRENT_SCHEDULE_2026_10_06: readonly StudyScheduleC
     "address": "ul. Banacha 1a",
     "status": "REVIEW_REQUIRED",
     "warnings": [
-      "Plan z 06.10.2026 wskazuje zajęcia u prof. R. Steca 07.12.2026 przy ul. Banacha 1a, ale nie podaje pełnego zakresu godzin. Nie wolno uzupełniać czasu z powtarzalnego wzorca."
+      "Plan z 08.10.2026 wskazuje zajęcia u prof. R. Steca 07.12.2026 przy ul. Banacha 1a, ale nie podaje pełnego zakresu godzin. Nie wolno uzupełniać czasu z powtarzalnego wzorca."
     ],
     "include": false,
     "locationProvenance": [
@@ -1568,7 +1568,7 @@ export const VERIFIED_STUDY_CURRENT_SCHEDULE_2026_10_06: readonly StudyScheduleC
     "address": "ul. Banacha 1a",
     "status": "REVIEW_REQUIRED",
     "warnings": [
-      "Plan z 06.10.2026 wskazuje zajęcia u prof. R. Steca 08.12.2026 przy ul. Banacha 1a, ale nie podaje pełnego zakresu godzin. Nie wolno uzupełniać czasu z powtarzalnego wzorca."
+      "Plan z 08.10.2026 wskazuje zajęcia u prof. R. Steca 08.12.2026 przy ul. Banacha 1a, ale nie podaje pełnego zakresu godzin. Nie wolno uzupełniać czasu z powtarzalnego wzorca."
     ],
     "include": false,
     "locationProvenance": [
@@ -1955,17 +1955,17 @@ export const VERIFIED_STUDY_CURRENT_SCHEDULE_2026_10_06: readonly StudyScheduleC
       {
         "field": "room",
         "source": "SOURCE_CROSS_REFERENCE",
-        "evidence": "DI3/A74: sala seminaryjna I p., pawilon VIII, ul. Nowogrodzka 59"
+        "evidence": "DI3/A73: sala seminaryjna I p., pawilon VIII, ul. Nowogrodzka 59"
       },
       {
         "field": "address",
         "source": "SOURCE_CROSS_REFERENCE",
-        "evidence": "DI3/A74: sala seminaryjna I p., pawilon VIII, ul. Nowogrodzka 59"
+        "evidence": "DI3/A73: sala seminaryjna I p., pawilon VIII, ul. Nowogrodzka 59"
       },
       {
         "field": "locationLabel",
         "source": "SOURCE_CROSS_REFERENCE",
-        "evidence": "DI3/A74: sala seminaryjna I p., pawilon VIII, ul. Nowogrodzka 59"
+        "evidence": "DI3/A73: sala seminaryjna I p., pawilon VIII, ul. Nowogrodzka 59"
       }
     ],
     "room": "sala seminaryjna, I piętro, pawilon VIII",
@@ -2764,22 +2764,22 @@ export const VERIFIED_STUDY_CURRENT_SCHEDULE_2026_10_06: readonly StudyScheduleC
       {
         "field": "clinic",
         "source": "SOURCE_CROSS_REFERENCE",
-        "evidence": "DK3/A77: sala seminaryjna 128 w NZS, ul. Nowogrodzka 59, pawilon XI D1"
+        "evidence": "DK3/A76: sala seminaryjna 128 w NZS, ul. Nowogrodzka 59, pawilon XI D1"
       },
       {
         "field": "room",
         "source": "SOURCE_CROSS_REFERENCE",
-        "evidence": "DK3/A77: sala seminaryjna 128 w NZS, ul. Nowogrodzka 59, pawilon XI D1"
+        "evidence": "DK3/A76: sala seminaryjna 128 w NZS, ul. Nowogrodzka 59, pawilon XI D1"
       },
       {
         "field": "address",
         "source": "SOURCE_CROSS_REFERENCE",
-        "evidence": "DK3/A77: sala seminaryjna 128 w NZS, ul. Nowogrodzka 59, pawilon XI D1"
+        "evidence": "DK3/A76: sala seminaryjna 128 w NZS, ul. Nowogrodzka 59, pawilon XI D1"
       },
       {
         "field": "locationLabel",
         "source": "SOURCE_CROSS_REFERENCE",
-        "evidence": "DK3/A77: sala seminaryjna 128 w NZS, ul. Nowogrodzka 59, pawilon XI D1"
+        "evidence": "DK3/A76: sala seminaryjna 128 w NZS, ul. Nowogrodzka 59, pawilon XI D1"
       }
     ],
     "clinic": "Zakład Pielęgniarstwa Chirurgicznego, Transplantacyjnego i Leczenia Pozaustrojowego",
@@ -2898,14 +2898,14 @@ export const VERIFIED_STUDY_CURRENT_SCHEDULE_2026_10_06: readonly StudyScheduleC
     "address": "ul. Jadżwingów 9",
     "status": "REVIEW_REQUIRED",
     "warnings": [
-      "Plan z 06.10.2026 przypisuje POZ grupy 11B2 do tygodnia 19-23.10.2026 przy ul. Jadżwingów 9, ale nie podaje jednoznacznego dnia ani pełnego zakresu godzin. Wpis pozostaje source-only i nie tworzy fikcyjnego wydarzenia."
+      "Plan z 08.10.2026 przypisuje POZ grupy 11B2 do tygodnia 19-23.10.2026 przy ul. Jadżwingów 9, ale nie podaje jednoznacznego dnia ani pełnego zakresu godzin. Wpis pozostaje source-only i nie tworzy fikcyjnego wydarzenia."
     ],
     "include": false,
     "manuallyReviewed": true
   }
 ];
 
-export const VERIFIED_STUDY_CURRENT_UNDATED_REQUIREMENTS_2026_10_06 = [
+export const VERIFIED_STUDY_CURRENT_UNDATED_REQUIREMENTS_2026_10_08 = [
   {
     sourceSheet: 'WYKŁADY',
     sourceRange: 'A20',
@@ -2917,7 +2917,7 @@ export const VERIFIED_STUDY_CURRENT_UNDATED_REQUIREMENTS_2026_10_06 = [
 ] as const;
 
 export function verifiedStudyCurrentScheduleCandidates(): StudyScheduleCandidate[] {
-  return VERIFIED_STUDY_CURRENT_SCHEDULE_2026_10_06.map((candidate) => ({
+  return VERIFIED_STUDY_CURRENT_SCHEDULE_2026_10_08.map((candidate) => ({
     ...candidate,
     groupTags: [...candidate.groupTags],
     warnings: [...candidate.warnings],
