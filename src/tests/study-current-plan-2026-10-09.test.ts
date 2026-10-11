@@ -1,0 +1,136 @@
+import { describe, expect, it } from 'vitest';
+import type { StudyScheduleCandidate } from '../study/study.types';
+import {
+  applyVerifiedStudyPlanManualCorrections,
+  VERIFIED_STUDY_MANUAL_AUDIT_2026_10_09,
+  VERIFIED_STUDY_PROFILE_2026_10_09,
+  verifiedStudyPlanManualEvidence,
+} from '../study/verified-study-plan-manual';
+import { VERIFIED_STUDY_PLAN_2026_10_09, VERIFIED_STUDY_PLAN_CURRENT } from '../study/verified-study-plan';
+
+function candidate(patch: Partial<StudyScheduleCandidate>): StudyScheduleCandidate {
+  return {
+    id: 'candidate-current-plan',
+    adapterId: 'nursing-week-matrix-v2',
+    sourceSheet: 'PLAN ZAJĘĆ',
+    sourceRange: 'DD8',
+    sourceKey: 'current-plan',
+    originalText: 'current-plan',
+    subject: 'INTERNA (seminaria)',
+    date: '2026-10-15',
+    startTime: '16:45',
+    endTime: '20:30',
+    groupScope: 'SPECIFIC',
+    groupTags: ['MAIN:11'],
+    address: 'ul. Ciołka 27',
+    locationLabel: 'Zakład Rozwoju Pielęgniarstwa',
+    status: 'READY',
+    warnings: [],
+    include: true,
+    ...patch,
+  };
+}
+
+describe('current verified WUM plan 09.10.2026', () => {
+  it('pins the exact source and manually audited user profile', () => {
+    expect(VERIFIED_STUDY_PLAN_CURRENT).toBe(VERIFIED_STUDY_PLAN_2026_10_09);
+    expect(VERIFIED_STUDY_PLAN_2026_10_09).toMatchObject({
+      sourceName: 'licencjat-ii-rok-piel.-09.10.2026.xls',
+      sizeBytes: 148480,
+      sha256: '455c684f68fb0689a5b0d1e34cda71f6908a444ef3f530ae385f7af7cfcd60c0',
+      allCandidatesSha256: 'ee45f6e6205857e0b48c1c698d1c36ec2daa2bf45a49db7730b5c143a578a5bd',
+    });
+    expect(VERIFIED_STUDY_PROFILE_2026_10_09).toEqual(['MAIN:11', 'G12:11B', 'G8:11B', 'G4:11B2']);
+    expect(VERIFIED_STUDY_MANUAL_AUDIT_2026_10_09).toMatchObject({
+      candidateCount: 77,
+      importableCount: 74,
+      readyCount: 70,
+      warningCount: 4,
+      incompleteCount: 3,
+      conflictCount: 0,
+      candidatesSha256: '844eb997b6c76f35c5ccbb8d16a9a78eba5064800aafec9150ff5e920cca6461',
+    });
+    expect(verifiedStudyPlanManualEvidence(VERIFIED_STUDY_PLAN_2026_10_09.sha256)).toHaveLength(34);
+  });
+
+  it('maps the shifted 15 October INTERNA range to Aula A without touching its time', () => {
+    const corrected = applyVerifiedStudyPlanManualCorrections([candidate({})], VERIFIED_STUDY_PLAN_2026_10_09.sha256).candidates[0]!;
+    expect(corrected).toMatchObject({
+      date: '2026-10-15', startTime: '16:45', endTime: '20:30',
+      room: 'Aula A', address: 'ul. Trojdena 2a', locationLabel: 'Centrum Dydaktyczne',
+    });
+  });
+
+  it('keeps the verified pediatrics unit and the new 08.10 first-meeting note', () => {
+    const corrected = applyVerifiedStudyPlanManualCorrections([candidate({
+      sourceRange: 'AM14', subject: 'PEDIATRIA', date: '2026-11-23',
+      groupTags: ['G4:11B2'], address: 'ul. Żwirki i Wigury 63A',
+      locationLabel: 'Katedra i Klinika Pediatrii i Nefrologii',
+    })], VERIFIED_STUDY_PLAN_2026_10_09.sha256).candidates[0]!;
+    expect(corrected).toMatchObject({
+      clinic: 'Katedra i Klinika Pediatrii i Nefrologii',
+      address: 'ul. Żwirki i Wigury 63A',
+      locationLabel: 'Katedra i Klinika Pediatrii i Nefrologii',
+    });
+  });
+
+  it('adds the newly published Thursday Pharmacology seminar with the exact room and CD address', () => {
+    const corrected = applyVerifiedStudyPlanManualCorrections([candidate({
+      sourceRange: 'DA12', subject: 'FARMAKOLOGIA', date: '2026-11-12',
+      startTime: '10:15', endTime: '14:00', groupTags: ['MAIN:11'],
+      room: 'sala komputerowa sala 234 w CD', address: 'ul. Trojdena 2a',
+    })], VERIFIED_STUDY_PLAN_2026_10_09.sha256).candidates[0]!;
+    expect(corrected).toMatchObject({
+      room: 'sala komputerowa, sala 234 w CD',
+      address: 'ul. Trojdena 2a',
+      locationLabel: 'Centrum Dydaktyczne',
+    });
+  });
+
+  it('keeps the incomplete POZ week source-only after its range shifted to AY9', () => {
+    const incomplete = candidate({
+      sourceRange: 'AY9', subject: 'POZ',
+      groupTags: ['G4:11B2'], address: 'ul. Jadżwingów 9', status: 'REVIEW_REQUIRED', include: false,
+      sourceWeekStart: '2026-10-19', sourceWeekEnd: '2026-10-23',
+    });
+    delete incomplete.date;
+    delete incomplete.startTime;
+    delete incomplete.endTime;
+    const corrected = applyVerifiedStudyPlanManualCorrections([incomplete], VERIFIED_STUDY_PLAN_2026_10_09.sha256).candidates[0]!;
+    expect(corrected.include).toBe(false);
+    expect(corrected.date).toBeUndefined();
+    expect(corrected.startTime).toBeUndefined();
+    expect(corrected.endTime).toBeUndefined();
+    expect(corrected.warnings.join(' ')).toContain('Pierwsze spotkanie: RODO/BHP od 08:30');
+    expect(corrected.warnings.join(' ')).toContain('bez potwierdzonego dnia i godziny zakończenia');
+  });
+
+  it('keeps 27-29 October Health Promotion timed but without an invented place', () => {
+    for (const date of ['2026-10-27', '2026-10-28', '2026-10-29']) {
+      const corrected = applyVerifiedStudyPlanManualCorrections([candidate({
+        sourceRange: 'BC10', subject: 'PROM. ZDROWIA', date,
+        startTime: '08:00', endTime: '11:00', groupTags: ['G8:11B'],
+        room: 'sala odziedziczona', address: 'ul. Ciołka 27', locationLabel: 'Zakład Propedeutyki Pielęgniarstwa',
+      })], VERIFIED_STUDY_PLAN_2026_10_09.sha256).candidates[0]!;
+      expect(corrected).toMatchObject({
+        date, startTime: '08:00', endTime: '11:00',
+        clinic: 'Zakład Propedeutyki Pielęgniarstwa',
+      });
+      expect(corrected.room).toBeUndefined();
+      expect(corrected.address).toBeUndefined();
+      expect(corrected.locationLabel).toBeUndefined();
+    }
+  });
+
+  it('keeps the Słodkowski surgery block at the verified Banacha 1a unit even on Friday rows', () => {
+    const corrected = applyVerifiedStudyPlanManualCorrections([candidate({
+      sourceRange: 'D20', subject: 'CHIRURGIA I BLOK OPERACYJNY', date: '2027-01-22',
+      groupTags: ['G8:11B'], address: 'ul. Nowogrodzka 59', locationLabel: 'Zakład NZS',
+    })], VERIFIED_STUDY_PLAN_2026_10_09.sha256).candidates[0]!;
+    expect(corrected).toMatchObject({
+      clinic: 'Katedra i Klinika Chirurgii Ogólnej, Gastroenterologicznej i Onkologicznej',
+      address: 'ul. Banacha 1a',
+      locationLabel: 'Katedra i Klinika Chirurgii Ogólnej, Gastroenterologicznej i Onkologicznej',
+    });
+  });
+});

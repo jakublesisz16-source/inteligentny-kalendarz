@@ -29,7 +29,9 @@ import { applySafeSeriesCorrection, pendingRulesForSeriesCorrection } from './st
 import { identifyCandidate } from './study-identity';
 import { candidatesForSelectedGroups, findStudyScheduleConflicts, hashFile, validateStudyGroupSelection } from './study.service';
 import { completenessForSelectedGroups } from './study-completeness';
-import { verifyStudyPlanSource } from './verified-study-plan';
+import { VERIFIED_STUDY_PLAN_CURRENT, verifyStudyPlanSource } from './verified-study-plan';
+import { verifiedStudyCurrentScheduleCandidates } from './verified-study-current-schedule';
+import { studyPlanSourceInfo } from './study-plan-source-info';
 import { applyVerifiedStudyPlanManualCorrectionsToAnalysis, isVerifiedStudyProfileSelection, verifyVerifiedStudyPlanManualAudit } from './verified-study-plan-manual';
 import { ScheduleDiffView } from './ScheduleDiffView';
 import { ScheduleUpdateHistoryModal } from './ScheduleUpdateHistoryModal';
@@ -618,6 +620,11 @@ export function StudyView({ onDataChanged }: StudyViewProps) {
                 ) : null}
               </div>
             ) : null}
+            {activeImport?.fileHash === VERIFIED_STUDY_PLAN_CURRENT.sha256 && isVerifiedStudyProfileSelection(activeImport.selectedGroups)
+              ? verifiedStudyCurrentScheduleCandidates().filter((candidate) => candidate.include === false).map((candidate) => {
+                const note = studyPlanSourceInfo(candidate);
+                return note ? <p className="candidate-plan-info" key={candidate.sourceKey}><strong>Informacja z planu (bez potwierdzonej daty):</strong> {note}</p> : null;
+              }) : null}
             {!activeImport ? <span className="upload-hint">Możesz też przeciągnąć plik tutaj.</span> : null}
           </div>
           <div className="study-upload-action">
@@ -687,6 +694,7 @@ export function StudyView({ onDataChanged }: StudyViewProps) {
                           <strong className="candidate-date">{candidateLabel(candidate)}</strong>
                           <div className="candidate-meta">{candidate.activityType ? <span>{candidate.activityType}</span> : null}{candidate.groupTags.length ? <span>Grupy: {formatStudyGroupList(candidate.groupTags)}</span> : null}{candidate.clinic ? <span>{candidate.clinic}</span> : null}{candidate.room ? <span>{candidate.room}</span> : null}{candidate.address || candidate.locationLabel ? <span>{candidate.address ?? candidate.locationLabel}</span> : null}{candidate.inferredFields?.length ? <span className="candidate-pattern-assumption">{candidateInferenceLabel(candidate)}</span> : null}</div>
                           {review.issues.length ? <div className={`candidate-issues ${review.state === 'BLOCKING' ? 'blocking' : review.state === 'INCOMPLETE' ? 'incomplete' : 'warning'}`}><strong>{review.state === 'BLOCKING' ? 'Przed importem popraw:' : review.state === 'INCOMPLETE' ? 'Brak danych w planie źródłowym:' : 'Brakujące lub niepewne dane:'}</strong><ul>{review.issues.map((issue) => <li key={`${issue.code}-${issue.source ?? ''}`}><span>{issue.label}</span>{issue.source && issue.source !== issue.label ? <small>{issue.source}</small> : null}</li>)}</ul></div> : null}
+                          {studyPlanSourceInfo(candidate) ? <p className="candidate-plan-info"><strong>Informacja z planu:</strong> {studyPlanSourceInfo(candidate)}</p> : null}
                           <small className="source-ref">Źródło: {candidate.sourceSheet} {candidate.sourceRange}</small>
                         </div>
                         <button type="button" className="text-button candidate-edit-action" onClick={(event) => { event.stopPropagation(); setEditingCandidateId(candidate.id); }}>{review.state === 'READY' ? 'Popraw' : review.state === 'INCOMPLETE' ? 'Uzupełnij ręcznie' : 'Uzupełnij dane'}</button>

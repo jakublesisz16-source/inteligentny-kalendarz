@@ -1,9 +1,11 @@
 import { studyGroupPlainLabel } from '../imports/xlsx/group-normalizer';
+import { STUDY_PLAN_INFO_PREFIX } from '../study/study-plan-source-info';
 import type { CalendarEvent } from './event.types';
 
 export interface StudyEventDisplay {
   groupLabel?: string;
   description?: string;
+  planInfo?: string;
 }
 
 const LEGACY_GROUP_SEGMENT = /^Grup(a|y)\s+(\d{1,2}[ABC]?(?:\s*,\s*\d{1,2}[ABC]?)*?)$/i;
@@ -39,7 +41,9 @@ function legacyGroupInfo(description: string | undefined): { groups: string[]; d
 export function studyEventDisplay(event: CalendarEvent): StudyEventDisplay {
   if (event.source !== 'UNIVERSITY_XLSX') return event.description ? { description: event.description } : {};
 
-  const legacy = legacyGroupInfo(event.description);
+  const [mainDescription = '', ...extraLines] = (event.description ?? '').split('\n');
+  const planInfo = extraLines.find((line) => line.startsWith(STUDY_PLAN_INFO_PREFIX))?.slice(STUDY_PLAN_INFO_PREFIX.length).trim();
+  const legacy = legacyGroupInfo(mainDescription);
   const explicitGroups = uniqueGroups(event.studyGroupTags).map(studyGroupPlainLabel);
   const groups = explicitGroups.length ? uniqueGroups(explicitGroups) : legacy.groups;
   const groupLabel = groups.length
@@ -51,5 +55,6 @@ export function studyEventDisplay(event: CalendarEvent): StudyEventDisplay {
   return {
     ...(groupLabel ? { groupLabel } : {}),
     ...(legacy.description ? { description: legacy.description } : {}),
+    ...(planInfo ? { planInfo } : {}),
   };
 }

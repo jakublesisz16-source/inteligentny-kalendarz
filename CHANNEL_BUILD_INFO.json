@@ -1,11 +1,11 @@
 {
   "source": "PRIVATE",
   "surface": "public-stable",
-  "buildId": "ik-1.2.0.343-20261008-wum-study-plan-0810-historical-helper-type-contract-fix",
-  "appVersion": "1.2.0.343",
+  "buildId": "ik-1.2.0.346-20261011-wum-0910-sourceonly-pozhistory-test-fix",
+  "appVersion": "1.2.0.346",
   "releaseVersion": "1.2.0",
-  "packageVersion": "1.2.0-private.343",
-  "build": "343",
-  "contentFingerprint": "3fba6cdef1ef74e8d2462b3ec8ce25cd799fcd5cc6fa7dd6d07e42b8c9b065b5",
-  "fileCount": 585
+  "packageVersion": "1.2.0-private.346",
+  "build": "346",
+  "contentFingerprint": "33fe2863c76681c77c5e6249017b13aac2720605b4300064e40aa4ad7da8cfa9",
+  "fileCount": 588
 }

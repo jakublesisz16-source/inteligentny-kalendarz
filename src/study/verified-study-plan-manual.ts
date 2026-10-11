@@ -13,9 +13,10 @@ import {
   VERIFIED_STUDY_PLAN_2026_10_05,
   VERIFIED_STUDY_PLAN_2026_10_06,
   VERIFIED_STUDY_PLAN_2026_10_08,
+  VERIFIED_STUDY_PLAN_2026_10_09,
 } from './verified-study-plan';
 import {
-  VERIFIED_STUDY_CURRENT_SCHEDULE_2026_10_08,
+  VERIFIED_STUDY_CURRENT_SCHEDULE_2026_10_09,
   verifiedStudyCurrentScheduleCandidates,
 } from './verified-study-current-schedule';
 
@@ -24,7 +25,41 @@ export const VERIFIED_STUDY_PROFILE_2026_10_02 = ['MAIN:11', 'G12:11B', 'G8:11B'
 export const VERIFIED_STUDY_PROFILE_2026_10_05 = ['MAIN:11', 'G12:11B', 'G8:11B', 'G4:11B2'] as const;
 export const VERIFIED_STUDY_PROFILE_2026_10_06 = ['MAIN:11', 'G12:11B', 'G8:11B', 'G4:11B2'] as const;
 export const VERIFIED_STUDY_PROFILE_2026_10_08 = ['MAIN:11', 'G12:11B', 'G8:11B', 'G4:11B2'] as const;
-export const VERIFIED_STUDY_PROFILE_CURRENT = VERIFIED_STUDY_PROFILE_2026_10_08;
+export const VERIFIED_STUDY_PROFILE_2026_10_09 = ['MAIN:11', 'G12:11B', 'G8:11B', 'G4:11B2'] as const;
+export const VERIFIED_STUDY_PROFILE_CURRENT = VERIFIED_STUDY_PROFILE_2026_10_09;
+
+// 09.10 differs from 08.10 only in AF8:AF11 / AK8:AK11 for OTHER groups.
+// Every current-profile time, unit, place, source text and 34 location evidence refs was independently checked.
+export const VERIFIED_STUDY_SOURCE_TEXT_CORRECTIONS_2026_10_09 = [
+  {
+    sourceRange: 'AY9',
+    field: 'address',
+    sourceValue: 'ul. Jadżwingów 9',
+    canonicalValue: 'ul. Jadźwingów 9',
+    provenance: 'OFFICIAL_EXTERNAL' as const,
+    evidence: 'Zewnętrzna korekta pisowni Jadźwingów. Excel 09.10 zawiera Jadżwingów.',
+    appliedToSchedule: false,
+    reason: 'Pozycja jest source-only: brak konkretnego dnia/godzin, nie wolno tworzyć terminu.',
+  },
+] as const;
+
+export const VERIFIED_STUDY_MANUAL_AUDIT_2026_10_09 = {
+  selectedGroups: VERIFIED_STUDY_PROFILE_2026_10_09,
+  candidateCount: 77,
+  importableCount: 74,
+  readyCount: 70,
+  warningCount: 4,
+  incompleteCount: 3,
+  blockingCount: 0,
+  conflictCount: 0,
+  importableMonthCounts: {
+    '2026-10': 16,
+    '2026-11': 21,
+    '2026-12': 19,
+    '2027-01': 18,
+  },
+  candidatesSha256: '844eb997b6c76f35c5ccbb8d16a9a78eba5064800aafec9150ff5e920cca6461',
+} as const;
 
 export const VERIFIED_STUDY_SOURCE_TEXT_CORRECTIONS_2026_10_08 = [
   {
@@ -958,6 +993,29 @@ const VERIFIED_SOURCE_INCOMPLETE_2026_10_05: ReadonlyArray<{
   },
 ];
 
+// Reverified against 09.10 workbook: none of the 8 changed cells touch these 34 rules.
+const VERIFIED_LOCATION_OVERRIDES_2026_10_09: readonly VerifiedLocationOverride[] = VERIFIED_LOCATION_OVERRIDES_2026_10_08;
+
+const VERIFIED_SOURCE_INCOMPLETE_2026_10_09: ReadonlyArray<{
+  sourceRange: string;
+  date?: string;
+  subject: string;
+  warning: string;
+}> = [
+  {
+    sourceRange: 'AY9', subject: 'POZ',
+    warning: 'Plan z 09.10.2026 wskazuje POZ 11B2 w tygodniu 19-23.10 przy ul. Jadżwingów 9. Pierwsze spotkanie: RODO/BHP od 08:30, ale bez potwierdzonego dnia i godziny zakończenia - bez tworzenia wydarzenia.',
+  },
+  {
+    sourceRange: 'S16', date: '2026-12-07', subject: 'INTERNA',
+    warning: 'Plan z 09.10.2026 wskazuje Internę 07.12 w Klinice Onkologii przy ul. Banacha 1a, ale bez pełnego zakresu godzin - nie zgadywać.',
+  },
+  {
+    sourceRange: 'T16', date: '2026-12-08', subject: 'INTERNA',
+    warning: 'Plan z 09.10.2026 wskazuje Internę 08.12 w Klinice Onkologii przy ul. Banacha 1a, ale bez pełnego zakresu godzin - nie zgadywać.',
+  },
+];
+
 const VERIFIED_SOURCE_INCOMPLETE_2026_10_08: ReadonlyArray<{
   sourceRange: string;
   date?: string;
@@ -1014,6 +1072,17 @@ function normalizedHash(value: string): string {
 
 function manualConfigForHash(fileHash: string) {
   const hash = normalizedHash(fileHash);
+  if (hash === VERIFIED_STUDY_PLAN_2026_10_09.sha256) {
+    return {
+      plan: VERIFIED_STUDY_PLAN_2026_10_09,
+      selectedGroups: VERIFIED_STUDY_PROFILE_2026_10_09,
+      audit: VERIFIED_STUDY_MANUAL_AUDIT_2026_10_09,
+      overrides: VERIFIED_LOCATION_OVERRIDES_2026_10_09,
+      incomplete: VERIFIED_SOURCE_INCOMPLETE_2026_10_09,
+      auditDateLabel: '09.10.2026',
+      informationId: 'verified-manual-plan-2026-10-09',
+    } as const;
+  }
   if (hash === VERIFIED_STUDY_PLAN_2026_10_08.sha256) {
     return {
       plan: VERIFIED_STUDY_PLAN_2026_10_08,
@@ -1148,7 +1217,7 @@ function applyCurrentManualScheduleSnapshot(candidates: StudyScheduleCandidate[]
   candidates: StudyScheduleCandidate[];
   matchedCanonicalCount: number;
 } {
-  if (normalizedHash(fileHash) !== VERIFIED_STUDY_PLAN_2026_10_08.sha256) {
+  if (normalizedHash(fileHash) !== VERIFIED_STUDY_PLAN_2026_10_09.sha256) {
     return { candidates, matchedCanonicalCount: 0 };
   }
   const canonical = verifiedStudyCurrentScheduleCandidates();
@@ -1254,8 +1323,8 @@ export async function verifyVerifiedStudyPlanManualAudit(
   const audit = auditSelectedStudyProfile(corrected, selectedGroups);
   const expected = config.audit;
   const reasons: string[] = [];
-  if (normalizedHash(fileHash) === VERIFIED_STUDY_PLAN_2026_10_08.sha256) {
-    const expectedKeys = new Set(VERIFIED_STUDY_CURRENT_SCHEDULE_2026_10_08.map((candidate) => candidate.sourceKey));
+  if (normalizedHash(fileHash) === VERIFIED_STUDY_PLAN_2026_10_09.sha256) {
+    const expectedKeys = new Set(VERIFIED_STUDY_CURRENT_SCHEDULE_2026_10_09.map((candidate) => candidate.sourceKey));
     const selectedKeys = new Set(selected.map((candidate) => candidate.sourceKey));
     if (selectedKeys.size !== expectedKeys.size || [...expectedKeys].some((key) => !selectedKeys.has(key))) {
       reasons.push('Ręczna lista bieżącego kalendarza nie pokrywa dokładnie wszystkich 77 pozycji źródłowych.');
@@ -1271,6 +1340,6 @@ export async function verifyVerifiedStudyPlanManualAudit(
   return { verified: reasons.length === 0, reasons, candidatesSha256 };
 }
 
-export function verifiedStudyPlanManualEvidence(fileHash: string = VERIFIED_STUDY_PLAN_2026_10_08.sha256): ReadonlyArray<Readonly<VerifiedLocationOverride>> {
+export function verifiedStudyPlanManualEvidence(fileHash: string = VERIFIED_STUDY_PLAN_2026_10_09.sha256): ReadonlyArray<Readonly<VerifiedLocationOverride>> {
   return manualConfigForHash(fileHash)?.overrides ?? [];
 }

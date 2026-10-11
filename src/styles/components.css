@@ -4746,3 +4746,10 @@ button.finance-overview-category-chip.is-active { background: var(--surface-soft
 .calendar-week-study-source-entry {
   border-color: color-mix(in srgb, var(--accent-strong) 20%, var(--line));
 }
+
+/* The source note is separate from the normal event details and intentionally compact. */
+.event-plan-info { margin: 4px 0 0; color: var(--text-muted); font-size: .78rem; line-height: 1.4; overflow-wrap: anywhere; }
+.event-plan-info strong { font-weight: 650; color: var(--text); }
+
+.candidate-plan-info { font-size: .78rem; line-height: 1.4; margin: 5px 0 0; color: var(--text-muted); }
+.candidate-plan-info strong { color: var(--text); font-weight: 650; }
