@@ -75,6 +75,7 @@ export function EventCard({ event, location, timeFormat, seriesCount, onEdit, on
         {multiDay ? <p className="event-span-note">{event.allDay ? `${formatEventDateRange(event)} - całe dni` : `${formatEventDateRange(event)} - start ${formatTime(event.startDateTime, timeFormat)}, koniec ${formatTime(event.endDateTime, timeFormat)}`}</p> : null}
         {locationText ? <p className="event-location">{locationText}</p> : null}
         {studyDisplay.description ? <p className="event-description">{studyDisplay.description}</p> : null}
+        {studyDisplay.planInfo ? <p className="event-plan-info"><strong>Informacja z planu:</strong> {studyDisplay.planInfo}</p> : null}
         {hasStudyIssues ? <p className="event-review-note">Brakujące dane: {(event.studyIssueCodes ?? []).map(importIssueLabel).join(' · ')}</p> : null}
         {event.source === 'WORK_PDF' && workCoworkers.length ? <div className="event-coworkers"><strong>{compactCoworkerLabel ? `Z Tobą · ${workCoworkerCountLabel}` : `Z Tobą na zmianie · ${workCoworkerCountLabel}`}</strong><span>{visibleWorkCoworkers.map((person) => <span className="event-coworker-line" key={`${person.displayName}-${person.coworkerStartTime}`}><b>{person.displayName}</b><small>{person.overlapStartTime}-{person.overlapEndTime}</small></span>)}{hiddenWorkCoworkerCount ? <small>+{hiddenWorkCoworkerCount} więcej</small> : null}</span></div> : null}
       </div>

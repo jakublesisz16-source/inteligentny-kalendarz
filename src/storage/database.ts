@@ -1,3 +1,4 @@
+import { studyPlanSourceInfo, STUDY_PLAN_INFO_PREFIX } from '../study/study-plan-source-info';
 import { APP_VERSION, DATABASE_SCHEMA_VERSION } from '../core/version';
 import type { CalendarEvent, EventDraft, ManualMultiDateDraft, UserModifiedEventField } from '../events/event.types';
 import { validateEventDraft, validateManualMultiDateDraft } from '../events/event.validation';
@@ -2573,7 +2574,7 @@ function assertCandidatesBelongToSelection(
   }
 }
 
-function importedEventDescription(candidate: Pick<StudyScheduleCandidate, 'activityType' | 'groupTags' | 'clinic' | 'room'>): string | undefined {
+function importedEventDescription(candidate: Pick<StudyScheduleCandidate, 'activityType' | 'groupTags' | 'clinic' | 'room' | 'subject' | 'originalText' | 'date' | 'sourceWeekStart' | 'sourceRange' | 'include'>): string | undefined {
   const groupLabel = candidate.groupTags.length
     ? `${candidate.groupTags.length === 1 ? 'Grupa' : 'Grupy'} ${formatStudyGroupList(candidate.groupTags)}`
     : undefined;
@@ -2583,7 +2584,9 @@ function importedEventDescription(candidate: Pick<StudyScheduleCandidate, 'activ
     candidate.clinic,
     candidate.room,
   ].filter((value): value is string => Boolean(value));
-  return parts.length ? parts.join(' - ') : undefined;
+  const standardDescription = parts.join(' - ');
+  const info = studyPlanSourceInfo(candidate);
+  return info ? `${standardDescription}${standardDescription ? '\n' : ''}${STUDY_PLAN_INFO_PREFIX}${info}` : standardDescription || undefined;
 }
 
 function entryFromCandidate(candidate: StudyScheduleCandidate, importId: string, eventId?: string, sourceOnly = false): UniversityImportEntry {

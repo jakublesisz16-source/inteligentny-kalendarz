@@ -1,6 +1,6 @@
 import type { StudyScheduleCandidate } from './study.types';
 
-export const VERIFIED_STUDY_CURRENT_SCHEDULE_SOURCE_SHA256 = '5116ed4520f5bce1a1e261062a923938dba842d2d58becdd88159e066fad9f54';
+export const VERIFIED_STUDY_CURRENT_SCHEDULE_SOURCE_SHA256 = '455c684f68fb0689a5b0d1e34cda71f6908a444ef3f530ae385f7af7cfcd60c0';
 export const VERIFIED_STUDY_CURRENT_SCHEDULE_PROFILE = ['MAIN:11', 'G12:11B', 'G8:11B', 'G4:11B2'] as const;
 export const VERIFIED_STUDY_CURRENT_TIMED_EVENT_COUNT = 74;
 export const VERIFIED_STUDY_CURRENT_SOURCE_ONLY_COUNT = 3;
@@ -9,7 +9,7 @@ export const VERIFIED_STUDY_CURRENT_CALENDAR_OPERATIONAL_SHA256 = '85555718ade73
 // Canonical, manually audited snapshot of every source position for the user's current profile.
 // This is intentionally explicit and hash-bound. The generic XLS parser remains a verification layer,
 // but for this exact source/profile the calendar fields below are the final authority.
-export const VERIFIED_STUDY_CURRENT_SCHEDULE_2026_10_08: readonly StudyScheduleCandidate[] =
+export const VERIFIED_STUDY_CURRENT_SCHEDULE_2026_10_09: readonly StudyScheduleCandidate[] =
 [
   {
     "id": "candidate-4900ffbb",
@@ -1511,7 +1511,7 @@ export const VERIFIED_STUDY_CURRENT_SCHEDULE_2026_10_08: readonly StudyScheduleC
     "address": "ul. Banacha 1a",
     "status": "REVIEW_REQUIRED",
     "warnings": [
-      "Plan z 08.10.2026 wskazuje zajęcia u prof. R. Steca 07.12.2026 przy ul. Banacha 1a, ale nie podaje pełnego zakresu godzin. Nie wolno uzupełniać czasu z powtarzalnego wzorca."
+      "Plan z 09.10.2026 wskazuje zajęcia u prof. R. Steca 07.12.2026 przy ul. Banacha 1a, ale nie podaje pełnego zakresu godzin. Nie wolno uzupełniać czasu z powtarzalnego wzorca."
     ],
     "include": false,
     "locationProvenance": [
@@ -1568,7 +1568,7 @@ export const VERIFIED_STUDY_CURRENT_SCHEDULE_2026_10_08: readonly StudyScheduleC
     "address": "ul. Banacha 1a",
     "status": "REVIEW_REQUIRED",
     "warnings": [
-      "Plan z 08.10.2026 wskazuje zajęcia u prof. R. Steca 08.12.2026 przy ul. Banacha 1a, ale nie podaje pełnego zakresu godzin. Nie wolno uzupełniać czasu z powtarzalnego wzorca."
+      "Plan z 09.10.2026 wskazuje zajęcia u prof. R. Steca 08.12.2026 przy ul. Banacha 1a, ale nie podaje pełnego zakresu godzin. Nie wolno uzupełniać czasu z powtarzalnego wzorca."
     ],
     "include": false,
     "locationProvenance": [
@@ -2898,14 +2898,14 @@ export const VERIFIED_STUDY_CURRENT_SCHEDULE_2026_10_08: readonly StudyScheduleC
     "address": "ul. Jadżwingów 9",
     "status": "REVIEW_REQUIRED",
     "warnings": [
-      "Plan z 08.10.2026 przypisuje POZ grupy 11B2 do tygodnia 19-23.10.2026 przy ul. Jadżwingów 9, ale nie podaje jednoznacznego dnia ani pełnego zakresu godzin. Wpis pozostaje source-only i nie tworzy fikcyjnego wydarzenia."
+      "Plan z 09.10.2026 przypisuje POZ grupy 11B2 do tygodnia 19-23.10.2026 przy ul. Jadżwingów 9, ale nie podaje jednoznacznego dnia ani pełnego zakresu godzin. Wpis pozostaje source-only i nie tworzy fikcyjnego wydarzenia."
     ],
     "include": false,
     "manuallyReviewed": true
   }
 ];
 
-export const VERIFIED_STUDY_CURRENT_UNDATED_REQUIREMENTS_2026_10_08 = [
+export const VERIFIED_STUDY_CURRENT_UNDATED_REQUIREMENTS_2026_10_09 = [
   {
     sourceSheet: 'WYKŁADY',
     sourceRange: 'A20',
@@ -2917,7 +2917,7 @@ export const VERIFIED_STUDY_CURRENT_UNDATED_REQUIREMENTS_2026_10_08 = [
 ] as const;
 
 export function verifiedStudyCurrentScheduleCandidates(): StudyScheduleCandidate[] {
-  return VERIFIED_STUDY_CURRENT_SCHEDULE_2026_10_08.map((candidate) => ({
+  return VERIFIED_STUDY_CURRENT_SCHEDULE_2026_10_09.map((candidate) => ({
     ...candidate,
     groupTags: [...candidate.groupTags],
     warnings: [...candidate.warnings],
