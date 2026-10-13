@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { studyPlanSourceInfo } from '../study/study-plan-source-info';
 import { studyEventDisplay } from '../events/study-event-display';
-import { VERIFIED_STUDY_CURRENT_SCHEDULE_2026_10_09 } from '../study/verified-study-current-schedule';
+import { VERIFIED_STUDY_CURRENT_SCHEDULE_2026_10_13 } from '../study/verified-study-current-schedule';
 
-const candidates = VERIFIED_STUDY_CURRENT_SCHEDULE_2026_10_09;
+const candidates = VERIFIED_STUDY_CURRENT_SCHEDULE_2026_10_13;
 
 describe('verified Study source note presentation', () => {
   it('shows first assistant meeting once per pediatric week, not on every subsequent day', () => {

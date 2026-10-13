@@ -2,13 +2,13 @@ import { describe, expect, it } from 'vitest';
 import { sha256Hex } from '../core/sha256';
 import {
   VERIFIED_STUDY_CURRENT_CALENDAR_OPERATIONAL_SHA256,
-  VERIFIED_STUDY_CURRENT_SCHEDULE_2026_10_09,
+  VERIFIED_STUDY_CURRENT_SCHEDULE_2026_10_13,
   VERIFIED_STUDY_CURRENT_SOURCE_ONLY_COUNT,
   VERIFIED_STUDY_CURRENT_TIMED_EVENT_COUNT,
-  VERIFIED_STUDY_CURRENT_UNDATED_REQUIREMENTS_2026_10_09,
+  VERIFIED_STUDY_CURRENT_UNDATED_REQUIREMENTS_2026_10_13,
 } from '../study/verified-study-current-schedule';
 import { applyVerifiedStudyPlanManualCorrectionsToAnalysis } from '../study/verified-study-plan-manual';
-import { VERIFIED_STUDY_PLAN_2026_10_09 } from '../study/verified-study-plan';
+import { VERIFIED_STUDY_PLAN_2026_10_13 } from '../study/verified-study-plan';
 import type { ScheduleAnalysis, StudyScheduleCandidate } from '../study/study.types';
 import {
   incompleteStudyEntryMarkerAppliesOnDate,
@@ -16,7 +16,7 @@ import {
 } from '../study/study-incomplete-visibility';
 
 function operationalRows() {
-  return VERIFIED_STUDY_CURRENT_SCHEDULE_2026_10_09
+  return VERIFIED_STUDY_CURRENT_SCHEDULE_2026_10_13
     .filter((candidate) => candidate.include !== false && candidate.date && candidate.startTime && candidate.endTime)
     .map((candidate) => [
       candidate.date ?? null,
@@ -39,7 +39,7 @@ function operationalRows() {
 }
 
 function sourceOnlyEntries() {
-  return VERIFIED_STUDY_CURRENT_SCHEDULE_2026_10_09.filter((candidate) => candidate.include === false);
+  return VERIFIED_STUDY_CURRENT_SCHEDULE_2026_10_13.filter((candidate) => candidate.include === false);
 }
 
 function asImportEntry(candidate: StudyScheduleCandidate) {
@@ -53,7 +53,7 @@ function asImportEntry(candidate: StudyScheduleCandidate) {
 
 describe('current WUM calendar is fully manual and exact', () => {
   it('stores every source position for the current profile in one explicit snapshot', () => {
-    expect(VERIFIED_STUDY_CURRENT_SCHEDULE_2026_10_09).toHaveLength(77);
+    expect(VERIFIED_STUDY_CURRENT_SCHEDULE_2026_10_13).toHaveLength(77);
     expect(operationalRows()).toHaveLength(VERIFIED_STUDY_CURRENT_TIMED_EVENT_COUNT);
     expect(sourceOnlyEntries()).toHaveLength(VERIFIED_STUDY_CURRENT_SOURCE_ONLY_COUNT);
     expect(VERIFIED_STUDY_CURRENT_TIMED_EVENT_COUNT).toBe(74);
@@ -71,7 +71,7 @@ describe('current WUM calendar is fully manual and exact', () => {
   });
 
   it('locks the 8 October change exactly', () => {
-    const day = VERIFIED_STUDY_CURRENT_SCHEDULE_2026_10_09
+    const day = VERIFIED_STUDY_CURRENT_SCHEDULE_2026_10_13
       .filter((candidate) => candidate.date === '2026-10-08' && candidate.include !== false)
       .map((candidate) => ({ subject: candidate.subject, start: candidate.startTime, end: candidate.endTime, room: candidate.room, address: candidate.address }))
       .sort((a, b) => (a.start ?? '').localeCompare(b.start ?? ''));
@@ -83,7 +83,7 @@ describe('current WUM calendar is fully manual and exact', () => {
   });
 
   it('adds the newly published Thursday Pharmacology seminar for group 11', () => {
-    const event = VERIFIED_STUDY_CURRENT_SCHEDULE_2026_10_09.find((candidate) => candidate.sourceKey === 'PLAN ZAJĘĆ|DA12|2026-11-12|10:15|14:00|FARMAKOLOGIA|MAIN:11');
+    const event = VERIFIED_STUDY_CURRENT_SCHEDULE_2026_10_13.find((candidate) => candidate.sourceKey === 'PLAN ZAJĘĆ|DA12|2026-11-12|10:15|14:00|FARMAKOLOGIA|MAIN:11');
     expect(event).toMatchObject({
       subject: 'FARMAKOLOGIA',
       activityType: 'Seminaria',
@@ -100,8 +100,29 @@ describe('current WUM calendar is fully manual and exact', () => {
     });
   });
 
+  it('takes direct MAIN:11 DD8 room and address over conflicting generic column Aula A', () => {
+    const dd8 = VERIFIED_STUDY_CURRENT_SCHEDULE_2026_10_13.find((candidate) =>
+      candidate.sourceRange === 'DD8' && candidate.date === '2026-10-15',
+    );
+    expect(dd8).toMatchObject({
+      subject: 'INTERNA (seminaria)', activityType: 'Seminaria', groupTags: ['MAIN:11'],
+      date: '2026-10-15', startTime: '16:45', endTime: '20:30',
+      room: 'sala 203', address: 'ul. Ciołka 27', include: true, manuallyReviewed: true,
+    });
+    expect(dd8?.locationLabel).toBeUndefined();
+    expect(dd8?.originalText).toContain('grupa 11\nsala 203, ul. Ciołka 27');
+    expect(dd8?.locationProvenance).toEqual([
+      expect.objectContaining({ field: 'room', source: 'SOURCE_DIRECT' }),
+      expect.objectContaining({ field: 'address', source: 'SOURCE_DIRECT' }),
+    ]);
+    const dd10 = VERIFIED_STUDY_CURRENT_SCHEDULE_2026_10_13.find((candidate) =>
+      candidate.sourceRange === 'DD10' && candidate.date === '2026-10-29',
+    );
+    expect(dd10).toMatchObject({ room: 'Aula A', address: 'ul. Trojdena 2a' });
+  });
+
   it('locks all manually verified practical blocks and seminar places', () => {
-    const by = (sourceRange: string, date?: string) => VERIFIED_STUDY_CURRENT_SCHEDULE_2026_10_09.find((candidate) => candidate.sourceRange === sourceRange && (!date || candidate.date === date));
+    const by = (sourceRange: string, date?: string) => VERIFIED_STUDY_CURRENT_SCHEDULE_2026_10_13.find((candidate) => candidate.sourceRange === sourceRange && (!date || candidate.date === date));
     expect(by('AM14', '2026-11-23')).toMatchObject({
       startTime: '08:00', endTime: '14:00',
       clinic: 'Katedra i Klinika Pediatrii i Nefrologii', address: 'ul. Żwirki i Wigury 63A',
@@ -125,7 +146,7 @@ describe('current WUM calendar is fully manual and exact', () => {
 
   it('keeps 27-29 October Health Promotion without a guessed room or address', () => {
     for (const date of ['2026-10-27', '2026-10-28', '2026-10-29']) {
-      const entry = VERIFIED_STUDY_CURRENT_SCHEDULE_2026_10_09.find((candidate) => (
+      const entry = VERIFIED_STUDY_CURRENT_SCHEDULE_2026_10_13.find((candidate) => (
         candidate.sourceRange === 'BC10' && candidate.subject === 'PROM. ZDROWIA' && candidate.date === date
       ))!;
       expect(entry).toMatchObject({
@@ -165,13 +186,13 @@ describe('current WUM calendar is fully manual and exact', () => {
   });
 
   it('keeps the undated 5h Health Promotion e-learning requirement as source information, not a fake event', () => {
-    expect(VERIFIED_STUDY_CURRENT_UNDATED_REQUIREMENTS_2026_10_09).toEqual([
+    expect(VERIFIED_STUDY_CURRENT_UNDATED_REQUIREMENTS_2026_10_13).toEqual([
       expect.objectContaining({ sourceRange: 'A20', subject: 'PROMOCJA ZDROWIA', activityType: 'E-learning', declaredTeachingHours: 5 }),
     ]);
   });
 
   it('overrides parser calendar fields with the manual snapshot for the exact current source key', () => {
-    const manual = VERIFIED_STUDY_CURRENT_SCHEDULE_2026_10_09.find((candidate) => candidate.sourceKey.includes('|2026-10-08|16:30|18:00|CHIRURGIA'))!;
+    const manual = VERIFIED_STUDY_CURRENT_SCHEDULE_2026_10_13.find((candidate) => candidate.sourceKey.includes('|2026-10-08|16:30|18:00|CHIRURGIA'))!;
     const deliberatelyWrong: StudyScheduleCandidate = {
       ...manual,
       date: '2026-10-09',
@@ -190,7 +211,7 @@ describe('current WUM calendar is fully manual and exact', () => {
       information: [],
       warnings: [],
     };
-    const corrected = applyVerifiedStudyPlanManualCorrectionsToAnalysis(analysis, VERIFIED_STUDY_PLAN_2026_10_09.sha256).candidates[0]!;
+    const corrected = applyVerifiedStudyPlanManualCorrectionsToAnalysis(analysis, VERIFIED_STUDY_PLAN_2026_10_13.sha256).candidates[0]!;
     expect(corrected).toMatchObject({
       date: '2026-10-08', startTime: '16:30', endTime: '18:00',
       subject: 'CHIRURGIA', room: 'AULA A', address: 'ul. Trojdena 2a', status: 'READY', include: true,

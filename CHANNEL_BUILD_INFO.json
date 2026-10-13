@@ -1,11 +1,11 @@
 {
   "source": "PRIVATE",
   "surface": "public-stable",
-  "buildId": "ik-1.2.0.346-20261011-wum-0910-sourceonly-pozhistory-test-fix",
-  "appVersion": "1.2.0.346",
+  "buildId": "ik-1.2.0.347-20261013-wum-1310-exact-manual-dd8",
+  "appVersion": "1.2.0.347",
   "releaseVersion": "1.2.0",
-  "packageVersion": "1.2.0-private.346",
-  "build": "346",
-  "contentFingerprint": "33fe2863c76681c77c5e6249017b13aac2720605b4300064e40aa4ad7da8cfa9",
-  "fileCount": 588
+  "packageVersion": "1.2.0-private.347",
+  "build": "347",
+  "contentFingerprint": "32ca7bed0c994be979d01cc01f94ef10f1efbc541664b95a969524e3c7e44de5",
+  "fileCount": 589
 }

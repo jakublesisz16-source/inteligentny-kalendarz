@@ -1128,9 +1128,28 @@ function buildMatrixCandidates(sheet: SheetSnapshot, signals: MatrixSignals): { 
               ...(inline.location.label ? { label: inline.location.label } : {}),
             }
           : datedLocation;
-        const candidateLocation = useFirstMeetingLocation && resolved.firstMeetingLocation
+        const inheritedLocation = useFirstMeetingLocation && resolved.firstMeetingLocation
           ? mergeLocation(inlineLocation, { key: '', rawText: '', ...resolved.firstMeetingLocation })
           : inlineLocation;
+        // A location written in the GROUP cell overrides a generic weekday/column
+        // location. Do not interpret unrelated group labels as locations. Crucial
+        // for 13.10 DD8: 'grupa 11\nsala 203, ul. Ciołka 27' beats 'aula A w CD'.
+        const groupSpecificNote = /\r?\n/u.test(cell.value)
+          ? cell.value.slice(cell.value.search(/\r?\n/u) + (cell.value.includes('\r\n') ? 2 : 1)).trim()
+          : '';
+        const groupSpecificLocation = /\b(?:sala|sale|ul\.?|al\.?|aleja|plac|pl\.?)\b/iu.test(groupSpecificNote)
+          ? parseLocationText(groupSpecificNote) : {};
+        const candidateLocation: LocationParseResult = {
+          ...inheritedLocation,
+          ...(groupSpecificLocation.room ? { room: groupSpecificLocation.room } : {}),
+          ...(groupSpecificLocation.address ? { address: groupSpecificLocation.address } : {}),
+          ...(groupSpecificLocation.label ? { label: groupSpecificLocation.label } : {}),
+          // If a direct group-specific address conflicts with the inherited institution,
+          // do not retain that inherited label as if it were the new room's location.
+        };
+        if (groupSpecificLocation.room && !groupSpecificLocation.label) {
+          delete candidateLocation.label;
+        }
         if (useFirstMeetingLocation) firstMeetingKeys.forEach((key) => consumedFirstMeetingLocations.add(key));
         const warnings: string[] = [];
         if (!resolved.subject) warnings.push('Nie udało się ustalić przedmiotu z nagłówka kolumny.');

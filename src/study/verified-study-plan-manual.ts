@@ -14,9 +14,11 @@ import {
   VERIFIED_STUDY_PLAN_2026_10_06,
   VERIFIED_STUDY_PLAN_2026_10_08,
   VERIFIED_STUDY_PLAN_2026_10_09,
+  VERIFIED_STUDY_PLAN_2026_10_13,
 } from './verified-study-plan';
 import {
   VERIFIED_STUDY_CURRENT_SCHEDULE_2026_10_09,
+  VERIFIED_STUDY_CURRENT_SCHEDULE_2026_10_13,
   verifiedStudyCurrentScheduleCandidates,
 } from './verified-study-current-schedule';
 
@@ -26,7 +28,8 @@ export const VERIFIED_STUDY_PROFILE_2026_10_05 = ['MAIN:11', 'G12:11B', 'G8:11B'
 export const VERIFIED_STUDY_PROFILE_2026_10_06 = ['MAIN:11', 'G12:11B', 'G8:11B', 'G4:11B2'] as const;
 export const VERIFIED_STUDY_PROFILE_2026_10_08 = ['MAIN:11', 'G12:11B', 'G8:11B', 'G4:11B2'] as const;
 export const VERIFIED_STUDY_PROFILE_2026_10_09 = ['MAIN:11', 'G12:11B', 'G8:11B', 'G4:11B2'] as const;
-export const VERIFIED_STUDY_PROFILE_CURRENT = VERIFIED_STUDY_PROFILE_2026_10_09;
+export const VERIFIED_STUDY_PROFILE_2026_10_13 = ['MAIN:11', 'G12:11B', 'G8:11B', 'G4:11B2'] as const;
+export const VERIFIED_STUDY_PROFILE_CURRENT = VERIFIED_STUDY_PROFILE_2026_10_13;
 
 // 09.10 differs from 08.10 only in AF8:AF11 / AK8:AK11 for OTHER groups.
 // Every current-profile time, unit, place, source text and 34 location evidence refs was independently checked.
@@ -42,6 +45,19 @@ export const VERIFIED_STUDY_SOURCE_TEXT_CORRECTIONS_2026_10_09 = [
     reason: 'Pozycja jest source-only: brak konkretnego dnia/godzin, nie wolno tworzyć terminu.',
   },
 ] as const;
+
+export const VERIFIED_STUDY_MANUAL_AUDIT_2026_10_13 = {
+  selectedGroups: VERIFIED_STUDY_PROFILE_2026_10_13,
+  candidateCount: 77,
+  importableCount: 74,
+  readyCount: 70,
+  warningCount: 4,
+  incompleteCount: 3,
+  blockingCount: 0,
+  conflictCount: 0,
+  importableMonthCounts: { '2026-10': 16, '2026-11': 21, '2026-12': 19, '2027-01': 18 },
+  candidatesSha256: '1519240c382b2785c2fc10cd61e99fe56ed198023b552d6ada1a793c57893ef9',
+} as const;
 
 export const VERIFIED_STUDY_MANUAL_AUDIT_2026_10_09 = {
   selectedGroups: VERIFIED_STUDY_PROFILE_2026_10_09,
@@ -995,6 +1011,19 @@ const VERIFIED_SOURCE_INCOMPLETE_2026_10_05: ReadonlyArray<{
 
 // Reverified against 09.10 workbook: none of the 8 changed cells touch these 34 rules.
 const VERIFIED_LOCATION_OVERRIDES_2026_10_09: readonly VerifiedLocationOverride[] = VERIFIED_LOCATION_OVERRIDES_2026_10_08;
+// 13.10 changes precisely the 15 October MAIN:11 seminar room. This rule is
+// hash-bound to the new workbook and must never overwrite the 09.10 history.
+const VERIFIED_LOCATION_OVERRIDES_2026_10_13: readonly VerifiedLocationOverride[] = VERIFIED_LOCATION_OVERRIDES_2026_10_09.map((override) =>
+  override.sourceRange === 'DD8' && override.date === '2026-10-15' && override.subject === 'INTERNA (seminaria)'
+    ? {
+        ...override,
+        patch: { room: 'sala 203', address: 'ul. Ciołka 27', locationLabel: null },
+        evidence: 'PLAN ZAJĘĆ!DD8: grupa 11\nsala 203, ul. Ciołka 27 - directly scoped to group 11, overrides the generic Thursday Aula A header.',
+        provenance: { room: 'SOURCE_DIRECT', address: 'SOURCE_DIRECT', locationLabel: 'SOURCE_DIRECT' },
+      }
+    : override,
+);
+
 
 const VERIFIED_SOURCE_INCOMPLETE_2026_10_09: ReadonlyArray<{
   sourceRange: string;
@@ -1066,12 +1095,28 @@ const VERIFIED_SOURCE_INCOMPLETE_2026_10_06: ReadonlyArray<{
   },
 ];
 
+const VERIFIED_SOURCE_INCOMPLETE_2026_10_13 = VERIFIED_SOURCE_INCOMPLETE_2026_10_09.map((entry) => ({
+  ...entry,
+  warning: entry.warning.replace('09.10.2026', '13.10.2026'),
+}));
+
 function normalizedHash(value: string): string {
   return value.trim().toLowerCase();
 }
 
 function manualConfigForHash(fileHash: string) {
   const hash = normalizedHash(fileHash);
+  if (hash === VERIFIED_STUDY_PLAN_2026_10_13.sha256) {
+    return {
+      plan: VERIFIED_STUDY_PLAN_2026_10_13,
+      selectedGroups: VERIFIED_STUDY_PROFILE_2026_10_13,
+      audit: VERIFIED_STUDY_MANUAL_AUDIT_2026_10_13,
+      overrides: VERIFIED_LOCATION_OVERRIDES_2026_10_13,
+      incomplete: VERIFIED_SOURCE_INCOMPLETE_2026_10_13,
+      auditDateLabel: '13.10.2026',
+      informationId: 'verified-manual-plan-2026-10-13',
+    } as const;
+  }
   if (hash === VERIFIED_STUDY_PLAN_2026_10_09.sha256) {
     return {
       plan: VERIFIED_STUDY_PLAN_2026_10_09,
@@ -1217,7 +1262,7 @@ function applyCurrentManualScheduleSnapshot(candidates: StudyScheduleCandidate[]
   candidates: StudyScheduleCandidate[];
   matchedCanonicalCount: number;
 } {
-  if (normalizedHash(fileHash) !== VERIFIED_STUDY_PLAN_2026_10_09.sha256) {
+  if (normalizedHash(fileHash) !== VERIFIED_STUDY_PLAN_2026_10_13.sha256) {
     return { candidates, matchedCanonicalCount: 0 };
   }
   const canonical = verifiedStudyCurrentScheduleCandidates();
@@ -1323,8 +1368,8 @@ export async function verifyVerifiedStudyPlanManualAudit(
   const audit = auditSelectedStudyProfile(corrected, selectedGroups);
   const expected = config.audit;
   const reasons: string[] = [];
-  if (normalizedHash(fileHash) === VERIFIED_STUDY_PLAN_2026_10_09.sha256) {
-    const expectedKeys = new Set(VERIFIED_STUDY_CURRENT_SCHEDULE_2026_10_09.map((candidate) => candidate.sourceKey));
+  if (normalizedHash(fileHash) === VERIFIED_STUDY_PLAN_2026_10_13.sha256) {
+    const expectedKeys = new Set(VERIFIED_STUDY_CURRENT_SCHEDULE_2026_10_13.map((candidate) => candidate.sourceKey));
     const selectedKeys = new Set(selected.map((candidate) => candidate.sourceKey));
     if (selectedKeys.size !== expectedKeys.size || [...expectedKeys].some((key) => !selectedKeys.has(key))) {
       reasons.push('Ręczna lista bieżącego kalendarza nie pokrywa dokładnie wszystkich 77 pozycji źródłowych.');
@@ -1340,6 +1385,6 @@ export async function verifyVerifiedStudyPlanManualAudit(
   return { verified: reasons.length === 0, reasons, candidatesSha256 };
 }
 
-export function verifiedStudyPlanManualEvidence(fileHash: string = VERIFIED_STUDY_PLAN_2026_10_09.sha256): ReadonlyArray<Readonly<VerifiedLocationOverride>> {
+export function verifiedStudyPlanManualEvidence(fileHash: string = VERIFIED_STUDY_PLAN_2026_10_13.sha256): ReadonlyArray<Readonly<VerifiedLocationOverride>> {
   return manualConfigForHash(fileHash)?.overrides ?? [];
 }

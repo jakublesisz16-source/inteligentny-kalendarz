@@ -227,7 +227,46 @@ export const VERIFIED_STUDY_PLAN_2026_10_09 = {
   },
 } as const;
 
-export const VERIFIED_STUDY_PLAN_CURRENT = VERIFIED_STUDY_PLAN_2026_10_09;
+export const VERIFIED_STUDY_PLAN_2026_10_13 = {
+  id: 'wum-nursing-year2-2026-10-13',
+  sourceName: 'licencjat-ii-rok-piel.-13.10.2026.xls',
+  sourceUpdatedAt: '2026-10-13T00:00:00+02:00',
+  sizeBytes: 148480,
+  sha256: '939acba2ad6646464b7612a25f8800fcfbb65e5691b34bcd6c70056ee1aaf4be',
+  adapterId: 'nursing-week-matrix-v2',
+  allCandidatesSha256: '9a28c77f69de8e2cccca96839c285b18098e2e4364e1f9b5df223f67adbf5628',
+  selectedProfile: {
+    selectedGroups: ['MAIN:11', 'G12:11B', 'G8:11B', 'G4:11B2'],
+    candidatesSha256: '8706ef0697d41481f5e822fd7d11e1ff4355c1cbaa21c5ebafcc7bd35791aef6',
+    candidateCount: 77,
+    importableCount: 74,
+    readyCount: 69,
+    warningCount: 5,
+    incompleteCount: 3,
+    blockingCount: 0,
+    conflictCount: 0,
+    importableMonthCounts: { '2026-10': 16, '2026-11': 21, '2026-12': 19, '2027-01': 18 },
+  },
+  audit: {
+    candidateCount: 2183,
+    readyCount: 1957,
+    reviewRequiredCount: 226,
+    groupCount: 156,
+    groupKinds: { MAIN: 13, G12: 26, G8: 39, G4: 78, GENERIC: 0 },
+    sourceBlockCount: 837,
+    completenessSafe: true,
+    incompleteSourceBlockCount: 156,
+    hourAnomalyCount: 12,
+    profileCombinationCount: 156,
+    affectedProfileCombinationCount: 6,
+    uniqueConflictSignatureCount: 3,
+    weekdayMismatchCount: 2,
+    unparsedAssignmentCellCount: 0,
+    unappliedDateExceptionCount: 0,
+  },
+} as const;
+
+export const VERIFIED_STUDY_PLAN_CURRENT = VERIFIED_STUDY_PLAN_2026_10_13;
 
 export type StudyPlanVerificationState = 'VERIFIED_REFERENCE' | 'NEW_SOURCE' | 'BLOCKED_REFERENCE_DRIFT';
 
@@ -395,6 +434,7 @@ export async function verifyStudyPlanAgainstReference(
 export async function verifyStudyPlanSource(input: VerifyStudyPlanInput): Promise<StudyPlanVerification> {
   const normalizedHash = input.fileHash.toLowerCase();
   const references: readonly StudyPlanReference[] = [
+    VERIFIED_STUDY_PLAN_2026_10_13,
     VERIFIED_STUDY_PLAN_2026_10_09,
     VERIFIED_STUDY_PLAN_2026_10_08,
     VERIFIED_STUDY_PLAN_2026_10_06,

@@ -6,7 +6,7 @@ import {
   VERIFIED_STUDY_PROFILE_2026_10_09,
   verifiedStudyPlanManualEvidence,
 } from '../study/verified-study-plan-manual';
-import { VERIFIED_STUDY_PLAN_2026_10_09, VERIFIED_STUDY_PLAN_CURRENT } from '../study/verified-study-plan';
+import { VERIFIED_STUDY_PLAN_2026_10_09, VERIFIED_STUDY_PLAN_2026_10_13, VERIFIED_STUDY_PLAN_CURRENT } from '../study/verified-study-plan';
 
 function candidate(patch: Partial<StudyScheduleCandidate>): StudyScheduleCandidate {
   return {
@@ -33,7 +33,7 @@ function candidate(patch: Partial<StudyScheduleCandidate>): StudyScheduleCandida
 
 describe('current verified WUM plan 09.10.2026', () => {
   it('pins the exact source and manually audited user profile', () => {
-    expect(VERIFIED_STUDY_PLAN_CURRENT).toBe(VERIFIED_STUDY_PLAN_2026_10_09);
+    expect(VERIFIED_STUDY_PLAN_CURRENT).toBe(VERIFIED_STUDY_PLAN_2026_10_13);
     expect(VERIFIED_STUDY_PLAN_2026_10_09).toMatchObject({
       sourceName: 'licencjat-ii-rok-piel.-09.10.2026.xls',
       sizeBytes: 148480,
