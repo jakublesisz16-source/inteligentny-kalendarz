@@ -1,11 +1,11 @@
 {
   "source": "PRIVATE",
   "surface": "public-stable",
-  "buildId": "ik-1.2.0.347-20261013-wum-1310-exact-manual-dd8",
-  "appVersion": "1.2.0.347",
+  "buildId": "ik-1.2.0.348-20261013-wum-1310-ci-fingerprint-hotfix",
+  "appVersion": "1.2.0.348",
   "releaseVersion": "1.2.0",
-  "packageVersion": "1.2.0-private.347",
-  "build": "347",
-  "contentFingerprint": "32ca7bed0c994be979d01cc01f94ef10f1efbc541664b95a969524e3c7e44de5",
+  "packageVersion": "1.2.0-private.348",
+  "build": "348",
+  "contentFingerprint": "de804dfc301e621d7344fa1ed368124582f358a48763335fd12f64e01c51e8f2",
   "fileCount": 589
 }
