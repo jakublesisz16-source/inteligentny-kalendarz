@@ -45,7 +45,7 @@ describe('1.2.0.111 study plan freshness and diff summary', () => {
   it('keeps the status compact on desktop and mobile without a schema migration', () => {
     expect(styles).toContain('1.2.0.111 - compact study plan freshness and readable update breakdown.');
     expect(styles).toContain('.study-current-plan-line');
-    expect(version).toMatch(/APP_VERSION\s*=\s*'\d+\.\d+\.\d+\.\d+'/u);
+    expect(version).toMatch(/APP_VERSION\s*=\s*'\d+\.\d+\.\d+'/u);
     expect(version).toContain('DATABASE_SCHEMA_VERSION = 14');
   });
 });

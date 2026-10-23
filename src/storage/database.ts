@@ -688,31 +688,75 @@ export async function claimLocalSyncOwnerAccountId(accountId: string): Promise<s
   return existingValue || normalized;
 }
 
-export async function resetLocalDatabaseForAccountSwitch(accountId: string): Promise<void> {
+export async function resetLocalDatabaseForAccountSwitch(
+  accountId: string,
+  document: BackupDocument | null,
+  expectedPreviousOwnerAccountId: string | null,
+): Promise<void> {
   const normalized = accountId.trim();
   if (!normalized) throw new Error('Nie można przełączyć na puste konto synchronizacji.');
 
-  const pending = databasePromise;
-  databasePromise = null;
-  if (pending) {
-    try {
-      const db = await pending;
-      db.close();
-    } catch {
-      // Continue with the destructive reset even if the previous open failed.
+  // A deleteDatabase() followed by a separate cloud apply could erase account A
+  // permanently when B failed to write (quota, constraint or closed tab). Stage
+  // the complete B payload and ownership marker in ONE IndexedDB transaction.
+  // Any request error or abort rolls back A's events, preferences and owner too.
+  const replacement = document
+    ? migrateBackupSnapshotToCurrent((await inspectBackupText(JSON.stringify(document))).document.data)
+    : null;
+  const db = await openDatabase();
+  const names = Array.from(db.objectStoreNames);
+  const tx = db.transaction(names, 'readwrite');
+  const done = transactionDone(tx);
+  try {
+    // This read and every store clear/write share a single IDB readwrite
+    // transaction. A peer that committed after the tab probe cannot be
+    // overwritten: IndexedDB serializes overlapping readwrite transactions.
+    const ownerRecord = await requestToPromise(
+      tx.objectStore(STORE_META).get(LOCAL_SYNC_OWNER_META_KEY) as IDBRequest<MetaRecord | undefined>,
+    );
+    const actualOwner = typeof ownerRecord?.value === 'string' && ownerRecord.value.trim()
+      ? ownerRecord.value.trim() : null;
+    const expectedOwner = expectedPreviousOwnerAccountId?.trim() || null;
+    if (actualOwner !== expectedOwner) {
+      throw new Error('Właściciel lokalnych danych zmienił się w innej karcie. Odśwież aplikację; dane nie zostały zastąpione.');
     }
+    for (const name of names) {
+      const store = tx.objectStore(name);
+      store.clear();
+      // The account security anchor is never imported from a remote snapshot.
+      for (const row of replacement ? snapshotStoreRows(name, replacement.stores[name] ?? []) : []) {
+        store.put(row);
+      }
+      if (name === STORE_META) {
+        store.put({ key: LOCAL_SYNC_OWNER_META_KEY, value: normalized } satisfies MetaRecord);
+      }
+      if (name === STORE_SETTINGS && !replacement?.stores[STORE_SETTINGS]?.length) {
+        store.put({
+          id: 'app',
+          preferredStartView: 'today',
+          timeFormat: '24h',
+          notificationPreferences: DEFAULT_NOTIFICATION_PREFERENCES,
+          decorativeBackgroundMode: DEFAULT_DECORATIVE_BACKGROUND_MODE,
+          showPolishHolidays: true,
+          showWumAcademicCalendar: true,
+          updatedAt: nowIso(),
+        } satisfies AppSettings);
+      }
+      if (name === STORE_EXPENSE_CATEGORIES && !replacement) {
+        const timestamp = nowIso();
+        DEFAULT_EXPENSE_CATEGORY_DEFINITIONS.forEach((definition, sortOrder) => {
+          store.put({ ...definition, sortOrder, createdAt: timestamp, updatedAt: timestamp } satisfies ExpenseCategory);
+        });
+      }
+    }
+    await done;
+  } catch (error) {
+    // Synchronous DataCloneError/invalid key can otherwise leave queued clears
+    // alive: explicitly abort them before returning the original failure.
+    try { tx.abort(); } catch { /* already aborted or committed */ }
+    await done.catch(() => undefined);
+    throw error;
   }
-
-  await new Promise<void>((resolve, reject) => {
-    const request = indexedDB.deleteDatabase(DB_NAME);
-    request.onsuccess = () => resolve();
-    request.onerror = () => reject(request.error ?? new Error('Nie udało się wyczyścić lokalnych danych przed przełączeniem konta.'));
-    request.onblocked = () => reject(new Error('Nie można przełączyć konta, ponieważ inna karta Inteligentnego Kalendarza nadal używa lokalnej bazy. Zamknij pozostałe karty i spróbuj ponownie.'));
-  });
-
-  await initializeDatabase();
-  const claimed = await claimLocalSyncOwnerAccountId(normalized);
-  if (claimed !== normalized) throw new Error('Nie udało się bezpiecznie przypisać lokalnych danych do nowego konta.');
 }
 
 export async function listEvents(): Promise<CalendarEvent[]> {
@@ -732,6 +776,8 @@ export async function getEvent(id: string): Promise<CalendarEvent | undefined> {
 }
 
 export async function createEvent(draft: EventDraft): Promise<CalendarEvent> {
+  const validation = validateEventDraft(draft);
+  if (!validation.valid) throw new Error(Object.values(validation.errors)[0] ?? 'Nieprawidłowe dane wydarzenia.');
   const db = await openDatabase();
   const timestamp = nowIso();
   const event: CalendarEvent = {
@@ -770,6 +816,7 @@ function changedEventFields(current: CalendarEvent, draft: EventDraft): UserModi
   if (current.startDateTime !== draft.startDateTime) fields.push('startDateTime');
   if (current.endDateTime !== draft.endDateTime) fields.push('endDateTime');
   if ((current.locationId ?? '') !== (draft.locationId ?? '')) fields.push('locationId');
+  if ((current.locationText ?? '') !== (draft.locationText?.trim() ?? '')) fields.push('locationText');
   if ((current.description ?? '') !== (draft.description?.trim() ?? '')) fields.push('description');
   if (current.category !== draft.category) fields.push('category');
   if (current.allDay !== (draft.allDay ?? false)) fields.push('allDay');
@@ -779,6 +826,8 @@ function changedEventFields(current: CalendarEvent, draft: EventDraft): UserModi
 }
 
 export async function updateEvent(id: string, draft: EventDraft): Promise<CalendarEvent> {
+  const validation = validateEventDraft(draft);
+  if (!validation.valid) throw new Error(Object.values(validation.errors)[0] ?? 'Nieprawidłowe dane wydarzenia.');
   const current = await getEvent(id);
   if (!current) throw new Error('Nie znaleziono wydarzenia.');
   const changedFields = changedEventFields(current, draft);
@@ -969,9 +1018,8 @@ export async function ensureEnglishMondayStudySupplement(): Promise<{ addedEvent
 }
 
 export async function createManualEventSeries(draft: ManualMultiDateDraft): Promise<CalendarEvent[]> {
+  const validation = validateManualMultiDateDraft(draft);
   const dates = uniqueSortedDateKeys(draft.dates);
-  const normalizedDraft: ManualMultiDateDraft = { ...draft, dates };
-  const validation = validateManualMultiDateDraft(normalizedDraft);
   if (!validation.valid) throw new Error(Object.values(validation.errors)[0] ?? 'Nieprawidłowe dane serii.');
   const db = await openDatabase();
   const timestamp = nowIso();
@@ -1018,12 +1066,17 @@ export async function listManualSeriesEvents(seriesId: string): Promise<Calendar
 export async function updateManualEventSeries(eventId: string, draft: EventDraft): Promise<CalendarEvent[]> {
   const validation = validateEventDraft(draft);
   if (!validation.valid) throw new Error(Object.values(validation.errors)[0] ?? 'Nieprawidłowe dane wydarzenia.');
+  // A manual multi-date series is a collection of single-day occurrences. The editor
+  // previously discarded the end date and could silently create end < start.
+  const startParts = splitLocalDateTime(draft.startDateTime);
+  const endParts = splitLocalDateTime(draft.endDateTime);
+  if (startParts.date !== endParts.date) {
+    throw new Error('Edycja całej serii wymaga zakresu w obrębie jednego dnia. Zmień pojedyncze wydarzenie.');
+  }
   const current = await getEvent(eventId);
   if (!current?.seriesId || current.seriesType !== 'MANUAL_MULTI_DATE') throw new Error('To wydarzenie nie należy do ręcznej serii.');
   const members = await listManualSeriesEvents(current.seriesId);
   const timestamp = nowIso();
-  const startParts = splitLocalDateTime(draft.startDateTime);
-  const endParts = splitLocalDateTime(draft.endDateTime);
   const updated = members.map((member) => {
     const date = splitLocalDateTime(member.startDateTime).date;
     const next: CalendarEvent = {
@@ -2230,7 +2283,7 @@ export async function deleteLocation(id: string): Promise<void> {
         const existingModifiedFields: UserModifiedEventField[] = event.userModifiedFields?.length
           ? [...event.userModifiedFields]
           : event.userModified
-            ? ['title', 'startDateTime', 'endDateTime', 'locationId', 'description', 'category']
+            ? ['title', 'startDateTime', 'endDateTime', 'locationId', 'locationText', 'description', 'category']
             : [];
         updated.userModified = true;
         updated.userModifiedFields = [...new Set<UserModifiedEventField>([...existingModifiedFields, 'locationId'])];
@@ -2651,26 +2704,43 @@ function assertStudySourceCompleteness(candidates: StudyScheduleCandidate[], sou
   if (!audit.safe) throw new Error(`Plan nie przeszedł bramki kompletności: ${audit.reasons.join(' ')}`);
 }
 
-function studyLocationExactKey(primary: string, displayName: string): string {
-  return `study:${normalizeLocationKey(primary)}::${normalizeLocationKey(displayName)}`;
+// A source place label and a source-confirmed address must never share a lookup
+// identity. Older imports could have saved the label as Location.address, so
+// comparing the normalized text alone is insufficient to establish provenance.
+function studyLocationExactKey(primary: string, displayName: string, hasAddress: boolean): string {
+  const kind = hasAddress ? 'address' : 'label';
+  return `study:${kind}:${normalizeLocationKey(primary)}::${normalizeLocationKey(displayName)}`;
 }
 
 function locationMap(locations: Location[]): Map<string, Location> {
   const map = new Map<string, Location>();
   for (const location of locations) {
-    const primary = location.address || location.name;
+    // A matching name/address is not proof that a private or work place is
+    // the university venue from the Excel source. Study imports own only
+    // university/clinic locations; do not silently bind unrelated records.
+    if (location.type !== 'UNIVERSITY' && location.type !== 'CLINIC') continue;
+    const hasAddress = Boolean(location.address.trim());
+    const primary = hasAddress ? location.address : location.name;
     const legacyKey = normalizeLocationKey(primary);
     if (!map.has(legacyKey)) map.set(legacyKey, location);
-    map.set(studyLocationExactKey(primary, location.name || primary), location);
+    map.set(studyLocationExactKey(primary, location.name || primary, hasAddress), location);
   }
   return map;
 }
 
 function candidateStudyLocationKey(candidate: Pick<StudyScheduleCandidate, 'address' | 'locationLabel' | 'clinic' | 'subject'>): string | undefined {
-  const primary = candidate.address ?? candidate.locationLabel;
+  const hasAddress = Boolean(candidate.address?.trim());
+  const primary = hasAddress ? candidate.address : candidate.locationLabel;
   if (!primary) return undefined;
   const displayName = candidate.clinic ?? candidate.locationLabel ?? candidate.address ?? candidate.subject;
-  return studyLocationExactKey(primary, displayName);
+  return studyLocationExactKey(primary, displayName, hasAddress);
+}
+
+function matchingLegacyStudyLocation(candidate: Pick<StudyScheduleCandidate, 'address'>, location: Location | undefined): Location | undefined {
+  if (!location) return undefined;
+  // A label-only source must not inherit an old, potentially fabricated address.
+  if (!candidate.address?.trim()) return !location.address.trim() ? location : undefined;
+  return normalizeLocationKey(location.address) === normalizeLocationKey(candidate.address) ? location : undefined;
 }
 
 function ensureCandidateLocation(
@@ -2679,20 +2749,23 @@ function ensureCandidateLocation(
   newLocations: Location[],
   timestamp: string,
 ): string | undefined {
-  const primary = candidate.address ?? candidate.locationLabel;
+  const hasAddress = Boolean(candidate.address?.trim());
+  const primary = hasAddress ? candidate.address : candidate.locationLabel;
   if (!primary) return undefined;
   const displayName = candidate.clinic ?? candidate.locationLabel ?? candidate.address ?? candidate.subject;
-  const exactKey = studyLocationExactKey(primary, displayName);
+  const exactKey = studyLocationExactKey(primary, displayName, hasAddress);
   let location = locationsByKey.get(exactKey);
   if (!location && normalizeLocationKey(displayName) === normalizeLocationKey(primary)) {
-    location = locationsByKey.get(normalizeLocationKey(primary));
+    location = matchingLegacyStudyLocation(candidate, locationsByKey.get(normalizeLocationKey(primary)));
   }
   if (!location) {
     location = {
       id: createId('location-university'),
       name: displayName,
       type: candidate.clinic ? 'CLINIC' : 'UNIVERSITY',
-      address: candidate.address ?? candidate.locationLabel ?? candidate.subject,
+      // A named place is not a verified street address. Keep it in `name` only.
+      // Blank addresses also prevent generating a misleading navigation route.
+      address: hasAddress ? candidate.address! : '',
       createdAt: timestamp,
       updatedAt: timestamp,
       ...(candidate.room ? { note: candidate.room } : {}),
@@ -3308,6 +3381,7 @@ function applyCandidateToExistingEvent(
   locationId: string | undefined,
   preserveUserFields: UserModifiedEventField[],
   timestamp: string,
+  sourceWinsLocationText = false,
 ): CalendarEvent {
   const identified = identifyCandidate(candidate);
   const description = importedEventDescription(identified);
@@ -3335,6 +3409,9 @@ function applyCandidateToExistingEvent(
   else delete next.locationId;
   if (description) next.description = description;
   else delete next.description;
+  // An explicit USE_NEW choice must clear stale manual free-text venue data.
+  // Otherwise retain legacy locationText values that older builds did not track.
+  if (sourceWinsLocationText) delete next.locationText;
 
   // Merge user-owned fields back on top of the fresh plan values. This lets a new
   // plan update unrelated source fields without silently destroying manual edits.
@@ -3371,7 +3448,7 @@ function preservedFieldsForUpdate(event: CalendarEvent, item: ScheduleDiffItem):
   if (item.kind === 'CONFLICT_USER_MODIFIED' && item.resolution === 'USE_NEW') return [];
   // Legacy userModified=true did not record which field changed. Preserve every
   // editable user field rather than pretend we know which one is safe to replace.
-  return ['title', 'startDateTime', 'endDateTime', 'locationId', 'description', 'category'];
+  return ['title', 'startDateTime', 'endDateTime', 'locationId', 'locationText', 'description', 'category'];
 }
 
 function detachStudyEventAsManual(event: CalendarEvent, timestamp: string): CalendarEvent {
@@ -3595,7 +3672,7 @@ export async function applyUniversityScheduleUpdate(preview: ScheduleUpdatePrevi
         if (change.field === 'subject') preserved.add('title');
         if (change.field === 'date' || change.field === 'startTime') preserved.add('startDateTime');
         if (change.field === 'date' || change.field === 'endTime') preserved.add('endDateTime');
-        if (change.field === 'address' || change.field === 'locationLabel') preserved.add('locationId');
+        if (change.field === 'address' || change.field === 'locationLabel') { preserved.add('locationId'); preserved.add('locationText'); }
         if (change.field === 'room' || change.field === 'clinic' || change.field === 'activityType' || change.field === 'groupTags') preserved.add('description');
       }
       const locationId = preserved.has('locationId')
@@ -3618,7 +3695,8 @@ export async function applyUniversityScheduleUpdate(preview: ScheduleUpdatePrevi
     const locationId = effectivePreserveFields.includes('locationId')
       ? oldEvent.locationId
       : ensureCandidateLocation(candidate, locationsByKey, newLocations, timestamp);
-    const updated = applyCandidateToExistingEvent(oldEvent, complete, importId, entryId, locationId, effectivePreserveFields, timestamp);
+    const updated = applyCandidateToExistingEvent(oldEvent, complete, importId, entryId, locationId, effectivePreserveFields, timestamp,
+      item.kind === 'CONFLICT_USER_MODIFIED' && item.resolution === 'USE_NEW');
     eventsToPut.push(updated);
     linkedEntries.push({ ...entryFromCandidate(candidate, importId, oldEvent.id, false), id: entryId });
     if (item.kind === 'CHANGED') changed += 1;
@@ -4539,13 +4617,16 @@ interface StudyTrashRestoreResolution {
   event: CalendarEvent;
   entryBefore?: UniversityImportEntry;
   entryAfter?: UniversityImportEntry;
+  // A venue deleted while the event was in Trash must be recreated atomically
+  // from source-confirmed fields, never from a guessed street address.
+  locationToCreate?: Location;
 }
 
 function preservedFieldsForTrashRestore(event: CalendarEvent): UserModifiedEventField[] {
   if (!event.userModified) return [];
   return event.userModifiedFields?.length
     ? [...event.userModifiedFields]
-    : ['title', 'startDateTime', 'endDateTime', 'locationId', 'description', 'category'];
+    : ['title', 'startDateTime', 'endDateTime', 'locationId', 'locationText', 'description', 'category'];
 }
 
 async function resolveStudyTrashRestore(event: CalendarEvent): Promise<StudyTrashRestoreResolution> {
@@ -4577,28 +4658,39 @@ async function resolveStudyTrashRestore(event: CalendarEvent): Promise<StudyTras
   const timestamp = nowIso();
   const candidate = identifyCandidate(candidateFromEntry(match));
   let restored: CalendarEvent;
+  let locationToCreate: Location | undefined;
   if (reviewCandidate(candidate).canImport && candidate.date && candidate.startTime && candidate.endTime) {
-    const identity = candidate.address ?? candidate.locationLabel;
+    const identity = candidate.address?.trim() ? candidate.address : candidate.locationLabel;
     const locationsByKey = locationMap(locations);
     const exactLocationKey = candidateStudyLocationKey(candidate);
-    const existingLocationId = exactLocationKey
-      ? locationsByKey.get(exactLocationKey)?.id ?? (identity ? locationsByKey.get(normalizeLocationKey(identity))?.id : undefined)
-      : identity ? locationsByKey.get(normalizeLocationKey(identity))?.id : undefined;
+    const existingLocation = (exactLocationKey ? locationsByKey.get(exactLocationKey) : undefined)
+      ?? (identity ? matchingLegacyStudyLocation(candidate, locationsByKey.get(normalizeLocationKey(identity))) : undefined);
+    const preservedFields = preservedFieldsForTrashRestore(event);
+    const locationsToCreate: Location[] = [];
+    const existingLocationId = existingLocation?.id ?? (
+      preservedFields.includes('locationId')
+        ? undefined
+        : ensureCandidateLocation(candidate, locationsByKey, locationsToCreate, timestamp)
+    );
     restored = applyCandidateToExistingEvent(
       event,
       requireCompleteImportCandidate(candidate),
       active.id,
       match.id,
       existingLocationId,
-      preservedFieldsForTrashRestore(event),
+      preservedFields,
       timestamp,
     );
+    locationToCreate = locationsToCreate[0];
   } else {
     restored = retainedAmbiguousEvent(event, candidate, active.id, match.id, timestamp);
   }
 
   const entryAfter: UniversityImportEntry = { ...match, eventId: restored.id, userDeleted: false };
-  return { event: restored, entryBefore: { ...match }, entryAfter };
+  return {
+    event: restored, entryBefore: { ...match }, entryAfter,
+    ...(locationToCreate ? { locationToCreate } : {}),
+  };
 }
 
 export async function listTrashItems(): Promise<TrashItem[]> {
@@ -4622,6 +4714,7 @@ async function restoreTrashItemInternal(id: string, writeJournal: boolean): Prom
   let studyEntryAfter: UniversityImportEntry | undefined;
   let workEntryBefore: WorkScheduleEntry | undefined;
   let workEntryAfter: WorkScheduleEntry | undefined;
+  let locationToCreate: Location | undefined;
 
   if (item.entityType === 'CALENDAR_EVENT') {
     const originalEvent = payload as CalendarEvent;
@@ -4629,6 +4722,7 @@ async function restoreTrashItemInternal(id: string, writeJournal: boolean): Prom
     restoredEvent = studyResolution.event;
     studyEntryBefore = studyResolution.entryBefore;
     studyEntryAfter = studyResolution.entryAfter;
+    locationToCreate = studyResolution.locationToCreate;
 
     if (restoredEvent.source === 'WORK_PDF' && restoredEvent.sourceWorkEntryId) {
       const workEntry = (await listWorkScheduleEntries()).find((entry) => entry.id === restoredEvent!.sourceWorkEntryId);
@@ -4641,6 +4735,7 @@ async function restoreTrashItemInternal(id: string, writeJournal: boolean): Prom
 
   const storeNames = [STORE_EVENTS, STORE_TRASH_ITEMS];
   if (studyEntryAfter) storeNames.push(STORE_UNIVERSITY_IMPORT_ENTRIES);
+  if (locationToCreate) storeNames.push(STORE_LOCATIONS);
   if (workEntryAfter) storeNames.push(STORE_WORK_SCHEDULE_ENTRIES);
   if (item.entityType === 'DAY_CONSTRAINT') storeNames.push(STORE_DAY_CONSTRAINTS);
   if (writeJournal) storeNames.push(STORE_CHANGE_JOURNAL);
@@ -4649,6 +4744,7 @@ async function restoreTrashItemInternal(id: string, writeJournal: boolean): Prom
 
   if (item.entityType === 'CALENDAR_EVENT') {
     if (!restoredEvent) throw new Error('Nie udało się odtworzyć wydarzenia z Kosza.');
+    if (locationToCreate) tx.objectStore(STORE_LOCATIONS).add(locationToCreate);
     eventStore.put(restoredEvent);
     if (studyEntryAfter) tx.objectStore(STORE_UNIVERSITY_IMPORT_ENTRIES).put(studyEntryAfter);
     if (workEntryAfter) tx.objectStore(STORE_WORK_SCHEDULE_ENTRIES).put(workEntryAfter);

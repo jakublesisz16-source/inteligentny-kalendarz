@@ -3,7 +3,6 @@ import type { CalendarEvent } from '../events/event.types';
 import type { Location } from '../locations/location.types';
 import type { TimeFormat } from '../settings/settings.types';
 import type { CalendarConsistencyIssue } from '../planning/planning.types';
-import type { AvailabilityPlan } from '../availability/availability.types';
 import type { CoworkerOverlap } from '../work/work.types';
 import { EventCard } from '../events/EventCard';
 import { EmptyState } from '../ui/EmptyState';
@@ -20,7 +19,6 @@ interface TodayViewProps {
   onStudyCorrect?: (event: CalendarEvent) => void;
   consistencyIssues?: CalendarConsistencyIssue[];
   onOpenConsistencyCenter?: () => void;
-  availabilityPlans?: AvailabilityPlan[];
   coworkersByEvent?: Record<string, CoworkerOverlap[]>;
 }
 
@@ -49,7 +47,7 @@ function upcomingWhenLabel(event: CalendarEvent, todayKey: string, timeFormat: T
 }
 
 
-export function TodayView({ events, locations, timeFormat, showPolishHolidays = true, showWumAcademicCalendar = true, onAdd, onEdit, onStudyCorrect, consistencyIssues = [], onOpenConsistencyCenter, availabilityPlans = [], coworkersByEvent = {} }: TodayViewProps) {
+export function TodayView({ events, locations, timeFormat, showPolishHolidays = true, showWumAcademicCalendar = true, onAdd, onEdit, onStudyCorrect, consistencyIssues = [], onOpenConsistencyCenter, coworkersByEvent = {} }: TodayViewProps) {
   const today = new Date();
   const todayKey = toLocalDateKey(today);
   const todayEvents = sortEventsForDay(events.filter((event) => eventOccursOnDate(event, todayKey)));
@@ -59,8 +57,7 @@ export function TodayView({ events, locations, timeFormat, showPolishHolidays = 
     if (event.seriesId && event.seriesType === 'MANUAL_MULTI_DATE') seriesCountById.set(event.seriesId, (seriesCountById.get(event.seriesId) ?? 0) + 1);
   });
   const blockingToday = consistencyIssues.filter((issue) => !issue.acknowledged && issue.planningImpact === 'BLOCKING' && issue.endDateTime.slice(0, 10) >= todayKey && issue.startDateTime.slice(0, 10) <= todayKey);
-  const todayAvailability = availabilityPlans.flatMap((plan) => plan.blocks.filter((block) => block.date === todayKey && block.status !== 'REJECTED').map((block) => ({ ...block, planStatus: plan.status }))).sort((a, b) => a.startTime.localeCompare(b.startTime));
-  const hasPlan = todayEvents.length > 0 || todayAvailability.length > 0;
+  const hasPlan = todayEvents.length > 0;
   const tomorrowKey = addDaysToDateKey(todayKey, 1);
   const tomorrowEvents = sortEventsForDay(events.filter((event) => eventOccursOnDate(event, tomorrowKey)));
   const nextEvent = upcomingEvent(events, today, todayEvents.length ? todayKey : undefined);
@@ -69,7 +66,7 @@ export function TodayView({ events, locations, timeFormat, showPolishHolidays = 
   const todayMarkers = calendarOverlayMarkersForDate(todayKey, { showPolishHolidays, showWumAcademicCalendar });
 
   return (
-    <section className={`view-shell today-view${hasPlan ? ' has-plan' : ' is-empty'}`}>
+    <section className={`view-shell today-view today-ui-v350${hasPlan ? ' has-plan' : ' is-empty'}`}>
       <header className="view-header hero-header today-header today-header-minimal">
         <div>
           <h1>{formatLongDate(today)}</h1>
@@ -89,10 +86,9 @@ export function TodayView({ events, locations, timeFormat, showPolishHolidays = 
               <EventCard key={event.id} event={event} location={event.locationId ? locationMap.get(event.locationId) : undefined} timeFormat={timeFormat} seriesCount={event.seriesId ? seriesCountById.get(event.seriesId) : undefined} onEdit={onEdit} onStudyCorrect={onStudyCorrect} workCoworkers={coworkersByEvent[event.id] ?? []} showAllWorkCoworkers compactTimeRange compactCoworkerLabel />
             ))}
           </div>
-        ) : todayAvailability.length ? null : (
-          <EmptyState icon="calendar" title="Wolny dzień" description="" />
+        ) : (
+          <EmptyState icon="calendar" title="Wolny dzień" description="Brak zaplanowanych wydarzeń na dziś" />
         )}
-        {todayAvailability.length ? <div className="today-availability-list">{todayAvailability.map((block) => <article key={block.id} className={`availability-overlay-card status-${block.status.toLowerCase()}${block.validationState === 'CONFLICT' ? ' has-conflict' : ''}`} aria-label={`${block.status === 'PROPOSED' ? 'Proponowana' : 'Zaakceptowana'} dyspozycyjność ${block.startTime}-${block.endTime}`}><div><strong>{block.status === 'PROPOSED' ? 'Proponowana dyspozycyjność' : block.origin === 'MANUAL' ? 'Twoja dyspozycyjność' : 'Dyspozycyjność'}</strong><span>{block.startTime}-{block.endTime}</span></div>{block.validationState === 'CONFLICT' ? <small>{block.validationMessage ?? 'Wymaga poprawy'}</small> : block.planStatus === 'STALE' ? <small>Wymaga ponownego sprawdzenia</small> : null}</article>)}</div> : null}
 
         {nextEvent && !tomorrowEvents.length ? <section className="today-next-strip today-future-preview" aria-label="Następne wydarzenie">
           <span className="today-next-label">Następne</span>
@@ -106,7 +102,7 @@ export function TodayView({ events, locations, timeFormat, showPolishHolidays = 
           <div className="today-tomorrow-list">{tomorrowEvents.map((event) => {
             const location = event.locationId ? locationMap.get(event.locationId)?.name : event.locationText;
             return <div key={event.id} className={`today-tomorrow-row category-${event.category.toLowerCase()}`}>
-              <span>{event.allDay ? 'Cały dzień' : `${formatTime(event.startDateTime, timeFormat)}-${formatTime(event.endDateTime, timeFormat)}`}</span>
+              <span className="today-tomorrow-time">{event.allDay ? 'Cały dzień' : `${formatTime(event.startDateTime, timeFormat)}-${formatTime(event.endDateTime, timeFormat)}`}</span>
               <div>
                 <strong>{event.title}</strong>
                 {location ? <small>{location}</small> : null}

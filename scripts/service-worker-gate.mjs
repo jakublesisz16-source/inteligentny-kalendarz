@@ -83,7 +83,7 @@ function baseResponses() {
   return map;
 }
 
-function createHarness(overrides = new Map()) {
+function createHarness(overrides = new Map(), { networkDelayMs = 0 } = {}) {
   const listeners = new Map();
   const caches = new CacheStorageMock();
   const responses = baseResponses();
@@ -91,6 +91,8 @@ function createHarness(overrides = new Map()) {
   let skipWaitingCalls = 0;
   let claimCalls = 0;
   let networkFallback = undefined;
+  let activeFetches = 0;
+  let maxConcurrentFetches = 0;
 
   const self = {
     registration: { scope: SCOPE },
@@ -101,10 +103,17 @@ function createHarness(overrides = new Map()) {
   };
 
   const fetchMock = async (input) => {
-    const key = requestKey(input);
-    if (responses.has(key)) return responses.get(key).clone();
-    if (networkFallback) return networkFallback(input);
-    throw new Error(`NETWORK_MISS:${key}`);
+    activeFetches += 1;
+    maxConcurrentFetches = Math.max(maxConcurrentFetches, activeFetches);
+    try {
+      if (networkDelayMs > 0) await new Promise((resolve) => setTimeout(resolve, networkDelayMs));
+      const key = requestKey(input);
+      if (responses.has(key)) return responses.get(key).clone();
+      if (networkFallback) return networkFallback(input);
+      throw new Error(`NETWORK_MISS:${key}`);
+    } finally {
+      activeFetches -= 1;
+    }
   };
 
   const context = vm.createContext({
@@ -119,6 +128,7 @@ function createHarness(overrides = new Map()) {
     Map,
     Promise,
     Error,
+    setTimeout,
   });
   vm.runInContext(SOURCE, context, { filename: 'service-worker.js' });
 
@@ -138,10 +148,12 @@ function createHarness(overrides = new Map()) {
   return {
     caches,
     responses,
+    registration: self.registration,
     triggerLifecycle,
     triggerFetch,
     setNetworkFallback(fn) { networkFallback = fn; },
     counters() { return { skipWaitingCalls, claimCalls }; },
+    fetchConcurrency() { return { activeFetches, maxConcurrentFetches }; },
   };
 }
 
@@ -149,7 +161,7 @@ function createHarness(overrides = new Map()) {
 {
   const h = createHarness();
   await h.triggerLifecycle('install');
-  assert.equal(h.counters().skipWaitingCalls, 1);
+  assert.equal(h.counters().skipWaitingCalls, 0, 'successful upgrade must not force activation over open old-version tabs');
   const cache = await h.caches.open(CURRENT_CACHE);
   for (const required of [
     SCOPE,
@@ -174,6 +186,38 @@ function createHarness(overrides = new Map()) {
   );
 }
 
+// The development worker must still leave the origin immediately, so it
+// cannot interfere with Vite and accidental old PWA registrations on localhost.
+{
+  const h = createHarness();
+  h.registration.scope = 'http://localhost:5173/';
+  await h.triggerLifecycle('install');
+  assert.equal(h.counters().skipWaitingCalls, 1,
+    'development cleanup must retain immediate activation');
+  assert.equal(h.caches.stores.has(CURRENT_CACHE), false,
+    'development must not precache production assets');
+}
+
+// Install performs bounded parallel mandatory fetches while preserving offline completeness.
+// Synthetic delay is deterministic test-network latency, NOT a mobile performance benchmark.
+{
+  const h = createHarness(new Map(), { networkDelayMs: 5 });
+  await h.triggerLifecycle('install');
+  const { activeFetches, maxConcurrentFetches } = h.fetchConcurrency();
+  assert.equal(activeFetches, 0, 'install left network requests in flight');
+  assert.ok(maxConcurrentFetches >= 2, 'mandatory resources were fetched sequentially');
+  assert.ok(maxConcurrentFetches <= 4, 'service worker exceeded bounded concurrency');
+}
+
+// A failed batch must finish its other in-flight writes before the cache is removed.
+{
+  const failingUrl = 'https://calendar.test/app/ocr/tesseract/core/tesseract-core-simd-lstm.wasm.js';
+  const h = createHarness(new Map([[failingUrl, response('missing', 'text/plain', 404)]]), { networkDelayMs: 5 });
+  await assert.rejects(() => h.triggerLifecycle('install'));
+  assert.equal(h.fetchConcurrency().activeFetches, 0, 'failed install abandoned active downloads');
+  assert.equal(h.caches.stores.has(CURRENT_CACHE), false, 'failed install retained partial cache');
+}
+
 // A failed mandatory fetch must remove the partial current cache and not activate it.
 {
   const failingUrl = 'https://calendar.test/app/ocr/tesseract/lang/pol.traineddata.gz';
@@ -181,6 +225,40 @@ function createHarness(overrides = new Map()) {
   await assert.rejects(() => h.triggerLifecycle('install'));
   assert.equal(h.counters().skipWaitingCalls, 0);
   assert.equal(h.caches.stores.has(CURRENT_CACHE), false, 'partial cache survived failed install');
+}
+
+// A failed attempted SW upgrade must leave the previously installed offline shell
+// intact. The browser will keep controlling clients with the old service worker.
+{
+  const missingUrl = 'https://calendar.test/app/ocr/tesseract/lang/pol.traineddata.gz';
+  const h = createHarness(new Map([[missingUrl, response('missing', 'text/plain', 404)]]));
+  const previousCacheName = 'inteligentny-kalendarz-shell-previous-version';
+  const oldCache = await h.caches.open(previousCacheName);
+  await oldCache.put(SCOPE, response('PREVIOUS COMPLETE SHELL', 'text/html'));
+  await assert.rejects(() => h.triggerLifecycle('install'));
+  assert.equal((await (await oldCache.match(SCOPE)).text()), 'PREVIOUS COMPLETE SHELL',
+    'failed update damaged the previous offline shell');
+  assert.equal(h.caches.stores.has(CURRENT_CACHE), false,
+    'failed update left a partially installed replacement shell');
+  assert.equal(h.counters().skipWaitingCalls, 0,
+    'failed update requested activation');
+}
+
+// Updating an installed PWA must not take over a still-open older tab.
+// That tab can request a previously precached lazy JS chunk after the new
+// deployment removes old hashed assets from the server. Standard SW lifecycle
+// keeps the old worker controlling old tabs until they are all closed.
+{
+  const h = createHarness();
+  const previousCache = await h.caches.open('inteligentny-kalendarz-shell-v1.2.526');
+  const oldLazyChunkUrl = 'https://calendar.test/app/assets/StudyView-old-build.js';
+  await previousCache.put(SCOPE, response('OLD SHELL', 'text/html'));
+  await previousCache.put(oldLazyChunkUrl, response('OLD LAZY MODULE', 'text/javascript'));
+  await h.triggerLifecycle('install');
+  assert.equal(h.counters().skipWaitingCalls, 0,
+    'new SW cannot skip the waiting phase while previous clients might still need old lazy modules');
+  assert.equal(await (await previousCache.match(oldLazyChunkUrl)).text(), 'OLD LAZY MODULE',
+    'install must retain old offline resources while the previous worker controls open clients');
 }
 
 // Activation may remove only old caches owned by this application.
@@ -195,6 +273,31 @@ function createHarness(overrides = new Map()) {
   assert.ok(!keys.includes('inteligentny-kalendarz-shell-old'));
   assert.ok(keys.includes('other-app-cache'), 'service worker deleted an unrelated cache');
   assert.equal(h.counters().claimCalls, 1);
+}
+
+// An old installed SW must not replace its offline HTML with HTML from a newer
+// deployment until the newer SW has atomically installed the matching asset set.
+// Otherwise a subsequent offline restart can reference uncached JS/CSS.
+{
+  const h = createHarness();
+  await h.triggerLifecycle('install');
+  const cache = await h.caches.open(CURRENT_CACHE);
+  const oldShellHtml = await (await cache.match(SCOPE)).text();
+  const nextHtml = `<!doctype html><link rel="stylesheet" href="/app/assets/index-next.css"><script src="/app/assets/index-next.js"></script>`;
+  h.responses.set(SCOPE, response(nextHtml, 'text/html'));
+
+  const live = await h.triggerFetch({ url: SCOPE, method: 'GET', mode: 'navigate' });
+  assert.equal(await live.text(), nextHtml, 'online navigation must serve fresh HTML');
+  assert.equal(await (await cache.match(SCOPE)).text(), oldShellHtml,
+    'online navigation must not overwrite the atomic offline shell before SW update');
+
+  h.responses.delete(SCOPE);
+  h.setNetworkFallback(async () => { throw new Error('offline'); });
+  const offline = await h.triggerFetch({ url: SCOPE, method: 'GET', mode: 'navigate' });
+  assert.equal(await offline.text(), oldShellHtml,
+    'offline fallback must serve the original complete shell');
+  assert.ok(await cache.match('https://calendar.test/app/assets/index-abc.js'),
+    'offline fallback must retain the original JS matched by cached HTML');
 }
 
 // Runtime lookup must never fall through to a foreign cache on the same origin.

@@ -15,7 +15,6 @@ const expectedHash = process.env.IK_STUDY_XLS_SHA256?.toLowerCase();
 
 function summary(report: ReturnType<typeof buildStudySourceAudit>) {
   return {
-    adapterId: report.adapterId,
     candidateCount: report.candidateCount,
     readyCount: report.readyCount,
     reviewRequiredCount: report.reviewRequiredCount,
@@ -86,6 +85,8 @@ describe('optional real study source QA audit', () => {
       };
     } : null;
     if (state?.activeStudySourceFingerprint?.sha256?.toLowerCase() === hash) {
+      // adapterId is asserted separately: the saved audit stores only numeric/structural fields.
+      expect(report.adapterId).toBe('nursing-week-matrix-v2');
       expect(summary(report)).toEqual(state.activeStudyAudit);
       if (state.activeStudySemanticReference?.allCandidatesSha256) {
         expect(await candidateSemanticFingerprint(analysis!.candidates)).toBe(state.activeStudySemanticReference.allCandidatesSha256);

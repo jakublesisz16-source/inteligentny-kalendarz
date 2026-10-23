@@ -21,7 +21,7 @@ describe('1.2.0.53 mobile work settings save', () => {
   });
 
   it('does not require a database migration', () => {
-    expect(version).toMatch(/APP_VERSION\s*=\s*'\d+\.\d+\.\d+\.\d+'/u);
+    expect(version).toMatch(/APP_VERSION\s*=\s*'\d+\.\d+\.\d+'/u);
     expect(version).toContain('DATABASE_SCHEMA_VERSION = 14');
   });
 });

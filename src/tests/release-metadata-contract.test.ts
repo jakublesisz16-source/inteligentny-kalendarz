@@ -29,11 +29,10 @@ function runtimeIdentity() {
 describe('release metadata contract', () => {
   it('keeps APP_VERSION, APP_BUILD, package version and service-worker cache synchronized', () => {
     const { versionSource, appVersion, appBuild } = runtimeIdentity();
-    expect(appVersion).toMatch(/^\d+\.\d+\.\d+\.\d+$/u);
-    expect(appBuild).toBe(appVersion!.split('.')[3]);
-    const releaseVersion = appVersion!.split('.').slice(0, 3).join('.');
+    expect(appVersion).toMatch(/^\d+\.\d+\.\d+$/u);
+    expect(appBuild).toBe(appVersion!.split('.')[2]);
     const packageJson = JSON.parse(sourceText('package.json')) as { version: string };
-    expect(packageJson.version).toBe(`${releaseVersion}-private.${appBuild}`);
+    expect(packageJson.version).toBe(`${appVersion}-private.${appBuild}`);
     expect(sourceText('public/service-worker.js')).toContain(`v${appVersion}`);
     expect(versionSource).toContain('DATABASE_SCHEMA_VERSION = 14');
   });
@@ -52,18 +51,18 @@ describe('release metadata contract', () => {
     const metadataExists = ['CURRENT_STATE.json', 'BUILD_INFO.json'].every((path) => existsSync(path));
     if (!metadataExists) return;
     const { appVersion, appBuild } = runtimeIdentity();
+    const releaseVersion = appVersion; // The release identity is MAJOR.MINOR.PATCH, not the npm prerelease suffix.
     const state = JSON.parse(sourceText('CURRENT_STATE.json')) as PrivateState;
     const buildInfo = JSON.parse(sourceText('BUILD_INFO.json')) as BuildInfo;
-    const releaseVersion = appVersion!.split('.').slice(0, 3).join('.');
     expect(state.version).toBe(appVersion);
     expect(String(state.build)).toBe(appBuild);
     expect(state.releaseVersion).toBe(releaseVersion);
     expect(buildInfo.appVersion).toBe(appVersion);
     expect(buildInfo.build).toBe(appBuild);
     expect(buildInfo.releaseVersion).toBe(releaseVersion);
-    expect(buildInfo.packageVersion).toBe(`${releaseVersion}-private.${appBuild}`);
-    expect(state.versionScheme).toBe('MAJOR.MINOR.STAGE.BUILD');
-    expect(buildInfo.versionScheme).toBe('MAJOR.MINOR.STAGE.BUILD');
+    expect(buildInfo.packageVersion).toBe(`${appVersion}-private.${appBuild}`);
+    expect(state.versionScheme).toBe('MAJOR.MINOR.PATCH');
+    expect(buildInfo.versionScheme).toBe('MAJOR.MINOR.PATCH');
   });
 
   it('keeps the simple increment/reset policy in PRIVATE checkpoints', () => {
@@ -71,14 +70,13 @@ describe('release metadata contract', () => {
     const state = JSON.parse(sourceText('CURRENT_STATE.json')) as PrivateState;
     const rules = sourceText('CURRENT_PROJECT_RULES.md');
     expect(state.versionPolicy).toMatchObject({
-      normalUpdate: 'increment-build',
-      stageUpdate: 'increment-stage-reset-build-0',
-      minorUpdate: 'increment-minor-reset-stage-build-0',
-      majorUpdate: 'increment-major-reset-minor-stage-build-0',
+      normalUpdate: 'increment-patch',
+      minorUpdate: 'increment-minor-reset-patch-0',
+      majorUpdate: 'increment-major-reset-minor-patch-0',
       noFileChange: 'keep-version',
     });
-    expect(rules).toContain('Format projektu jest stały: `MAJOR.MINOR.STAGE.BUILD`');
-    expect(rules).toContain('`BUILD` nie ma limitu 99');
+    expect(rules).toContain('Format projektu jest stały: `MAJOR.MINOR.PATCH`');
+    expect(rules).toContain('`PATCH` nie ma limitu 99');
     expect(rules).toContain('sama rozmowa, analiza lub test bez trwałej zmiany plików projektu nie zmienia numeru');
   });
 });

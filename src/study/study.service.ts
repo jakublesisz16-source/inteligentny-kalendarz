@@ -134,7 +134,7 @@ function eventFieldDateTime(value: string): { date: string; time: string } | nul
 function legacyPreservedFields(event: CalendarEvent): UserModifiedEventField[] {
   if (!event.userModified) return [];
   if (event.userModifiedFields?.length) return [...event.userModifiedFields];
-  return ['title', 'startDateTime', 'endDateTime', 'locationId', 'description', 'category'];
+  return ['title', 'startDateTime', 'endDateTime', 'locationId', 'locationText', 'description', 'category'];
 }
 
 function preservedFieldsForDecision(item: ScheduleDiffItem, event: CalendarEvent): Set<UserModifiedEventField> {
@@ -157,7 +157,7 @@ function preservedFieldsForDecision(item: ScheduleDiffItem, event: CalendarEvent
       }
       if (change.field === 'startTime') fields.add('startDateTime');
       if (change.field === 'endTime') fields.add('endDateTime');
-      if (change.field === 'address' || change.field === 'locationLabel') fields.add('locationId');
+      if (change.field === 'address' || change.field === 'locationLabel') { fields.add('locationId'); fields.add('locationText'); }
       if (change.field === 'room' || change.field === 'clinic' || change.field === 'activityType' || change.field === 'groupTags') fields.add('description');
     }
   }

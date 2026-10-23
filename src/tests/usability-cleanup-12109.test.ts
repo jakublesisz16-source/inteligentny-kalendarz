@@ -62,7 +62,7 @@ describe('1.2.0.110 focused usability cleanup', () => {
   });
 
   it('keeps schema unchanged', () => {
-    expect(version).toMatch(/APP_VERSION\s*=\s*'\d+\.\d+\.\d+\.\d+'/u);
+    expect(version).toMatch(/APP_VERSION\s*=\s*'\d+\.\d+\.\d+'/u);
     expect(version).toContain('DATABASE_SCHEMA_VERSION = 14');
   });
 });

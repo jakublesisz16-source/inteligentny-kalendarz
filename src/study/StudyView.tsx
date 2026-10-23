@@ -25,7 +25,7 @@ import {
   selectAllImportable,
   toggleCandidateSelection,
 } from './import-review';
-import { applySafeSeriesCorrection, pendingRulesForSeriesCorrection } from './study-corrections';
+import { applyCandidateEditorLocation, applySafeSeriesCorrection, pendingRulesForSeriesCorrection } from './study-corrections';
 import { identifyCandidate } from './study-identity';
 import { candidatesForSelectedGroups, findStudyScheduleConflicts, hashFile, validateStudyGroupSelection } from './study.service';
 import { completenessForSelectedGroups } from './study-completeness';
@@ -162,9 +162,7 @@ function CandidateEditor({ candidate, peerCount, onSave, onCancel }: CandidateEd
       manuallyReviewed: true,
     };
     if (!room.trim()) delete updated.room;
-    if (!address.trim()) delete updated.address;
-    if (address.trim()) delete updated.locationLabel;
-    return identifyCandidate(updated);
+    return identifyCandidate(applyCandidateEditorLocation(candidate, updated, address));
   }
 
   function save(scope: 'SINGLE' | 'SERIES') {

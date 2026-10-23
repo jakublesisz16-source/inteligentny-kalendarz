@@ -48,7 +48,7 @@ describe('1.2.0.54 global clarity pass', () => {
   });
 
   it('keeps the database schema stable and build metadata separated', () => {
-    expect(version).toMatch(/APP_VERSION\s*=\s*'\d+\.\d+\.\d+\.\d+'/u);
+    expect(version).toMatch(/APP_VERSION\s*=\s*'\d+\.\d+\.\d+'/u);
     expect(version).not.toContain('APP_BUILD');
     expect(build).toMatch(/APP_BUILD\s*=\s*'\d+'/u);
     expect(build).toContain('BUILD_NUMBER = APP_BUILD');

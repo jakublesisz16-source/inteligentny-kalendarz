@@ -23,7 +23,7 @@ describe('finance dashboard foundation regression', () => {
     const version = source('../core/version.ts');
     expect(dashboard).toContain('await createReceipt({');
     expect(dashboard).toContain('items: [{');
-    expect(version).toMatch(/APP_VERSION\s*=\s*'\d+\.\d+\.\d+\.\d+'/u);
+    expect(version).toMatch(/APP_VERSION\s*=\s*'\d+\.\d+\.\d+'/u);
     expect(version).toContain('DATABASE_SCHEMA_VERSION = 14');
   });
 

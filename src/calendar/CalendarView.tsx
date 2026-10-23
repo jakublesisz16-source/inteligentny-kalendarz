@@ -1,15 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   createMonthGrid,
-  eventOccursOnDate,
   formatMonthLabel,
   formatTime,
   sameMonth,
-  sortEventsForDay,
+  indexEventsForDateKeys,
   toLocalDateKey,
   combineDateAndTime,
 } from './date.utils';
-import { categoryCountsByDate } from './category-counters';
+import { categoryCountsForVisibleEvents } from './category-counters';
 import type { CalendarEvent, EventDraft } from '../events/event.types';
 import type { Location } from '../locations/location.types';
 import type { TimeFormat } from '../settings/settings.types';
@@ -377,24 +376,16 @@ export function CalendarView({ events, locations, timeFormat, showPolishHolidays
     return () => window.removeEventListener('keydown', handler);
   }, [selectionMode]);
 
-  const countsByDate = useMemo(() => categoryCountsByDate(filteredEvents), [filteredEvents]);
-  const eventsByDate = useMemo(() => {
-    const map = new Map<string, CalendarEvent[]>();
-    for (const day of days) {
-      const key = toLocalDateKey(day);
-      const matching = sortEventsForDay(filteredEvents.filter((event) => eventOccursOnDate(event, key)));
-      if (matching.length) map.set(key, matching);
-    }
-    return map;
-  }, [days, filteredEvents]);
-  const weekEventsByDate = useMemo(() => {
-    const map = new Map<string, CalendarEvent[]>();
-    for (const day of weekDays) {
-      const key = toLocalDateKey(day);
-      map.set(key, sortEventsForDay(filteredEvents.filter((event) => eventOccursOnDate(event, key))));
-    }
-    return map;
-  }, [filteredEvents, weekDays]);
+  const selectedKey = toLocalDateKey(selectedDate);
+  // One shared calendar index serves month cells, week columns and the selected day.
+  const visibleEventsByDate = useMemo(() => indexEventsForDateKeys(filteredEvents, [
+    ...days.map(toLocalDateKey),
+    ...weekDays.map(toLocalDateKey),
+    selectedKey,
+  ]), [filteredEvents, days, weekDays, selectedKey]);
+  const countsByDate = useMemo(() => categoryCountsForVisibleEvents(visibleEventsByDate), [visibleEventsByDate]);
+  const eventsByDate = visibleEventsByDate;
+  const weekEventsByDate = visibleEventsByDate;
 
   const issuesByDate = useMemo(() => {
     const map = new Map<string, CalendarConsistencyIssue[]>();
@@ -425,10 +416,9 @@ export function CalendarView({ events, locations, timeFormat, showPolishHolidays
     return map;
   }, [events]);
 
-  const selectedKey = toLocalDateKey(selectedDate);
   const selectedDayOverlayMarkers = calendarOverlayMarkersForDate(selectedKey, { showPolishHolidays, showWumAcademicCalendar });
   const todayKey = toLocalDateKey(currentTime);
-  const selectedEvents = useMemo(() => sortEventsForDay(filteredEvents.filter((event) => eventOccursOnDate(event, selectedKey))), [filteredEvents, selectedKey]);
+  const selectedEvents = visibleEventsByDate.get(selectedKey) ?? [];
   const selectedIncompleteStudyEntries = useMemo(() => incompleteStudyEntries.filter((entry) => incompleteStudyEntryMarkerAppliesOnDate(entry, selectedKey)), [incompleteStudyEntries, selectedKey]);
 
   useEffect(() => {

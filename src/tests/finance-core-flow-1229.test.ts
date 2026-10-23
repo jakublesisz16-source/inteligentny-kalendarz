@@ -42,7 +42,7 @@ describe('1.2.0.30 Finance core flow', () => {
     const parser = source('../shopping/receipt-ocr/receipt-parser.ts');
     const settings = source('../settings/settings.types.ts');
     const database = source('../storage/database.ts');
-    expect(version).toMatch(/APP_VERSION\s*=\s*'\d+\.\d+\.\d+\.\d+'/u);
+    expect(version).toMatch(/APP_VERSION\s*=\s*'\d+\.\d+\.\d+'/u);
     expect(version).toContain('DATABASE_SCHEMA_VERSION = 14');
     expect(settings).not.toContain('financeBudgets');
     expect(database).not.toContain('normalizeFinanceBudgets');

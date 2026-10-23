@@ -24,6 +24,6 @@ describe('1.2.0.99 mobile modal keyboard viewport', () => {
   });
 
   it('keeps the checkpoint identity synchronized', () => {
-    expect(version).toMatch(/APP_VERSION\s*=\s*'\d+\.\d+\.\d+\.\d+'/u);
+    expect(version).toMatch(/APP_VERSION\s*=\s*'\d+\.\d+\.\d+'/u);
   });
 });

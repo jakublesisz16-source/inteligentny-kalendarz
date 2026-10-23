@@ -39,7 +39,7 @@ describe('mobile weekly planner contract', () => {
 
   it('keeps the schema unchanged', () => {
     const version = source('../core/version.ts');
-    expect(version).toMatch(/APP_VERSION\s*=\s*'\d+\.\d+\.\d+\.\d+'/u);
+    expect(version).toMatch(/APP_VERSION\s*=\s*'\d+\.\d+\.\d+'/u);
     expect(version).toContain('DATABASE_SCHEMA_VERSION = 14');
   });
 });

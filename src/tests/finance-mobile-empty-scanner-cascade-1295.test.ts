@@ -14,7 +14,7 @@ describe('1.2.0.95 mobile empty-month scanner cascade', () => {
   });
 
   it('keeps the database schema unchanged', () => {
-    expect(version).toMatch(/APP_VERSION\s*=\s*'\d+\.\d+\.\d+\.\d+'/u);
+    expect(version).toMatch(/APP_VERSION\s*=\s*'\d+\.\d+\.\d+'/u);
     expect(version).toContain('DATABASE_SCHEMA_VERSION = 14');
   });
 });

@@ -27,7 +27,7 @@ describe('1.2.0.98 mobile safe-area clearance', () => {
   });
 
   it('keeps storage schema unchanged', () => {
-    expect(version).toMatch(/APP_VERSION\s*=\s*'\d+\.\d+\.\d+\.\d+'/u);
+    expect(version).toMatch(/APP_VERSION\s*=\s*'\d+\.\d+\.\d+'/u);
     expect(version).toContain('DATABASE_SCHEMA_VERSION = 14');
   });
 });

@@ -1,5 +1,5 @@
 const CACHE_PREFIX = 'inteligentny-kalendarz-shell-';
-const CACHE_NAME = `${CACHE_PREFIX}v1.2.0.348`;
+const CACHE_NAME = `${CACHE_PREFIX}v1.2.533`;
 
 const MANDATORY_SHELL_ASSET_PATHS = [
   'manifest.webmanifest',
@@ -113,12 +113,26 @@ async function cacheApplicationShell() {
     ]);
     const javascriptBodies = [];
 
-    for (const url of mandatoryUrls) {
-      const response = await fetchMandatoryAsset(url);
-      await cache.put(url, response.clone());
-      const contentType = (response.headers.get('content-type') || '').toLowerCase();
-      if (contentType.includes('javascript') || /\.(?:m?js)$/iu.test(new URL(url).pathname)) {
-        javascriptBodies.push({ url, text: await response.text() });
+    // Cache mandatory offline resources in bounded parallel batches. Await all writes in a
+    // batch before handling errors, so a failed install never races with a cache deletion.
+    // Four parallel requests reduce startup round trips without flooding mobile connections.
+    const mandatoryAssetUrls = [...mandatoryUrls];
+    const mandatoryFetchConcurrency = 4;
+    for (let offset = 0; offset < mandatoryAssetUrls.length; offset += mandatoryFetchConcurrency) {
+      const batch = mandatoryAssetUrls.slice(offset, offset + mandatoryFetchConcurrency);
+      const results = await Promise.allSettled(batch.map(async (url) => {
+        const response = await fetchMandatoryAsset(url);
+        await cache.put(url, response.clone());
+        const contentType = (response.headers.get('content-type') || '').toLowerCase();
+        if (contentType.includes('javascript') || /\.(?:m?js)$/iu.test(new URL(url).pathname)) {
+          return { url, text: await response.text() };
+        }
+        return null;
+      }));
+      const failure = results.find((result) => result.status === 'rejected');
+      if (failure && failure.status === 'rejected') throw failure.reason;
+      for (const result of results) {
+        if (result.status === 'fulfilled' && result.value) javascriptBodies.push(result.value);
       }
     }
 
@@ -153,8 +167,16 @@ async function cacheApplicationShell() {
 
 self.addEventListener('install', (event) => {
   event.waitUntil((async () => {
-    if (!isDevelopmentOrigin()) await cacheApplicationShell();
-    await self.skipWaiting();
+    if (isDevelopmentOrigin()) {
+      // During development, immediately retire a worker accidentally installed
+      // on the same origin. Production updates must respect the waiting phase:
+      // old tabs may still require their old hashed lazy-loaded JS/CSS chunks.
+      await self.skipWaiting();
+      return;
+    }
+    await cacheApplicationShell();
+    // Browser activates this worker once all tabs controlled by the previous
+    // version are gone; never claim their old cache prematurely.
   })());
 });
 
@@ -196,9 +218,10 @@ self.addEventListener('fetch', (event) => {
     event.respondWith((async () => {
       const cache = await caches.open(CACHE_NAME);
       try {
-        const response = await fetch(request);
-        if (response.ok) await cache.put(self.registration.scope, response.clone());
-        return response;
+        // Serve current HTML online, but keep the precached offline shell immutable.
+        // The next Service Worker install must atomically cache its matching JS/CSS
+        // before replacing this fallback; otherwise a new HTML may break offline startup.
+        return await fetch(request);
       } catch {
         return (await cache.match(self.registration.scope)) || Response.error();
       }

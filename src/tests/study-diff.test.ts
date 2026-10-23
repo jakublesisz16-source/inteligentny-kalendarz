@@ -28,6 +28,16 @@ function event(patch: Partial<CalendarEvent> = {}): CalendarEvent {
 }
 
 describe('schedule diff', () => {
+  it('wykrywa konflikt ręcznej tekstowej lokalizacji przy zmianie adresu w Excelu', () => {
+    const previous = event({ locationText: 'Wejście od strony dziedzińca', userModified: true, userModifiedFields: ['locationText'] });
+    const result = buildScheduleDiff({
+      oldEntries: [entry()], oldEvents: [previous],
+      newCandidates: [candidate({ address: 'ul. Nowa 2' })], adapterId: 'nursing-plan-v1',
+    });
+    expect(result.summary.conflicts).toBe(1);
+    expect(result.items[0]?.kind).toBe('CONFLICT_USER_MODIFIED');
+  });
+
   it('rozpoznaje brak zmian', () => {
     const result = buildScheduleDiff({ oldEntries: [entry()], oldEvents: [event()], newCandidates: [candidate()], adapterId: 'nursing-plan-v1' });
     expect(result.summary.unchanged).toBe(1);

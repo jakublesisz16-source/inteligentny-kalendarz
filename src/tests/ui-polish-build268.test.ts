@@ -46,7 +46,7 @@ describe('Build268 bounded UI polish', () => {
   });
 
   it('advances the normal build while keeping schema 14', () => {
-    expect(version).toMatch(/APP_VERSION\s*=\s*'1\.2\.0\.\d+'/u);
+    expect(version).toMatch(/APP_VERSION\s*=\s*'\d+\.\d+\.\d+'/u);
     expect(version).toContain('DATABASE_SCHEMA_VERSION = 14');
   });
 });

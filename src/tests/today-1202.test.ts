@@ -19,14 +19,15 @@ describe('1.2.0.2 Today simplification', () => {
     expect(today).toContain('today-header-add');
     expect(today).not.toContain('today-add-row');
     expect(today).toContain('title="Wolny dzień"');
-    expect(today).toContain('description=""');
+    expect(today).toContain('description="Brak zaplanowanych wydarzeń na dziś"');
     expect(today).not.toContain('actionLabel="+ Dodaj"');
   });
 
   it('keeps the existing calendar and work/availability data flows intact', () => {
     const today = source('../calendar/TodayView.tsx');
     expect(today).toContain('EventCard');
-    expect(today).toContain('todayAvailability');
+    expect(today).not.toContain('todayAvailability');
+    expect(today).not.toContain('availabilityPlans');
     expect(today).toContain('blockingToday');
   });
 });

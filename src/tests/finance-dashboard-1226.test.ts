@@ -28,7 +28,7 @@ describe('Finance products foundation regression', () => {
     const version = source('../core/version.ts');
     expect(database).toContain("const STORE_EXPENSE_PRODUCTS = 'expenseProducts'");
     expect(database).toContain('syncExpenseProductsFromReceipts');
-    expect(version).toMatch(/APP_VERSION\s*=\s*'\d+\.\d+\.\d+\.\d+'/u);
+    expect(version).toMatch(/APP_VERSION\s*=\s*'\d+\.\d+\.\d+'/u);
     expect(version).toContain('DATABASE_SCHEMA_VERSION = 14');
   });
 });

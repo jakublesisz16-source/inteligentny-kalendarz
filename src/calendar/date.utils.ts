@@ -143,3 +143,34 @@ export function sortEventsForDay(events: CalendarEvent[]): CalendarEvent[] {
     return a.startDateTime.localeCompare(b.startDateTime) || a.title.localeCompare(b.title, 'pl');
   });
 }
+
+/**
+ * Index only the dates requested by the calendar UI. Each event is inspected once,
+ * instead of filtering the whole event list independently for every visible day.
+ * Preserve eventOccursOnDate semantics (including multi-day events) and day sorting.
+ */
+export function indexEventsForDateKeys(events: CalendarEvent[], visibleDateKeys: string[]): Map<string, CalendarEvent[]> {
+  const keys = [...new Set(visibleDateKeys)].sort();
+  const indexed = new Map<string, CalendarEvent[]>(keys.map((key) => [key, []]));
+  for (const event of events) {
+    const start = toLocalDateKey(event.startDateTime);
+    const end = toLocalDateKey(event.endDateTime);
+    if (end < start) continue;
+
+    // Find the first requested date >= the event start, without scanning every day.
+    let low = 0;
+    let high = keys.length;
+    while (low < high) {
+      const middle = (low + high) >>> 1;
+      if ((keys[middle] ?? '') < start) low = middle + 1;
+      else high = middle;
+    }
+    for (let index = low; index < keys.length && (keys[index] ?? '') <= end; index += 1) {
+      indexed.get(keys[index]!)!.push(event);
+    }
+  }
+  for (const [key, matches] of indexed) {
+    indexed.set(key, sortEventsForDay(matches));
+  }
+  return indexed;
+}

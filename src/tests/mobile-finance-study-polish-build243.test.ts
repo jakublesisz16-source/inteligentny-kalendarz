@@ -36,7 +36,7 @@ describe('Build243 mobile Finance Items + Study current-plan polish', () => {
   });
 
   it('keeps the 1.2.0 release line and schema 14', () => {
-    expect(version).toMatch(/APP_VERSION\s*=\s*'1\.2\.0\.\d+'/u);
+    expect(version).toMatch(/APP_VERSION\s*=\s*'\d+\.\d+\.\d+'/u);
     expect(version).toContain('DATABASE_SCHEMA_VERSION = 14');
   });
 });

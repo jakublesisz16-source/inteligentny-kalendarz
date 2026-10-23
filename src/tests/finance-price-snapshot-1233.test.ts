@@ -78,7 +78,7 @@ describe('1.2.0.35 Finance simple trusted price snapshot', () => {
   it('does not add a database migration for derived price history', () => {
     const version = source('../core/version.ts');
     const types = source('../shopping/expenses.types.ts');
-    expect(version).toMatch(/APP_VERSION\s*=\s*'\d+\.\d+\.\d+\.\d+'/u);
+    expect(version).toMatch(/APP_VERSION\s*=\s*'\d+\.\d+\.\d+'/u);
     expect(version).toContain('DATABASE_SCHEMA_VERSION = 14');
     expect(types).toContain('unitPriceMinor?: number;');
   });

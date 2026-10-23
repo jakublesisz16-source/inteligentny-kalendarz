@@ -20,7 +20,7 @@ const modal = source('src/ui/Modal.tsx');
 const indexHtml = source('index.html');
 
 const appVersion = /APP_VERSION\s*=\s*'([^']+)'/u.exec(version)?.[1];
-assert(typeof appVersion === 'string' && /^\d+\.\d+\.\d+\.\d+$/u.test(appVersion), 'wrong app version');
+assert(typeof appVersion === 'string' && /^\d+\.\d+\.\d+$/u.test(appVersion), 'wrong app version');
 assert(rates.includes('LOCAL_CURRENT_PLN_RATES'), 'local FX table missing');
 assert(!rates.includes('fetch(') && !rates.includes('XMLHttpRequest') && !/https?:\/\//u.test(rates), 'Finance FX must not use network');
 assert(quickExpense.includes('inputMode="decimal"'), 'amount field must request numeric keyboard');

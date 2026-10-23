@@ -22,7 +22,7 @@ describe('Build272 empty Finance action hierarchy on mobile', () => {
     expect(dashboard).toContain('<h2>Dodaj pierwszy wydatek</h2>');
     expect(dashboard).toContain('className="button button-primary finance-manual-expense"');
     expect(dashboard).toContain('Po pierwszym wydatku pojawi się podsumowanie miesiąca.');
-    expect(version).toMatch(/APP_VERSION\s*=\s*'\d+\.\d+\.\d+\.\d+'/u);
+    expect(version).toMatch(/APP_VERSION\s*=\s*'\d+\.\d+\.\d+'/u);
     expect(version).toContain('DATABASE_SCHEMA_VERSION = 14');
   });
 });

@@ -1,7 +1,7 @@
 {
   "name": "inteligentny-kalendarz",
   "private": true,
-  "version": "1.2.0-private.348",
+  "version": "1.2.533-private.533",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -26,19 +26,19 @@
     "test:audit": "node scripts/test-suite-audit.mjs"
   },
   "dependencies": {
-    "react": "^19.1.1",
-    "react-dom": "^19.1.1",
     "exceljs": "^4.4.0",
-    "pdfjs-dist": "6.2.108"
+    "pdfjs-dist": "6.2.108",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1"
   },
   "devDependencies": {
+    "@types/node": "22.19.21",
     "@types/react": "^19.1.10",
     "@types/react-dom": "^19.1.7",
     "fake-indexeddb": "^6.1.0",
     "typescript": "^5.9.2",
-    "vite": "^7.1.2",
-    "vitest": "^3.2.4",
-    "@types/node": "22.19.21"
+    "vite": "7.3.7",
+    "vitest": "4.1.12"
   },
   "overrides": {
     "exceljs": {

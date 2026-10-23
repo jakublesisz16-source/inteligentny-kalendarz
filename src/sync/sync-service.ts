@@ -3,10 +3,13 @@ import {
   claimLocalSyncOwnerAccountId,
   compactTechnicalStorage,
   createCanonicalDataTransferDocument,
+  inspectBackupText,
   hasMeaningfulDataTransferContent,
   resetLocalDatabaseForAccountSwitch,
+  readLocalSyncOwnerAccountId,
 } from '../storage/database';
 import { sha256Hex } from '../core/sha256';
+import { assertNoOtherOpenSyncTabs, announceAccountSwitchCommitted } from './sync-tab-coordination';
 import {
   clearLocalSyncState,
   getPreferredSyncProviderId,
@@ -524,14 +527,49 @@ export class SyncService {
     if (!status.account) return { phase: 'signed-out', status };
     const accountId = status.account.id;
     await this.assertAccountStable(accountId);
-    // Verify that the current account and cloud transport are reachable before the
-    // destructive local reset. A failed/offline preflight must leave old local data intact.
-    if (this.provider.readRemoteState) await this.provider.readRemoteState();
-    else await this.provider.pullLatest();
+    // Capture the source owner before any remote I/O. The final IDB write
+    // checks this exact owner inside its own transaction (post-probe race).
+    const initialLocalOwnerAccountId = await readLocalSyncOwnerAccountId();
+    // Refuse explicit A -> B replacement while another active tab can still
+    // render or edit account A. This runs before any remote network operation.
+    await assertNoOtherOpenSyncTabs();
     await this.assertAccountStable(accountId);
-    await resetLocalDatabaseForAccountSwitch(accountId);
+    // A successful manifest read does NOT prove that the remote user data can be
+    // downloaded. Never erase the previous account before fetching and verifying
+    // the complete target snapshot (including its portable backup checksum).
+    const remoteState = this.provider.readRemoteState ? await this.provider.readRemoteState() : null;
+    await this.assertAccountStable(accountId);
+    const cloud = remoteState || !this.provider.readRemoteState
+      ? await this.provider.pullLatest(remoteState)
+      : null;
+    await this.assertAccountStable(accountId);
+    if (remoteState && !cloud) {
+      throw new Error('Nie udało się pobrać danych nowego konta. Dane poprzedniego konta pozostają bez zmian.');
+    }
+    if (cloud) {
+      const calculated = await calculateSyncRevision(cloud.document.data);
+      if (calculated !== cloud.revision) throw new SyncRevisionMismatchError(cloud, calculated);
+      if (remoteState && cloud.revision !== remoteState.revision) throw new SyncRemoteChangedError(cloud.revision);
+      await inspectBackupText(JSON.stringify(cloud.document));
+    }
+    // At this point the full target payload has passed validation. Apply exactly
+    // this prefetched revision after the explicit account switch, rather than
+    // risking a second remote download failing after the destructive reset.
+    await this.assertAccountStable(accountId);
+    // Data and owner switch atomically: failed quota/index writes roll back A.
+    // B was fully validated above, and no destructive intermediate DB exists.
+    await assertNoOtherOpenSyncTabs();
+    await this.assertAccountStable(accountId);
+    await resetLocalDatabaseForAccountSwitch(accountId, cloud?.document ?? null, initialLocalOwnerAccountId);
+    // Notify other tabs immediately after the DB commit, even if the Google
+    // session changes just afterward and the caller subsequently throws.
+    announceAccountSwitchCommitted();
     clearLocalSyncState(this.provider.id, accountId);
     await this.assertAccountStable(accountId);
+    if (cloud) {
+      const lastSyncAt = this.markSynced(accountId, cloud.revision, remoteState);
+      return { phase: 'pulled', status, revision: cloud.revision, lastSyncAt };
+    }
     return this.reconcile();
   }
 }

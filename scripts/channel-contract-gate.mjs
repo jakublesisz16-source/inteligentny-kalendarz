@@ -1,3 +1,4 @@
+import { expectedPackageVersion } from './version-identity.mjs';
 import { existsSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { calculateChannelFingerprint } from './channel-fingerprint.mjs';
@@ -20,8 +21,8 @@ if (!failures.length) {
   const serviceWorker = read('public/service-worker.js');
   const appVersion = /APP_VERSION\s*=\s*'([^']+)'/u.exec(versionSource)?.[1];
   const appBuild = /APP_BUILD\s*=\s*'([^']+)'/u.exec(buildSource)?.[1];
-  const releaseVersion = appVersion?.split('.').slice(0, -1).join('.');
-  const expectedPackageVersion = appVersion ? `${releaseVersion}-private.${appBuild}` : null;
+  const releaseVersion = appVersion;
+  const expectedPkg = appVersion ? expectedPackageVersion(appVersion) : null;
   const { fingerprint, fileCount } = calculateChannelFingerprint(root);
 
   assert(info.source === 'PRIVATE', 'channel source must be PRIVATE');
@@ -31,7 +32,7 @@ if (!failures.length) {
   assert(String(info.build) === String(appBuild), 'CHANNEL_BUILD_INFO build differs from source');
   assert(info.releaseVersion === releaseVersion, 'CHANNEL_BUILD_INFO releaseVersion differs from source');
   assert(info.packageVersion === pkg.version, 'CHANNEL_BUILD_INFO packageVersion differs from package.json');
-  assert(pkg.version === expectedPackageVersion, 'package.json version differs from source build');
+  assert(pkg.version === expectedPkg, 'package.json version differs from source build');
   assert(serviceWorker.includes(`v${appVersion}`), 'service-worker cache version differs from APP_VERSION');
   assert(info.contentFingerprint === fingerprint, 'CHANNEL_BUILD_INFO contentFingerprint differs from exact channel tree');
   assert(Number(info.fileCount) === fileCount, 'CHANNEL_BUILD_INFO fileCount differs from exact channel tree');

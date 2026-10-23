@@ -58,7 +58,7 @@ describe('1.2.0.35 Finance compact workflow', () => {
   it('stays on schema 14 and does not add a finance budget or rule-engine store', () => {
     const version = source('../core/version.ts');
     const database = source('../storage/database.ts');
-    expect(version).toMatch(/APP_VERSION\s*=\s*'\d+\.\d+\.\d+\.\d+'/u);
+    expect(version).toMatch(/APP_VERSION\s*=\s*'\d+\.\d+\.\d+'/u);
     expect(version).toContain('DATABASE_SCHEMA_VERSION = 14');
     expect(database).not.toContain('STORE_FINANCE_RULES');
     expect(database).not.toContain('STORE_FINANCE_BUDGETS');

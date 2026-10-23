@@ -12,7 +12,7 @@ export const AVAILABILITY_IMPACTS = ['BLOCKING', 'NON_BLOCKING'] as const;
 export type AvailabilityImpact = (typeof AVAILABILITY_IMPACTS)[number];
 export type ManualSeriesType = (typeof MANUAL_SERIES_TYPES)[number];
 
-export type UserModifiedEventField = 'title' | 'startDateTime' | 'endDateTime' | 'locationId' | 'description' | 'category' | 'allDay' | 'availabilityImpact';
+export type UserModifiedEventField = 'title' | 'startDateTime' | 'endDateTime' | 'locationId' | 'locationText' | 'description' | 'category' | 'allDay' | 'availabilityImpact';
 
 export interface CalendarEvent {
   id: string;

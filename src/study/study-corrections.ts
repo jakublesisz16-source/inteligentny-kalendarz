@@ -96,3 +96,24 @@ export function applySafeSeriesCorrection(
     return next;
   });
 }
+
+/**
+ * Preserve the Excel distinction between a named place and a verified street address.
+ * Saving an unrelated editor field must not silently promote locationLabel to address.
+ * Changing the location input explicitly is treated as a manual address correction.
+ */
+export function applyCandidateEditorLocation(
+  original: StudyScheduleCandidate,
+  updated: StudyScheduleCandidate,
+  editorValue: string,
+): StudyScheduleCandidate {
+  const entered = editorValue.trim();
+  const initial = (original.address ?? original.locationLabel ?? '').trim();
+  if (entered === initial) return updated;
+
+  const next = { ...updated };
+  if (entered) next.address = entered;
+  else delete next.address;
+  delete next.locationLabel;
+  return next;
+}

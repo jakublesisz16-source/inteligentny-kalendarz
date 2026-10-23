@@ -64,7 +64,7 @@ function eventFieldsForChange(change: ScheduleDiffFieldChange): string[] {
     case 'startTime': return ['startDateTime'];
     case 'endTime': return ['endDateTime'];
     case 'address':
-    case 'locationLabel': return ['locationId'];
+    case 'locationLabel': return ['locationId', 'locationText'];
     case 'room':
     case 'clinic':
     case 'activityType':

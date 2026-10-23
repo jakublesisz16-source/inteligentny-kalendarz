@@ -25,6 +25,7 @@ export const PUBLIC_SCRIPT_FILES = new Set([
   'scripts/service-worker-gate.mjs',
   'scripts/source-hygiene-gate.mjs',
   'scripts/channel-fingerprint.mjs',
+  'scripts/version-identity.mjs',
   'scripts/channel-contract-gate.mjs',
   'scripts/channel-monotonicity-gate.mjs',
   'scripts/study-mobile-smoke.mjs',

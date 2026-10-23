@@ -313,6 +313,37 @@ describe('legacy study schema and current lifecycle', () => {
     expect(updated?.userModifiedFields).toContain('title');
   });
 
+  it('oznacza ręczną zmianę locationText i zatrzymuje zmianę adresu z nowego Excela jako konflikt', async () => {
+    await initializeDatabase();
+    await commitUniversityImport({
+      fileName: 'lokalizacja-v1.xls', fileSize: 1, fileHash: 'manual-location-v1', adapterId: 'nursing-plan-v1',
+      sheetNames: ['PRAKTYKI'], selectedGroups: ['13A'], availableGroups: ['13A'],
+      candidates: [candidate('place', '13A', { address: 'ul. Stara 1' })],
+      allCandidates: [candidate('place', '13A', { address: 'ul. Stara 1' })],
+    });
+    const [before] = await listEvents();
+    if (!before) throw new Error('Brak wydarzenia.');
+    await updateEvent(before.id, {
+      title: before.title, startDateTime: before.startDateTime, endDateTime: before.endDateTime,
+      category: before.category, allDay: before.allDay,
+      ...(before.description ? { description: before.description } : {}),
+      ...(before.locationId ? { locationId: before.locationId } : {}),
+      locationText: 'Wejście od dziedzińca',
+    });
+    const [manual] = await listEvents();
+    expect(manual?.locationText).toBe('Wejście od dziedzińca');
+    expect(manual?.userModified).toBe(true);
+    expect(manual?.userModifiedFields).toContain('locationText');
+    const next = candidate('place', '13A', { address: 'ul. Nowa 2' });
+    const preview = await prepareUniversityScheduleUpdate({
+      fileName: 'lokalizacja-v2.xls', fileSize: 1, fileHash: 'manual-location-v2', adapterId: 'nursing-plan-v1',
+      sheetNames: ['PRAKTYKI'], selectedGroups: ['13A'], availableGroups: ['13A'],
+      candidates: [next], allCandidates: [next],
+    });
+    expect(preview.summary.conflicts).toBe(1);
+    expect(preview.items.some((item) => item.kind === 'CONFLICT_USER_MODIFIED')).toBe(true);
+  });
+
   it('przeliczenie grup blokuje nowe konflikty godzin do świadomego potwierdzenia', async () => {
     await initializeDatabase();
     const groupA = candidate('a-conflict', '13A', { date: '2026-03-10', sourceKey: 'source-a-conflict' });

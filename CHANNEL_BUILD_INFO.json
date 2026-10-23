@@ -1,11 +1,11 @@
 {
   "source": "PRIVATE",
   "surface": "public-stable",
-  "buildId": "ik-1.2.0.348-20261013-wum-1310-ci-fingerprint-hotfix",
-  "appVersion": "1.2.0.348",
-  "releaseVersion": "1.2.0",
-  "packageVersion": "1.2.0-private.348",
-  "build": "348",
-  "contentFingerprint": "de804dfc301e621d7344fa1ed368124582f358a48763335fd12f64e01c51e8f2",
-  "fileCount": 589
+  "buildId": "ik-1.2.533-20261022-idb-owner-race-guard",
+  "appVersion": "1.2.533",
+  "releaseVersion": "1.2.533",
+  "packageVersion": "1.2.533-private.533",
+  "build": "533",
+  "contentFingerprint": "bac432fbb364e77d263aff6f0c9d1ff3435084eca0b5b519928ae06af63cee3b",
+  "fileCount": 596
 }

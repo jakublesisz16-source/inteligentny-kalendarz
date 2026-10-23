@@ -57,6 +57,24 @@ describe('IndexedDB storage', () => {
     expect(await listEvents()).toHaveLength(0);
   });
 
+  it('odrzuca błędne daty przy bezpośrednim tworzeniu i edycji, bez modyfikacji rekordu', async () => {
+    await initializeDatabase();
+    const valid = {
+      title: 'Poprawny termin', startDateTime: '2028-02-29T09:00', endDateTime: '2028-02-29T10:00', category: 'PERSONAL' as const,
+    };
+    await expect(createEvent({ ...valid, startDateTime: '2026-02-31T09:00' })).rejects.toThrow();
+    expect(await listEvents()).toHaveLength(0);
+
+    const saved = await createEvent(valid);
+    await expect(updateEvent(saved.id, { ...valid, endDateTime: '2028-02-29T08:00' })).rejects.toThrow();
+    await expect(updateEvent(saved.id, { ...valid, title: '   ' })).rejects.toThrow();
+    const after = await getEvent(saved.id);
+    expect(after?.title).toBe('Poprawny termin');
+    expect(after?.startDateTime).toBe('2028-02-29T09:00');
+    expect(after?.endDateTime).toBe('2028-02-29T10:00');
+    expect(await listEvents()).toHaveLength(1);
+  });
+
   it('zapisuje i odczytuje ustawienia', async () => {
     await initializeDatabase();
     const initial = await getSettings();

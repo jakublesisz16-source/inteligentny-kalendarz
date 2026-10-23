@@ -1,3 +1,3 @@
-export const APP_VERSION = '1.2.0.348';
-export const APP_RELEASE_VERSION = APP_VERSION.split('.').slice(0, -1).join('.');
+export const APP_VERSION = '1.2.533';
+export const APP_RELEASE_VERSION = APP_VERSION;
 export const DATABASE_SCHEMA_VERSION = 14;

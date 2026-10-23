@@ -31,7 +31,7 @@ describe('Build262 mobile visual readability polish', () => {
   });
 
   it('keeps schema 14 while advancing the normal build line', () => {
-    expect(version).toMatch(/APP_VERSION\s*=\s*'1\.2\.0\.\d+'/u);
+    expect(version).toMatch(/APP_VERSION\s*=\s*'\d+\.\d+\.\d+'/u);
     expect(version).toContain('DATABASE_SCHEMA_VERSION = 14');
   });
 });

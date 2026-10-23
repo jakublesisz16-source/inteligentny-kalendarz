@@ -1,3 +1,4 @@
+import { VERSION_SCHEME, parseAppVersion, expectedPackageVersion } from './version-identity.mjs';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 
 function source(path) {
@@ -109,24 +110,23 @@ const rootPrivateNotes = projectRootEntries.filter((name) => /^PRIVATE(?:_.*)?\.
 const appVersion = /APP_VERSION\s*=\s*'([^']+)'/u.exec(version)?.[1];
 const appBuild = /APP_BUILD\s*=\s*'([^']+)'/u.exec(buildMeta)?.[1];
 assert(typeof appVersion === 'string' && typeof appBuild === 'string', 'APP_VERSION/APP_BUILD missing');
-const versionParts = appVersion?.split('.') ?? [];
-assert(versionParts.length === 4 && versionParts.every((part) => /^\d+$/u.test(part)), 'APP_VERSION must use MAJOR.MINOR.STAGE.BUILD');
-const expectedReleaseVersion = versionParts.slice(0, 3).join('.');
-const expectedPrivatePackageVersion = `${expectedReleaseVersion}-private.${appBuild}`;
-assert(versionParts[3] === appBuild, 'APP_VERSION build suffix differs from src/core/build.ts');
+assert(typeof appVersion === 'string' && /^\d+\.\d+\.\d+$/u.test(appVersion), 'APP_VERSION must use MAJOR.MINOR.PATCH');
+const expectedReleaseVersion = appVersion;
+const expectedPrivatePackageVersion = expectedPackageVersion(appVersion);
+assert(String(parseAppVersion(appVersion)[2]) === appBuild, 'APP_VERSION build suffix differs from src/core/build.ts');
 assert(/export const BUILD_NUMBER\s*=\s*APP_BUILD;/u.test(buildMeta), 'runtime BUILD_NUMBER alias missing from src/core/build.ts');
 assert(/import\s*\{\s*BUILD_NUMBER\s*\}\s*from\s*['"]\.\.\/core\/build['"]/u.test(settingsView), 'SettingsView no longer imports the runtime BUILD_NUMBER alias');
 assert(!version.includes('APP_BUILD') && !version.includes('APP_STAGE'), 'technical build/stage metadata leaked back into app version module');
 assert(version.includes('DATABASE_SCHEMA_VERSION = 14'), 'database schema changed unexpectedly');
 if (buildInfo) {
   assert(buildInfo.appVersion === appVersion && buildInfo.build === appBuild, 'BUILD_INFO.json app/build identity differs from source metadata');
-  assert(buildInfo.versionScheme === 'MAJOR.MINOR.STAGE.BUILD' && buildInfo.releaseVersion === expectedReleaseVersion, 'BUILD_INFO.json version scheme/release metadata drifted');
+  assert(buildInfo.versionScheme === VERSION_SCHEME && buildInfo.releaseVersion === expectedReleaseVersion, 'BUILD_INFO.json version scheme/release metadata drifted');
   assert(buildInfo.channel === 'private' && buildInfo.packageVersion === expectedPrivatePackageVersion && /^\d{4}-\d{2}-\d{2}$/u.test(buildInfo.date), 'BUILD_INFO.json is not synchronized with PRIVATE metadata');
 }
 if (currentState) {
   assert(currentState.version === appVersion && String(currentState.build) === appBuild, 'CURRENT_STATE.json app/build identity differs from source metadata');
-  assert(currentState.versionScheme === 'MAJOR.MINOR.STAGE.BUILD' && currentState.releaseVersion === expectedReleaseVersion, 'CURRENT_STATE.json version scheme/release metadata drifted');
-  assert(currentState.versionPolicy?.normalUpdate === 'increment-build' && currentState.versionPolicy?.noFileChange === 'keep-version', 'CURRENT_STATE.json version policy drifted');
+  assert(currentState.versionScheme === VERSION_SCHEME && currentState.releaseVersion === expectedReleaseVersion, 'CURRENT_STATE.json version scheme/release metadata drifted');
+  assert(currentState.versionPolicy?.normalUpdate === 'increment-patch' && currentState.versionPolicy?.noFileChange === 'keep-version', 'CURRENT_STATE.json version policy drifted');
   assert(currentState.channel === 'private', 'CURRENT_STATE.json must describe PRIVATE checkpoint');
   assert(buildInfo?.status === currentState.status, 'BUILD_INFO.json and CURRENT_STATE.json status differ');
 }
@@ -277,7 +277,7 @@ assert(interfaceConsistency.includes('/* 1.2.0.85 - one hierarchy and stronger s
 assert(interfaceConsistency.includes('.calendar-week-event.category-study') && interfaceConsistency.includes('.calendar-week-event.category-work') && interfaceConsistency.includes('.calendar-week-event.category-personal') && interfaceConsistency.includes('.selected-day-panel .event-card.category-work'), 'semantic event contrast does not cover calendar and selected-day surfaces');
 assert(!calendarView.includes('CalendarFilter') && !calendarView.includes('calendar-filter-select') && calendarView.includes('category-${event.category.toLowerCase()}') && calendarView.includes('calendar-view-switch-inline'), 'calendar full-agenda toolbar or semantic event classes regressed');
 assert(studyViewSource.includes('<h1>Studia</h1>') && studyViewSource.includes('study-current-plan-line') && studyViewSource.includes('study-groups-primary') && studyViewSource.includes('study-history-details'), 'Study default surface simplification is missing');
-assert(styleIndex.includes("@import './interface-consistency.css';") && styleIndex.includes("@import './mobile-compact.css';") && styleIndex.trimEnd().endsWith("@import './interface-refinement.css';"), 'shared consistency and compact mobile layers must be followed by the final interface refinement layer');
+assert(styleIndex.includes("@import './interface-consistency.css';") && styleIndex.includes("@import './mobile-compact.css';") && styleIndex.includes("@import './interface-refinement.css';") && styleIndex.trimEnd().endsWith("@import './today-polish.css';") && styleIndex.indexOf("@import './interface-refinement.css';") < styleIndex.indexOf("@import './today-polish.css';"), 'shared consistency and compact mobile layers must be followed by the final interface refinement layer');
 if (privacyDoc) assert(privacyDoc.includes('## Lokalne kursy walut 1.2.0.85') && privacyDoc.includes('wbudowanych lokalnie') && privacyDoc.includes('nie wysyła kwoty wydatku'), 'simplified FX privacy boundary is not documented');
 assert(financeDashboard.includes('completeTripOriginalTotal') && financeDashboard.includes('activeTripOriginalTotalMinor') && financeDashboard.includes('finance-trip-currency-compact'), 'Trip original-currency summary or currency settings entry is missing');
 assert(calendarCss.includes('/* 1.2.0.58 - lightweight trip expense summaries */') && mobileResponsiveCss.includes('/* 1.2.0.58 - trip finances on mobile */'), 'Finance trip summary styling missing');
@@ -349,7 +349,7 @@ assert(calendarCss.includes('width: 32px;') && calendarCss.includes('width: 40px
 assert(calendarCss.includes('/* 1.2.0.70 - resize handle no longer reserves content space in short events */') && !calendarCss.includes('.calendar-week-event.resizable { padding-bottom:'), 'desktop resize is stealing vertical space from short event labels');
 assert(calendarCss.includes('.calendar-week-shell.compact-density .calendar-week-event-time { font-size: .55rem;') && calendarCss.includes('font-size: .64rem;') && calendarCss.includes('text-overflow: ellipsis;'), 'compact week event text readability regression');
 assert(mobileResponsiveCss.includes('.event-form-create:not(.event-form-multi-create) .modal-actions { display: none; }'), 'mobile event create sheet still duplicates the save action in the footer');
-assert(todayView.includes("today-view${hasPlan ? ' has-plan' : ' is-empty'}") && todayView.includes('<EmptyState icon="calendar" title="Wolny dzień" description="" />') && !todayView.includes('actionLabel="+ Dodaj"'), 'Today empty state must stay concise and must not duplicate the header add action');
+assert(todayView.includes("today-view today-ui-v350${hasPlan ? ' has-plan' : ' is-empty'}") && todayView.includes('<EmptyState icon="calendar" title="Wolny dzień" description="Brak zaplanowanych wydarzeń na dziś" />') && !todayView.includes('actionLabel="+ Dodaj"') && !todayView.includes('todayAvailability'), 'Today should show free-day and next-event cards, not availability; add action must not be duplicated');
 assert(todayView.includes('today-plan-panel today-single-surface') && calendarCss.includes('/* 1.2.0.58 - Today uses one visual surface instead of cards inside a card */') && mobileResponsiveCss.includes('/* 1.2.0.58 - keep the single-surface Today hierarchy on phones too */'), 'Today reverted to nested visual cards');
 assert(mobileResponsiveCss.includes('/* 1.2.0.71 - mobile Today work-card readability */') && mobileResponsiveCss.includes('grid-template-columns: 72px minmax(0, 1fr);') && mobileResponsiveCss.includes('column-gap: 12px;') && mobileResponsiveCss.includes('border-top-color: rgba(63,130,146,.07);'), 'mobile Today event hierarchy became cramped or coworker separators became too heavy');
 assert(sha256.includes('globalThis.crypto?.subtle') && sha256.includes('fallbackSha256'), 'SHA-256 fallback for insecure LAN origins is missing');

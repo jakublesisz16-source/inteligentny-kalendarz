@@ -41,6 +41,23 @@ describe('schema 4 manual calendar', () => {
     expect(updated.every((item) => item.title === 'Nauka farmakologii')).toBe(true);
   });
 
+  it('nie zapisuje błędnych dat przy edycji całej serii przez północ', async () => {
+    await initializeDatabase();
+    const created = await createManualEventSeries({
+      title: 'Dyżur', dates: ['2026-08-10', '2026-08-12'], startTime: '18:00', endTime: '20:00', allDay: false, category: 'WORK',
+    });
+    const before = await listManualSeriesEvents(created[0]!.seriesId!);
+    await expect(updateManualEventSeries(created[0]!.id, {
+      title: 'Dyżur nocny', startDateTime: '2026-08-10T23:00', endDateTime: '2026-08-11T01:00',
+      allDay: false, category: 'WORK', spanType: 'MULTI_DAY',
+    })).rejects.toThrow('w obrębie jednego dnia');
+    await expect(updateManualEventSeries(created[0]!.id, {
+      title: 'Całodniowy dyżur', startDateTime: '2026-08-10T00:00', endDateTime: '2026-08-11T23:59',
+      allDay: true, category: 'WORK', spanType: 'MULTI_DAY',
+    })).rejects.toThrow('w obrębie jednego dnia');
+    expect(await listManualSeriesEvents(created[0]!.seriesId!)).toEqual(before);
+  });
+
   it('usuwa jedno wystąpienie albo całą serię bez ruszania innych wydarzeń', async () => {
     await initializeDatabase();
     const created = await createManualEventSeries({ title: 'Nauka', dates: ['2026-08-10', '2026-08-12', '2026-08-15'], startTime: '18:00', endTime: '20:00', allDay: false, category: 'STUDY' });

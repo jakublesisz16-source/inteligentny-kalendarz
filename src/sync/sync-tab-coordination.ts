@@ -1,6 +1,8 @@
 const SYNC_TAB_CHANNEL_NAME = 'ik-sync-tabs-v1';
 const SYNC_LEADER_STORAGE_KEY = 'ik.sync.leader.v1';
 const SYNC_MESSAGE_STORAGE_KEY = 'ik.sync.message.v1';
+const SYNC_ACCOUNT_SWITCH_GENERATION_KEY = 'ik.sync.account-switch.v1';
+const ACCOUNT_SWITCH_PROBE_MS = 350;
 const SYNC_WRITE_LOCK_STORAGE_KEY = 'ik.sync.write-lock.v1';
 const LEADER_LEASE_MS = 10_000;
 const WRITE_LOCK_LEASE_MS = 30_000;
@@ -8,7 +10,9 @@ const WRITE_LOCK_RENEW_MS = 10_000;
 const WRITE_LOCK_WAIT_MS = 120;
 const WRITE_LOCK_MAX_WAIT_MS = 12_000;
 
-export type SyncTabMessageType = 'local-change' | 'wake' | 'remote-applied';
+export type SyncTabMessageType =
+  | 'local-change' | 'wake' | 'remote-applied'
+  | 'account-switch-probe' | 'account-switch-present' | 'account-switch-committed';
 
 interface SyncTabMessage {
   type: SyncTabMessageType;
@@ -27,9 +31,11 @@ function randomId(prefix: string): string {
   return `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
+const CURRENT_TAB_ID = randomId('tab');
+
 function localStorageSafe(): Storage | null {
   try {
-    return typeof localStorage === 'undefined' ? null : localStorage;
+    return typeof window !== 'undefined' ? window.localStorage : (typeof localStorage === 'undefined' ? null : localStorage);
   } catch {
     return null;
   }
@@ -72,6 +78,97 @@ function removeLeaseIfOwned(key: string, ownerId: string): void {
   }
 }
 
+// The generation is advisory: it alerts sleeping tabs when the account's entire
+// dataset has changed. It is never used as an authorization or a data source.
+function readAccountSwitchGeneration(): string | null {
+  try { return localStorageSafe()?.getItem(SYNC_ACCOUNT_SWITCH_GENERATION_KEY) ?? null; }
+  catch { return null; }
+}
+let knownAccountSwitchGeneration = readAccountSwitchGeneration();
+
+function refreshAfterAccountSwitch(): void {
+  const actual = readAccountSwitchGeneration();
+  if (!actual || actual === knownAccountSwitchGeneration) return;
+  knownAccountSwitchGeneration = actual;
+  if (typeof window !== 'undefined') window.location?.reload();
+}
+
+function buildMessage(type: SyncTabMessageType): SyncTabMessage {
+  return { type, sourceTabId: CURRENT_TAB_ID, sentAt: Date.now(), nonce: randomId('message') };
+}
+
+function publishMessage(message: SyncTabMessage, channel: BroadcastChannel | null): void {
+  if (channel) channel.postMessage(message);
+  else localStorageSafe()?.setItem(SYNC_MESSAGE_STORAGE_KEY, JSON.stringify(message));
+}
+
+// Before explicitly replacing account A with B, ask every responsive open tab
+// to identify itself. Refuse the switch if another tab replies. A sleeping tab
+// may not respond; the committed generation triggers a reload upon its resume.
+export async function assertNoOtherOpenSyncTabs(waitMs = ACCOUNT_SWITCH_PROBE_MS): Promise<void> {
+  const storage = localStorageSafe();
+  // Fail closed: without localStorage we cannot alert resumed/background tabs.
+  if (!storage || typeof window === 'undefined') {
+    if (typeof window === 'undefined') return; // server/test environment without browser tabs
+    throw new Error('Nie można sprawdzić otwartych kart. Włącz pamięć przeglądarki przed przełączeniem konta.');
+  }
+  // A successful read alone does not prove that a resumed tab can detect a
+  // later commit. Require writeable origin storage before replacing any data.
+  try {
+    const probeKey = 'ik.sync.account-switch.storage-check.v1';
+    storage.setItem(probeKey, CURRENT_TAB_ID);
+    storage.removeItem(probeKey);
+  } catch {
+    throw new Error('Nie można zapisać sygnału bezpieczeństwa w przeglądarce. Dane nie zostały zmienione.');
+  }
+  const initialGeneration = readAccountSwitchGeneration();
+  const channel = typeof BroadcastChannel === 'function' ? new BroadcastChannel(SYNC_TAB_CHANNEL_NAME) : null;
+  let otherPresent = false;
+  let concurrentCommit = false;
+  const observe = (message: SyncTabMessage) => {
+    if (!message || message.sourceTabId === CURRENT_TAB_ID) return;
+    if (message.type === 'account-switch-present') otherPresent = true;
+    // Another tab may finish its own A→B switch while we are still probing.
+    // A committed switch must veto this operation, even without a presence reply.
+    if (message.type === 'account-switch-committed') concurrentCommit = true;
+  };
+  const storageHandler = (event: StorageEvent) => {
+    if (event.key === SYNC_ACCOUNT_SWITCH_GENERATION_KEY) {
+      refreshAfterAccountSwitch();
+      return;
+    }
+    if (event.key !== SYNC_MESSAGE_STORAGE_KEY || !event.newValue) return;
+    try { observe(JSON.parse(event.newValue) as SyncTabMessage); } catch { /* ignore */ }
+  };
+  if (channel) channel.onmessage = (event: MessageEvent<SyncTabMessage>) => observe(event.data);
+  else window.addEventListener('storage', storageHandler);
+  try {
+    publishMessage(buildMessage('account-switch-probe'), channel);
+    await sleep(waitMs);
+  } finally {
+    channel?.close();
+    if (!channel) window.removeEventListener('storage', storageHandler);
+  }
+  if (otherPresent) {
+    throw new Error('Przed przełączeniem konta zamknij pozostałe karty Inteligentnego Kalendarza i spróbuj ponownie. Dane nie zostały zmienione.');
+  }
+  // A persistent generation check catches commits whose BroadcastChannel event
+  // was missed (including when the fallback storage listener was not installed).
+  if (concurrentCommit || readAccountSwitchGeneration() !== initialGeneration) {
+    throw new Error('Wykryto zmianę konta w innej karcie podczas sprawdzania. Odśwież aplikację przed kolejną próbą. Przełączenie w tej karcie zostało wstrzymane.');
+  }
+}
+
+export function announceAccountSwitchCommitted(): void {
+  const generation = randomId('account-switch');
+  const storage = localStorageSafe();
+  knownAccountSwitchGeneration = generation;
+  try { storage?.setItem(SYNC_ACCOUNT_SWITCH_GENERATION_KEY, generation); } catch { /* best effort */ }
+  const channel = typeof BroadcastChannel === 'function' ? new BroadcastChannel(SYNC_TAB_CHANNEL_NAME) : null;
+  try { publishMessage(buildMessage('account-switch-committed'), channel); }
+  finally { channel?.close(); }
+}
+
 export interface SyncTabCoordinatorHandle {
   readonly tabId: string;
   refreshLeadership(): boolean;
@@ -81,13 +178,25 @@ export interface SyncTabCoordinatorHandle {
 }
 
 export function createSyncTabCoordinator(onMessage: (type: SyncTabMessageType) => void): SyncTabCoordinatorHandle {
-  const tabId = randomId('tab');
+  const tabId = CURRENT_TAB_ID;
   let leader = false;
   let disposed = false;
   let channel: BroadcastChannel | null = null;
 
   const handleMessage = (message: SyncTabMessage) => {
     if (disposed || message.sourceTabId === tabId) return;
+    if (message.type === 'account-switch-probe') {
+      announce('account-switch-present');
+      return;
+    }
+    if (message.type === 'account-switch-committed') {
+      // The data set was replaced in another tab. The old React state and
+      // pending operations must not continue against the newly owned database.
+      knownAccountSwitchGeneration = null;
+      refreshAfterAccountSwitch();
+      return;
+    }
+    if (message.type === 'account-switch-present') return;
     onMessage(message.type);
   };
 
@@ -101,6 +210,10 @@ export function createSyncTabCoordinator(onMessage: (type: SyncTabMessageType) =
   }
 
   const storageHandler = (event: StorageEvent) => {
+    if (event.key === SYNC_ACCOUNT_SWITCH_GENERATION_KEY) {
+      refreshAfterAccountSwitch();
+      return;
+    }
     if (event.key !== SYNC_MESSAGE_STORAGE_KEY || !event.newValue) return;
     try {
       const message = JSON.parse(event.newValue) as SyncTabMessage;
@@ -137,26 +250,16 @@ export function createSyncTabCoordinator(onMessage: (type: SyncTabMessageType) =
 
   function announce(type: SyncTabMessageType): void {
     if (disposed) return;
-    const message: SyncTabMessage = {
-      type,
-      sourceTabId: tabId,
-      sentAt: Date.now(),
-      nonce: randomId('message'),
-    };
-    channel?.postMessage(message);
-    if (!channel) {
-      const storage = localStorageSafe();
-      try {
-        storage?.setItem(SYNC_MESSAGE_STORAGE_KEY, JSON.stringify(message));
-      } catch {
-        // Best-effort only.
-      }
-    }
+    try { publishMessage(buildMessage(type), channel); }
+    catch { /* Best-effort notification only. */ }
   }
 
   return {
     tabId,
-    refreshLeadership,
+    refreshLeadership() {
+      refreshAfterAccountSwitch();
+      return refreshLeadership();
+    },
     isLeader: () => leader,
     announce,
     dispose() {
